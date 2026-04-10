@@ -153,12 +153,17 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
       // Send notification email
       try {
-        const emailBody = buildEmailBody(typLabel, probDesc, isReklam ? probPriority : undefined) +
-          (imageUrls.length > 0 ? `<p><strong>${imageUrls.length} bild(er) bifogade</strong></p>` : '');
+        const rows = buildProblemRows(typLabel, probDesc, isReklam ? probPriority : undefined);
+        if (imageUrls.length > 0) {
+          rows.push({ label: 'Bilder', value: `${imageUrls.length} bild(er) bifogade` });
+        }
         await sendNotificationEmail({
           to: COORDINATOR_EMAIL,
+          cc: COORDINATOR_CC,
           subject: `${isReklam ? 'NY REKLAMATION' : 'NY AVVIKELSE'} — ${caseData.address}`,
-          body: emailBody,
+          heading: isReklam ? 'Ny reklamation' : 'Ny avvikelse',
+          rows,
+          callToAction: 'Vänligen granska ärendet.',
         });
         await createCaseEvent({
           case_id: caseData.id,
