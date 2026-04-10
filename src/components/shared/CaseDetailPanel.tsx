@@ -555,7 +555,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Anteckning</h3>
             <div className="flex gap-2">
               <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="flex-1" placeholder="Skriv en anteckning..." />
-              <Button size="sm" disabled={!note} onClick={() => noteMutation.mutate()}>Spara</Button>
+              <Button size="sm" disabled={!note || noteMutation.isPending} onClick={() => noteMutation.mutate()}>{noteMutation.isPending ? 'Sparar...' : 'Spara'}</Button>
             </div>
           </section>
 
