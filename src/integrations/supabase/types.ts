@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      case_costs: {
+        Row: {
+          amount: number
+          case_id: string
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          receipt_url: string | null
+        }
+        Insert: {
+          amount: number
+          case_id: string
+          created_at?: string
+          created_by: string
+          description: string
+          id?: string
+          receipt_url?: string | null
+        }
+        Update: {
+          amount?: number
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          receipt_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_costs_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_events: {
         Row: {
           case_id: string
