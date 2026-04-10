@@ -72,6 +72,7 @@ export type Database = {
           tb_percent: number | null
           team: string | null
           updated_at: string
+          visit_id: string | null
         }
         Insert: {
           address: string
@@ -95,6 +96,7 @@ export type Database = {
           tb_percent?: number | null
           team?: string | null
           updated_at?: string
+          visit_id?: string | null
         }
         Update: {
           address?: string
@@ -118,8 +120,17 @@ export type Database = {
           tb_percent?: number | null
           team?: string | null
           updated_at?: string
+          visit_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cases_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deviations: {
         Row: {
@@ -158,6 +169,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "deviations_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visits: {
+        Row: {
+          address: string
+          case_id: string | null
+          created_at: string
+          customer_name: string
+          date: string
+          follow_up_date: string | null
+          id: string
+          notes: string | null
+          order_value: number | null
+          result: string
+          seller: string
+        }
+        Insert: {
+          address: string
+          case_id?: string | null
+          created_at?: string
+          customer_name: string
+          date: string
+          follow_up_date?: string | null
+          id?: string
+          notes?: string | null
+          order_value?: number | null
+          result: string
+          seller: string
+        }
+        Update: {
+          address?: string
+          case_id?: string | null
+          created_at?: string
+          customer_name?: string
+          date?: string
+          follow_up_date?: string | null
+          id?: string
+          notes?: string | null
+          order_value?: number | null
+          result?: string
+          seller?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_case_id_fkey"
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
