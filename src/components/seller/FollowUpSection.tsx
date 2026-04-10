@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface FollowUpSectionProps {
@@ -16,8 +15,8 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, result }: { id: string; result: string }) => {
-      await updateVisit(id, { result });
+    mutationFn: async ({ id, updates }: { id: string; updates: Record<string, unknown> }) => {
+      await updateVisit(id, updates as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visits'] });
@@ -26,16 +25,31 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
     },
   });
 
+  const lostMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await updateVisit(id, { lost: true } as any);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['visits'] });
+      toast.success('Besök markerat som tappad');
+    },
+  });
+
   const today = new Date();
+
+  // Filter out lost visits
+  const activeVisits = visits.filter(v => !v.lost);
+
+  if (activeVisits.length === 0) return null;
 
   return (
     <div className="mx-4 md:mx-0 rounded-xl border border-yellow-300 bg-yellow-50 p-4 space-y-3">
       <h3 className="text-sm font-semibold text-yellow-800 flex items-center gap-2">
         <CalendarClock className="h-4 w-4" />
-        Att följa upp ({visits.length})
+        Att följa upp ({activeVisits.length})
       </h3>
       <div className="space-y-2">
-        {visits.map((v) => {
+        {activeVisits.map((v) => {
           const followUpDate = v.follow_up_date ? new Date(v.follow_up_date) : null;
           const isPast = followUpDate && followUpDate < today;
           const daysSince = Math.floor((today.getTime() - new Date(v.created_at).getTime()) / (1000 * 60 * 60 * 24));
@@ -60,20 +74,33 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
               <div className="flex gap-2">
                 {updatingId === v.id ? (
                   <>
-                    <Button size="sm" variant="default" onClick={() => {
-                      updateMutation.mutate({ id: v.id, result: 'signerat' });
+                    <Button size="sm" variant="default" disabled={updateMutation.isPending} onClick={() => {
+                      updateMutation.mutate({ id: v.id, updates: { result: 'signerat' } });
                     }}>
                       Signerat avtal
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      updateMutation.mutate({ id: v.id, result: 'nej' });
+                    <Button size="sm" variant="outline" disabled={updateMutation.isPending} onClick={() => {
+                      updateMutation.mutate({ id: v.id, updates: { result: 'nej' } });
                     }}>
                       Nej
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setUpdatingId(null)}>Avbryt</Button>
                   </>
                 ) : (
-                  <Button size="sm" variant="outline" onClick={() => setUpdatingId(v.id)}>Uppdatera</Button>
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="outline" onClick={() => setUpdatingId(v.id)}>Uppdatera</Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-muted-foreground hover:text-destructive"
+                      disabled={lostMutation.isPending}
+                      onClick={() => lostMutation.mutate(v.id)}
+                      title="Markera som tappad"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Tappad
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
