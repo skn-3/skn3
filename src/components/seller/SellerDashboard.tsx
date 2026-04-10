@@ -222,13 +222,55 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   ].filter(l => l.days !== null);
 
   // --- Extra hours analysis ---
+  const totalSold = cases.reduce((s, c) => s + c.extra_hours_sold, 0);
   const totalRequested = cases.reduce((s, c) => s + c.extra_hours_requested, 0);
   const totalApproved = cases.reduce((s, c) => s + c.extra_hours_approved, 0);
   const totalRejected = totalRequested - totalApproved;
+  const soldRevenue = totalSold * HOUR_RATE;
+  const approvedCost = totalApproved * HOUR_RATE;
+  const netResult = soldRevenue - approvedCost;
+  const casesWithHours = cases.filter(c => c.extra_hours_sold > 0 || c.extra_hours_requested > 0);
+  const avgApprovedPerCase = casesWithHours.length ? (totalApproved / casesWithHours.length).toFixed(1) : '0';
+
+  // Extra hours per case table
+  const extraHoursPerCase = casesWithHours.map(c => ({
+    address: c.address,
+    team: c.team || '–',
+    sold: c.extra_hours_sold,
+    requested: c.extra_hours_requested,
+    approved: c.extra_hours_approved,
+    revenue: c.extra_hours_sold * HOUR_RATE,
+    cost: c.extra_hours_approved * HOUR_RATE,
+    result: (c.extra_hours_sold - c.extra_hours_approved) * HOUR_RATE,
+  })).sort((a, b) => a.result - b.result);
+
+  // Extra hours per montör
   const extraHoursPerMontor = MONTORS.map(m => {
-    const mc = (allCases || []).filter(c => c.team === m);
-    return { name: m, requested: mc.reduce((s, c) => s + c.extra_hours_requested, 0), approved: mc.reduce((s, c) => s + c.extra_hours_approved, 0) };
-  }).filter(m => m.requested > 0).sort((a, b) => b.requested - a.requested);
+    const mc = cases.filter(c => c.team === m);
+    const mRequested = mc.reduce((s, c) => s + c.extra_hours_requested, 0);
+    const mApproved = mc.reduce((s, c) => s + c.extra_hours_approved, 0);
+    const caseCount = mc.filter(c => c.extra_hours_requested > 0 || c.extra_hours_sold > 0).length;
+    return {
+      name: m,
+      caseCount,
+      requested: mRequested,
+      approved: mApproved,
+      cost: mApproved * HOUR_RATE,
+      avg: caseCount ? (mApproved / caseCount).toFixed(1) : '0',
+    };
+  }).filter(m => m.requested > 0 || m.cost > 0).sort((a, b) => b.cost - a.cost);
+
+  // Monthly sold vs approved
+  const monthlyExtraHours: Record<string, { sold: number; approved: number }> = {};
+  cases.forEach(c => {
+    const month = c.created_at.substring(0, 7);
+    if (!monthlyExtraHours[month]) monthlyExtraHours[month] = { sold: 0, approved: 0 };
+    monthlyExtraHours[month].sold += c.extra_hours_sold;
+    monthlyExtraHours[month].approved += c.extra_hours_approved;
+  });
+  const monthlyExtraChart = Object.entries(monthlyExtraHours)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, d]) => ({ month, 'Intäkt (sålda)': d.sold * HOUR_RATE, 'Kostnad (godkända)': d.approved * HOUR_RATE }));
 
   // Status breakdown
   const statusCounts = cases.reduce((acc, c) => { acc[c.status] = (acc[c.status] || 0) + 1; return acc; }, {} as Record<string, number>);
