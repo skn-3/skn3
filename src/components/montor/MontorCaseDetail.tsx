@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseById, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -21,8 +21,16 @@ interface Props {
   onBack: () => void;
 }
 
-export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
+export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBack }: Props) {
   const queryClient = useQueryClient();
+
+  // Live case data that updates after mutations
+  const { data: liveCaseData } = useQuery({
+    queryKey: ['case', initialCaseData.id],
+    queryFn: () => fetchCaseById(initialCaseData.id),
+    initialData: initialCaseData,
+  });
+  const caseData = liveCaseData ?? initialCaseData;
   const [showReklam, setShowReklam] = useState(false);
   const [showKlar, setShowKlar] = useState(false);
   const [showDeviation, setShowDeviation] = useState(false);
@@ -49,6 +57,7 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
   });
 
   const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
     queryClient.invalidateQueries({ queryKey: ['cases'] });
     queryClient.invalidateQueries({ queryKey: ['case_events', caseData.id] });
     queryClient.invalidateQueries({ queryKey: ['deviations', caseData.id] });
