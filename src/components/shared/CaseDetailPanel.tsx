@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseById, updateCase, createCaseEvent, createDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, createDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -63,11 +63,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryFn: () => fetchDeviations(caseData.id),
   });
 
+  const { data: costs } = useQuery({
+    queryKey: ['case_costs', caseData.id],
+    queryFn: () => fetchCaseCosts(caseData.id),
+  });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
     queryClient.invalidateQueries({ queryKey: ['cases'] });
     queryClient.invalidateQueries({ queryKey: ['case_events', caseData.id] });
     queryClient.invalidateQueries({ queryKey: ['deviations', caseData.id] });
+    queryClient.invalidateQueries({ queryKey: ['case_costs', caseData.id] });
   };
 
   const statusMutation = useMutation({
