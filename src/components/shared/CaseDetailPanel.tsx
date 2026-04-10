@@ -467,10 +467,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 </Select>
                 <Button
                   size="sm"
-                  disabled={!devForm.type || !devForm.description || !devForm.responsible}
+                  disabled={!devForm.type || !devForm.description || !devForm.responsible || deviationMutation.isPending}
                   onClick={() => deviationMutation.mutate()}
                 >
-                  Spara avvikelse
+                  {deviationMutation.isPending ? 'Sparar...' : 'Spara avvikelse'}
                 </Button>
               </div>
             )}
