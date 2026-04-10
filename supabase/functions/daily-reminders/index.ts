@@ -9,17 +9,16 @@ const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
 const APP_URL = 'https://id-preview--6c43e886-ddf2-476f-9c1f-255522ad4ec0.lovable.app';
 const LOGO_URL = `${APP_URL}/logo.png`;
 
-// TEST MODE: all emails go to johannes@malke.se
 const EMAIL_MAP: Record<string, string> = {
-  'GVMO': 'johannes@malke.se',
-  'Samy': 'johannes@malke.se',
-  'Alex NBD': 'johannes@malke.se',
-  'Jerk': 'johannes@malke.se',
-  'Daniel Malke': 'johannes@malke.se',
-  'Gabriel Hanna': 'johannes@malke.se',
+  'GVMO': 'gvmo.bygg@gmail.com',
+  'Samy': 'info@smtmbygg.se',
+  'Alex NBD': 'alex@nbdentreprenad.com',
+  'Jerk': 'jerk.ryttman@mockfjards.se',
+  'Daniel Malke': 'daniel.malke@mockfjards.se',
+  'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',
 };
-const COORDINATOR_EMAIL = 'johannes@malke.se';
-const COORDINATOR_CC = 'johannes@malke.se';
+const COORDINATOR_EMAIL = 'mirna.malke@mockfjards.se';
+const COORDINATOR_CC = 'mf@malke.se';
 
 function daysSince(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
