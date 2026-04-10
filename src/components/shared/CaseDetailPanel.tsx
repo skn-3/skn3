@@ -344,6 +344,12 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
           </section>
         </div>
       </div>
+      {/* Fullscreen image dialog */}
+      <Dialog open={!!fullscreenImg} onOpenChange={() => setFullscreenImg(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-2">
+          {fullscreenImg && <img src={fullscreenImg} alt="" className="w-full h-full object-contain" />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
