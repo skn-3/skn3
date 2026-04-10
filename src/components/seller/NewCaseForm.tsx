@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, sendNotificationEmail } from '@/lib/supabaseClient';
-import { MONTORS, EMAIL_MAP } from '@/lib/constants';
+import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -144,7 +144,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
           <Input type="number" value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label>Extra timmar sålda</Label>
+          <Label>Extra timmar sålda till kund (á {HOUR_RATE} kr/st)</Label>
           <Input type="number" value={form.extra_hours_sold} onChange={(e) => update('extra_hours_sold', e.target.value)} />
         </div>
         <div className="space-y-1.5">

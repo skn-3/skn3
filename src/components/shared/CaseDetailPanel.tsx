@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS } from '@/lib/constants';
+import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS, HOUR_RATE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -407,10 +407,20 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               {caseData.offer_number && <div><span className="text-muted-foreground">Offert:</span> {caseData.offer_number}</div>}
               {caseData.order_value && <div><span className="text-muted-foreground">Värde:</span> {Number(caseData.order_value).toLocaleString('sv-SE')} kr</div>}
               {caseData.tb_percent != null && <div><span className="text-muted-foreground">TB:</span> {Number(caseData.tb_percent)}%</div>}
-              <div><span className="text-muted-foreground">Extra tim sålda:</span> {caseData.extra_hours_sold}</div>
+              <div><span className="text-muted-foreground">Extra tim sålda:</span> {caseData.extra_hours_sold} st → {(caseData.extra_hours_sold * HOUR_RATE).toLocaleString('sv-SE')} kr</div>
               <div><span className="text-muted-foreground">Extra tim begärda:</span> {caseData.extra_hours_requested}</div>
-              <div><span className="text-muted-foreground">Extra tim godkända:</span> {caseData.extra_hours_approved}</div>
+              <div><span className="text-muted-foreground">Extra tim godkända:</span> {caseData.extra_hours_approved} st → {(caseData.extra_hours_approved * HOUR_RATE).toLocaleString('sv-SE')} kr</div>
             </div>
+            {(caseData.extra_hours_sold > 0 || caseData.extra_hours_approved > 0) && (() => {
+              const revenue = caseData.extra_hours_sold * HOUR_RATE;
+              const cost = caseData.extra_hours_approved * HOUR_RATE;
+              const result = revenue - cost;
+              return (
+                <div className={`text-sm font-semibold mt-1 ${result >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  Resultat extra timmar: {result >= 0 ? '+' : ''}{result.toLocaleString('sv-SE')} kr
+                </div>
+              );
+            })()}
             {caseData.google_drive_link && (
               <a href={caseData.google_drive_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
                 <ExternalLink className="h-3.5 w-3.5" /> Google Drive

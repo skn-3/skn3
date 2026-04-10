@@ -1,3 +1,5 @@
+export const HOUR_RATE = 469;
+
 export const SELLERS = ['Daniel Malke', 'Gabriel Hanna'] as const;
 export const MONTORS = ['GVMO', 'Samy', 'Alex NBD', 'Jerk'] as const;
 
