@@ -89,18 +89,24 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     setter(current.filter((_, i) => i !== index));
   };
 
-  const buildEmailBody = (type: string, desc: string, priority?: string) => {
-    return `
-      <h2>Nytt problem rapporterat</h2>
-      <table style="border-collapse:collapse;width:100%">
-        <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseData.address}</td></tr>
-        <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${caseData.customer_name}</td></tr>
-        <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${currentUser}</td></tr>
-        <tr><td style="padding:4px 8px;font-weight:bold">Typ:</td><td style="padding:4px 8px">${type}</td></tr>
-        ${priority ? `<tr><td style="padding:4px 8px;font-weight:bold">Prioritet:</td><td style="padding:4px 8px">${priority}</td></tr>` : ''}
-        <tr><td style="padding:4px 8px;font-weight:bold">Beskrivning:</td><td style="padding:4px 8px">${desc}</td></tr>
-      </table>
-    `;
+  const buildProblemRows = (type: string, desc: string, priority?: string) => {
+    const rows: Array<{ label: string; value: string; badge?: { color: string; bg: string } }> = [
+      { label: 'Adress', value: caseData.address },
+      { label: 'Kund', value: caseData.customer_name },
+      { label: 'Montör', value: currentUser },
+      { label: 'Typ', value: type },
+    ];
+    if (priority) {
+      const badgeMap: Record<string, { color: string; bg: string }> = {
+        hog: { color: '#991B1B', bg: '#FEE2E2' },
+        medium: { color: '#92400E', bg: '#FEF3C7' },
+        lag: { color: '#374151', bg: '#F3F4F6' },
+      };
+      const label = priority === 'hog' ? 'Hög' : priority === 'medium' ? 'Medium' : 'Låg';
+      rows.push({ label: 'Prioritet', value: label, badge: badgeMap[priority] });
+    }
+    rows.push({ label: 'Beskrivning', value: desc });
+    return rows;
   };
 
   // Unified problem mutation (replaces separate reklamation + deviation)
