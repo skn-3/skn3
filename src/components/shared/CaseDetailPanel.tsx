@@ -230,6 +230,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateDevCostMutation = useMutation({
+    mutationFn: async ({ id, cost }: { id: string; cost: number }) => {
+      await updateDeviation(id, { cost });
+    },
+    onSuccess: () => { setEditingDevCost(null); invalidate(); toast.success('Kostnad uppdaterad'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const kmBookMutation = useMutation({
     mutationFn: async () => {
       await updateCase(caseData.id, { status: 'km_bokad', km_date: kmDate });
