@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllCases, fetchAllDeviations, fetchAllVisits, fetchAllCaseEvents } from '@/lib/supabaseClient';
-import { STATUS_LABELS, SELLERS, MONTORS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE } from '@/lib/constants';
+import { STATUS_LABELS, SELLERS, MONTORS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, HOUR_RATE } from '@/lib/constants';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -222,13 +222,55 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   ].filter(l => l.days !== null);
 
   // --- Extra hours analysis ---
+  const totalSold = cases.reduce((s, c) => s + c.extra_hours_sold, 0);
   const totalRequested = cases.reduce((s, c) => s + c.extra_hours_requested, 0);
   const totalApproved = cases.reduce((s, c) => s + c.extra_hours_approved, 0);
   const totalRejected = totalRequested - totalApproved;
+  const soldRevenue = totalSold * HOUR_RATE;
+  const approvedCost = totalApproved * HOUR_RATE;
+  const netResult = soldRevenue - approvedCost;
+  const casesWithHours = cases.filter(c => c.extra_hours_sold > 0 || c.extra_hours_requested > 0);
+  const avgApprovedPerCase = casesWithHours.length ? (totalApproved / casesWithHours.length).toFixed(1) : '0';
+
+  // Extra hours per case table
+  const extraHoursPerCase = casesWithHours.map(c => ({
+    address: c.address,
+    team: c.team || '–',
+    sold: c.extra_hours_sold,
+    requested: c.extra_hours_requested,
+    approved: c.extra_hours_approved,
+    revenue: c.extra_hours_sold * HOUR_RATE,
+    cost: c.extra_hours_approved * HOUR_RATE,
+    result: (c.extra_hours_sold - c.extra_hours_approved) * HOUR_RATE,
+  })).sort((a, b) => a.result - b.result);
+
+  // Extra hours per montör
   const extraHoursPerMontor = MONTORS.map(m => {
-    const mc = (allCases || []).filter(c => c.team === m);
-    return { name: m, requested: mc.reduce((s, c) => s + c.extra_hours_requested, 0), approved: mc.reduce((s, c) => s + c.extra_hours_approved, 0) };
-  }).filter(m => m.requested > 0).sort((a, b) => b.requested - a.requested);
+    const mc = cases.filter(c => c.team === m);
+    const mRequested = mc.reduce((s, c) => s + c.extra_hours_requested, 0);
+    const mApproved = mc.reduce((s, c) => s + c.extra_hours_approved, 0);
+    const caseCount = mc.filter(c => c.extra_hours_requested > 0 || c.extra_hours_sold > 0).length;
+    return {
+      name: m,
+      caseCount,
+      requested: mRequested,
+      approved: mApproved,
+      cost: mApproved * HOUR_RATE,
+      avg: caseCount ? (mApproved / caseCount).toFixed(1) : '0',
+    };
+  }).filter(m => m.requested > 0 || m.cost > 0).sort((a, b) => b.cost - a.cost);
+
+  // Monthly sold vs approved
+  const monthlyExtraHours: Record<string, { sold: number; approved: number }> = {};
+  cases.forEach(c => {
+    const month = c.created_at.substring(0, 7);
+    if (!monthlyExtraHours[month]) monthlyExtraHours[month] = { sold: 0, approved: 0 };
+    monthlyExtraHours[month].sold += c.extra_hours_sold;
+    monthlyExtraHours[month].approved += c.extra_hours_approved;
+  });
+  const monthlyExtraChart = Object.entries(monthlyExtraHours)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, d]) => ({ month, 'Intäkt (sålda)': d.sold * HOUR_RATE, 'Kostnad (godkända)': d.approved * HOUR_RATE }));
 
   // Status breakdown
   const statusCounts = cases.reduce((acc, c) => { acc[c.status] = (acc[c.status] || 0) + 1; return acc; }, {} as Record<string, number>);
@@ -515,41 +557,121 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
       )}
 
       {/* ROW 7: Extra hours analysis */}
-      <div className="rounded-xl border bg-card p-4">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Extra timmar-analys</h3>
-        <div className="grid gap-4 sm:grid-cols-3 mb-4">
+      <div className="rounded-xl border bg-card p-4 space-y-6">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Extra timmar-analys</h3>
+
+        {/* KPI cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="text-center p-3 bg-muted rounded-lg">
-            <p className="text-2xl font-bold text-card-foreground">{totalRequested}</p>
-            <p className="text-xs text-muted-foreground">Begärda</p>
+            <p className="text-2xl font-bold text-primary">{totalSold} st</p>
+            <p className="text-sm font-medium text-card-foreground">{soldRevenue.toLocaleString('sv-SE')} kr</p>
+            <p className="text-xs text-muted-foreground">Sålda (intäkt)</p>
           </div>
-          <div className="text-center p-3 bg-primary/10 rounded-lg">
-            <p className="text-2xl font-bold text-primary">{totalApproved}</p>
-            <p className="text-xs text-muted-foreground">Godkända</p>
+          <div className="text-center p-3 bg-muted rounded-lg">
+            <p className="text-2xl font-bold text-destructive">{totalApproved} st</p>
+            <p className="text-sm font-medium text-card-foreground">{approvedCost.toLocaleString('sv-SE')} kr</p>
+            <p className="text-xs text-muted-foreground">Godkända (kostnad)</p>
           </div>
-          <div className="text-center p-3 bg-destructive/10 rounded-lg">
-            <p className="text-2xl font-bold text-destructive">{totalRejected}</p>
-            <p className="text-xs text-muted-foreground">Avslagna</p>
+          <div className={`text-center p-3 rounded-lg ${netResult >= 0 ? 'bg-green-50' : 'bg-destructive/10'}`}>
+            <p className={`text-2xl font-bold ${netResult >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+              {netResult >= 0 ? '+' : ''}{netResult.toLocaleString('sv-SE')} kr
+            </p>
+            <p className="text-xs text-muted-foreground">Nettoresultat</p>
+          </div>
+          <div className="text-center p-3 bg-muted rounded-lg">
+            <p className="text-2xl font-bold text-card-foreground">{avgApprovedPerCase}</p>
+            <p className="text-xs text-muted-foreground">Snitt godkända/ärende</p>
           </div>
         </div>
+
+        {/* Per case table */}
+        {extraHoursPerCase.length > 0 && (
+          <>
+            <h4 className="text-sm font-semibold text-muted-foreground">Extra timmar per ärende</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="pb-2">Adress</th>
+                    <th className="pb-2">Montör</th>
+                    <th className="pb-2 text-right">Sålda</th>
+                    <th className="pb-2 text-right">Begärda</th>
+                    <th className="pb-2 text-right">Godkända</th>
+                    <th className="pb-2 text-right">Intäkt</th>
+                    <th className="pb-2 text-right">Kostnad</th>
+                    <th className="pb-2 text-right">Resultat</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {extraHoursPerCase.map((c, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="py-1.5 text-card-foreground font-medium truncate max-w-[150px]">{c.address}</td>
+                      <td className="py-1.5">{c.team}</td>
+                      <td className="py-1.5 text-right">{c.sold}</td>
+                      <td className="py-1.5 text-right">{c.requested}</td>
+                      <td className="py-1.5 text-right">{c.approved}</td>
+                      <td className="py-1.5 text-right">{c.revenue.toLocaleString('sv-SE')}</td>
+                      <td className="py-1.5 text-right">{c.cost.toLocaleString('sv-SE')}</td>
+                      <td className={`py-1.5 text-right font-semibold ${c.result >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        {c.result >= 0 ? '+' : ''}{c.result.toLocaleString('sv-SE')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* Per montör table */}
         {extraHoursPerMontor.length > 0 && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-muted-foreground">
-                <th className="pb-2">Montör</th>
-                <th className="pb-2">Begärda</th>
-                <th className="pb-2">Godkända</th>
-              </tr>
-            </thead>
-            <tbody>
-              {extraHoursPerMontor.map(m => (
-                <tr key={m.name} className="border-t">
-                  <td className="py-1.5 text-card-foreground">{m.name}</td>
-                  <td className="py-1.5">{m.requested}</td>
-                  <td className="py-1.5 text-primary font-medium">{m.approved}</td>
+          <>
+            <h4 className="text-sm font-semibold text-muted-foreground">Extra timmar per montör</h4>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="pb-2">Montör</th>
+                  <th className="pb-2 text-right">Ärenden</th>
+                  <th className="pb-2 text-right">Begärda</th>
+                  <th className="pb-2 text-right">Godkända</th>
+                  <th className="pb-2 text-right">Kostnad</th>
+                  <th className="pb-2 text-right">Snitt/ärende</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {extraHoursPerMontor.map(m => (
+                  <tr key={m.name} className="border-t">
+                    <td className="py-1.5 text-card-foreground font-medium">{m.name}</td>
+                    <td className="py-1.5 text-right">{m.caseCount}</td>
+                    <td className="py-1.5 text-right">{m.requested}</td>
+                    <td className="py-1.5 text-right">{m.approved}</td>
+                    <td className="py-1.5 text-right font-medium text-destructive">{m.cost.toLocaleString('sv-SE')} kr</td>
+                    <td className="py-1.5 text-right">{m.avg}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {/* Monthly chart: sold vs approved */}
+        {monthlyExtraChart.length > 0 && (
+          <>
+            <h4 className="text-sm font-semibold text-muted-foreground">Sålda vs godkända per månad (kr)</h4>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyExtraChart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" fontSize={12} />
+                  <YAxis fontSize={12} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip formatter={(v: number) => `${v.toLocaleString('sv-SE')} kr`} />
+                  <Legend />
+                  <Bar dataKey="Intäkt (sålda)" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Kostnad (godkända)" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </>
         )}
       </div>
 

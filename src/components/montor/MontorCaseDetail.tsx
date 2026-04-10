@@ -429,11 +429,29 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             <div className="space-y-2">
               <Label>Extra timmar begärda</Label>
               <Input type="number" value={extraHoursReq} onChange={(e) => setExtraHoursReq(e.target.value)} className="min-h-[48px]" />
+              <p className="text-xs text-muted-foreground">Varje extra timme kostar 469 kr. Ange bara timmar som verkligen behövs utöver det som ingår.</p>
               <Label>Anteckning</Label>
               <Textarea value={kmNote} onChange={(e) => setKmNote(e.target.value)} rows={2} />
               <Button disabled={kmReportMutation.isPending} onClick={() => kmReportMutation.mutate()} className="min-h-[48px] w-full">
                 {kmReportMutation.isPending ? 'Sparar...' : 'Rapportera KM klar'}
               </Button>
+            </div>
+          )}
+
+          {/* Extra hours status for montör */}
+          {caseData.extra_hours_requested > 0 && caseData.status !== 'km_bokad' && (
+            <div className="rounded-lg border p-3 space-y-1">
+              <p className="text-sm"><span className="text-muted-foreground">Extra timmar begärda:</span> <span className="font-medium">{caseData.extra_hours_requested} st</span></p>
+              <p className="text-sm">
+                <span className="text-muted-foreground">Status:</span>{' '}
+                {caseData.extra_hours_approved > 0 ? (
+                  <span className="font-medium text-green-600">Godkända ({caseData.extra_hours_approved} st)</span>
+                ) : caseData.status === 'vantar_godkannande' ? (
+                  <span className="font-medium" style={{ color: '#D97706' }}>Väntar på godkännande</span>
+                ) : (
+                  <span className="font-medium text-muted-foreground">Avslagna</span>
+                )}
+              </p>
             </div>
           )}
 
