@@ -29,7 +29,6 @@ export const SELLER_PIPELINE_COLUMNS = [
   'km_bokad',
   'vantar_godkannande',
   'godkand',
-  'i_produktion',
   'leverans_klar',
   'montage_bokat',
   'montage_klart',
@@ -48,4 +47,10 @@ export const DEVIATION_RESPONSIBLE = [
   { value: 'saljare', label: 'Säljare' },
   { value: 'montor', label: 'Montör' },
   { value: 'okant', label: 'Okänt' },
+] as const;
+
+export const VISIT_RESULTS = [
+  { value: 'signerat', label: 'Signerat avtal' },
+  { value: 'nej', label: 'Nej' },
+  { value: 'aterkoppla', label: 'Återkoppla' },
 ] as const;
