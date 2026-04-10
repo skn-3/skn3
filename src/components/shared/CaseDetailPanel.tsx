@@ -56,6 +56,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [approvalMontor, setApprovalMontor] = useState(caseData.team || '');
   const [approvalDate, setApprovalDate] = useState<Date | undefined>(undefined);
   const [approvalNote, setApprovalNote] = useState('');
+  // Edit deviation cost
+  const [editingDevCost, setEditingDevCost] = useState<string | null>(null);
+  const [editDevCostValue, setEditDevCostValue] = useState('');
 
   const { data: events } = useQuery({
     queryKey: ['case_events', caseData.id],
@@ -148,6 +151,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         created_by: currentUser,
       });
 
+      if (devCost && Number(devCost) > 0) {
+        await updateDeviation(deviation.id, { cost: Number(devCost) });
+      }
+
       let imageUrls: string[] = [];
       if (probFiles.length > 0) {
         imageUrls = await uploadDeviationImages(caseData.id, deviation.id, probFiles);
@@ -201,6 +208,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       setDevForm({ type: '', description: '', responsible: '' });
       setProbPriority('medium');
       setProbFiles([]);
+      setDevCost('');
       invalidate();
       toast.success('Problem rapporterat');
     },
