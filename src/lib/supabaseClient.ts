@@ -66,6 +66,12 @@ export async function createCaseEvent(event: CaseEventInsert) {
   return data;
 }
 
+export async function fetchAllCaseEvents() {
+  const { data, error } = await supabase.from('case_events').select('*').order('created_at', { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchDeviations(caseId: string) {
   const { data, error } = await supabase
     .from('deviations')
