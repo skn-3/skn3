@@ -305,6 +305,21 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const resolveMutation = useMutation({
+    mutationFn: async (deviation: any) => {
+      await updateDeviation(deviation.id, { resolved: true });
+      const typLabel = DEVIATION_TYPES.find(d => d.value === deviation.type)?.label || deviation.type;
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'deviation_resolved',
+        description: `Avvikelse löst: ${typLabel} — ${deviation.description.substring(0, 60)}`,
+        created_by: currentUser,
+      });
+    },
+    onSuccess: () => { invalidate(); toast.success('Avvikelse markerad som löst'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const noteMutation = useMutation({
     mutationFn: () =>
       createCaseEvent({

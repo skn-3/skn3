@@ -148,6 +148,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
   });
 
+  const resolveMutation = useMutation({
+    mutationFn: async (deviation: any) => {
+      await updateDeviation(deviation.id, { resolved: true });
+      const typLabel = DEVIATION_TYPES.find(d => d.value === deviation.type)?.label || deviation.type;
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'deviation_resolved',
+        description: `Avvikelse löst: ${typLabel} — ${deviation.description.substring(0, 60)}`,
+        created_by: currentUser,
+      });
+    },
+    onSuccess: () => { invalidate(); toast.success('Avvikelse markerad som löst'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const kmBookMutation = useMutation({
     mutationFn: async () => {
       await updateCase(caseData.id, { status: 'km_bokad', km_date: kmDate });
