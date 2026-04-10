@@ -1,0 +1,1 @@
+ALTER TABLE public.deviations ADD COLUMN cost numeric DEFAULT 0;
