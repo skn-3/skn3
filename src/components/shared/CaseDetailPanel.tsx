@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, ExternalLink, Clock, AlertTriangle, MessageSquare } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CaseDetailPanelProps {
@@ -27,6 +27,7 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
   const [kmDate, setKmDate] = useState('');
   const [extraHoursReq, setExtraHoursReq] = useState('0');
   const [kmNote, setKmNote] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState(caseData.status);
 
   const { data: events } = useQuery({
     queryKey: ['case_events', caseData.id],
@@ -123,9 +124,20 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
     statusMutation.mutate({ newStatus, description: `Status ändrad till: ${label}` });
   };
 
+  const handleManualStatusChange = (newStatus: string) => {
+    setSelectedStatus(newStatus);
+    if (newStatus !== caseData.status) {
+      changeStatus(newStatus, STATUS_LABELS[newStatus] || newStatus);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-foreground/20">
-      <div className="w-full max-w-lg bg-card shadow-xl overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-foreground/20" />
+      <div
+        className="relative w-full max-w-lg bg-card shadow-xl overflow-y-auto animate-in slide-in-from-right"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-card px-4 py-3">
           <div>
             <h2 className="font-bold text-card-foreground">{caseData.address}</h2>
@@ -144,9 +156,23 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
               <div><span className="text-muted-foreground">Namn:</span> {caseData.customer_name}</div>
               <div><span className="text-muted-foreground">Tel:</span> {caseData.customer_phone}</div>
               {caseData.customer_email && <div className="col-span-2"><span className="text-muted-foreground">E-post:</span> {caseData.customer_email}</div>}
-              <div><span className="text-muted-foreground">Säljare:</span> {caseData.seller}</div>
-              <div><span className="text-muted-foreground">Montör:</span> {caseData.team || '–'}</div>
+              <div className="col-span-2"><span className="text-muted-foreground">Adress:</span> {caseData.address}</div>
             </div>
+          </section>
+
+          {/* Status dropdown */}
+          <section className="p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Status</h3>
+            <Select value={selectedStatus} onValueChange={handleManualStatusChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </section>
 
           {/* Order info */}
@@ -171,7 +197,6 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
           <section className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Åtgärder</h3>
 
-            {/* Montör actions */}
             {!isSeller && caseData.status === 'vantar_km' && (
               <div className="space-y-2">
                 <Label>Boka KM-datum</Label>
@@ -194,18 +219,15 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
               <Button onClick={() => changeStatus('montage_klart', 'Montage klart')} size="sm">Montage klart</Button>
             )}
 
-            {/* Seller actions */}
             {isSeller && caseData.status === 'vantar_godkannande' && (
-              <div className="flex gap-2">
-                <Button onClick={() => {
-                  updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested }).then(() => {
-                    changeStatus('godkand', `Godkänd. ${caseData.extra_hours_requested} extra timmar godkända.`);
-                  });
-                }} size="sm">Godkänn extra timmar</Button>
-              </div>
+              <Button onClick={() => {
+                updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested }).then(() => {
+                  changeStatus('godkand', `Godkänd. ${caseData.extra_hours_requested} extra timmar godkända.`);
+                });
+              }} size="sm">Godkänn extra timmar</Button>
             )}
 
-            {isSeller && (caseData.status === 'km_klar') && (
+            {isSeller && caseData.status === 'km_klar' && (
               <Button onClick={() => changeStatus('godkand', 'Godkänd')} size="sm">Godkänn KM</Button>
             )}
 
@@ -225,7 +247,6 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
               <Button onClick={() => changeStatus('fakturerad', 'Fakturerad')} size="sm">Markera fakturerad</Button>
             )}
 
-            {/* Deviation button */}
             <Button variant="outline" size="sm" onClick={() => setShowDeviation(!showDeviation)}>
               <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera avvikelse
             </Button>
@@ -265,7 +286,7 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
           {deviations && deviations.length > 0 && (
             <section className="p-4 space-y-2">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                <AlertTriangle className="h-4 w-4" /> Avvikelser
+                <AlertTriangle className="h-4 w-4" /> Avvikelser ({deviations.length})
               </h3>
               {deviations.map((d) => (
                 <div key={d.id} className="rounded-lg border p-2 text-sm space-y-1">
@@ -296,7 +317,7 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
               <Clock className="h-4 w-4" /> Historik
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-64 overflow-y-auto">
               {events?.map((e) => (
                 <div key={e.id} className="flex gap-2 text-sm">
                   <span className="text-xs text-muted-foreground whitespace-nowrap">

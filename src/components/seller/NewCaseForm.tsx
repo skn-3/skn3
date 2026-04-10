@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent } from '@/lib/supabaseClient';
 import { MONTORS } from '@/lib/constants';
@@ -12,23 +12,35 @@ import { toast } from 'sonner';
 interface NewCaseFormProps {
   sellerName: string;
   onCreated: () => void;
+  prefill?: { customer_name?: string; address?: string; order_value?: string };
 }
 
-export function NewCaseForm({ sellerName, onCreated }: NewCaseFormProps) {
+export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
-    customer_name: '',
+    customer_name: prefill?.customer_name || '',
     customer_phone: '',
     customer_email: '',
-    address: '',
+    address: prefill?.address || '',
     offer_number: '',
-    order_value: '',
+    order_value: prefill?.order_value || '',
     tb_percent: '',
     extra_hours_sold: '0',
     team: '',
     google_drive_link: '',
     notes: '',
   });
+
+  useEffect(() => {
+    if (prefill) {
+      setForm((f) => ({
+        ...f,
+        customer_name: prefill.customer_name || f.customer_name,
+        address: prefill.address || f.address,
+        order_value: prefill.order_value || f.order_value,
+      }));
+    }
+  }, [prefill]);
 
   const mutation = useMutation({
     mutationFn: async () => {

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import type { UserRole } from '@/lib/constants';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { AppHeader } from '@/components/AppHeader';
-import { SellerNav } from './SellerNav';
+import { SellerNav, type SellerTab } from './SellerNav';
 import { Pipeline } from './Pipeline';
 import { NewCaseForm } from './NewCaseForm';
 import { SellerDashboard } from './SellerDashboard';
+import { VisitForm } from './VisitForm';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 
 interface SellerViewProps {
@@ -14,8 +15,18 @@ interface SellerViewProps {
 }
 
 export function SellerView({ role, onChangeRole }: SellerViewProps) {
-  const [tab, setTab] = useState<'pipeline' | 'new' | 'dashboard'>('pipeline');
+  const [tab, setTab] = useState<SellerTab>('pipeline');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
+  const [prefill, setPrefill] = useState<{ customer_name?: string; address?: string; order_value?: string } | null>(null);
+
+  const handleCreateFromVisit = (data: { customer_name: string; address: string; order_value?: number }) => {
+    setPrefill({
+      customer_name: data.customer_name,
+      address: data.address,
+      order_value: data.order_value?.toString() || '',
+    });
+    setTab('new');
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -28,7 +39,14 @@ export function SellerView({ role, onChangeRole }: SellerViewProps) {
           <Pipeline sellerName={role.name} onSelectCase={setSelectedCase} />
         )}
         {tab === 'new' && (
-          <NewCaseForm sellerName={role.name} onCreated={() => setTab('pipeline')} />
+          <NewCaseForm
+            sellerName={role.name}
+            onCreated={() => { setTab('pipeline'); setPrefill(null); }}
+            prefill={prefill || undefined}
+          />
+        )}
+        {tab === 'visit' && (
+          <VisitForm sellerName={role.name} onCreateCase={handleCreateFromVisit} />
         )}
         {tab === 'dashboard' && (
           <SellerDashboard sellerName={role.name} />
