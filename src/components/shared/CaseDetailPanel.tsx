@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, updateCase, createCaseEvent, createDeviation } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, updateCase, createCaseEvent, createDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE } from '@/lib/constants';
+import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,6 +56,36 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
         description,
         created_by: currentUser,
       });
+
+      // Send MONTAGE BOKAT email
+      if (newStatus === 'montage_bokat') {
+        try {
+          await sendNotificationEmail({
+            to: COORDINATOR_EMAIL,
+            cc: COORDINATOR_CC,
+            subject: `MONTAGE BOKAT — ${caseData.address}`,
+            body: `
+              <h2>Montage bokat</h2>
+              <table style="border-collapse:collapse;width:100%">
+                <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseData.address}</td></tr>
+                <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${caseData.customer_name}</td></tr>
+                <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${caseData.team || 'Ej tilldelad'}</td></tr>
+                <tr><td style="padding:4px 8px;font-weight:bold">Montagedatum:</td><td style="padding:4px 8px">${caseData.montage_date || 'Ej angivet'}</td></tr>
+                ${caseData.notes ? `<tr><td style="padding:4px 8px;font-weight:bold">Anteckning:</td><td style="padding:4px 8px">${caseData.notes}</td></tr>` : ''}
+              </table>
+            `,
+          });
+          await createCaseEvent({
+            case_id: caseData.id,
+            event_type: 'notification',
+            description: 'Mail skickat till koordinator (montage bokat)',
+            created_by: currentUser,
+          });
+        } catch (emailErr) {
+          console.error('Email notification failed:', emailErr);
+          toast.warning('Status uppdaterad men mailet kunde inte skickas');
+        }
+      }
     },
     onSuccess: () => { invalidate(); toast.success('Status uppdaterad'); },
     onError: (e: Error) => toast.error(e.message),
