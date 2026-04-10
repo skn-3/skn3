@@ -633,18 +633,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <AlertDialogCancel>Avbryt</AlertDialogCancel>
                     <AlertDialogAction
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={async () => {
-                        try {
-                          await deleteCase(caseData.id);
-                          queryClient.invalidateQueries({ queryKey: ['cases'] });
-                          toast.success('Ärendet har raderats');
-                          onClose();
-                        } catch (err: any) {
-                          toast.error('Kunde inte radera: ' + err.message);
-                        }
-                      }}
+                      disabled={deleteMutation.isPending}
+                      onClick={() => deleteMutation.mutate()}
                     >
-                      Radera
+                      {deleteMutation.isPending ? 'Raderar...' : 'Radera'}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -659,6 +651,83 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           {fullscreenImg && <img src={fullscreenImg} alt="" className="w-full h-full object-contain" />}
         </DialogContent>
       </Dialog>
+
+      {/* Rapportera problem drawer */}
+      <Drawer open={showDeviation} onOpenChange={setShowDeviation}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Rapportera problem</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 space-y-4 pb-4">
+            <div>
+              <Label>Typ</Label>
+              <Select value={devForm.type} onValueChange={(v) => setDevForm(f => ({ ...f, type: v }))}>
+                <SelectTrigger><SelectValue placeholder="Välj typ" /></SelectTrigger>
+                <SelectContent>
+                  {DEVIATION_TYPES.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Problembeskrivning *</Label>
+              <Textarea value={devForm.description} onChange={e => setDevForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Beskriv problemet..." />
+            </div>
+            {devForm.type === 'reklamation' && (
+              <div>
+                <Label>Prioritet</Label>
+                <div className="flex gap-2 mt-1">
+                  {(['hog', 'medium', 'lag'] as const).map(p => (
+                    <Button key={p} type="button" size="sm" variant={probPriority === p ? 'default' : 'outline'} onClick={() => setProbPriority(p)}>
+                      {p === 'hog' ? 'Hög' : p === 'medium' ? 'Medium' : 'Låg'}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div>
+              <Label>Ansvar</Label>
+              <Select value={devForm.responsible} onValueChange={(v) => setDevForm(f => ({ ...f, responsible: v }))}>
+                <SelectTrigger><SelectValue placeholder="Välj ansvarig" /></SelectTrigger>
+                <SelectContent>
+                  {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Bifoga bilder (max 5)</Label>
+              <div className="mt-1">
+                <label className="inline-flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted">
+                  <Camera className="h-4 w-4" /> Välj bilder
+                  <input type="file" accept="image/jpeg,image/png,image/heic" multiple className="hidden" onChange={handleFileSelect} />
+                </label>
+              </div>
+              {probFiles.length > 0 && (
+                <div className="flex gap-2 flex-wrap mt-2">
+                  {probFiles.map((f, i) => (
+                    <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border">
+                      <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+                      <button onClick={() => setProbFiles(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-0 right-0 bg-foreground/60 text-background rounded-bl-lg p-0.5">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <DrawerFooter>
+            <Button
+              disabled={!devForm.type || !devForm.description || problemMutation.isPending}
+              onClick={() => problemMutation.mutate()}
+            >
+              {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}
+            </Button>
+            <DrawerClose asChild>
+              <Button variant="outline">Avbryt</Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
