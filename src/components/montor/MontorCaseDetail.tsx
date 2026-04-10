@@ -469,10 +469,15 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             </h3>
             {deviations.map(d => (
               <div key={d.id} className="rounded-lg border p-3 text-sm space-y-1">
-                <div className="flex justify-between">
-                  <Badge variant={d.resolved ? 'secondary' : 'destructive'}>
-                    {DEVIATION_TYPES.find(dt => dt.value === d.type)?.label || d.type}
-                  </Badge>
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-1.5 items-center">
+                    <Badge variant={d.resolved ? 'secondary' : 'destructive'}>
+                      {DEVIATION_TYPES.find(dt => dt.value === d.type)?.label || d.type}
+                    </Badge>
+                    <Badge variant={d.resolved ? 'secondary' : 'destructive'} className={d.resolved ? 'bg-green-100 text-green-800 border-green-300' : ''}>
+                      {d.resolved ? 'Löst' : 'Olöst'}
+                    </Badge>
+                  </div>
                   <span className="text-xs text-muted-foreground">{new Date(d.created_at).toLocaleDateString('sv-SE')}</span>
                 </div>
                 <p className="text-card-foreground">{d.description}</p>
@@ -487,6 +492,17 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                       </button>
                     ))}
                   </div>
+                )}
+                {!d.resolved && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-1 text-green-700 border-green-400 hover:bg-green-50"
+                    disabled={resolveMutation.isPending}
+                    onClick={() => resolveMutation.mutate(d)}
+                  >
+                    {resolveMutation.isPending ? 'Sparar...' : '✓ Markera löst'}
+                  </Button>
                 )}
               </div>
             ))}
