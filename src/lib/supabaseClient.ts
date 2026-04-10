@@ -83,6 +83,12 @@ export async function createDeviation(deviation: DeviationInsert) {
   return data;
 }
 
+export async function updateDeviation(id: string, updates: { image_urls?: string[] }) {
+  const { data, error } = await supabase.from('deviations').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 // Visits
 export async function fetchVisits(filters?: { seller?: string }) {
   let query = supabase.from('visits').select('*').order('created_at', { ascending: false });
@@ -106,6 +112,33 @@ export async function createVisit(visit: VisitInsert) {
 
 export async function updateVisit(id: string, updates: VisitUpdate) {
   const { data, error } = await supabase.from('visits').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// Upload images to case-images bucket
+export async function uploadDeviationImages(caseId: string, deviationId: string, files: File[]): Promise<string[]> {
+  const urls: string[] = [];
+  for (const file of files) {
+    const path = `${caseId}/${deviationId}/${file.name}`;
+    const { error } = await supabase.storage.from('case-images').upload(path, file, { upsert: true });
+    if (error) throw error;
+    const { data: urlData } = supabase.storage.from('case-images').getPublicUrl(path);
+    urls.push(urlData.publicUrl);
+  }
+  return urls;
+}
+
+// Send notification email via edge function
+export async function sendNotificationEmail(params: {
+  to: string;
+  cc?: string;
+  subject: string;
+  body: string;
+}) {
+  const { data, error } = await supabase.functions.invoke('notify-email', {
+    body: params,
+  });
   if (error) throw error;
   return data;
 }

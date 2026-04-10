@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, updateCase, createCaseEvent, createDeviation } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2, X, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface Props {
   caseData: CaseRow;
@@ -27,12 +28,15 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
   const [showDeviation, setShowDeviation] = useState(false);
   const [reklamDesc, setReklamDesc] = useState('');
   const [reklamPriority, setReklamPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
+  const [reklamFiles, setReklamFiles] = useState<File[]>([]);
   const [klarComment, setKlarComment] = useState('');
   const [kmDate, setKmDate] = useState('');
   const [extraHoursReq, setExtraHoursReq] = useState('0');
   const [kmNote, setKmNote] = useState('');
   const [devForm, setDevForm] = useState({ type: '', description: '', responsible: '' });
+  const [devFiles, setDevFiles] = useState<File[]>([]);
   const [note, setNote] = useState('');
+  const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
 
   const { data: events } = useQuery({
     queryKey: ['case_events', caseData.id],
@@ -51,19 +55,54 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
     queryClient.invalidateQueries({ queryKey: ['deviations_bulk'] });
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, setter: (files: File[]) => void, current: File[]) => {
+    const files = Array.from(e.target.files || []);
+    const allowed = files.filter(f => /\.(jpe?g|png|heic)$/i.test(f.name));
+    const combined = [...current, ...allowed].slice(0, 5);
+    setter(combined);
+    e.target.value = '';
+  };
+
+  const removeFile = (index: number, setter: (files: File[]) => void, current: File[]) => {
+    setter(current.filter((_, i) => i !== index));
+  };
+
+  const buildEmailBody = (type: string, desc: string, priority?: string) => {
+    return `
+      <h2>${type === 'reklamation' ? 'Ny reklamation' : 'Ny avvikelse'}</h2>
+      <table style="border-collapse:collapse;width:100%">
+        <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseData.address}</td></tr>
+        <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${caseData.customer_name}</td></tr>
+        <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${currentUser}</td></tr>
+        <tr><td style="padding:4px 8px;font-weight:bold">Typ:</td><td style="padding:4px 8px">${type}</td></tr>
+        ${priority ? `<tr><td style="padding:4px 8px;font-weight:bold">Prioritet:</td><td style="padding:4px 8px">${priority}</td></tr>` : ''}
+        <tr><td style="padding:4px 8px;font-weight:bold">Beskrivning:</td><td style="padding:4px 8px">${desc}</td></tr>
+      </table>
+    `;
+  };
+
   const reklamMutation = useMutation({
     mutationFn: async () => {
-      await createDeviation({
+      // Create deviation
+      const deviation = await createDeviation({
         case_id: caseData.id,
         type: 'reklamation',
         description: `[${reklamPriority.toUpperCase()}] ${reklamDesc}`,
         responsible: 'okant',
         created_by: currentUser,
       });
+
+      // Upload images
+      let imageUrls: string[] = [];
+      if (reklamFiles.length > 0) {
+        imageUrls = await uploadDeviationImages(caseData.id, deviation.id, reklamFiles);
+        await updateDeviation(deviation.id, { image_urls: imageUrls });
+      }
+
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'deviation',
-        description: `Reklamation rapporterad (${reklamPriority}): ${reklamDesc}`,
+        description: `Reklamation rapporterad (${reklamPriority}): ${reklamDesc}${imageUrls.length > 0 ? ` [${imageUrls.length} bild(er)]` : ''}`,
         created_by: currentUser,
       });
       await updateCase(caseData.id, { status: 'pausad' });
@@ -73,11 +112,32 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
         description: 'Status ändrad till Pausad (reklamation)',
         created_by: currentUser,
       });
+
+      // Send notification email
+      try {
+        const emailBody = buildEmailBody('reklamation', reklamDesc, reklamPriority) +
+          (imageUrls.length > 0 ? `<p><strong>${imageUrls.length} bild(er) bifogade</strong></p>` : '');
+        await sendNotificationEmail({
+          to: 'mirna.malke@mockfjards.se',
+          cc: 'mf@malke.se',
+          subject: `NY REKLAMATION — ${caseData.address}`,
+          body: emailBody,
+        });
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'notification',
+          description: 'Mail skickat till koordinator',
+          created_by: currentUser,
+        });
+      } catch (emailErr) {
+        console.error('Email notification failed:', emailErr);
+      }
     },
     onSuccess: () => {
       setShowReklam(false);
       setReklamDesc('');
       setReklamPriority('medium');
+      setReklamFiles([]);
       invalidate();
       toast.success('Reklamation skapad');
       onBack();
@@ -133,17 +193,53 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
   });
 
   const deviationMutation = useMutation({
-    mutationFn: () =>
-      createDeviation({
+    mutationFn: async () => {
+      const deviation = await createDeviation({
         case_id: caseData.id,
         type: devForm.type,
         description: devForm.description,
         responsible: devForm.responsible,
         created_by: currentUser,
-      }),
+      });
+
+      let imageUrls: string[] = [];
+      if (devFiles.length > 0) {
+        imageUrls = await uploadDeviationImages(caseData.id, deviation.id, devFiles);
+        await updateDeviation(deviation.id, { image_urls: imageUrls });
+      }
+
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'deviation',
+        description: `Avvikelse: ${devForm.type} — ${devForm.description}${imageUrls.length > 0 ? ` [${imageUrls.length} bild(er)]` : ''}`,
+        created_by: currentUser,
+      });
+
+      // Send notification email
+      try {
+        const typLabel = DEVIATION_TYPES.find(d => d.value === devForm.type)?.label || devForm.type;
+        const emailBody = buildEmailBody(typLabel, devForm.description) +
+          (imageUrls.length > 0 ? `<p><strong>${imageUrls.length} bild(er) bifogade</strong></p>` : '');
+        await sendNotificationEmail({
+          to: 'mirna.malke@mockfjards.se',
+          cc: 'mf@malke.se',
+          subject: `NY AVVIKELSE — ${caseData.address}`,
+          body: emailBody,
+        });
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'notification',
+          description: 'Mail skickat till koordinator',
+          created_by: currentUser,
+        });
+      } catch (emailErr) {
+        console.error('Email notification failed:', emailErr);
+      }
+    },
     onSuccess: () => {
       setShowDeviation(false);
       setDevForm({ type: '', description: '', responsible: '' });
+      setDevFiles([]);
       invalidate();
       toast.success('Avvikelse rapporterad');
     },
@@ -159,6 +255,24 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
       }),
     onSuccess: () => { setNote(''); invalidate(); toast.success('Anteckning sparad'); },
   });
+
+  const FileThumbnails = ({ files, setter }: { files: File[]; setter: (f: File[]) => void }) => (
+    files.length > 0 ? (
+      <div className="flex gap-2 flex-wrap">
+        {files.map((f, i) => (
+          <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border">
+            <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+            <button
+              onClick={() => removeFile(i, setter, files)}
+              className="absolute top-0 right-0 bg-black/60 text-white rounded-bl-lg p-0.5"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+      </div>
+    ) : null
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -248,6 +362,15 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
                   {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <div>
+                <Label className="mb-1 block text-sm">Bilder (max 5)</Label>
+                <label className="inline-flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted min-h-[48px]">
+                  <Camera className="h-4 w-4" />
+                  <span className="text-sm">Välj bilder...</span>
+                  <input type="file" accept="image/jpeg,image/png,image/heic" multiple className="hidden" onChange={(e) => handleFileSelect(e, setDevFiles, devFiles)} />
+                </label>
+                <FileThumbnails files={devFiles} setter={setDevFiles} />
+              </div>
               <Button className="min-h-[48px] w-full" disabled={!devForm.type || !devForm.description || !devForm.responsible} onClick={() => deviationMutation.mutate()}>
                 Spara avvikelse
               </Button>
@@ -282,6 +405,15 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
                 <p className="text-muted-foreground text-xs">
                   Ansvar: {DEVIATION_RESPONSIBLE.find(r => r.value === d.responsible)?.label || d.responsible} — {d.created_by}
                 </p>
+                {d.image_urls && (d.image_urls as string[]).length > 0 && (
+                  <div className="flex gap-2 flex-wrap mt-2">
+                    {(d.image_urls as string[]).map((url, i) => (
+                      <button key={i} onClick={() => setFullscreenImg(url)} className="w-16 h-16 rounded-lg overflow-hidden border hover:ring-2 ring-primary">
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </section>
@@ -339,13 +471,19 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
                 ))}
               </div>
             </div>
-            <Button variant="outline" className="w-full min-h-[48px]" disabled>
-              <Camera className="h-4 w-4 mr-2" /> Bifoga foto (kommer snart)
-            </Button>
+            <div>
+              <Label className="mb-1 block">Bifoga bilder (1–5 st, jpg/png/heic)</Label>
+              <label className="inline-flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer hover:bg-muted min-h-[48px] w-full justify-center">
+                <Camera className="h-5 w-5" />
+                <span>{reklamFiles.length > 0 ? `${reklamFiles.length} bild(er) valda` : 'Välj bilder...'}</span>
+                <input type="file" accept="image/jpeg,image/png,image/heic" multiple className="hidden" onChange={(e) => handleFileSelect(e, setReklamFiles, reklamFiles)} />
+              </label>
+              <FileThumbnails files={reklamFiles} setter={setReklamFiles} />
+            </div>
           </div>
           <DrawerFooter>
-            <Button className="min-h-[48px]" disabled={!reklamDesc.trim()} onClick={() => reklamMutation.mutate()}>
-              Skapa reklamation
+            <Button className="min-h-[48px]" disabled={!reklamDesc.trim() || reklamMutation.isPending} onClick={() => reklamMutation.mutate()}>
+              {reklamMutation.isPending ? 'Sparar...' : 'Skapa reklamation'}
             </Button>
             <DrawerClose asChild>
               <Button variant="outline" className="min-h-[48px]">Avbryt</Button>
@@ -374,6 +512,13 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      {/* Fullscreen image dialog */}
+      <Dialog open={!!fullscreenImg} onOpenChange={() => setFullscreenImg(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-2">
+          {fullscreenImg && <img src={fullscreenImg} alt="" className="w-full h-full object-contain" />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

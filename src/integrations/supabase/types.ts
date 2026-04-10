@@ -140,6 +140,7 @@ export type Database = {
           created_by: string
           description: string
           id: string
+          image_urls: string[] | null
           resolved: boolean
           responsible: string
           type: string
@@ -151,6 +152,7 @@ export type Database = {
           created_by: string
           description: string
           id?: string
+          image_urls?: string[] | null
           resolved?: boolean
           responsible: string
           type: string
@@ -162,6 +164,7 @@ export type Database = {
           created_by?: string
           description?: string
           id?: string
+          image_urls?: string[] | null
           resolved?: boolean
           responsible?: string
           type?: string
