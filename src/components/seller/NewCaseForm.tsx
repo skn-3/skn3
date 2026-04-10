@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createCase, createCaseEvent } from '@/lib/supabaseClient';
-import { MONTORS } from '@/lib/constants';
+import { createCase, createCaseEvent, sendNotificationEmail } from '@/lib/supabaseClient';
+import { MONTORS, EMAIL_MAP } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -65,6 +65,37 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         description: 'Ärende skapat, status: Väntar KM',
         created_by: sellerName,
       });
+
+      // Send email to assigned montör
+      if (form.team && EMAIL_MAP[form.team]) {
+        try {
+          await sendNotificationEmail({
+            to: EMAIL_MAP[form.team],
+            subject: `NYTT ÄRENDE — ${form.address}`,
+            body: `
+              <h2>Nytt ärende tilldelat</h2>
+              <table style="border-collapse:collapse;width:100%">
+                <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${form.address}</td></tr>
+                <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${form.customer_name}</td></tr>
+                <tr><td style="padding:4px 8px;font-weight:bold">Telefon:</td><td style="padding:4px 8px">${form.customer_phone}</td></tr>
+                <tr><td style="padding:4px 8px;font-weight:bold">Säljare:</td><td style="padding:4px 8px">${sellerName}</td></tr>
+                ${form.notes ? `<tr><td style="padding:4px 8px;font-weight:bold">Anteckning:</td><td style="padding:4px 8px">${form.notes}</td></tr>` : ''}
+              </table>
+              <p style="margin-top:16px"><strong>Vänligen boka kontrollmätning.</strong></p>
+            `,
+          });
+          await createCaseEvent({
+            case_id: newCase.id,
+            event_type: 'notification',
+            description: `Mail skickat till montör (${form.team})`,
+            created_by: sellerName,
+          });
+        } catch (emailErr) {
+          console.error('Email notification failed:', emailErr);
+          toast.warning('Ärendet skapades men mailet kunde inte skickas');
+        }
+      }
+
       return newCase;
     },
     onSuccess: () => {
