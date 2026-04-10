@@ -305,6 +305,21 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const resolveMutation = useMutation({
+    mutationFn: async (deviation: any) => {
+      await updateDeviation(deviation.id, { resolved: true });
+      const typLabel = DEVIATION_TYPES.find(d => d.value === deviation.type)?.label || deviation.type;
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'deviation_resolved',
+        description: `Avvikelse löst: ${typLabel} — ${deviation.description.substring(0, 60)}`,
+        created_by: currentUser,
+      });
+    },
+    onSuccess: () => { invalidate(); toast.success('Avvikelse markerad som löst'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const noteMutation = useMutation({
     mutationFn: () =>
       createCaseEvent({
@@ -429,7 +444,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Anteckning</h3>
           <div className="flex gap-2">
             <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="flex-1" placeholder="Skriv en anteckning..." />
-            <Button className="min-h-[48px]" disabled={!note} onClick={() => noteMutation.mutate()}>Spara</Button>
+            <Button className="min-h-[48px]" disabled={!note || noteMutation.isPending} onClick={() => noteMutation.mutate()}>{noteMutation.isPending ? 'Sparar...' : 'Spara'}</Button>
           </div>
         </section>
 
@@ -469,10 +484,15 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             </h3>
             {deviations.map(d => (
               <div key={d.id} className="rounded-lg border p-3 text-sm space-y-1">
-                <div className="flex justify-between">
-                  <Badge variant={d.resolved ? 'secondary' : 'destructive'}>
-                    {DEVIATION_TYPES.find(dt => dt.value === d.type)?.label || d.type}
-                  </Badge>
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-1.5 items-center">
+                    <Badge variant={d.resolved ? 'secondary' : 'destructive'}>
+                      {DEVIATION_TYPES.find(dt => dt.value === d.type)?.label || d.type}
+                    </Badge>
+                    <Badge variant={d.resolved ? 'secondary' : 'destructive'} className={d.resolved ? 'bg-green-100 text-green-800 border-green-300' : ''}>
+                      {d.resolved ? 'Löst' : 'Olöst'}
+                    </Badge>
+                  </div>
                   <span className="text-xs text-muted-foreground">{new Date(d.created_at).toLocaleDateString('sv-SE')}</span>
                 </div>
                 <p className="text-card-foreground">{d.description}</p>
@@ -487,6 +507,17 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                       </button>
                     ))}
                   </div>
+                )}
+                {!d.resolved && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-1 text-green-700 border-green-400 hover:bg-green-50"
+                    disabled={resolveMutation.isPending}
+                    onClick={() => resolveMutation.mutate(d)}
+                  >
+                    {resolveMutation.isPending ? 'Sparar...' : '✓ Markera löst'}
+                  </Button>
                 )}
               </div>
             ))}

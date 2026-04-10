@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, createDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, createDeviation, updateDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -148,6 +148,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
   });
 
+  const resolveMutation = useMutation({
+    mutationFn: async (deviation: any) => {
+      await updateDeviation(deviation.id, { resolved: true });
+      const typLabel = DEVIATION_TYPES.find(d => d.value === deviation.type)?.label || deviation.type;
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'deviation_resolved',
+        description: `Avvikelse löst: ${typLabel} — ${deviation.description.substring(0, 60)}`,
+        created_by: currentUser,
+      });
+    },
+    onSuccess: () => { invalidate(); toast.success('Avvikelse markerad som löst'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const kmBookMutation = useMutation({
     mutationFn: async () => {
       await updateCase(caseData.id, { status: 'km_bokad', km_date: kmDate });
@@ -263,7 +278,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <div className="space-y-2">
                 <Label>Boka KM-datum</Label>
                 <Input type="date" value={kmDate} onChange={(e) => setKmDate(e.target.value)} />
-                <Button disabled={!kmDate} onClick={() => kmBookMutation.mutate()} size="sm">Boka kontrollmätning</Button>
+                <Button disabled={!kmDate || kmBookMutation.isPending} onClick={() => kmBookMutation.mutate()} size="sm">{kmBookMutation.isPending ? 'Sparar...' : 'Boka kontrollmätning'}</Button>
               </div>
             )}
 
@@ -273,12 +288,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 <Input type="number" value={extraHoursReq} onChange={(e) => setExtraHoursReq(e.target.value)} />
                 <Label>Anteckning</Label>
                 <Textarea value={kmNote} onChange={(e) => setKmNote(e.target.value)} rows={2} />
-                <Button onClick={() => kmReportMutation.mutate()} size="sm">Rapportera KM klar</Button>
+                <Button disabled={kmReportMutation.isPending} onClick={() => kmReportMutation.mutate()} size="sm">{kmReportMutation.isPending ? 'Sparar...' : 'Rapportera KM klar'}</Button>
               </div>
             )}
 
             {!isSeller && caseData.status === 'montage_bokat' && (
-              <Button onClick={() => changeStatus('montage_klart', 'Montage klart.')} size="sm">Montage klart</Button>
+              <Button disabled={statusMutation.isPending} onClick={() => changeStatus('montage_klart', 'Montage klart.')} size="sm">{statusMutation.isPending ? 'Sparar...' : 'Montage klart'}</Button>
             )}
 
             {isSeller && (caseData.status === 'km_klar' || caseData.status === 'vantar_godkannande') && (
@@ -415,15 +430,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             )}
 
             {isSeller && (caseData.status === 'godkand' || caseData.status === 'i_produktion') && (
-              <Button onClick={() => changeStatus('leverans_klar', 'Markerad som leverans klar')} size="sm">Markera leverans klar</Button>
+              <Button disabled={statusMutation.isPending} onClick={() => changeStatus('leverans_klar', 'Markerad som leverans klar')} size="sm">{statusMutation.isPending ? 'Sparar...' : 'Markera leverans klar'}</Button>
             )}
 
             {isSeller && caseData.status === 'leverans_klar' && (
-              <Button onClick={() => changeStatus('montage_bokat', 'Montage bokat')} size="sm">Boka montage</Button>
+              <Button disabled={statusMutation.isPending} onClick={() => changeStatus('montage_bokat', 'Montage bokat')} size="sm">{statusMutation.isPending ? 'Sparar...' : 'Boka montage'}</Button>
             )}
 
             {isSeller && caseData.status === 'montage_klart' && (
-              <Button onClick={() => changeStatus('fakturerad', 'Markerad som fakturerad')} size="sm">Markera fakturerad</Button>
+              <Button disabled={statusMutation.isPending} onClick={() => changeStatus('fakturerad', 'Markerad som fakturerad')} size="sm">{statusMutation.isPending ? 'Sparar...' : 'Markera fakturerad'}</Button>
             )}
 
             <Button variant="outline" size="sm" onClick={() => setShowDeviation(!showDeviation)}>
@@ -452,10 +467,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 </Select>
                 <Button
                   size="sm"
-                  disabled={!devForm.type || !devForm.description || !devForm.responsible}
+                  disabled={!devForm.type || !devForm.description || !devForm.responsible || deviationMutation.isPending}
                   onClick={() => deviationMutation.mutate()}
                 >
-                  Spara avvikelse
+                  {deviationMutation.isPending ? 'Sparar...' : 'Spara avvikelse'}
                 </Button>
               </div>
             )}
@@ -497,10 +512,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               </h3>
               {deviations.map((d) => (
                 <div key={d.id} className="rounded-lg border p-2 text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <Badge variant={d.resolved ? 'secondary' : 'destructive'}>
-                      {DEVIATION_TYPES.find((dt) => dt.value === d.type)?.label || d.type}
-                    </Badge>
+                  <div className="flex justify-between items-center">
+                    <div className="flex gap-1.5 items-center">
+                      <Badge variant={d.resolved ? 'secondary' : 'destructive'}>
+                        {DEVIATION_TYPES.find((dt) => dt.value === d.type)?.label || d.type}
+                      </Badge>
+                      <Badge variant={d.resolved ? 'secondary' : 'destructive'} className={d.resolved ? 'bg-green-100 text-green-800 border-green-300' : ''}>
+                        {d.resolved ? 'Löst' : 'Olöst'}
+                      </Badge>
+                    </div>
                     <span className="text-xs text-muted-foreground">{new Date(d.created_at).toLocaleDateString('sv-SE')}</span>
                   </div>
                   <p className="text-card-foreground">{d.description}</p>
@@ -514,6 +534,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       ))}
                     </div>
                   )}
+                  {!d.resolved && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-1 text-green-700 border-green-400 hover:bg-green-50"
+                      disabled={resolveMutation.isPending}
+                      onClick={() => resolveMutation.mutate(d)}
+                    >
+                      {resolveMutation.isPending ? 'Sparar...' : '✓ Markera löst'}
+                    </Button>
+                  )}
                 </div>
               ))}
             </section>
@@ -524,7 +555,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Anteckning</h3>
             <div className="flex gap-2">
               <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="flex-1" placeholder="Skriv en anteckning..." />
-              <Button size="sm" disabled={!note} onClick={() => noteMutation.mutate()}>Spara</Button>
+              <Button size="sm" disabled={!note || noteMutation.isPending} onClick={() => noteMutation.mutate()}>{noteMutation.isPending ? 'Sparar...' : 'Spara'}</Button>
             </div>
           </section>
 
