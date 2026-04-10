@@ -29,6 +29,7 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
   const [extraHoursReq, setExtraHoursReq] = useState('0');
   const [kmNote, setKmNote] = useState('');
   const [selectedStatus, setSelectedStatus] = useState(caseData.status);
+  const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
 
   const { data: events } = useQuery({
     queryKey: ['case_events', caseData.id],
@@ -299,6 +300,15 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
                   </div>
                   <p className="text-card-foreground">{d.description}</p>
                   <p className="text-muted-foreground">Ansvar: {DEVIATION_RESPONSIBLE.find((r) => r.value === d.responsible)?.label || d.responsible}</p>
+                  {d.image_urls && (d.image_urls as string[]).length > 0 && (
+                    <div className="flex gap-2 flex-wrap mt-1">
+                      {(d.image_urls as string[]).map((url, i) => (
+                        <button key={i} onClick={() => setFullscreenImg(url)} className="w-14 h-14 rounded overflow-hidden border hover:ring-2 ring-primary">
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </section>
