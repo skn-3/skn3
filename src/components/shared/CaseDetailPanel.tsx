@@ -39,6 +39,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [note, setNote] = useState('');
   const [showDeviation, setShowDeviation] = useState(false);
   const [devForm, setDevForm] = useState({ type: '', description: '', responsible: '' });
+  const [devCost, setDevCost] = useState('');
   const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
   const [probFiles, setProbFiles] = useState<File[]>([]);
   const [kmDate, setKmDate] = useState('');
@@ -55,6 +56,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [approvalMontor, setApprovalMontor] = useState(caseData.team || '');
   const [approvalDate, setApprovalDate] = useState<Date | undefined>(undefined);
   const [approvalNote, setApprovalNote] = useState('');
+  // Edit deviation cost
+  const [editingDevCost, setEditingDevCost] = useState<string | null>(null);
+  const [editDevCostValue, setEditDevCostValue] = useState('');
 
   const { data: events } = useQuery({
     queryKey: ['case_events', caseData.id],
@@ -147,6 +151,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         created_by: currentUser,
       });
 
+      if (devCost && Number(devCost) > 0) {
+        await updateDeviation(deviation.id, { cost: Number(devCost) });
+      }
+
       let imageUrls: string[] = [];
       if (probFiles.length > 0) {
         imageUrls = await uploadDeviationImages(caseData.id, deviation.id, probFiles);
@@ -200,6 +208,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       setDevForm({ type: '', description: '', responsible: '' });
       setProbPriority('medium');
       setProbFiles([]);
+      setDevCost('');
       invalidate();
       toast.success('Problem rapporterat');
     },
@@ -218,6 +227,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       });
     },
     onSuccess: () => { invalidate(); toast.success('Avvikelse markerad som löst'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateDevCostMutation = useMutation({
+    mutationFn: async ({ id, cost }: { id: string; cost: number }) => {
+      await updateDeviation(id, { cost });
+    },
+    onSuccess: () => { setEditingDevCost(null); invalidate(); toast.success('Kostnad uppdaterad'); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -572,6 +589,24 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   </div>
                   <p className="text-card-foreground">{d.description}</p>
                   <p className="text-muted-foreground">Ansvar: {DEVIATION_RESPONSIBLE.find((r) => r.value === d.responsible)?.label || d.responsible}</p>
+                  {(d as any).cost > 0 && (
+                    <p className="text-sm font-medium text-destructive">Kostnad: {Number((d as any).cost).toLocaleString('sv-SE')} kr</p>
+                  )}
+                  {isSeller && (
+                    editingDevCost === d.id ? (
+                      <div className="flex gap-2 items-center mt-1">
+                        <Input type="number" value={editDevCostValue} onChange={e => setEditDevCostValue(e.target.value)} placeholder="Kostnad kr" className="w-32 h-8" />
+                        <Button size="sm" variant="outline" disabled={updateDevCostMutation.isPending} onClick={() => updateDevCostMutation.mutate({ id: d.id, cost: Number(editDevCostValue) })}>
+                          {updateDevCostMutation.isPending ? 'Sparar...' : 'Spara'}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingDevCost(null)}>Avbryt</Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="ghost" className="mt-1 text-xs text-muted-foreground" onClick={() => { setEditingDevCost(d.id); setEditDevCostValue(String((d as any).cost || 0)); }}>
+                        ✏️ Redigera kostnad
+                      </Button>
+                    )
+                  )}
                   {d.image_urls && (d.image_urls as string[]).length > 0 && (
                     <div className="flex gap-2 flex-wrap mt-1">
                       {(d.image_urls as string[]).map((url, i) => (
@@ -705,6 +740,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Kostnad (kr)</Label>
+              <Input type="number" value={devCost} onChange={e => setDevCost(e.target.value)} placeholder="0" />
             </div>
             <div>
               <Label>Bifoga bilder (max 5)</Label>

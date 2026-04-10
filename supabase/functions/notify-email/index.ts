@@ -36,7 +36,7 @@ function wrapInTemplate(heading: string, bodyContent: string, callToAction?: str
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 <tr>
 <td style="vertical-align:middle;width:40px;">
-<img src="${LOGO_URL}" alt="SmartKlimat" width="36" height="36" style="display:block;border-radius:50%;background:#fff;" />
+<img src="${LOGO_URL}" alt="SmartKlimat" width="36" height="36" style="display:block;border-radius:50%;background:#ffffff;padding:3px;" />
 </td>
 <td style="vertical-align:middle;padding-left:12px;color:#ffffff;font-size:20px;font-weight:bold;">SmartKlimat N3prenad</td>
 </tr>

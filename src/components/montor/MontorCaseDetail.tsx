@@ -47,6 +47,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
   const [probResponsible, setProbResponsible] = useState('');
   const [probFiles, setProbFiles] = useState<File[]>([]);
+  const [probCost, setProbCost] = useState('');
 
   // Cost form state
   const [costDesc, setCostDesc] = useState('');
@@ -123,6 +124,10 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         created_by: currentUser,
       });
 
+      if (probCost && Number(probCost) > 0) {
+        await updateDeviation(deviation.id, { cost: Number(probCost) });
+      }
+
       let imageUrls: string[] = [];
       if (probFiles.length > 0) {
         imageUrls = await uploadDeviationImages(caseData.id, deviation.id, probFiles);
@@ -182,6 +187,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       setProbPriority('medium');
       setProbResponsible('');
       setProbFiles([]);
+      setProbCost('');
       invalidate();
       toast.success('Problem rapporterat');
     },
@@ -510,6 +516,9 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                 <p className="text-muted-foreground text-xs">
                   Ansvar: {DEVIATION_RESPONSIBLE.find(r => r.value === d.responsible)?.label || d.responsible} — {d.created_by}
                 </p>
+                {(d as any).cost > 0 && (
+                  <p className="text-sm font-medium text-destructive">Kostnad: {Number((d as any).cost).toLocaleString('sv-SE')} kr</p>
+                )}
                 {d.image_urls && (d.image_urls as string[]).length > 0 && (
                   <div className="flex gap-2 flex-wrap mt-2">
                     {(d.image_urls as string[]).map((url, i) => (
@@ -604,6 +613,10 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label className="mb-1 block">Kostnad (kr)</Label>
+              <Input type="number" value={probCost} onChange={e => setProbCost(e.target.value)} placeholder="0" className="min-h-[48px]" />
             </div>
             <div>
               <Label className="mb-1 block">Bifoga bilder (1–5 st)</Label>

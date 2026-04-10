@@ -174,6 +174,7 @@ export type Database = {
         Row: {
           action_needed: string | null
           case_id: string
+          cost: number | null
           created_at: string
           created_by: string
           description: string
@@ -186,6 +187,7 @@ export type Database = {
         Insert: {
           action_needed?: string | null
           case_id: string
+          cost?: number | null
           created_at?: string
           created_by: string
           description: string
@@ -198,6 +200,7 @@ export type Database = {
         Update: {
           action_needed?: string | null
           case_id?: string
+          cost?: number | null
           created_at?: string
           created_by?: string
           description?: string

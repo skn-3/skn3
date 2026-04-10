@@ -66,6 +66,12 @@ export async function createCaseEvent(event: CaseEventInsert) {
   return data;
 }
 
+export async function fetchAllCaseEvents() {
+  const { data, error } = await supabase.from('case_events').select('*').order('created_at', { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchDeviations(caseId: string) {
   const { data, error } = await supabase
     .from('deviations')
@@ -88,7 +94,7 @@ export async function createDeviation(deviation: DeviationInsert) {
   return data;
 }
 
-export async function updateDeviation(id: string, updates: { image_urls?: string[]; resolved?: boolean }) {
+export async function updateDeviation(id: string, updates: { image_urls?: string[]; resolved?: boolean; cost?: number }) {
   const { data, error } = await supabase.from('deviations').update(updates).eq('id', id).select().single();
   if (error) throw error;
   return data;
