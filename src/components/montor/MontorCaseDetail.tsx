@@ -395,7 +395,9 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
               <Input type="number" value={extraHoursReq} onChange={(e) => setExtraHoursReq(e.target.value)} className="min-h-[48px]" />
               <Label>Anteckning</Label>
               <Textarea value={kmNote} onChange={(e) => setKmNote(e.target.value)} rows={2} />
-              <Button onClick={() => kmReportMutation.mutate()} className="min-h-[48px] w-full">Rapportera KM klar</Button>
+              <Button disabled={kmReportMutation.isPending} onClick={() => kmReportMutation.mutate()} className="min-h-[48px] w-full">
+                {kmReportMutation.isPending ? 'Sparar...' : 'Rapportera KM klar'}
+              </Button>
             </div>
           )}
 

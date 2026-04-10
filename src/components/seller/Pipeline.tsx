@@ -31,6 +31,12 @@ export function Pipeline({ sellerName, onSelectCase }: PipelineProps) {
 
   const followUps = (visits || []).filter((v) => v.result === 'aterkoppla' && !v.case_id);
 
+  // Debug logging
+  if (cases) {
+    console.log('Alla ärenden:', cases);
+    console.log('Statusar:', [...new Set(cases.map(c => c.status))]);
+  }
+
   const grouped = SELLER_PIPELINE_COLUMNS.reduce((acc, status) => {
     acc[status] = (cases || []).filter((c) => {
       if (status === 'godkand') return c.status === 'godkand' || c.status === 'i_produktion';
@@ -38,6 +44,10 @@ export function Pipeline({ sellerName, onSelectCase }: PipelineProps) {
     });
     return acc;
   }, {} as Record<string, CaseRow[]>);
+
+  console.log('Kolumn-filter:', Object.fromEntries(
+    SELLER_PIPELINE_COLUMNS.map(s => [s, grouped[s]?.length || 0])
+  ));
 
   const columnLabels: Record<string, string> = {
     ...STATUS_LABELS,
