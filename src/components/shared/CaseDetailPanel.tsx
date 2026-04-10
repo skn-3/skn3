@@ -254,6 +254,79 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onSuccess: () => { invalidate(); toast.success('KM rapporterad'); },
   });
 
+  const approveHoursMutation = useMutation({
+    mutationFn: async () => {
+      await updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested });
+      await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${caseData.extra_hours_requested}`, created_by: currentUser });
+    },
+    onSuccess: () => { invalidate(); toast.success('Extra timmar godkända'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const rejectHoursMutation = useMutation({
+    mutationFn: async () => {
+      await updateCase(caseData.id, { extra_hours_approved: 0 });
+      await createCaseEvent({ case_id: caseData.id, event_type: 'hours_rejected', description: 'Extra timmar avslagna', created_by: currentUser });
+    },
+    onSuccess: () => { invalidate(); toast.success('Extra timmar avslagna'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const approvalMutation = useMutation({
+    mutationFn: async () => {
+      const dateStr = format(approvalDate!, 'yyyy-MM-dd');
+      const oldTeam = caseData.team;
+      const teamChanged = approvalMontor !== oldTeam;
+
+      await updateCase(caseData.id, { status: 'montage_bokat', montage_date: dateStr, team: approvalMontor });
+      await createCaseEvent({ case_id: caseData.id, event_type: 'status_change', description: `KM godkänd. Montage bokat ${dateStr} — montör: ${approvalMontor}${approvalNote ? '. ' + approvalNote : ''}`, created_by: currentUser });
+
+      if (teamChanged && oldTeam) {
+        await createCaseEvent({ case_id: caseData.id, event_type: 'team_change', description: `Montör bytt från ${oldTeam} till ${approvalMontor}`, created_by: currentUser });
+      }
+
+      try {
+        await sendNotificationEmail({
+          to: COORDINATOR_EMAIL,
+          cc: COORDINATOR_CC,
+          subject: `MONTAGE BOKAT — ${caseData.address}`,
+          heading: 'Montage bokat',
+          rows: [
+            { label: 'Adress', value: caseData.address },
+            { label: 'Kund', value: caseData.customer_name },
+            { label: 'Montör', value: approvalMontor },
+            { label: 'Montagedatum', value: dateStr },
+            ...(approvalNote ? [{ label: 'Anteckning', value: approvalNote }] : []),
+          ],
+          callToAction: 'Montage är bokat.',
+        });
+        await createCaseEvent({ case_id: caseData.id, event_type: 'notification', description: `Mail skickat till ${COORDINATOR_EMAIL} (montage bokat)`, created_by: currentUser });
+      } catch (emailErr) {
+        console.error('Email notification failed:', emailErr);
+        toast.warning('Status uppdaterad men mailet kunde inte skickas');
+      }
+    },
+    onSuccess: () => { invalidate(); toast.success('KM godkänd och montage bokat'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => { await deleteCase(caseData.id); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cases'] });
+      toast.success('Ärendet har raderats');
+      onClose();
+    },
+    onError: (e: Error) => toast.error('Kunde inte radera: ' + e.message),
+  });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const allowed = files.filter(f => /\.(jpe?g|png|heic)$/i.test(f.name));
+    setProbFiles(prev => [...prev, ...allowed].slice(0, 5));
+    e.target.value = '';
+  };
+
   const changeStatus = (newStatus: string, description: string) => {
     statusMutation.mutate({ newStatus, description });
   };
