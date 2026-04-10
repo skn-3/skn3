@@ -180,7 +180,10 @@ export async function sendNotificationEmail(params: {
   to: string;
   cc?: string;
   subject: string;
-  body: string;
+  body?: string;
+  heading?: string;
+  rows?: Array<{ label: string; value: string; badge?: { color: string; bg: string } }>;
+  callToAction?: string;
 }) {
   const { data, error } = await supabase.functions.invoke('notify-email', {
     body: params,
