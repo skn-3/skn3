@@ -47,6 +47,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
   const [probResponsible, setProbResponsible] = useState('');
   const [probFiles, setProbFiles] = useState<File[]>([]);
+  const [probCost, setProbCost] = useState('');
 
   // Cost form state
   const [costDesc, setCostDesc] = useState('');
@@ -123,6 +124,10 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         created_by: currentUser,
       });
 
+      if (probCost && Number(probCost) > 0) {
+        await updateDeviation(deviation.id, { cost: Number(probCost) });
+      }
+
       let imageUrls: string[] = [];
       if (probFiles.length > 0) {
         imageUrls = await uploadDeviationImages(caseData.id, deviation.id, probFiles);
@@ -182,6 +187,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       setProbPriority('medium');
       setProbResponsible('');
       setProbFiles([]);
+      setProbCost('');
       invalidate();
       toast.success('Problem rapporterat');
     },
