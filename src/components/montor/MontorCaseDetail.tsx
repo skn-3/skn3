@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
+import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, COORDINATOR_CC, EMAIL_MAP } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -89,18 +89,24 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     setter(current.filter((_, i) => i !== index));
   };
 
-  const buildEmailBody = (type: string, desc: string, priority?: string) => {
-    return `
-      <h2>Nytt problem rapporterat</h2>
-      <table style="border-collapse:collapse;width:100%">
-        <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseData.address}</td></tr>
-        <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${caseData.customer_name}</td></tr>
-        <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${currentUser}</td></tr>
-        <tr><td style="padding:4px 8px;font-weight:bold">Typ:</td><td style="padding:4px 8px">${type}</td></tr>
-        ${priority ? `<tr><td style="padding:4px 8px;font-weight:bold">Prioritet:</td><td style="padding:4px 8px">${priority}</td></tr>` : ''}
-        <tr><td style="padding:4px 8px;font-weight:bold">Beskrivning:</td><td style="padding:4px 8px">${desc}</td></tr>
-      </table>
-    `;
+  const buildProblemRows = (type: string, desc: string, priority?: string) => {
+    const rows: Array<{ label: string; value: string; badge?: { color: string; bg: string } }> = [
+      { label: 'Adress', value: caseData.address },
+      { label: 'Kund', value: caseData.customer_name },
+      { label: 'Montör', value: currentUser },
+      { label: 'Typ', value: type },
+    ];
+    if (priority) {
+      const badgeMap: Record<string, { color: string; bg: string }> = {
+        hog: { color: '#991B1B', bg: '#FEE2E2' },
+        medium: { color: '#92400E', bg: '#FEF3C7' },
+        lag: { color: '#374151', bg: '#F3F4F6' },
+      };
+      const label = priority === 'hog' ? 'Hög' : priority === 'medium' ? 'Medium' : 'Låg';
+      rows.push({ label: 'Prioritet', value: label, badge: badgeMap[priority] });
+    }
+    rows.push({ label: 'Beskrivning', value: desc });
+    return rows;
   };
 
   // Unified problem mutation (replaces separate reklamation + deviation)
@@ -147,12 +153,17 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
       // Send notification email
       try {
-        const emailBody = buildEmailBody(typLabel, probDesc, isReklam ? probPriority : undefined) +
-          (imageUrls.length > 0 ? `<p><strong>${imageUrls.length} bild(er) bifogade</strong></p>` : '');
+        const rows = buildProblemRows(typLabel, probDesc, isReklam ? probPriority : undefined);
+        if (imageUrls.length > 0) {
+          rows.push({ label: 'Bilder', value: `${imageUrls.length} bild(er) bifogade` });
+        }
         await sendNotificationEmail({
           to: COORDINATOR_EMAIL,
+          cc: COORDINATOR_CC,
           subject: `${isReklam ? 'NY REKLAMATION' : 'NY AVVIKELSE'} — ${caseData.address}`,
-          body: emailBody,
+          heading: isReklam ? 'Ny reklamation' : 'Ny avvikelse',
+          rows,
+          callToAction: 'Vänligen granska ärendet.',
         });
         await createCaseEvent({
           case_id: caseData.id,
