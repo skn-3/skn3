@@ -50,8 +50,9 @@ export const SELLER_PIPELINE_COLUMNS = [
 ] as const;
 
 export const DEVIATION_TYPES = [
-  { value: 'fabriksfel', label: 'Fabriksfel' },
+  { value: 'reklamation', label: 'Reklamation' },
   { value: 'felmatning', label: 'Felmätning' },
+  { value: 'fabriksfel', label: 'Fabriksfel' },
   { value: 'extra_material', label: 'Extra material' },
   { value: 'ovrigt', label: 'Övrigt' },
 ] as const;

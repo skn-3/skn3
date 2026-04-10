@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseById, updateCase, createCaseEvent, createDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, createDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -63,11 +63,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryFn: () => fetchDeviations(caseData.id),
   });
 
+  const { data: costs } = useQuery({
+    queryKey: ['case_costs', caseData.id],
+    queryFn: () => fetchCaseCosts(caseData.id),
+  });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
     queryClient.invalidateQueries({ queryKey: ['cases'] });
     queryClient.invalidateQueries({ queryKey: ['case_events', caseData.id] });
     queryClient.invalidateQueries({ queryKey: ['deviations', caseData.id] });
+    queryClient.invalidateQueries({ queryKey: ['case_costs', caseData.id] });
   };
 
   const statusMutation = useMutation({
@@ -454,6 +460,34 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               </div>
             )}
           </section>
+
+          {/* Costs */}
+          {costs && costs.length > 0 && (
+            <section className="p-4 space-y-2">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                <Receipt className="h-4 w-4" /> Kostnader ({costs.length})
+              </h3>
+              {costs.map(c => (
+                <div key={c.id} className="rounded-lg border p-2 text-sm flex justify-between items-start">
+                  <div>
+                    <div className="font-medium text-card-foreground">{c.description}</div>
+                    <div className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('sv-SE')} — {c.created_by}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{Number(c.amount).toLocaleString('sv-SE')} kr</span>
+                    {c.receipt_url && (
+                      <button onClick={() => setFullscreenImg(c.receipt_url)} className="w-10 h-10 rounded border overflow-hidden hover:ring-2 ring-primary">
+                        <img src={c.receipt_url} alt="Kvitto" className="w-full h-full object-cover" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div className="text-right font-semibold text-sm text-card-foreground">
+                Totalt: {costs.reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString('sv-SE')} kr
+              </div>
+            </section>
+          )}
 
           {/* Deviations */}
           {deviations && deviations.length > 0 && (

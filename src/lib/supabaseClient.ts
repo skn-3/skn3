@@ -121,17 +121,58 @@ export async function updateVisit(id: string, updates: VisitUpdate) {
   return data;
 }
 
+// Sanitize filename for storage
+const sanitizeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_');
+
 // Upload images to case-images bucket
 export async function uploadDeviationImages(caseId: string, deviationId: string, files: File[]): Promise<string[]> {
   const urls: string[] = [];
   for (const file of files) {
-    const path = `${caseId}/${deviationId}/${file.name}`;
+    const safeName = sanitizeFileName(file.name);
+    const path = `${caseId}/${deviationId}/${safeName}`;
     const { error } = await supabase.storage.from('case-images').upload(path, file, { upsert: true });
     if (error) throw error;
     const { data: urlData } = supabase.storage.from('case-images').getPublicUrl(path);
     urls.push(urlData.publicUrl);
   }
   return urls;
+}
+
+// Upload receipt image
+export async function uploadReceiptImage(caseId: string, costId: string, file: File): Promise<string> {
+  const safeName = sanitizeFileName(file.name);
+  const path = `${caseId}/receipts/${costId}_${safeName}`;
+  const { error } = await supabase.storage.from('case-images').upload(path, file, { upsert: true });
+  if (error) throw error;
+  const { data: urlData } = supabase.storage.from('case-images').getPublicUrl(path);
+  return urlData.publicUrl;
+}
+
+// Case costs
+export interface CaseCost {
+  id: string;
+  case_id: string;
+  created_at: string;
+  description: string;
+  amount: number;
+  receipt_url: string | null;
+  created_by: string;
+}
+
+export async function fetchCaseCosts(caseId: string): Promise<CaseCost[]> {
+  const { data, error } = await supabase
+    .from('case_costs')
+    .select('*')
+    .eq('case_id', caseId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data as CaseCost[];
+}
+
+export async function createCaseCost(cost: { case_id: string; description: string; amount: number; receipt_url?: string; created_by: string }): Promise<CaseCost> {
+  const { data, error } = await supabase.from('case_costs').insert(cost).select().single();
+  if (error) throw error;
+  return data as CaseCost;
 }
 
 // Send notification email via edge function
