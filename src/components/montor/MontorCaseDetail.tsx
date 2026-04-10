@@ -516,6 +516,9 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                 <p className="text-muted-foreground text-xs">
                   Ansvar: {DEVIATION_RESPONSIBLE.find(r => r.value === d.responsible)?.label || d.responsible} — {d.created_by}
                 </p>
+                {(d as any).cost > 0 && (
+                  <p className="text-sm font-medium text-destructive">Kostnad: {Number((d as any).cost).toLocaleString('sv-SE')} kr</p>
+                )}
                 {d.image_urls && (d.image_urls as string[]).length > 0 && (
                   <div className="flex gap-2 flex-wrap mt-2">
                     {(d.image_urls as string[]).map((url, i) => (
