@@ -407,6 +407,45 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
               ))}
             </div>
           </section>
+
+          {/* Delete case - seller only */}
+          {isSeller && (
+            <section className="p-4">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 w-full justify-start">
+                    <Trash2 className="h-4 w-4 mr-2" /> Radera ärende
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Radera ärende</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Är du säker på att du vill radera ärendet <strong>{caseData.address}</strong>? Detta går inte att ångra.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Avbryt</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={async () => {
+                        try {
+                          await deleteCase(caseData.id);
+                          queryClient.invalidateQueries({ queryKey: ['cases'] });
+                          toast.success('Ärendet har raderats');
+                          onClose();
+                        } catch (err: any) {
+                          toast.error('Kunde inte radera: ' + err.message);
+                        }
+                      }}
+                    >
+                      Radera
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </section>
+          )}
         </div>
       </div>
       {/* Fullscreen image dialog */}
