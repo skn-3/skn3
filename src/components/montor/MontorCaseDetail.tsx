@@ -154,6 +154,35 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
         description: klarComment ? `Montage klart. ${klarComment}` : 'Montage klart',
         created_by: currentUser,
       });
+
+      // Send MONTAGE KLART email to coordinator
+      try {
+        const { COORDINATOR_EMAIL, COORDINATOR_CC, EMAIL_MAP } = await import('@/lib/constants');
+        await sendNotificationEmail({
+          to: COORDINATOR_EMAIL,
+          cc: COORDINATOR_CC,
+          subject: `MONTAGE KLART — ${caseData.address}`,
+          body: `
+            <h2>Montage klart</h2>
+            <table style="border-collapse:collapse;width:100%">
+              <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseData.address}</td></tr>
+              <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${caseData.customer_name}</td></tr>
+              <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${currentUser}</td></tr>
+              <tr><td style="padding:4px 8px;font-weight:bold">Datum:</td><td style="padding:4px 8px">${new Date().toLocaleDateString('sv-SE')}</td></tr>
+              ${klarComment ? `<tr><td style="padding:4px 8px;font-weight:bold">Kommentar:</td><td style="padding:4px 8px">${klarComment}</td></tr>` : ''}
+            </table>
+          `,
+        });
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'notification',
+          description: 'Mail skickat till koordinator (montage klart)',
+          created_by: currentUser,
+        });
+      } catch (emailErr) {
+        console.error('Email notification failed:', emailErr);
+        toast.warning('Status uppdaterad men mailet kunde inte skickas');
+      }
     },
     onSuccess: () => {
       setShowKlar(false);
@@ -188,6 +217,37 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
         description: hrs > 0 ? `KM klar. Begär ${hrs} extra timmar. ${kmNote}` : `KM klar. ${kmNote}`,
         created_by: currentUser,
       });
+
+      // Send KM KLAR email to seller
+      try {
+        const { EMAIL_MAP } = await import('@/lib/constants');
+        const sellerEmail = EMAIL_MAP[caseData.seller];
+        if (sellerEmail) {
+          await sendNotificationEmail({
+            to: sellerEmail,
+            subject: `KM KLAR — ${caseData.address}`,
+            body: `
+              <h2>Kontrollmätning klar</h2>
+              <table style="border-collapse:collapse;width:100%">
+                <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseData.address}</td></tr>
+                <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${caseData.customer_name}</td></tr>
+                <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${currentUser}</td></tr>
+                ${hrs > 0 ? `<tr><td style="padding:4px 8px;font-weight:bold;color:red">Extra timmar begärda:</td><td style="padding:4px 8px;color:red;font-weight:bold">${hrs} st</td></tr>` : ''}
+                ${kmNote ? `<tr><td style="padding:4px 8px;font-weight:bold">Anteckning:</td><td style="padding:4px 8px">${kmNote}</td></tr>` : ''}
+              </table>
+            `,
+          });
+          await createCaseEvent({
+            case_id: caseData.id,
+            event_type: 'notification',
+            description: `Mail skickat till säljare (${caseData.seller})`,
+            created_by: currentUser,
+          });
+        }
+      } catch (emailErr) {
+        console.error('Email notification failed:', emailErr);
+        toast.warning('KM rapporterad men mailet kunde inte skickas');
+      }
     },
     onSuccess: () => { invalidate(); toast.success('KM rapporterad'); },
   });
