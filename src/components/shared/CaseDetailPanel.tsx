@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, updateCase, createCaseEvent, createDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
@@ -42,6 +42,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [extraHoursReq, setExtraHoursReq] = useState('0');
   const [kmNote, setKmNote] = useState('');
   const [selectedStatus, setSelectedStatus] = useState(caseData.status);
+
+  // Sync selectedStatus when live data updates
+  useEffect(() => {
+    setSelectedStatus(caseData.status);
+  }, [caseData.status]);
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
   // KM approval form state
   const [approvalMontor, setApprovalMontor] = useState(caseData.team || '');
