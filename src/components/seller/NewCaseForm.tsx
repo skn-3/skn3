@@ -62,7 +62,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
       await createCaseEvent({
         case_id: newCase.id,
         event_type: 'status_change',
-        description: 'Ärende skapat, status: Väntar KM',
+        description: `Ärende skapat, tilldelad montör: ${form.team || 'Ej tilldelad'}`,
         created_by: sellerName,
       });
 
@@ -87,7 +87,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
           await createCaseEvent({
             case_id: newCase.id,
             event_type: 'notification',
-            description: `Mail skickat till montör (${form.team})`,
+            description: `Mail skickat till ${EMAIL_MAP[form.team]} (nytt ärende)`,
             created_by: sellerName,
           });
         } catch (emailErr) {

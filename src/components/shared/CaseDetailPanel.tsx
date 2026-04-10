@@ -87,7 +87,7 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
           await createCaseEvent({
             case_id: caseData.id,
             event_type: 'notification',
-            description: 'Mail skickat till koordinator (montage bokat)',
+            description: `Mail skickat till ${COORDINATOR_EMAIL} (montage bokat)`,
             created_by: currentUser,
           });
         } catch (emailErr) {
@@ -105,7 +105,7 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
       createCaseEvent({
         case_id: caseData.id,
         event_type: 'note',
-        description: note,
+        description: `Anteckning: ${note}`,
         created_by: currentUser,
       }),
     onSuccess: () => { setNote(''); invalidate(); toast.success('Anteckning sparad'); },
@@ -153,22 +153,23 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
         case_id: caseData.id,
         event_type: hrs > 0 ? 'hours_request' : 'km_report',
         description: hrs > 0
-          ? `KM klar. Begär ${hrs} extra timmar. ${kmNote}`
-          : `KM klar. ${kmNote}`,
+          ? `KM klar. Extra timmar begärda: ${hrs}`
+          : `KM klar. Inga extra timmar.${kmNote ? ' ' + kmNote : ''}`,
         created_by: currentUser,
       });
     },
     onSuccess: () => { invalidate(); toast.success('KM rapporterad'); },
   });
 
-  const changeStatus = (newStatus: string, label: string) => {
-    statusMutation.mutate({ newStatus, description: `Status ändrad till: ${label}` });
+  const changeStatus = (newStatus: string, description: string) => {
+    statusMutation.mutate({ newStatus, description });
   };
 
   const handleManualStatusChange = (newStatus: string) => {
     setSelectedStatus(newStatus);
     if (newStatus !== caseData.status) {
-      changeStatus(newStatus, STATUS_LABELS[newStatus] || newStatus);
+      const label = STATUS_LABELS[newStatus] || newStatus;
+      changeStatus(newStatus, `Status ändrad till: ${label}`);
     }
   };
 
@@ -257,7 +258,7 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
             )}
 
             {!isSeller && caseData.status === 'montage_bokat' && (
-              <Button onClick={() => changeStatus('montage_klart', 'Montage klart')} size="sm">Montage klart</Button>
+              <Button onClick={() => changeStatus('montage_klart', 'Montage klart.')} size="sm">Montage klart</Button>
             )}
 
             {isSeller && (caseData.status === 'km_klar' || caseData.status === 'vantar_godkannande') && (
@@ -277,7 +278,7 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
                     <div className="flex gap-2">
                       <Button size="sm" variant="default" onClick={async () => {
                         await updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested });
-                        await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `${caseData.extra_hours_requested} extra timmar godkända`, created_by: currentUser });
+                        await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${caseData.extra_hours_requested}`, created_by: currentUser });
                         invalidate();
                         toast.success('Extra timmar godkända');
                       }}>Godkänn extra timmar</Button>
@@ -373,7 +374,7 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
                         await createCaseEvent({
                           case_id: caseData.id,
                           event_type: 'notification',
-                          description: 'Mail skickat till koordinator (montage bokat)',
+                          description: `Mail skickat till ${COORDINATOR_EMAIL} (montage bokat)`,
                           created_by: currentUser,
                         });
                       } catch (emailErr) {
@@ -394,7 +395,7 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
             )}
 
             {isSeller && (caseData.status === 'godkand' || caseData.status === 'i_produktion') && (
-              <Button onClick={() => changeStatus('leverans_klar', 'Leverans klar')} size="sm">Markera leverans klar</Button>
+              <Button onClick={() => changeStatus('leverans_klar', 'Markerad som leverans klar')} size="sm">Markera leverans klar</Button>
             )}
 
             {isSeller && caseData.status === 'leverans_klar' && (
@@ -402,7 +403,7 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
             )}
 
             {isSeller && caseData.status === 'montage_klart' && (
-              <Button onClick={() => changeStatus('fakturerad', 'Fakturerad')} size="sm">Markera fakturerad</Button>
+              <Button onClick={() => changeStatus('fakturerad', 'Markerad som fakturerad')} size="sm">Markera fakturerad</Button>
             )}
 
             <Button variant="outline" size="sm" onClick={() => setShowDeviation(!showDeviation)}>
