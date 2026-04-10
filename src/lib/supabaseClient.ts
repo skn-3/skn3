@@ -45,6 +45,11 @@ export async function updateCase(id: string, updates: CaseUpdate) {
   return data;
 }
 
+export async function deleteCase(id: string) {
+  const { error } = await supabase.from('cases').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function fetchCaseEvents(caseId: string) {
   const { data, error } = await supabase
     .from('case_events')
