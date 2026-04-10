@@ -34,7 +34,6 @@ export function Pipeline({ sellerName, onSelectCase }: PipelineProps) {
   const grouped = SELLER_PIPELINE_COLUMNS.reduce((acc, status) => {
     acc[status] = (cases || []).filter((c) => {
       if (status === 'godkand') return c.status === 'godkand' || c.status === 'i_produktion';
-      if (status === 'montage_klart') return c.status === 'montage_klart' || c.status === 'fakturerad';
       return c.status === status;
     });
     return acc;
@@ -43,7 +42,6 @@ export function Pipeline({ sellerName, onSelectCase }: PipelineProps) {
   const columnLabels: Record<string, string> = {
     ...STATUS_LABELS,
     godkand: 'Godkänd / I produktion',
-    montage_klart: 'Klart',
   };
 
   return (
