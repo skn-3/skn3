@@ -438,7 +438,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   </div>
                 ))}
 
-                {caseData.extra_hours_requested > 0 && (
+                {/* Extra hours status display */}
+                {caseData.extra_hours_requested > 0 && caseData.extra_hours_approved > 0 && (
+                  <div className="rounded bg-primary/10 p-2">
+                    <p className="text-sm font-medium text-primary">✅ Extra timmar godkända: {caseData.extra_hours_approved} st</p>
+                  </div>
+                )}
+
+                {caseData.extra_hours_requested > 0 && caseData.extra_hours_approved === 0 && caseData.status === 'vantar_godkannande' && (
                   <div className="space-y-2 rounded bg-destructive/10 p-2">
                     <p className="text-sm font-medium text-destructive">⚠ {caseData.extra_hours_requested} extra timmar begärda</p>
                     <div className="flex gap-2">
@@ -449,6 +456,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                         {rejectHoursMutation.isPending ? 'Sparar...' : 'Avslå'}
                       </Button>
                     </div>
+                  </div>
+                )}
+
+                {caseData.extra_hours_requested > 0 && caseData.extra_hours_approved === 0 && caseData.status !== 'vantar_godkannande' && (
+                  <div className="rounded bg-muted p-2">
+                    <p className="text-sm font-medium text-muted-foreground">❌ Extra timmar avslagna. Begärda: {caseData.extra_hours_requested} st</p>
                   </div>
                 )}
 
