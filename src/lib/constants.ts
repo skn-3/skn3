@@ -6,7 +6,19 @@ export type RoleType = 'seller' | 'montor';
 export interface UserRole {
   type: RoleType;
   name: string;
+  isAdmin?: boolean;
 }
+
+export const PIN_CODES: Record<string, string> = {
+  'Daniel Malke': '1234',
+  'Gabriel Hanna': '5678',
+  'GVMO': '1111',
+  'Samy': '2222',
+  'Alex NBD': '3333',
+  'Jerk': '4444',
+};
+
+export const ADMIN_USERS = ['Daniel Malke'];
 
 export const STATUS_LABELS: Record<string, string> = {
   ny: 'Ny',
