@@ -13,17 +13,17 @@ const MONTHLY_BUDGET = 2_000_000;
 const YEARLY_BUDGET = 55_000_000;
 
 const EMAIL_MAP: Record<string, string> = {
-  'GVMO': 'johannes@malke.se',
-  'Samy': 'johannes@malke.se',
-  'Alex NBD': 'johannes@malke.se',
-  'Jerk': 'johannes@malke.se',
-  'Daniel Malke': 'johannes@malke.se',
-  'Gabriel Hanna': 'johannes@malke.se',
+  'GVMO': 'gvmo.bygg@gmail.com',
+  'Samy': 'info@smtmbygg.se',
+  'Alex NBD': 'alex@nbdentreprenad.com',
+  'Jerk': 'jerk.ryttman@mockfjards.se',
+  'Daniel Malke': 'daniel.malke@mockfjards.se',
+  'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',
 };
 const SELLERS = ['Daniel Malke', 'Gabriel Hanna'];
 const MONTORS = ['GVMO', 'Samy', 'Alex NBD', 'Jerk'];
-const ADMIN_EMAILS = ['johannes@malke.se']; // TEST: daniel.malke@mockfjards.se
-const ADMIN_CC = 'johannes@malke.se'; // TEST: mf@malke.se
+const ADMIN_EMAILS = ['mirna.malke@mockfjards.se'];
+const ADMIN_CC = 'mf@malke.se';
 
 function getWeekNumber(d: Date): number {
   const onejan = new Date(d.getFullYear(), 0, 1);
