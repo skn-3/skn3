@@ -612,6 +612,10 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               </Select>
             </div>
             <div>
+              <Label className="mb-1 block">Kostnad (kr)</Label>
+              <Input type="number" value={probCost} onChange={e => setProbCost(e.target.value)} placeholder="0" className="min-h-[48px]" />
+            </div>
+            <div>
               <Label className="mb-1 block">Bifoga bilder (1–5 st)</Label>
               <label className="inline-flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer hover:bg-muted min-h-[48px] w-full justify-center">
                 <Camera className="h-5 w-5" />
