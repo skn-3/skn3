@@ -69,16 +69,17 @@ export const VISIT_RESULTS = [
   { value: 'aterkoppla', label: 'Återkoppla' },
 ] as const;
 
+// TEST MODE: All emails routed to johannes@malke.se
 export const EMAIL_MAP: Record<string, string> = {
   // Montörer
-  'GVMO': 'gvmo.bygg@gmail.com',
-  'Samy': 'info@smtmbygg.se',
-  'Alex NBD': 'alex@nbdentreprenad.com',
-  'Jerk': 'jerk.ryttman@mockfjards.se',
+  'GVMO': 'johannes@malke.se',
+  'Samy': 'johannes@malke.se',
+  'Alex NBD': 'johannes@malke.se',
+  'Jerk': 'johannes@malke.se',
   // Säljare
-  'Daniel Malke': 'daniel.malke@mockfjards.se',
-  'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',
+  'Daniel Malke': 'johannes@malke.se',
+  'Gabriel Hanna': 'johannes@malke.se',
 };
 
-export const COORDINATOR_EMAIL = 'mirna.malke@mockfjards.se';
-export const COORDINATOR_CC = 'mf@malke.se';
+export const COORDINATOR_EMAIL = 'johannes@malke.se';
+export const COORDINATOR_CC = 'johannes@malke.se';
