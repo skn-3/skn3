@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE } from '@/lib/constants';
+import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -102,7 +102,7 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'deviation',
-        description: `Reklamation rapporterad (${reklamPriority}): ${reklamDesc}${imageUrls.length > 0 ? ` [${imageUrls.length} bild(er)]` : ''}`,
+        description: `Reklamation skapad: ${reklamDesc}`,
         created_by: currentUser,
       });
       await updateCase(caseData.id, { status: 'pausad' });
@@ -126,7 +126,7 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
         await createCaseEvent({
           case_id: caseData.id,
           event_type: 'notification',
-          description: 'Mail skickat till koordinator',
+          description: `Mail skickat till ${COORDINATOR_EMAIL} (reklamation)`,
           created_by: currentUser,
         });
       } catch (emailErr) {
@@ -151,7 +151,7 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'status_change',
-        description: klarComment ? `Montage klart. ${klarComment}` : 'Montage klart',
+        description: klarComment ? `Montage klart. ${klarComment}` : 'Montage klart.',
         created_by: currentUser,
       });
 
@@ -176,7 +176,7 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
         await createCaseEvent({
           case_id: caseData.id,
           event_type: 'notification',
-          description: 'Mail skickat till koordinator (montage klart)',
+          description: `Mail skickat till ${COORDINATOR_EMAIL} (montage klart)`,
           created_by: currentUser,
         });
       } catch (emailErr) {
@@ -214,7 +214,7 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
       await createCaseEvent({
         case_id: caseData.id,
         event_type: hrs > 0 ? 'hours_request' : 'km_report',
-        description: hrs > 0 ? `KM klar. Begär ${hrs} extra timmar. ${kmNote}` : `KM klar. ${kmNote}`,
+        description: hrs > 0 ? `KM klar. Extra timmar begärda: ${hrs}` : `KM klar. Inga extra timmar.${kmNote ? ' ' + kmNote : ''}`,
         created_by: currentUser,
       });
 
@@ -240,7 +240,7 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
           await createCaseEvent({
             case_id: caseData.id,
             event_type: 'notification',
-            description: `Mail skickat till säljare (${caseData.seller})`,
+            description: `Mail skickat till ${sellerEmail} (KM klar)`,
             created_by: currentUser,
           });
         }
@@ -268,10 +268,11 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
         await updateDeviation(deviation.id, { image_urls: imageUrls });
       }
 
+      const typLabel = DEVIATION_TYPES.find(d => d.value === devForm.type)?.label || devForm.type;
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'deviation',
-        description: `Avvikelse: ${devForm.type} — ${devForm.description}${imageUrls.length > 0 ? ` [${imageUrls.length} bild(er)]` : ''}`,
+        description: `Avvikelse skapad: ${typLabel} — ${devForm.description}`,
         created_by: currentUser,
       });
 
@@ -289,7 +290,7 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
         await createCaseEvent({
           case_id: caseData.id,
           event_type: 'notification',
-          description: 'Mail skickat till koordinator',
+          description: `Mail skickat till ${COORDINATOR_EMAIL} (avvikelse)`,
           created_by: currentUser,
         });
       } catch (emailErr) {
@@ -310,7 +311,7 @@ export function MontorCaseDetail({ caseData, currentUser, onBack }: Props) {
       createCaseEvent({
         case_id: caseData.id,
         event_type: 'note',
-        description: note,
+        description: `Anteckning: ${note}`,
         created_by: currentUser,
       }),
     onSuccess: () => { setNote(''); invalidate(); toast.success('Anteckning sparad'); },
