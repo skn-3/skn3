@@ -256,7 +256,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const approveHoursMutation = useMutation({
     mutationFn: async () => {
-      await updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested });
+      await updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested, status: 'km_klar' });
       await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${caseData.extra_hours_requested}`, created_by: currentUser });
     },
     onSuccess: () => { invalidate(); toast.success('Extra timmar godkända'); },
@@ -265,7 +265,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const rejectHoursMutation = useMutation({
     mutationFn: async () => {
-      await updateCase(caseData.id, { extra_hours_approved: 0 });
+      await updateCase(caseData.id, { extra_hours_approved: 0, status: 'km_klar' });
       await createCaseEvent({ case_id: caseData.id, event_type: 'hours_rejected', description: 'Extra timmar avslagna', created_by: currentUser });
     },
     onSuccess: () => { invalidate(); toast.success('Extra timmar avslagna'); },
