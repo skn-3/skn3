@@ -442,18 +442,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   <div className="space-y-2 rounded bg-destructive/10 p-2">
                     <p className="text-sm font-medium text-destructive">⚠ {caseData.extra_hours_requested} extra timmar begärda</p>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="default" onClick={async () => {
-                        await updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested });
-                        await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${caseData.extra_hours_requested}`, created_by: currentUser });
-                        invalidate();
-                        toast.success('Extra timmar godkända');
-                      }}>Godkänn extra timmar</Button>
-                      <Button size="sm" variant="outline" onClick={async () => {
-                        await updateCase(caseData.id, { extra_hours_approved: 0 });
-                        await createCaseEvent({ case_id: caseData.id, event_type: 'hours_rejected', description: 'Extra timmar avslagna', created_by: currentUser });
-                        invalidate();
-                        toast.success('Extra timmar avslagna');
-                      }}>Avslå</Button>
+                      <Button size="sm" variant="default" disabled={approveHoursMutation.isPending || rejectHoursMutation.isPending} onClick={() => approveHoursMutation.mutate()}>
+                        {approveHoursMutation.isPending ? 'Sparar...' : 'Godkänn extra timmar'}
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={approveHoursMutation.isPending || rejectHoursMutation.isPending} onClick={() => rejectHoursMutation.mutate()}>
+                        {rejectHoursMutation.isPending ? 'Sparar...' : 'Avslå'}
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -491,71 +485,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 <Button
                   size="sm"
                   className="w-full bg-primary"
-                  disabled={!approvalMontor || !approvalDate}
-                  onClick={async () => {
-                    try {
-                      const dateStr = format(approvalDate!, 'yyyy-MM-dd');
-                      const oldTeam = caseData.team;
-                      const teamChanged = approvalMontor !== oldTeam;
-
-                      await updateCase(caseData.id, {
-                        status: 'montage_bokat',
-                        montage_date: dateStr,
-                        team: approvalMontor,
-                      });
-
-                      await createCaseEvent({
-                        case_id: caseData.id,
-                        event_type: 'status_change',
-                        description: `KM godkänd. Montage bokat ${dateStr} — montör: ${approvalMontor}${approvalNote ? '. ' + approvalNote : ''}`,
-                        created_by: currentUser,
-                      });
-
-                      if (teamChanged && oldTeam) {
-                        await createCaseEvent({
-                          case_id: caseData.id,
-                          event_type: 'team_change',
-                          description: `Montör bytt från ${oldTeam} till ${approvalMontor}`,
-                          created_by: currentUser,
-                        });
-                      }
-
-                      // Send MONTAGE BOKAT email
-                      try {
-                        await sendNotificationEmail({
-                          to: COORDINATOR_EMAIL,
-                          cc: COORDINATOR_CC,
-                          subject: `MONTAGE BOKAT — ${caseData.address}`,
-                          body: `
-                            <h2>Montage bokat</h2>
-                            <table style="border-collapse:collapse;width:100%">
-                              <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseData.address}</td></tr>
-                              <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${caseData.customer_name}</td></tr>
-                              <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${approvalMontor}</td></tr>
-                              <tr><td style="padding:4px 8px;font-weight:bold">Montagedatum:</td><td style="padding:4px 8px">${dateStr}</td></tr>
-                              ${approvalNote ? `<tr><td style="padding:4px 8px;font-weight:bold">Anteckning:</td><td style="padding:4px 8px">${approvalNote}</td></tr>` : ''}
-                            </table>
-                          `,
-                        });
-                        await createCaseEvent({
-                          case_id: caseData.id,
-                          event_type: 'notification',
-                          description: `Mail skickat till ${COORDINATOR_EMAIL} (montage bokat)`,
-                          created_by: currentUser,
-                        });
-                      } catch (emailErr) {
-                        console.error('Email notification failed:', emailErr);
-                        toast.warning('Status uppdaterad men mailet kunde inte skickas');
-                      }
-
-                      invalidate();
-                      toast.success('KM godkänd och montage bokat');
-                    } catch (err: any) {
-                      toast.error(err.message);
-                    }
-                  }}
+                  disabled={!approvalMontor || !approvalDate || approvalMutation.isPending}
+                  onClick={() => approvalMutation.mutate()}
                 >
-                  Godkänn och boka montage
+                  {approvalMutation.isPending ? 'Sparar...' : 'Godkänn och boka montage'}
                 </Button>
               </div>
             )}
@@ -572,39 +505,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <Button disabled={statusMutation.isPending} onClick={() => changeStatus('fakturerad', 'Markerad som fakturerad')} size="sm">{statusMutation.isPending ? 'Sparar...' : 'Markera fakturerad'}</Button>
             )}
 
-            <Button variant="outline" size="sm" onClick={() => setShowDeviation(!showDeviation)}>
-              <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera avvikelse
+            <Button variant="outline" size="sm" className="border-orange-400 text-orange-700 hover:bg-orange-50" onClick={() => setShowDeviation(true)}>
+              <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera problem
             </Button>
-
-            {showDeviation && (
-              <div className="space-y-2 rounded-lg border p-3">
-                <Select value={devForm.type} onValueChange={(v) => setDevForm((f) => ({ ...f, type: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Typ av avvikelse" /></SelectTrigger>
-                  <SelectContent>
-                    {DEVIATION_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Textarea
-                  placeholder="Beskrivning"
-                  value={devForm.description}
-                  onChange={(e) => setDevForm((f) => ({ ...f, description: e.target.value }))}
-                  rows={2}
-                />
-                <Select value={devForm.responsible} onValueChange={(v) => setDevForm((f) => ({ ...f, responsible: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Ansvarig" /></SelectTrigger>
-                  <SelectContent>
-                    {DEVIATION_RESPONSIBLE.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Button
-                  size="sm"
-                  disabled={!devForm.type || !devForm.description || !devForm.responsible || deviationMutation.isPending}
-                  onClick={() => deviationMutation.mutate()}
-                >
-                  {deviationMutation.isPending ? 'Sparar...' : 'Spara avvikelse'}
-                </Button>
-              </div>
-            )}
           </section>
 
           {/* Costs */}
