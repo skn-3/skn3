@@ -8,13 +8,16 @@ import { NewCaseForm } from './NewCaseForm';
 import { SellerDashboard } from './SellerDashboard';
 import { VisitForm } from './VisitForm';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
+import { Button } from '@/components/ui/button';
+import { Eye } from 'lucide-react';
 
 interface SellerViewProps {
   role: UserRole;
   onChangeRole: () => void;
+  onToggleMontorView?: () => void;
 }
 
-export function SellerView({ role, onChangeRole }: SellerViewProps) {
+export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerViewProps) {
   const [tab, setTab] = useState<SellerTab>('pipeline');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [prefill, setPrefill] = useState<{ customer_name?: string; address?: string; order_value?: string } | null>(null);
@@ -33,6 +36,14 @@ export function SellerView({ role, onChangeRole }: SellerViewProps) {
       <AppHeader role={role} onChangeRole={onChangeRole}>
         <SellerNav active={tab} onChange={setTab} />
       </AppHeader>
+
+      {onToggleMontorView && (
+        <div className="flex justify-end px-4 pt-2 max-w-screen-2xl mx-auto">
+          <Button variant="outline" size="sm" onClick={onToggleMontorView}>
+            <Eye className="h-4 w-4 mr-1" /> Visa montörvy
+          </Button>
+        </div>
+      )}
 
       <main className="py-4 md:py-6 max-w-screen-2xl mx-auto">
         {tab === 'pipeline' && (

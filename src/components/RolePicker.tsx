@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SELLERS, MONTORS, type RoleType, type UserRole } from '@/lib/constants';
+import { SELLERS, MONTORS, ADMIN_USERS, PIN_CODES, type RoleType, type UserRole } from '@/lib/constants';
 import { Thermometer } from 'lucide-react';
 
 interface RolePickerProps {
@@ -11,8 +12,24 @@ interface RolePickerProps {
 export function RolePicker({ onRoleSelected }: RolePickerProps) {
   const [roleType, setRoleType] = useState<RoleType | null>(null);
   const [name, setName] = useState('');
+  const [pin, setPin] = useState('');
+  const [pinError, setPinError] = useState(false);
 
   const people = roleType === 'seller' ? SELLERS : roleType === 'montor' ? MONTORS : [];
+
+  const handleLogin = () => {
+    const correctPin = PIN_CODES[name];
+    if (pin !== correctPin) {
+      setPinError(true);
+      return;
+    }
+    setPinError(false);
+    onRoleSelected({
+      type: roleType!,
+      name,
+      isAdmin: ADMIN_USERS.includes(name),
+    });
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
@@ -30,21 +47,21 @@ export function RolePicker({ onRoleSelected }: RolePickerProps) {
             <Button
               variant={roleType === 'seller' ? 'default' : 'outline'}
               className="h-12"
-              onClick={() => { setRoleType('seller'); setName(''); }}
+              onClick={() => { setRoleType('seller'); setName(''); setPin(''); setPinError(false); }}
             >
               Säljare
             </Button>
             <Button
               variant={roleType === 'montor' ? 'default' : 'outline'}
               className="h-12"
-              onClick={() => { setRoleType('montor'); setName(''); }}
+              onClick={() => { setRoleType('montor'); setName(''); setPin(''); setPinError(false); }}
             >
               Montör
             </Button>
           </div>
 
           {roleType && (
-            <Select value={name} onValueChange={setName}>
+            <Select value={name} onValueChange={(v) => { setName(v); setPin(''); setPinError(false); }}>
               <SelectTrigger>
                 <SelectValue placeholder={`Välj ${roleType === 'seller' ? 'säljare' : 'montör'}...`} />
               </SelectTrigger>
@@ -57,9 +74,24 @@ export function RolePicker({ onRoleSelected }: RolePickerProps) {
           )}
 
           {name && (
-            <Button className="w-full h-12" onClick={() => onRoleSelected({ type: roleType!, name })}>
-              Fortsätt som {name}
-            </Button>
+            <div className="space-y-3">
+              <div>
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="Ange PIN-kod (4 siffror)"
+                  value={pin}
+                  onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setPinError(false); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && pin.length === 4) handleLogin(); }}
+                  className="h-12 text-center text-lg tracking-[0.5em]"
+                />
+                {pinError && <p className="text-sm text-destructive mt-1">Fel PIN-kod</p>}
+              </div>
+              <Button className="w-full h-12" disabled={pin.length !== 4} onClick={handleLogin}>
+                Logga in
+              </Button>
+            </div>
           )}
         </div>
       </div>
