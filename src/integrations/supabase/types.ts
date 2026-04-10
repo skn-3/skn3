@@ -14,7 +14,157 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      case_events: {
+        Row: {
+          case_id: string
+          created_at: string
+          created_by: string
+          description: string
+          event_type: string
+          id: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          created_by: string
+          description: string
+          event_type: string
+          id?: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          event_type?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cases: {
+        Row: {
+          address: string
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          delivery_date: string | null
+          extra_hours_approved: number
+          extra_hours_requested: number
+          extra_hours_sold: number
+          google_drive_link: string | null
+          id: string
+          km_date: string | null
+          montage_date: string | null
+          notes: string | null
+          offer_number: string | null
+          order_value: number | null
+          seller: string
+          status: string
+          tb_percent: number | null
+          team: string | null
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          delivery_date?: string | null
+          extra_hours_approved?: number
+          extra_hours_requested?: number
+          extra_hours_sold?: number
+          google_drive_link?: string | null
+          id?: string
+          km_date?: string | null
+          montage_date?: string | null
+          notes?: string | null
+          offer_number?: string | null
+          order_value?: number | null
+          seller: string
+          status?: string
+          tb_percent?: number | null
+          team?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          delivery_date?: string | null
+          extra_hours_approved?: number
+          extra_hours_requested?: number
+          extra_hours_sold?: number
+          google_drive_link?: string | null
+          id?: string
+          km_date?: string | null
+          montage_date?: string | null
+          notes?: string | null
+          offer_number?: string | null
+          order_value?: number | null
+          seller?: string
+          status?: string
+          tb_percent?: number | null
+          team?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      deviations: {
+        Row: {
+          action_needed: string | null
+          case_id: string
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          resolved: boolean
+          responsible: string
+          type: string
+        }
+        Insert: {
+          action_needed?: string | null
+          case_id: string
+          created_at?: string
+          created_by: string
+          description: string
+          id?: string
+          resolved?: boolean
+          responsible: string
+          type: string
+        }
+        Update: {
+          action_needed?: string | null
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          resolved?: boolean
+          responsible?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deviations_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
