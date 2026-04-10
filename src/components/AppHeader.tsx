@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/lib/constants';
-import { Thermometer, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 interface AppHeaderProps {
   role: UserRole;
@@ -15,9 +15,7 @@ export function AppHeader({ role, onChangeRole, children }: AppHeaderProps) {
     <header className="sticky top-0 z-50 border-b bg-card shadow-sm">
       <div className="flex h-14 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Thermometer className="h-4 w-4 text-primary-foreground" />
-          </div>
+          <img src="/logo.png" alt="SmartKlimat" className="h-10 w-10 rounded-full object-contain" />
           <span className="text-lg font-bold text-card-foreground hidden sm:inline">SmartKlimat</span>
         </div>
 

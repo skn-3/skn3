@@ -4,8 +4,18 @@ const corsHeaders = {
 }
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
+const APP_URL = 'https://id-preview--6c43e886-ddf2-476f-9c1f-255522ad4ec0.lovable.app';
+const LOGO_URL = `${APP_URL}/logo.png`;
 
-function wrapInTemplate(heading: string, bodyContent: string, callToAction?: string): string {
+function buildCtaButton(text: string, color: string): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td align="center" style="padding:8px 0 16px 0;">
+<a href="${APP_URL}" target="_blank" style="display:inline-block;padding:12px 32px;background-color:${color};color:#ffffff;font-weight:bold;font-size:14px;text-decoration:none;border-radius:6px;">${text}</a>
+</td></tr>
+</table>`;
+}
+
+function wrapInTemplate(heading: string, bodyContent: string, callToAction?: string, ctaButton?: string): string {
   return `<!DOCTYPE html>
 <html lang="sv">
 <head>
@@ -25,7 +35,10 @@ function wrapInTemplate(heading: string, bodyContent: string, callToAction?: str
 <td style="background-color:#22C55E;padding:20px 28px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 <tr>
-<td style="color:#ffffff;font-size:20px;font-weight:bold;">❄️ SmartKlimat N3prenad</td>
+<td style="vertical-align:middle;width:40px;">
+<img src="${LOGO_URL}" alt="SmartKlimat" width="36" height="36" style="display:block;border-radius:50%;background:#fff;" />
+</td>
+<td style="vertical-align:middle;padding-left:12px;color:#ffffff;font-size:20px;font-weight:bold;">SmartKlimat N3prenad</td>
 </tr>
 </table>
 </td>
@@ -45,8 +58,10 @@ ${bodyContent}
 </td>
 </tr>
 
+${ctaButton ? `<tr><td style="padding:0 28px 8px 28px;">${ctaButton}</td></tr>` : ''}
+
 ${callToAction ? `
-<!-- CTA -->
+<!-- CTA text -->
 <tr>
 <td style="padding:0 28px 24px 28px;">
 <p style="margin:0;font-size:14px;color:#2563EB;font-weight:500;">${callToAction}</p>
@@ -85,6 +100,24 @@ ${rows.map(r => `<tr>
 </table>`;
 }
 
+// Map heading keywords to CTA button config
+function getCtaForHeading(heading: string): string | null {
+  const h = heading.toLowerCase();
+  if (h.includes('nytt ärende') || h.includes('tilldelat'))
+    return buildCtaButton('Öppna appen och boka KM', '#22C55E');
+  if (h.includes('km klar') && h.includes('extra'))
+    return buildCtaButton('Granska extra timmar-begäran', '#DC2626');
+  if (h.includes('km klar'))
+    return buildCtaButton('Öppna appen och granska KM', '#22C55E');
+  if (h.includes('montage bokat'))
+    return buildCtaButton('Visa ärende i appen', '#22C55E');
+  if (h.includes('montage klart'))
+    return buildCtaButton('Markera som fakturerad', '#22C55E');
+  if (h.includes('reklamation') || h.includes('avvikelse'))
+    return buildCtaButton('Visa reklamation', '#F97316');
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -106,14 +139,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build HTML: if structured data (rows) provided, use template; otherwise wrap raw body
+    const effectiveHeading = heading || subject;
+    const ctaButton = getCtaForHeading(effectiveHeading);
+
     let html: string;
     if (rows && Array.isArray(rows)) {
       const tableHtml = buildInfoTable(rows);
-      html = wrapInTemplate(heading || subject, tableHtml, callToAction);
+      html = wrapInTemplate(effectiveHeading, tableHtml, callToAction, ctaButton ?? undefined);
     } else if (body) {
-      // Wrap legacy raw HTML body in the branded template
-      html = wrapInTemplate(heading || subject, body, callToAction);
+      html = wrapInTemplate(effectiveHeading, body, callToAction, ctaButton ?? undefined);
     } else {
       return new Response(JSON.stringify({ error: 'Missing body or rows' }), {
         status: 400,

@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SELLERS, MONTORS, ADMIN_USERS, PIN_CODES, type RoleType, type UserRole } from '@/lib/constants';
-import { Thermometer } from 'lucide-react';
 
 interface RolePickerProps {
   onRoleSelected: (role: UserRole) => void;
@@ -35,9 +34,7 @@ export function RolePicker({ onRoleSelected }: RolePickerProps) {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="w-full max-w-md space-y-8 rounded-xl border bg-card p-8 shadow-lg">
         <div className="flex flex-col items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
-            <Thermometer className="h-7 w-7 text-primary-foreground" />
-          </div>
+          <img src="/logo.png" alt="SmartKlimat" className="h-[120px] w-[120px] rounded-full object-contain" />
           <h1 className="text-2xl font-bold text-card-foreground">SmartKlimat N3prenad</h1>
           <p className="text-muted-foreground">Välj din roll för att komma igång</p>
         </div>
