@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, updateCase, createCaseEvent, createDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, updateCase, createCaseEvent, createDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, ExternalLink, Clock, AlertTriangle } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -251,23 +252,57 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
               <Button onClick={() => changeStatus('montage_klart', 'Montage klart')} size="sm">Montage klart</Button>
             )}
 
-            {isSeller && caseData.status === 'vantar_godkannande' && (
-              <Button onClick={() => {
-                updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested }).then(() => {
-                  changeStatus('godkand', `Godkänd. ${caseData.extra_hours_requested} extra timmar godkända.`);
-                });
-              }} size="sm">Godkänn extra timmar</Button>
-            )}
-
             {isSeller && caseData.status === 'km_klar' && (
-              <Button onClick={() => changeStatus('godkand', 'Godkänd')} size="sm">Godkänn KM</Button>
+              <div className="space-y-3 rounded-lg border p-3">
+                <h4 className="text-sm font-semibold">KM Klar — Granska</h4>
+                {/* Show KM report from case_events */}
+                {events?.filter(e => e.event_type === 'km_report' || e.event_type === 'hours_request').slice(0, 1).map(e => (
+                  <div key={e.id} className="text-sm bg-muted p-2 rounded">
+                    <p className="text-card-foreground">{e.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1">— {e.created_by}, {new Date(e.created_at).toLocaleDateString('sv-SE')}</p>
+                  </div>
+                ))}
+                {caseData.extra_hours_requested > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-destructive">⚠ {caseData.extra_hours_requested} extra timmar begärda</p>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => {
+                        updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested }).then(() => {
+                          changeStatus('godkand', `Godkänd. ${caseData.extra_hours_requested} extra timmar godkända.`);
+                        });
+                      }}>Godkänn extra timmar</Button>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        updateCase(caseData.id, { extra_hours_approved: 0 }).then(() => {
+                          changeStatus('godkand', 'Godkänd. Extra timmar avslagna.');
+                        });
+                      }}>Avslå</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button size="sm" onClick={() => changeStatus('godkand', 'Godkänd')}>Godkänn KM</Button>
+                )}
+              </div>
             )}
 
-            {isSeller && caseData.status === 'godkand' && (
-              <Button onClick={() => changeStatus('i_produktion', 'I produktion')} size="sm">Markera i produktion</Button>
+            {isSeller && caseData.status === 'vantar_godkannande' && (
+              <div className="space-y-2 rounded-lg border p-3">
+                <p className="text-sm font-medium text-destructive">⚠ {caseData.extra_hours_requested} extra timmar begärda</p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => {
+                    updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested }).then(() => {
+                      changeStatus('godkand', `Godkänd. ${caseData.extra_hours_requested} extra timmar godkända.`);
+                    });
+                  }}>Godkänn extra timmar</Button>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    updateCase(caseData.id, { extra_hours_approved: 0 }).then(() => {
+                      changeStatus('godkand', 'Godkänd. Extra timmar avslagna.');
+                    });
+                  }}>Avslå</Button>
+                </div>
+              </div>
             )}
 
-            {isSeller && caseData.status === 'i_produktion' && (
+            {isSeller && (caseData.status === 'godkand' || caseData.status === 'i_produktion') && (
               <Button onClick={() => changeStatus('leverans_klar', 'Leverans klar')} size="sm">Markera leverans klar</Button>
             )}
 
@@ -372,6 +407,45 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
               ))}
             </div>
           </section>
+
+          {/* Delete case - seller only */}
+          {isSeller && (
+            <section className="p-4">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 w-full justify-start">
+                    <Trash2 className="h-4 w-4 mr-2" /> Radera ärende
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Radera ärende</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Är du säker på att du vill radera ärendet <strong>{caseData.address}</strong>? Detta går inte att ångra.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Avbryt</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={async () => {
+                        try {
+                          await deleteCase(caseData.id);
+                          queryClient.invalidateQueries({ queryKey: ['cases'] });
+                          toast.success('Ärendet har raderats');
+                          onClose();
+                        } catch (err: any) {
+                          toast.error('Kunde inte radera: ' + err.message);
+                        }
+                      }}
+                    >
+                      Radera
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </section>
+          )}
         </div>
       </div>
       {/* Fullscreen image dialog */}

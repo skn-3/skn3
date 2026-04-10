@@ -27,11 +27,13 @@ export const SELLER_PIPELINE_COLUMNS = [
   'ny',
   'vantar_km',
   'km_bokad',
+  'km_klar',
   'vantar_godkannande',
   'godkand',
   'leverans_klar',
   'montage_bokat',
   'montage_klart',
+  'fakturerad',
   'pausad',
 ] as const;
 
