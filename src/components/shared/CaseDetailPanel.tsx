@@ -39,6 +39,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [note, setNote] = useState('');
   const [showDeviation, setShowDeviation] = useState(false);
   const [devForm, setDevForm] = useState({ type: '', description: '', responsible: '' });
+  const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
+  const [probFiles, setProbFiles] = useState<File[]>([]);
   const [kmDate, setKmDate] = useState('');
   const [extraHoursReq, setExtraHoursReq] = useState('0');
   const [kmNote, setKmNote] = useState('');
@@ -132,21 +134,76 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onSuccess: () => { setNote(''); invalidate(); toast.success('Anteckning sparad'); },
   });
 
-  const deviationMutation = useMutation({
-    mutationFn: () =>
-      createDeviation({
+  const problemMutation = useMutation({
+    mutationFn: async () => {
+      const isReklam = devForm.type === 'reklamation';
+      const descWithPriority = isReklam ? `[${probPriority.toUpperCase()}] ${devForm.description}` : devForm.description;
+
+      const deviation = await createDeviation({
         case_id: caseData.id,
         type: devForm.type,
-        description: devForm.description,
-        responsible: devForm.responsible,
+        description: descWithPriority,
+        responsible: devForm.responsible || 'okant',
         created_by: currentUser,
-      }),
+      });
+
+      let imageUrls: string[] = [];
+      if (probFiles.length > 0) {
+        imageUrls = await uploadDeviationImages(caseData.id, deviation.id, probFiles);
+        await updateDeviation(deviation.id, { image_urls: imageUrls });
+      }
+
+      const typLabel = DEVIATION_TYPES.find(d => d.value === devForm.type)?.label || devForm.type;
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'deviation',
+        description: isReklam ? `Reklamation skapad: ${devForm.description}` : `Avvikelse skapad: ${typLabel} — ${devForm.description}`,
+        created_by: currentUser,
+      });
+
+      if (isReklam) {
+        await updateCase(caseData.id, { status: 'pausad' });
+        await createCaseEvent({ case_id: caseData.id, event_type: 'status_change', description: 'Status ändrad till Pausad (reklamation)', created_by: currentUser });
+      }
+
+      try {
+        const badgeMap: Record<string, { color: string; bg: string }> = {
+          hog: { color: '#991B1B', bg: '#FEE2E2' },
+          medium: { color: '#92400E', bg: '#FEF3C7' },
+          lag: { color: '#374151', bg: '#F3F4F6' },
+        };
+        const rows: Array<{ label: string; value: string; badge?: { color: string; bg: string } }> = [
+          { label: 'Adress', value: caseData.address },
+          { label: 'Kund', value: caseData.customer_name },
+          { label: 'Rapporterad av', value: currentUser },
+          { label: 'Typ', value: typLabel },
+        ];
+        if (isReklam) {
+          const pLabel = probPriority === 'hog' ? 'Hög' : probPriority === 'medium' ? 'Medium' : 'Låg';
+          rows.push({ label: 'Prioritet', value: pLabel, badge: badgeMap[probPriority] });
+        }
+        rows.push({ label: 'Beskrivning', value: devForm.description });
+        await sendNotificationEmail({
+          to: COORDINATOR_EMAIL,
+          cc: COORDINATOR_CC,
+          subject: `${isReklam ? 'NY REKLAMATION' : 'NY AVVIKELSE'} — ${caseData.address}`,
+          heading: isReklam ? 'Ny reklamation' : 'Ny avvikelse',
+          rows,
+          callToAction: 'Vänligen granska ärendet.',
+        });
+      } catch (emailErr) {
+        console.error('Email notification failed:', emailErr);
+      }
+    },
     onSuccess: () => {
       setShowDeviation(false);
       setDevForm({ type: '', description: '', responsible: '' });
+      setProbPriority('medium');
+      setProbFiles([]);
       invalidate();
-      toast.success('Avvikelse rapporterad');
+      toast.success('Problem rapporterat');
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const resolveMutation = useMutation({
