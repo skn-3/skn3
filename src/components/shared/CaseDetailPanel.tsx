@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, createDeviation, updateDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -9,12 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +39,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [note, setNote] = useState('');
   const [showDeviation, setShowDeviation] = useState(false);
   const [devForm, setDevForm] = useState({ type: '', description: '', responsible: '' });
+  const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
+  const [probFiles, setProbFiles] = useState<File[]>([]);
   const [kmDate, setKmDate] = useState('');
   const [extraHoursReq, setExtraHoursReq] = useState('0');
   const [kmNote, setKmNote] = useState('');
@@ -131,21 +134,76 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onSuccess: () => { setNote(''); invalidate(); toast.success('Anteckning sparad'); },
   });
 
-  const deviationMutation = useMutation({
-    mutationFn: () =>
-      createDeviation({
+  const problemMutation = useMutation({
+    mutationFn: async () => {
+      const isReklam = devForm.type === 'reklamation';
+      const descWithPriority = isReklam ? `[${probPriority.toUpperCase()}] ${devForm.description}` : devForm.description;
+
+      const deviation = await createDeviation({
         case_id: caseData.id,
         type: devForm.type,
-        description: devForm.description,
-        responsible: devForm.responsible,
+        description: descWithPriority,
+        responsible: devForm.responsible || 'okant',
         created_by: currentUser,
-      }),
+      });
+
+      let imageUrls: string[] = [];
+      if (probFiles.length > 0) {
+        imageUrls = await uploadDeviationImages(caseData.id, deviation.id, probFiles);
+        await updateDeviation(deviation.id, { image_urls: imageUrls });
+      }
+
+      const typLabel = DEVIATION_TYPES.find(d => d.value === devForm.type)?.label || devForm.type;
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'deviation',
+        description: isReklam ? `Reklamation skapad: ${devForm.description}` : `Avvikelse skapad: ${typLabel} — ${devForm.description}`,
+        created_by: currentUser,
+      });
+
+      if (isReklam) {
+        await updateCase(caseData.id, { status: 'pausad' });
+        await createCaseEvent({ case_id: caseData.id, event_type: 'status_change', description: 'Status ändrad till Pausad (reklamation)', created_by: currentUser });
+      }
+
+      try {
+        const badgeMap: Record<string, { color: string; bg: string }> = {
+          hog: { color: '#991B1B', bg: '#FEE2E2' },
+          medium: { color: '#92400E', bg: '#FEF3C7' },
+          lag: { color: '#374151', bg: '#F3F4F6' },
+        };
+        const rows: Array<{ label: string; value: string; badge?: { color: string; bg: string } }> = [
+          { label: 'Adress', value: caseData.address },
+          { label: 'Kund', value: caseData.customer_name },
+          { label: 'Rapporterad av', value: currentUser },
+          { label: 'Typ', value: typLabel },
+        ];
+        if (isReklam) {
+          const pLabel = probPriority === 'hog' ? 'Hög' : probPriority === 'medium' ? 'Medium' : 'Låg';
+          rows.push({ label: 'Prioritet', value: pLabel, badge: badgeMap[probPriority] });
+        }
+        rows.push({ label: 'Beskrivning', value: devForm.description });
+        await sendNotificationEmail({
+          to: COORDINATOR_EMAIL,
+          cc: COORDINATOR_CC,
+          subject: `${isReklam ? 'NY REKLAMATION' : 'NY AVVIKELSE'} — ${caseData.address}`,
+          heading: isReklam ? 'Ny reklamation' : 'Ny avvikelse',
+          rows,
+          callToAction: 'Vänligen granska ärendet.',
+        });
+      } catch (emailErr) {
+        console.error('Email notification failed:', emailErr);
+      }
+    },
     onSuccess: () => {
       setShowDeviation(false);
       setDevForm({ type: '', description: '', responsible: '' });
+      setProbPriority('medium');
+      setProbFiles([]);
       invalidate();
-      toast.success('Avvikelse rapporterad');
+      toast.success('Problem rapporterat');
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const resolveMutation = useMutation({
@@ -195,6 +253,79 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
     onSuccess: () => { invalidate(); toast.success('KM rapporterad'); },
   });
+
+  const approveHoursMutation = useMutation({
+    mutationFn: async () => {
+      await updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested });
+      await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${caseData.extra_hours_requested}`, created_by: currentUser });
+    },
+    onSuccess: () => { invalidate(); toast.success('Extra timmar godkända'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const rejectHoursMutation = useMutation({
+    mutationFn: async () => {
+      await updateCase(caseData.id, { extra_hours_approved: 0 });
+      await createCaseEvent({ case_id: caseData.id, event_type: 'hours_rejected', description: 'Extra timmar avslagna', created_by: currentUser });
+    },
+    onSuccess: () => { invalidate(); toast.success('Extra timmar avslagna'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const approvalMutation = useMutation({
+    mutationFn: async () => {
+      const dateStr = format(approvalDate!, 'yyyy-MM-dd');
+      const oldTeam = caseData.team;
+      const teamChanged = approvalMontor !== oldTeam;
+
+      await updateCase(caseData.id, { status: 'montage_bokat', montage_date: dateStr, team: approvalMontor });
+      await createCaseEvent({ case_id: caseData.id, event_type: 'status_change', description: `KM godkänd. Montage bokat ${dateStr} — montör: ${approvalMontor}${approvalNote ? '. ' + approvalNote : ''}`, created_by: currentUser });
+
+      if (teamChanged && oldTeam) {
+        await createCaseEvent({ case_id: caseData.id, event_type: 'team_change', description: `Montör bytt från ${oldTeam} till ${approvalMontor}`, created_by: currentUser });
+      }
+
+      try {
+        await sendNotificationEmail({
+          to: COORDINATOR_EMAIL,
+          cc: COORDINATOR_CC,
+          subject: `MONTAGE BOKAT — ${caseData.address}`,
+          heading: 'Montage bokat',
+          rows: [
+            { label: 'Adress', value: caseData.address },
+            { label: 'Kund', value: caseData.customer_name },
+            { label: 'Montör', value: approvalMontor },
+            { label: 'Montagedatum', value: dateStr },
+            ...(approvalNote ? [{ label: 'Anteckning', value: approvalNote }] : []),
+          ],
+          callToAction: 'Montage är bokat.',
+        });
+        await createCaseEvent({ case_id: caseData.id, event_type: 'notification', description: `Mail skickat till ${COORDINATOR_EMAIL} (montage bokat)`, created_by: currentUser });
+      } catch (emailErr) {
+        console.error('Email notification failed:', emailErr);
+        toast.warning('Status uppdaterad men mailet kunde inte skickas');
+      }
+    },
+    onSuccess: () => { invalidate(); toast.success('KM godkänd och montage bokat'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => { await deleteCase(caseData.id); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cases'] });
+      toast.success('Ärendet har raderats');
+      onClose();
+    },
+    onError: (e: Error) => toast.error('Kunde inte radera: ' + e.message),
+  });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const allowed = files.filter(f => /\.(jpe?g|png|heic)$/i.test(f.name));
+    setProbFiles(prev => [...prev, ...allowed].slice(0, 5));
+    e.target.value = '';
+  };
 
   const changeStatus = (newStatus: string, description: string) => {
     statusMutation.mutate({ newStatus, description });
@@ -311,18 +442,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   <div className="space-y-2 rounded bg-destructive/10 p-2">
                     <p className="text-sm font-medium text-destructive">⚠ {caseData.extra_hours_requested} extra timmar begärda</p>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="default" onClick={async () => {
-                        await updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested });
-                        await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${caseData.extra_hours_requested}`, created_by: currentUser });
-                        invalidate();
-                        toast.success('Extra timmar godkända');
-                      }}>Godkänn extra timmar</Button>
-                      <Button size="sm" variant="outline" onClick={async () => {
-                        await updateCase(caseData.id, { extra_hours_approved: 0 });
-                        await createCaseEvent({ case_id: caseData.id, event_type: 'hours_rejected', description: 'Extra timmar avslagna', created_by: currentUser });
-                        invalidate();
-                        toast.success('Extra timmar avslagna');
-                      }}>Avslå</Button>
+                      <Button size="sm" variant="default" disabled={approveHoursMutation.isPending || rejectHoursMutation.isPending} onClick={() => approveHoursMutation.mutate()}>
+                        {approveHoursMutation.isPending ? 'Sparar...' : 'Godkänn extra timmar'}
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={approveHoursMutation.isPending || rejectHoursMutation.isPending} onClick={() => rejectHoursMutation.mutate()}>
+                        {rejectHoursMutation.isPending ? 'Sparar...' : 'Avslå'}
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -360,71 +485,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 <Button
                   size="sm"
                   className="w-full bg-primary"
-                  disabled={!approvalMontor || !approvalDate}
-                  onClick={async () => {
-                    try {
-                      const dateStr = format(approvalDate!, 'yyyy-MM-dd');
-                      const oldTeam = caseData.team;
-                      const teamChanged = approvalMontor !== oldTeam;
-
-                      await updateCase(caseData.id, {
-                        status: 'montage_bokat',
-                        montage_date: dateStr,
-                        team: approvalMontor,
-                      });
-
-                      await createCaseEvent({
-                        case_id: caseData.id,
-                        event_type: 'status_change',
-                        description: `KM godkänd. Montage bokat ${dateStr} — montör: ${approvalMontor}${approvalNote ? '. ' + approvalNote : ''}`,
-                        created_by: currentUser,
-                      });
-
-                      if (teamChanged && oldTeam) {
-                        await createCaseEvent({
-                          case_id: caseData.id,
-                          event_type: 'team_change',
-                          description: `Montör bytt från ${oldTeam} till ${approvalMontor}`,
-                          created_by: currentUser,
-                        });
-                      }
-
-                      // Send MONTAGE BOKAT email
-                      try {
-                        await sendNotificationEmail({
-                          to: COORDINATOR_EMAIL,
-                          cc: COORDINATOR_CC,
-                          subject: `MONTAGE BOKAT — ${caseData.address}`,
-                          body: `
-                            <h2>Montage bokat</h2>
-                            <table style="border-collapse:collapse;width:100%">
-                              <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseData.address}</td></tr>
-                              <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${caseData.customer_name}</td></tr>
-                              <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${approvalMontor}</td></tr>
-                              <tr><td style="padding:4px 8px;font-weight:bold">Montagedatum:</td><td style="padding:4px 8px">${dateStr}</td></tr>
-                              ${approvalNote ? `<tr><td style="padding:4px 8px;font-weight:bold">Anteckning:</td><td style="padding:4px 8px">${approvalNote}</td></tr>` : ''}
-                            </table>
-                          `,
-                        });
-                        await createCaseEvent({
-                          case_id: caseData.id,
-                          event_type: 'notification',
-                          description: `Mail skickat till ${COORDINATOR_EMAIL} (montage bokat)`,
-                          created_by: currentUser,
-                        });
-                      } catch (emailErr) {
-                        console.error('Email notification failed:', emailErr);
-                        toast.warning('Status uppdaterad men mailet kunde inte skickas');
-                      }
-
-                      invalidate();
-                      toast.success('KM godkänd och montage bokat');
-                    } catch (err: any) {
-                      toast.error(err.message);
-                    }
-                  }}
+                  disabled={!approvalMontor || !approvalDate || approvalMutation.isPending}
+                  onClick={() => approvalMutation.mutate()}
                 >
-                  Godkänn och boka montage
+                  {approvalMutation.isPending ? 'Sparar...' : 'Godkänn och boka montage'}
                 </Button>
               </div>
             )}
@@ -441,39 +505,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <Button disabled={statusMutation.isPending} onClick={() => changeStatus('fakturerad', 'Markerad som fakturerad')} size="sm">{statusMutation.isPending ? 'Sparar...' : 'Markera fakturerad'}</Button>
             )}
 
-            <Button variant="outline" size="sm" onClick={() => setShowDeviation(!showDeviation)}>
-              <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera avvikelse
+            <Button variant="outline" size="sm" className="border-orange-400 text-orange-700 hover:bg-orange-50" onClick={() => setShowDeviation(true)}>
+              <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera problem
             </Button>
-
-            {showDeviation && (
-              <div className="space-y-2 rounded-lg border p-3">
-                <Select value={devForm.type} onValueChange={(v) => setDevForm((f) => ({ ...f, type: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Typ av avvikelse" /></SelectTrigger>
-                  <SelectContent>
-                    {DEVIATION_TYPES.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Textarea
-                  placeholder="Beskrivning"
-                  value={devForm.description}
-                  onChange={(e) => setDevForm((f) => ({ ...f, description: e.target.value }))}
-                  rows={2}
-                />
-                <Select value={devForm.responsible} onValueChange={(v) => setDevForm((f) => ({ ...f, responsible: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Ansvarig" /></SelectTrigger>
-                  <SelectContent>
-                    {DEVIATION_RESPONSIBLE.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Button
-                  size="sm"
-                  disabled={!devForm.type || !devForm.description || !devForm.responsible || deviationMutation.isPending}
-                  onClick={() => deviationMutation.mutate()}
-                >
-                  {deviationMutation.isPending ? 'Sparar...' : 'Spara avvikelse'}
-                </Button>
-              </div>
-            )}
           </section>
 
           {/* Costs */}
@@ -599,18 +633,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <AlertDialogCancel>Avbryt</AlertDialogCancel>
                     <AlertDialogAction
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={async () => {
-                        try {
-                          await deleteCase(caseData.id);
-                          queryClient.invalidateQueries({ queryKey: ['cases'] });
-                          toast.success('Ärendet har raderats');
-                          onClose();
-                        } catch (err: any) {
-                          toast.error('Kunde inte radera: ' + err.message);
-                        }
-                      }}
+                      disabled={deleteMutation.isPending}
+                      onClick={() => deleteMutation.mutate()}
                     >
-                      Radera
+                      {deleteMutation.isPending ? 'Raderar...' : 'Radera'}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -625,6 +651,83 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           {fullscreenImg && <img src={fullscreenImg} alt="" className="w-full h-full object-contain" />}
         </DialogContent>
       </Dialog>
+
+      {/* Rapportera problem drawer */}
+      <Drawer open={showDeviation} onOpenChange={setShowDeviation}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Rapportera problem</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 space-y-4 pb-4">
+            <div>
+              <Label>Typ</Label>
+              <Select value={devForm.type} onValueChange={(v) => setDevForm(f => ({ ...f, type: v }))}>
+                <SelectTrigger><SelectValue placeholder="Välj typ" /></SelectTrigger>
+                <SelectContent>
+                  {DEVIATION_TYPES.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Problembeskrivning *</Label>
+              <Textarea value={devForm.description} onChange={e => setDevForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Beskriv problemet..." />
+            </div>
+            {devForm.type === 'reklamation' && (
+              <div>
+                <Label>Prioritet</Label>
+                <div className="flex gap-2 mt-1">
+                  {(['hog', 'medium', 'lag'] as const).map(p => (
+                    <Button key={p} type="button" size="sm" variant={probPriority === p ? 'default' : 'outline'} onClick={() => setProbPriority(p)}>
+                      {p === 'hog' ? 'Hög' : p === 'medium' ? 'Medium' : 'Låg'}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div>
+              <Label>Ansvar</Label>
+              <Select value={devForm.responsible} onValueChange={(v) => setDevForm(f => ({ ...f, responsible: v }))}>
+                <SelectTrigger><SelectValue placeholder="Välj ansvarig" /></SelectTrigger>
+                <SelectContent>
+                  {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Bifoga bilder (max 5)</Label>
+              <div className="mt-1">
+                <label className="inline-flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted">
+                  <Camera className="h-4 w-4" /> Välj bilder
+                  <input type="file" accept="image/jpeg,image/png,image/heic" multiple className="hidden" onChange={handleFileSelect} />
+                </label>
+              </div>
+              {probFiles.length > 0 && (
+                <div className="flex gap-2 flex-wrap mt-2">
+                  {probFiles.map((f, i) => (
+                    <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border">
+                      <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+                      <button onClick={() => setProbFiles(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-0 right-0 bg-foreground/60 text-background rounded-bl-lg p-0.5">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <DrawerFooter>
+            <Button
+              disabled={!devForm.type || !devForm.description || problemMutation.isPending}
+              onClick={() => problemMutation.mutate()}
+            >
+              {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}
+            </Button>
+            <DrawerClose asChild>
+              <Button variant="outline">Avbryt</Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
