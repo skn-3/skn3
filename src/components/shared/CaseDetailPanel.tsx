@@ -589,6 +589,24 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   </div>
                   <p className="text-card-foreground">{d.description}</p>
                   <p className="text-muted-foreground">Ansvar: {DEVIATION_RESPONSIBLE.find((r) => r.value === d.responsible)?.label || d.responsible}</p>
+                  {(d as any).cost > 0 && (
+                    <p className="text-sm font-medium text-destructive">Kostnad: {Number((d as any).cost).toLocaleString('sv-SE')} kr</p>
+                  )}
+                  {isSeller && (
+                    editingDevCost === d.id ? (
+                      <div className="flex gap-2 items-center mt-1">
+                        <Input type="number" value={editDevCostValue} onChange={e => setEditDevCostValue(e.target.value)} placeholder="Kostnad kr" className="w-32 h-8" />
+                        <Button size="sm" variant="outline" disabled={updateDevCostMutation.isPending} onClick={() => updateDevCostMutation.mutate({ id: d.id, cost: Number(editDevCostValue) })}>
+                          {updateDevCostMutation.isPending ? 'Sparar...' : 'Spara'}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingDevCost(null)}>Avbryt</Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="ghost" className="mt-1 text-xs text-muted-foreground" onClick={() => { setEditingDevCost(d.id); setEditDevCostValue(String((d as any).cost || 0)); }}>
+                        ✏️ Redigera kostnad
+                      </Button>
+                    )
+                  )}
                   {d.image_urls && (d.image_urls as string[]).length > 0 && (
                     <div className="flex gap-2 flex-wrap mt-1">
                       {(d.image_urls as string[]).map((url, i) => (
@@ -722,6 +740,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Kostnad (kr)</Label>
+              <Input type="number" value={devCost} onChange={e => setDevCost(e.target.value)} placeholder="0" />
             </div>
             <div>
               <Label>Bifoga bilder (max 5)</Label>
