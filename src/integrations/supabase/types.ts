@@ -180,6 +180,7 @@ export type Database = {
           description: string
           id: string
           image_urls: string[] | null
+          reminder_count: number | null
           resolved: boolean
           responsible: string
           type: string
@@ -193,6 +194,7 @@ export type Database = {
           description: string
           id?: string
           image_urls?: string[] | null
+          reminder_count?: number | null
           resolved?: boolean
           responsible: string
           type: string
@@ -206,6 +208,7 @@ export type Database = {
           description?: string
           id?: string
           image_urls?: string[] | null
+          reminder_count?: number | null
           resolved?: boolean
           responsible?: string
           type?: string
@@ -229,6 +232,7 @@ export type Database = {
           date: string
           follow_up_date: string | null
           id: string
+          lost: boolean | null
           notes: string | null
           order_value: number | null
           result: string
@@ -242,6 +246,7 @@ export type Database = {
           date: string
           follow_up_date?: string | null
           id?: string
+          lost?: boolean | null
           notes?: string | null
           order_value?: number | null
           result: string
@@ -255,6 +260,7 @@ export type Database = {
           date?: string
           follow_up_date?: string | null
           id?: string
+          lost?: boolean | null
           notes?: string | null
           order_value?: number | null
           result?: string
