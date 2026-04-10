@@ -2,17 +2,21 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, updateCase, createCaseEvent, createDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC } from '@/lib/constants';
+import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, ExternalLink, Clock, AlertTriangle, Trash2 } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -31,6 +35,10 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
   const [kmNote, setKmNote] = useState('');
   const [selectedStatus, setSelectedStatus] = useState(caseData.status);
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
+  // KM approval form state
+  const [approvalMontor, setApprovalMontor] = useState(caseData.team || '');
+  const [approvalDate, setApprovalDate] = useState<Date | undefined>(undefined);
+  const [approvalNote, setApprovalNote] = useState('');
 
   const { data: events } = useQuery({
     queryKey: ['case_events', caseData.id],
@@ -252,9 +260,9 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
               <Button onClick={() => changeStatus('montage_klart', 'Montage klart')} size="sm">Montage klart</Button>
             )}
 
-            {isSeller && caseData.status === 'km_klar' && (
+            {isSeller && (caseData.status === 'km_klar' || caseData.status === 'vantar_godkannande') && (
               <div className="space-y-3 rounded-lg border p-3">
-                <h4 className="text-sm font-semibold">KM Klar — Granska</h4>
+                <h4 className="text-sm font-semibold">KM Klar — Granska & Boka montage</h4>
                 {/* Show KM report from case_events */}
                 {events?.filter(e => e.event_type === 'km_report' || e.event_type === 'hours_request').slice(0, 1).map(e => (
                   <div key={e.id} className="text-sm bg-muted p-2 rounded">
@@ -262,43 +270,126 @@ export function CaseDetailPanel({ caseData, currentUser, isSeller, onClose }: Ca
                     <p className="text-xs text-muted-foreground mt-1">— {e.created_by}, {new Date(e.created_at).toLocaleDateString('sv-SE')}</p>
                   </div>
                 ))}
-                {caseData.extra_hours_requested > 0 ? (
-                  <div className="space-y-2">
+
+                {caseData.extra_hours_requested > 0 && (
+                  <div className="space-y-2 rounded bg-destructive/10 p-2">
                     <p className="text-sm font-medium text-destructive">⚠ {caseData.extra_hours_requested} extra timmar begärda</p>
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => {
-                        updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested }).then(() => {
-                          changeStatus('godkand', `Godkänd. ${caseData.extra_hours_requested} extra timmar godkända.`);
-                        });
+                      <Button size="sm" variant="default" onClick={async () => {
+                        await updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested });
+                        await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `${caseData.extra_hours_requested} extra timmar godkända`, created_by: currentUser });
+                        invalidate();
+                        toast.success('Extra timmar godkända');
                       }}>Godkänn extra timmar</Button>
-                      <Button size="sm" variant="outline" onClick={() => {
-                        updateCase(caseData.id, { extra_hours_approved: 0 }).then(() => {
-                          changeStatus('godkand', 'Godkänd. Extra timmar avslagna.');
-                        });
+                      <Button size="sm" variant="outline" onClick={async () => {
+                        await updateCase(caseData.id, { extra_hours_approved: 0 });
+                        await createCaseEvent({ case_id: caseData.id, event_type: 'hours_rejected', description: 'Extra timmar avslagna', created_by: currentUser });
+                        invalidate();
+                        toast.success('Extra timmar avslagna');
                       }}>Avslå</Button>
                     </div>
                   </div>
-                ) : (
-                  <Button size="sm" onClick={() => changeStatus('godkand', 'Godkänd')}>Godkänn KM</Button>
                 )}
-              </div>
-            )}
 
-            {isSeller && caseData.status === 'vantar_godkannande' && (
-              <div className="space-y-2 rounded-lg border p-3">
-                <p className="text-sm font-medium text-destructive">⚠ {caseData.extra_hours_requested} extra timmar begärda</p>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => {
-                    updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested }).then(() => {
-                      changeStatus('godkand', `Godkänd. ${caseData.extra_hours_requested} extra timmar godkända.`);
-                    });
-                  }}>Godkänn extra timmar</Button>
-                  <Button size="sm" variant="outline" onClick={() => {
-                    updateCase(caseData.id, { extra_hours_approved: 0 }).then(() => {
-                      changeStatus('godkand', 'Godkänd. Extra timmar avslagna.');
-                    });
-                  }}>Avslå</Button>
+                <div className="space-y-2">
+                  <Label>Montör för montage</Label>
+                  <Select value={approvalMontor} onValueChange={setApprovalMontor}>
+                    <SelectTrigger><SelectValue placeholder="Välj montör" /></SelectTrigger>
+                    <SelectContent>
+                      {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Montagedatum</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !approvalDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {approvalDate ? format(approvalDate, 'yyyy-MM-dd') : 'Välj datum'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={approvalDate} onSelect={setApprovalDate} initialFocus className={cn("p-3 pointer-events-auto")} />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Anteckning (valfritt)</Label>
+                  <Textarea value={approvalNote} onChange={e => setApprovalNote(e.target.value)} rows={2} placeholder="Eventuell kommentar..." />
+                </div>
+
+                <Button
+                  size="sm"
+                  className="w-full bg-primary"
+                  disabled={!approvalMontor || !approvalDate}
+                  onClick={async () => {
+                    try {
+                      const dateStr = format(approvalDate!, 'yyyy-MM-dd');
+                      const oldTeam = caseData.team;
+                      const teamChanged = approvalMontor !== oldTeam;
+
+                      await updateCase(caseData.id, {
+                        status: 'montage_bokat',
+                        montage_date: dateStr,
+                        team: approvalMontor,
+                      });
+
+                      await createCaseEvent({
+                        case_id: caseData.id,
+                        event_type: 'status_change',
+                        description: `KM godkänd. Montage bokat ${dateStr} — montör: ${approvalMontor}${approvalNote ? '. ' + approvalNote : ''}`,
+                        created_by: currentUser,
+                      });
+
+                      if (teamChanged && oldTeam) {
+                        await createCaseEvent({
+                          case_id: caseData.id,
+                          event_type: 'team_change',
+                          description: `Montör bytt från ${oldTeam} till ${approvalMontor}`,
+                          created_by: currentUser,
+                        });
+                      }
+
+                      // Send MONTAGE BOKAT email
+                      try {
+                        await sendNotificationEmail({
+                          to: COORDINATOR_EMAIL,
+                          cc: COORDINATOR_CC,
+                          subject: `MONTAGE BOKAT — ${caseData.address}`,
+                          body: `
+                            <h2>Montage bokat</h2>
+                            <table style="border-collapse:collapse;width:100%">
+                              <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseData.address}</td></tr>
+                              <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${caseData.customer_name}</td></tr>
+                              <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${approvalMontor}</td></tr>
+                              <tr><td style="padding:4px 8px;font-weight:bold">Montagedatum:</td><td style="padding:4px 8px">${dateStr}</td></tr>
+                              ${approvalNote ? `<tr><td style="padding:4px 8px;font-weight:bold">Anteckning:</td><td style="padding:4px 8px">${approvalNote}</td></tr>` : ''}
+                            </table>
+                          `,
+                        });
+                        await createCaseEvent({
+                          case_id: caseData.id,
+                          event_type: 'notification',
+                          description: 'Mail skickat till koordinator (montage bokat)',
+                          created_by: currentUser,
+                        });
+                      } catch (emailErr) {
+                        console.error('Email notification failed:', emailErr);
+                        toast.warning('Status uppdaterad men mailet kunde inte skickas');
+                      }
+
+                      invalidate();
+                      toast.success('KM godkänd och montage bokat');
+                    } catch (err: any) {
+                      toast.error(err.message);
+                    }
+                  }}
+                >
+                  Godkänn och boka montage
+                </Button>
               </div>
             )}
 
