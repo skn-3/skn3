@@ -100,6 +100,7 @@ export type Database = {
           extra_hours_sold: number
           google_drive_link: string | null
           id: string
+          imported: boolean
           km_date: string | null
           montage_date: string | null
           notes: string | null
@@ -124,6 +125,7 @@ export type Database = {
           extra_hours_sold?: number
           google_drive_link?: string | null
           id?: string
+          imported?: boolean
           km_date?: string | null
           montage_date?: string | null
           notes?: string | null
@@ -148,6 +150,7 @@ export type Database = {
           extra_hours_sold?: number
           google_drive_link?: string | null
           id?: string
+          imported?: boolean
           km_date?: string | null
           montage_date?: string | null
           notes?: string | null

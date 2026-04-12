@@ -1,0 +1,1 @@
+ALTER TABLE public.cases ADD COLUMN imported boolean NOT NULL DEFAULT false;
