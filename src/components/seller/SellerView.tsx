@@ -33,10 +33,12 @@ export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerVie
     setTab('new');
   };
 
+  const isAdmin = ADMIN_USERS.includes(role.name);
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader role={role} onChangeRole={onChangeRole}>
-        <SellerNav active={tab} onChange={setTab} />
+        <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} />
       </AppHeader>
 
       {onToggleMontorView && (
@@ -63,6 +65,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerVie
         )}
         {tab === 'dashboard' && (
           <SellerDashboard sellerName={role.name} />
+        )}
+        {tab === 'import' && isAdmin && (
+          <ImportCaseForm sellerName={role.name} />
         )}
       </main>
 
