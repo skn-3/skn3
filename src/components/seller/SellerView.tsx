@@ -7,6 +7,8 @@ import { Pipeline } from './Pipeline';
 import { NewCaseForm } from './NewCaseForm';
 import { SellerDashboard } from './SellerDashboard';
 import { VisitForm } from './VisitForm';
+import { ImportCaseForm } from './ImportCaseForm';
+import { ADMIN_USERS } from '@/lib/constants';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { Button } from '@/components/ui/button';
 import { Eye } from 'lucide-react';
@@ -31,10 +33,12 @@ export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerVie
     setTab('new');
   };
 
+  const isAdmin = ADMIN_USERS.includes(role.name);
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader role={role} onChangeRole={onChangeRole}>
-        <SellerNav active={tab} onChange={setTab} />
+        <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} />
       </AppHeader>
 
       {onToggleMontorView && (
@@ -61,6 +65,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerVie
         )}
         {tab === 'dashboard' && (
           <SellerDashboard sellerName={role.name} />
+        )}
+        {tab === 'import' && isAdmin && (
+          <ImportCaseForm sellerName={role.name} />
         )}
       </main>
 

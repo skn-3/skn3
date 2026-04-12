@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchAllCases, fetchAllDeviations, fetchAllVisits, fetchAllCaseEvents } from '@/lib/supabaseClient';
 import { STATUS_LABELS, SELLERS, MONTORS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, HOUR_RATE } from '@/lib/constants';
 import { Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,18 +31,22 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   const [filterCity, setFilterCity] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [includeImported, setIncludeImported] = useState(true);
 
-  const { data: allCases, isLoading: loadingCases } = useQuery({ queryKey: ['cases_all'], queryFn: fetchAllCases });
+  const { data: allCasesRaw, isLoading: loadingCases } = useQuery({ queryKey: ['cases_all'], queryFn: fetchAllCases });
   const { data: allDeviations } = useQuery({ queryKey: ['deviations_all'], queryFn: fetchAllDeviations });
   const { data: allVisits } = useQuery({ queryKey: ['visits_all'], queryFn: fetchAllVisits });
   const { data: allEvents } = useQuery({ queryKey: ['case_events_all'], queryFn: fetchAllCaseEvents });
 
   if (loadingCases) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
-  // Extract all cities for filter
-  const allCities = [...new Set((allCases || []).map(c => extractCity(c.address)))].sort();
+  // Filter imported cases if toggle is off
+  const allCases = (allCasesRaw || []).filter(c => includeImported || !(c as any).imported);
 
-  const cases = (allCases || []).filter((c) => {
+  // Extract all cities for filter
+  const allCities = [...new Set(allCases.map(c => extractCity(c.address)))].sort();
+
+  const cases = allCases.filter((c) => {
     if (filterSeller !== 'all' && c.seller !== filterSeller) return false;
     if (filterMontor !== 'all' && c.team !== filterMontor) return false;
     if (filterCity !== 'all' && extractCity(c.address) !== filterCity) return false;
@@ -318,6 +323,10 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
           <div className="space-y-1">
             <Label className="text-xs">Till</Label>
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
+          </div>
+          <div className="flex items-center gap-2 self-end pb-1">
+            <Switch checked={includeImported} onCheckedChange={setIncludeImported} id="import-toggle" />
+            <Label htmlFor="import-toggle" className="text-xs cursor-pointer">Inkl. importerade</Label>
           </div>
         </div>
       </div>

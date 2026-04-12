@@ -1,18 +1,20 @@
 import { cn } from '@/lib/utils';
 
-export type SellerTab = 'pipeline' | 'new' | 'visit' | 'dashboard';
+export type SellerTab = 'pipeline' | 'new' | 'visit' | 'dashboard' | 'import';
 
 interface SellerNavProps {
   active: SellerTab;
   onChange: (tab: SellerTab) => void;
+  isAdmin?: boolean;
 }
 
-export function SellerNav({ active, onChange }: SellerNavProps) {
+export function SellerNav({ active, onChange, isAdmin }: SellerNavProps) {
   const tabs: { value: SellerTab; label: string }[] = [
     { value: 'pipeline', label: 'Pipeline' },
     { value: 'new', label: 'Nytt ärende' },
     { value: 'visit', label: 'Registrera besök' },
     { value: 'dashboard', label: 'Dashboard' },
+    ...(isAdmin ? [{ value: 'import' as SellerTab, label: 'Importera ärende' }] : []),
   ];
 
   return (
