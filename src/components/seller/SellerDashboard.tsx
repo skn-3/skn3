@@ -324,6 +324,10 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
             <Label className="text-xs">Till</Label>
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
           </div>
+          <div className="flex items-center gap-2 self-end pb-1">
+            <Switch checked={includeImported} onCheckedChange={setIncludeImported} id="import-toggle" />
+            <Label htmlFor="import-toggle" className="text-xs cursor-pointer">Inkl. importerade</Label>
+          </div>
         </div>
       </div>
 
