@@ -3,6 +3,16 @@ export const HOUR_RATE = 469;
 export const SELLERS = ['Daniel Malke', 'Gabriel Hanna'] as const;
 export const MONTORS = ['GVMO', 'Samy', 'Alex NBD', 'Jerk'] as const;
 
+export const MONTOR_PHONES: Record<string, string> = {
+  'GVMO': '0707654751',
+  'Samy': '0733930666',
+  'Alex NBD': '0707808026',
+  'Jerk': '0705799711',
+};
+
+export const SHEET_METAL_RECIPIENT = 'joakim@byggplatar.se';
+export const SHEET_METAL_CC = 'mf@malke.se';
+
 export type RoleType = 'seller' | 'montor';
 
 export interface UserRole {
