@@ -10,8 +10,7 @@ export const MONTOR_PHONES: Record<string, string> = {
   'Jerk': '0705799711',
 };
 
-// TODO: Byt tillbaka till joakim@byggplatar.se efter test
-export const SHEET_METAL_RECIPIENT = 'johannes@malke.se';
+export const SHEET_METAL_RECIPIENT = 'joakim@byggplatar.se';
 export const SHEET_METAL_CC = 'mf@malke.se';
 
 export type RoleType = 'seller' | 'montor';
