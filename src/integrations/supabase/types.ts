@@ -226,6 +226,53 @@ export type Database = {
           },
         ]
       }
+      sheet_metal_orders: {
+        Row: {
+          case_id: string
+          created_at: string
+          created_by: string
+          delivery_address: string
+          id: string
+          montor_name: string | null
+          montor_phone: string | null
+          notes: string | null
+          profiles: Json
+          status: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          created_by: string
+          delivery_address: string
+          id?: string
+          montor_name?: string | null
+          montor_phone?: string | null
+          notes?: string | null
+          profiles?: Json
+          status?: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          delivery_address?: string
+          id?: string
+          montor_name?: string | null
+          montor_phone?: string | null
+          notes?: string | null
+          profiles?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sheet_metal_orders_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       visits: {
         Row: {
           address: string
