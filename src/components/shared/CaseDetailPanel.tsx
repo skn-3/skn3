@@ -18,6 +18,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -549,6 +550,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera problem
             </Button>
           </section>
+
+          <SheetMetalOrdersSection caseId={caseData.id} />
+
 
           {/* Costs */}
           {costs && costs.length > 0 && (

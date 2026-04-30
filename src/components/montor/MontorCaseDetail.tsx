@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 
 interface Props {
   caseData: CaseRow;
@@ -472,6 +473,8 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           >
             <Receipt className="h-4 w-4 mr-1" /> Lägg till kostnad
           </Button>
+
+          <SheetMetalOrdersSection caseId={caseData.id} variant="mobile" />
         </section>
 
         {/* Notes */}
