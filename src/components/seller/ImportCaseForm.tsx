@@ -49,6 +49,21 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       const parsed = data?.data;
       if (!parsed) throw new Error('Inget data returnerades');
 
+      // Rensa svenska sifferformat (t.ex. "2 785,58 kr" -> "2786")
+      const parseSwedishNumber = (val: string | number): string => {
+        if (val === null || val === undefined || val === '') return '';
+        const s = String(val)
+          .replace(/\s/g, '')
+          .replace(/kr$/i, '')
+          .replace(/,(\d{1,2})$/, '.$1')
+          .replace(/,/g, '')
+          .trim();
+        const num = parseFloat(s);
+        return isNaN(num) ? '' : String(Math.round(num));
+      };
+      parsed.order_value = parseSwedishNumber(parsed.order_value);
+      parsed.tb_percent = parseSwedishNumber(parsed.tb_percent);
+
       // Validera datumfält — flytta ogiltiga värden till notes
       const dateFields: Array<'km_date' | 'montage_date' | 'delivery_date'> = ['km_date', 'montage_date', 'delivery_date'];
       const dateLabels: Record<string, string> = { km_date: 'KM', montage_date: 'Montage', delivery_date: 'Leverans' };
@@ -75,12 +90,12 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         apply('address', parsed.address);
         apply('offer_number', parsed.offer_number);
         if (parsed.order_value) {
-          const v = String(parsed.order_value).replace(/[^0-9]/g, '');
-          if (v) { next.order_value = v; filled.add('order_value'); }
+          next.order_value = parsed.order_value;
+          filled.add('order_value');
         }
         if (parsed.tb_percent) {
-          const v = String(parsed.tb_percent).replace(/[^0-9.]/g, '');
-          if (v) { next.tb_percent = v; filled.add('tb_percent'); }
+          next.tb_percent = parsed.tb_percent;
+          filled.add('tb_percent');
         }
         apply('status', parsed.status);
         apply('team', parsed.team);

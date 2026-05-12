@@ -12,6 +12,7 @@ Regler:
 - Om du ser "Handpenning betald" eller "Handpenning fakturerad", sätt status till minst "godkand"
 - TB-procenten finns ofta i prisberäkningen under "TG" eller "TB"
 - order_value ska vara Total summa exkl moms om möjligt, annars inkl moms
+- VIKTIGT: Returnera order_value och tb_percent som rena tal utan tusentalsavgränsare och med punkt som decimalavskiljare. Exempel: 126954.71 (inte 126 954,71). Om Total summa exkl moms är 126 954,71 kr ska order_value vara 126954.71
 - Samla KM-noteringar, fasadtyp, konstruktionstyp i notes
 - Lämna tom sträng om data saknas`;
 
