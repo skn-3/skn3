@@ -275,25 +275,25 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label>Kundnamn *</Label>
-          <Input value={form.customer_name} onChange={(e) => update('customer_name', e.target.value)} />
+          <Input className={cn(aiClass('customer_name'))} value={form.customer_name} onChange={(e) => update('customer_name', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Telefon *</Label>
-          <Input value={form.customer_phone} onChange={(e) => update('customer_phone', e.target.value)} />
+          <Input className={cn(aiClass('customer_phone'))} value={form.customer_phone} onChange={(e) => update('customer_phone', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>E-post</Label>
-          <Input value={form.customer_email} onChange={(e) => update('customer_email', e.target.value)} />
+          <Input className={cn(aiClass('customer_email'))} value={form.customer_email} onChange={(e) => update('customer_email', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Adress *</Label>
-          <Input value={form.address} onChange={(e) => update('address', e.target.value)} />
+          <Input className={cn(aiClass('address'))} value={form.address} onChange={(e) => update('address', e.target.value)} />
         </div>
 
         <div className="space-y-1.5">
           <Label>Status *</Label>
           <Select value={form.status} onValueChange={(v) => update('status', v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger className={cn(aiClass('status'))}><SelectValue /></SelectTrigger>
             <SelectContent>
               {SELLER_PIPELINE_COLUMNS.map((s) => (
                 <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
@@ -319,7 +319,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         <div className="space-y-1.5">
           <Label>Montör</Label>
           <Select value={form.team} onValueChange={(v) => update('team', v)}>
-            <SelectTrigger><SelectValue placeholder="Välj montör..." /></SelectTrigger>
+            <SelectTrigger className={cn(aiClass('team'))}><SelectValue placeholder="Välj montör..." /></SelectTrigger>
             <SelectContent>
               {MONTORS.map((m) => (
                 <SelectItem key={m} value={m}>{m}</SelectItem>
@@ -330,11 +330,11 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
         <div className="space-y-1.5">
           <Label>KM-datum</Label>
-          <Input type="date" value={form.km_date} onChange={(e) => update('km_date', e.target.value)} />
+          <Input className={cn(aiClass('km_date'))} type="date" value={form.km_date} onChange={(e) => update('km_date', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Montagedatum</Label>
-          <Input type="date" value={form.montage_date} onChange={(e) => update('montage_date', e.target.value)} />
+          <Input className={cn(aiClass('montage_date'))} type="date" value={form.montage_date} onChange={(e) => update('montage_date', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Leveransdatum</Label>
@@ -343,15 +343,15 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
         <div className="space-y-1.5">
           <Label>Offertnummer</Label>
-          <Input value={form.offer_number} onChange={(e) => update('offer_number', e.target.value)} />
+          <Input className={cn(aiClass('offer_number'))} value={form.offer_number} onChange={(e) => update('offer_number', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Ordervärde (kr)</Label>
-          <Input type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
+          <Input className={cn(aiClass('order_value'))} type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>TB (%)</Label>
-          <Input type="number" value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+          <Input className={cn(aiClass('tb_percent'))} type="number" value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
         </div>
 
         <div className="space-y-1.5">
