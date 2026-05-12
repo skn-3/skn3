@@ -44,16 +44,6 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
     },
   });
 
-  const lostMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await updateVisit(id, { lost: true } as any);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visits'] });
-      toast.success('Besök markerat som tappad');
-    },
-  });
-
   const today = new Date();
 
   if (activeVisits.length === 0) return null;
