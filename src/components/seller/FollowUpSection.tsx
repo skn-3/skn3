@@ -18,6 +18,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
   const queryClient = useQueryClient();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [signedVisit, setSignedVisit] = useState<VisitRow | null>(null);
+  const [lostVisit, setLostVisit] = useState<VisitRow | null>(null);
 
   // Filter out lost visits
   const activeVisits = visits.filter(v => !v.lost);
