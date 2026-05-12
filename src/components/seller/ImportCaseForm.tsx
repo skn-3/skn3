@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { MONTORS, SELLERS, STATUS_LABELS, SELLER_PIPELINE_COLUMNS, HOUR_RATE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Upload } from 'lucide-react';
+import { Upload, Sparkles, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ImportCaseFormProps {
   sellerName: string;
@@ -17,6 +21,80 @@ interface ImportCaseFormProps {
 export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const queryClient = useQueryClient();
   const [importCount, setImportCount] = useState(0);
+  const [pasteText, setPasteText] = useState('');
+  const [isParsing, setIsParsing] = useState(false);
+  const [aiFilled, setAiFilled] = useState<Set<string>>(new Set());
+  const [aiSuccessCount, setAiSuccessCount] = useState<number | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleAiExtract = async () => {
+    if (!pasteText.trim()) return;
+    setIsParsing(true);
+    setAiError(null);
+    setAiSuccessCount(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('parse-customer-portal', {
+        body: { text: pasteText },
+      });
+      clearTimeout(timeoutId);
+
+      if (error) throw new Error(error.message || 'Anrop misslyckades');
+      if (data?.error) throw new Error(data.error);
+      const parsed = data?.data;
+      if (!parsed) throw new Error('Inget data returnerades');
+
+      const filled = new Set<string>();
+      setForm((f) => {
+        const next = { ...f };
+        const apply = (key: keyof typeof f, value: string) => {
+          if (value && value.trim()) {
+            next[key] = value as any;
+            filled.add(key as string);
+          }
+        };
+        apply('customer_name', parsed.customer_name);
+        apply('customer_phone', parsed.customer_phone);
+        apply('customer_email', parsed.customer_email);
+        apply('address', parsed.address);
+        apply('offer_number', parsed.offer_number);
+        if (parsed.order_value) {
+          const v = String(parsed.order_value).replace(/[^0-9]/g, '');
+          if (v) { next.order_value = v; filled.add('order_value'); }
+        }
+        if (parsed.tb_percent) {
+          const v = String(parsed.tb_percent).replace(/[^0-9.]/g, '');
+          if (v) { next.tb_percent = v; filled.add('tb_percent'); }
+        }
+        apply('status', parsed.status);
+        apply('team', parsed.team);
+        apply('km_date', parsed.km_date);
+        apply('montage_date', parsed.montage_date);
+        apply('notes', parsed.notes);
+        return next;
+      });
+
+      setAiFilled(filled);
+      setAiSuccessCount(filled.size);
+      toast.success(`Data extraherad — ${filled.size} fält ifyllda. Granska innan du sparar.`);
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      const msg = err?.name === 'AbortError'
+        ? 'Tidsgräns nådd (15s). Försök igen.'
+        : (err?.message || 'Kunde inte tolka texten');
+      setAiError(msg);
+      toast.error(msg);
+      console.error('AI parse error:', err);
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  const aiClass = (key: string) =>
+    aiFilled.has(key) ? 'bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-800' : '';
 
   const [form, setForm] = useState({
     customer_name: '',
@@ -118,7 +196,16 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     },
   });
 
-  const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  const update = (key: string, value: string) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    if (aiFilled.has(key)) {
+      setAiFilled((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 px-4 md:px-0">
@@ -138,28 +225,75 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         Importera befintliga/historiska ärenden. Inga mail skickas och ärendet markeras som importerat.
       </p>
 
+      <Card className="border-primary/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Snabbimport från Kundportalen
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Öppna kunden i Kundportalen, markera all text på sidan (Ctrl+A) och klistra in nedan. AI:n extraherar automatiskt alla fält.
+          </p>
+          <Textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            rows={6}
+            placeholder="Klistra in text från Kundportalen här..."
+            disabled={isParsing}
+          />
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              type="button"
+              onClick={handleAiExtract}
+              disabled={!pasteText.trim() || isParsing}
+              size="sm"
+            >
+              {isParsing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              {isParsing ? 'Extraherar...' : 'Extrahera med AI'}
+            </Button>
+            {aiSuccessCount !== null && !aiError && (
+              <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                ✓ {aiSuccessCount} fält extraherade — granska och justera vid behov
+              </span>
+            )}
+            {aiError && (
+              <span className="text-xs text-destructive font-medium">{aiError}</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label>Kundnamn *</Label>
-          <Input value={form.customer_name} onChange={(e) => update('customer_name', e.target.value)} />
+          <Input className={cn(aiClass('customer_name'))} value={form.customer_name} onChange={(e) => update('customer_name', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Telefon *</Label>
-          <Input value={form.customer_phone} onChange={(e) => update('customer_phone', e.target.value)} />
+          <Input className={cn(aiClass('customer_phone'))} value={form.customer_phone} onChange={(e) => update('customer_phone', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>E-post</Label>
-          <Input value={form.customer_email} onChange={(e) => update('customer_email', e.target.value)} />
+          <Input className={cn(aiClass('customer_email'))} value={form.customer_email} onChange={(e) => update('customer_email', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Adress *</Label>
-          <Input value={form.address} onChange={(e) => update('address', e.target.value)} />
+          <Input className={cn(aiClass('address'))} value={form.address} onChange={(e) => update('address', e.target.value)} />
         </div>
 
         <div className="space-y-1.5">
           <Label>Status *</Label>
           <Select value={form.status} onValueChange={(v) => update('status', v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger className={cn(aiClass('status'))}><SelectValue /></SelectTrigger>
             <SelectContent>
               {SELLER_PIPELINE_COLUMNS.map((s) => (
                 <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
@@ -185,7 +319,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         <div className="space-y-1.5">
           <Label>Montör</Label>
           <Select value={form.team} onValueChange={(v) => update('team', v)}>
-            <SelectTrigger><SelectValue placeholder="Välj montör..." /></SelectTrigger>
+            <SelectTrigger className={cn(aiClass('team'))}><SelectValue placeholder="Välj montör..." /></SelectTrigger>
             <SelectContent>
               {MONTORS.map((m) => (
                 <SelectItem key={m} value={m}>{m}</SelectItem>
@@ -196,11 +330,11 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
         <div className="space-y-1.5">
           <Label>KM-datum</Label>
-          <Input type="date" value={form.km_date} onChange={(e) => update('km_date', e.target.value)} />
+          <Input className={cn(aiClass('km_date'))} type="date" value={form.km_date} onChange={(e) => update('km_date', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Montagedatum</Label>
-          <Input type="date" value={form.montage_date} onChange={(e) => update('montage_date', e.target.value)} />
+          <Input className={cn(aiClass('montage_date'))} type="date" value={form.montage_date} onChange={(e) => update('montage_date', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Leveransdatum</Label>
@@ -209,15 +343,15 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
         <div className="space-y-1.5">
           <Label>Offertnummer</Label>
-          <Input value={form.offer_number} onChange={(e) => update('offer_number', e.target.value)} />
+          <Input className={cn(aiClass('offer_number'))} value={form.offer_number} onChange={(e) => update('offer_number', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Ordervärde (kr)</Label>
-          <Input type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
+          <Input className={cn(aiClass('order_value'))} type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>TB (%)</Label>
-          <Input type="number" value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+          <Input className={cn(aiClass('tb_percent'))} type="number" value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
         </div>
 
         <div className="space-y-1.5">
@@ -240,7 +374,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
       <div className="space-y-1.5">
         <Label>Anteckning</Label>
-        <Textarea value={form.notes} onChange={(e) => update('notes', e.target.value)} rows={3} />
+        <Textarea className={cn(aiClass('notes'))} value={form.notes} onChange={(e) => update('notes', e.target.value)} rows={3} />
       </div>
 
       <Button
