@@ -577,6 +577,47 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             )}
           </section>
 
+          {/* A-ORDER & Faktura */}
+          <section className="p-4 space-y-3 border-t">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <FileText className="h-4 w-4" /> A-ORDER & Faktura
+            </h3>
+            {linkedOrders && linkedOrders.length > 0 ? (
+              <div className="space-y-2">
+                {linkedOrders.map((order: any, idx: number) => {
+                  const statusBadge = order.status === 'invoiced'
+                    ? <Badge className="bg-green-500 hover:bg-green-500/90 text-white">Fakturerad</Badge>
+                    : order.status === 'credited'
+                    ? <Badge variant="destructive">Krediterad</Badge>
+                    : <Badge className="bg-yellow-500 hover:bg-yellow-500/90 text-white">A-ORDER</Badge>;
+                  return (
+                    <div key={order.id} className="rounded-md border p-3 space-y-1 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Order #{order.order_number ?? idx + 1}</span>
+                        {statusBadge}
+                      </div>
+                      {order.total_amount != null && (
+                        <div className="text-muted-foreground">
+                          Totalt: <span className="text-foreground font-medium">{Number(order.total_amount).toLocaleString('sv-SE')} kr</span>
+                        </div>
+                      )}
+                      {order.invoice_number && (
+                        <div className="text-muted-foreground">Fakturanr: {order.invoice_number}</div>
+                      )}
+                      {order.date && (
+                        <div className="text-muted-foreground text-xs">{order.date}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Info className="h-4 w-4" /> Ingen A-ORDER kopplad ännu
+              </div>
+            )}
+          </section>
+
           {/* Actions based on role and status */}
           <section className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Åtgärder</h3>
