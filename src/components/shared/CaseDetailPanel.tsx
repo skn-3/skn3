@@ -438,13 +438,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     statusMutation.mutate({ newStatus, description });
   };
 
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+
   const handleManualStatusChange = (newStatus: string) => {
+    if (newStatus === caseData.status) return;
     setSelectedStatus(newStatus);
-    if (newStatus !== caseData.status) {
-      const label = STATUS_LABELS[newStatus] || newStatus;
-      changeStatus(newStatus, `Status ändrad till: ${label}`);
-    }
+    setPendingStatus(newStatus);
   };
+
+  const currentIdx = SELLER_PIPELINE_COLUMNS.indexOf(caseData.status as typeof SELLER_PIPELINE_COLUMNS[number]);
+  const newIdx = pendingStatus ? SELLER_PIPELINE_COLUMNS.indexOf(pendingStatus as typeof SELLER_PIPELINE_COLUMNS[number]) : -1;
+  const bigJump = pendingStatus !== null && currentIdx >= 0 && newIdx >= 0 && Math.abs(currentIdx - newIdx) > 2;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
