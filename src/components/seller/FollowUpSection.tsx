@@ -107,7 +107,16 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                     </>
                   ) : (
                     <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => setUpdatingId(v.id)}>Uppdatera</Button>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setUpdatingId(v.id);
+                        updateMutation.mutate({
+                          id: v.id,
+                          updates: {
+                            follow_up_count: ((v as any).follow_up_count || 0) + 1,
+                            last_follow_up_at: new Date().toISOString(),
+                          },
+                        });
+                      }}>Uppdatera</Button>
                       <Button
                         size="sm"
                         variant="ghost"
