@@ -18,6 +18,8 @@ interface ImportCaseFormProps {
   sellerName: string;
 }
 
+const isValidDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+
 export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const queryClient = useQueryClient();
   const [importCount, setImportCount] = useState(0);
@@ -46,6 +48,17 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       if (data?.error) throw new Error(data.error);
       const parsed = data?.data;
       if (!parsed) throw new Error('Inget data returnerades');
+
+      // Validera datumfält — flytta ogiltiga värden till notes
+      const dateFields: Array<'km_date' | 'montage_date' | 'delivery_date'> = ['km_date', 'montage_date', 'delivery_date'];
+      const dateLabels: Record<string, string> = { km_date: 'KM', montage_date: 'Montage', delivery_date: 'Leverans' };
+      for (const f of dateFields) {
+        const val = (parsed as any)[f];
+        if (val && !isValidDate(val)) {
+          parsed.notes = (parsed.notes || '') + ` | ${dateLabels[f]}: ${val}`;
+          (parsed as any)[f] = '';
+        }
+      }
 
       const filled = new Set<string>();
       setForm((f) => {
@@ -136,9 +149,9 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         status: form.status,
         google_drive_link: form.google_drive_link || null,
         notes: form.notes || null,
-        km_date: form.km_date || null,
-        montage_date: form.montage_date || null,
-        delivery_date: form.delivery_date || null,
+        km_date: form.km_date && isValidDate(form.km_date) ? form.km_date : null,
+        montage_date: form.montage_date && isValidDate(form.montage_date) ? form.montage_date : null,
+        delivery_date: form.delivery_date && isValidDate(form.delivery_date) ? form.delivery_date : null,
         imported: true,
       };
 
