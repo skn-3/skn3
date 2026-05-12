@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info } from 'lucide-react';
+import { orderDb } from '@/integrations/supabase/orderClient';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -150,12 +151,26 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryFn: () => fetchCaseCosts(caseData.id),
   });
 
+  const { data: linkedOrders } = useQuery({
+    queryKey: ['linked-orders', caseData.id],
+    queryFn: async () => {
+      const { data, error } = await orderDb
+        .from('orders')
+        .select('*')
+        .eq('case_id', caseData.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
     queryClient.invalidateQueries({ queryKey: ['cases'] });
     queryClient.invalidateQueries({ queryKey: ['case_events', caseData.id] });
     queryClient.invalidateQueries({ queryKey: ['deviations', caseData.id] });
     queryClient.invalidateQueries({ queryKey: ['case_costs', caseData.id] });
+    queryClient.invalidateQueries({ queryKey: ['linked-orders', caseData.id] });
   };
 
   const statusMutation = useMutation({
@@ -559,6 +574,47 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <a href={caseData.google_drive_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
                 <ExternalLink className="h-3.5 w-3.5" /> Google Drive
               </a>
+            )}
+          </section>
+
+          {/* A-ORDER & Faktura */}
+          <section className="p-4 space-y-3 border-t">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <FileText className="h-4 w-4" /> A-ORDER & Faktura
+            </h3>
+            {linkedOrders && linkedOrders.length > 0 ? (
+              <div className="space-y-2">
+                {linkedOrders.map((order: any, idx: number) => {
+                  const statusBadge = order.status === 'invoiced'
+                    ? <Badge className="bg-green-500 hover:bg-green-500/90 text-white">Fakturerad</Badge>
+                    : order.status === 'credited'
+                    ? <Badge variant="destructive">Krediterad</Badge>
+                    : <Badge className="bg-yellow-500 hover:bg-yellow-500/90 text-white">A-ORDER</Badge>;
+                  return (
+                    <div key={order.id} className="rounded-md border p-3 space-y-1 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Order #{order.order_number ?? idx + 1}</span>
+                        {statusBadge}
+                      </div>
+                      {order.total_amount != null && (
+                        <div className="text-muted-foreground">
+                          Totalt: <span className="text-foreground font-medium">{Number(order.total_amount).toLocaleString('sv-SE')} kr</span>
+                        </div>
+                      )}
+                      {order.invoice_number && (
+                        <div className="text-muted-foreground">Fakturanr: {order.invoice_number}</div>
+                      )}
+                      {order.date && (
+                        <div className="text-muted-foreground text-xs">{order.date}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Info className="h-4 w-4" /> Ingen A-ORDER kopplad ännu
+              </div>
             )}
           </section>
 
