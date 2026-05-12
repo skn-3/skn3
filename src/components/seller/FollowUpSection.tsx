@@ -116,8 +116,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                         size="sm"
                         variant="ghost"
                         className="text-muted-foreground hover:text-destructive"
-                        disabled={lostMutation.isPending}
-                        onClick={() => lostMutation.mutate(v.id)}
+                        onClick={() => setLostVisit(v)}
                         title="Markera som tappad"
                       >
                         <X className="h-4 w-4 mr-1" />
