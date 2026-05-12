@@ -47,6 +47,17 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       const parsed = data?.data;
       if (!parsed) throw new Error('Inget data returnerades');
 
+      // Validera datumfält — flytta ogiltiga värden till notes
+      const dateFields: Array<'km_date' | 'montage_date' | 'delivery_date'> = ['km_date', 'montage_date', 'delivery_date'];
+      const dateLabels: Record<string, string> = { km_date: 'KM', montage_date: 'Montage', delivery_date: 'Leverans' };
+      for (const f of dateFields) {
+        const val = (parsed as any)[f];
+        if (val && !isValidDate(val)) {
+          parsed.notes = (parsed.notes || '') + ` | ${dateLabels[f]}: ${val}`;
+          (parsed as any)[f] = '';
+        }
+      }
+
       const filled = new Set<string>();
       setForm((f) => {
         const next = { ...f };
