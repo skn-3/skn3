@@ -398,7 +398,42 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         </div>
       </div>
 
-      {/* ROW 2: Sales per city */}
+      {/* Follow-up KPIs */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        {(() => {
+          const signedLinked = (allVisits || []).filter(v => v.result === 'signerat' && v.case_id);
+          const avgDaysToSign = signedLinked.length
+            ? Math.round(signedLinked.reduce((sum, v) => {
+                const mc = (allCases || []).find(c => c.id === v.case_id);
+                if (!mc) return sum;
+                return sum + Math.abs(Math.floor((new Date(mc.created_at).getTime() - new Date(v.date).getTime()) / 86400000));
+              }, 0) / signedLinked.length)
+            : null;
+          const avgFollowUpsBeforeSign = signedLinked.length
+            ? (signedLinked.reduce((s, v) => s + ((v as any).follow_up_count || 0), 0) / signedLinked.length).toFixed(1)
+            : '–';
+          const lostList = (allVisits || []).filter(v => v.lost);
+          const avgFollowUpsBeforeLost = lostList.length
+            ? (lostList.reduce((s, v) => s + ((v as any).follow_up_count || 0), 0) / lostList.length).toFixed(1)
+            : '–';
+          return (
+            <>
+              <div className="rounded-xl border bg-card p-4">
+                <p className="text-sm text-muted-foreground">Snitt tid besök → signering</p>
+                <p className="text-3xl font-bold text-card-foreground">{avgDaysToSign != null ? `${avgDaysToSign} dagar` : '–'}</p>
+              </div>
+              <div className="rounded-xl border bg-card p-4">
+                <p className="text-sm text-muted-foreground">Snitt uppföljningar innan signering</p>
+                <p className="text-3xl font-bold text-primary">{avgFollowUpsBeforeSign}</p>
+              </div>
+              <div className="rounded-xl border bg-card p-4">
+                <p className="text-sm text-muted-foreground">Snitt uppföljningar innan tappad</p>
+                <p className="text-3xl font-bold text-destructive">{avgFollowUpsBeforeLost}</p>
+              </div>
+            </>
+          );
+        })()}
+      </div>
       {cityData.length > 0 && (
         <div className="rounded-xl border bg-card p-4">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Försäljning per ort</h3>
