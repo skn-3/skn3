@@ -283,6 +283,9 @@ export type Database = {
           follow_up_date: string | null
           id: string
           lost: boolean | null
+          lost_comment: string | null
+          lost_competitor: string | null
+          lost_reason: string | null
           notes: string | null
           order_value: number | null
           result: string
@@ -297,6 +300,9 @@ export type Database = {
           follow_up_date?: string | null
           id?: string
           lost?: boolean | null
+          lost_comment?: string | null
+          lost_competitor?: string | null
+          lost_reason?: string | null
           notes?: string | null
           order_value?: number | null
           result: string
@@ -311,6 +317,9 @@ export type Database = {
           follow_up_date?: string | null
           id?: string
           lost?: boolean | null
+          lost_comment?: string | null
+          lost_competitor?: string | null
+          lost_reason?: string | null
           notes?: string | null
           order_value?: number | null
           result?: string

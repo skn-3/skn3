@@ -95,3 +95,22 @@ export const EMAIL_MAP: Record<string, string> = {
 
 export const COORDINATOR_EMAIL = 'mirna.malke@mockfjards.se';
 export const COORDINATOR_CC = 'mf@malke.se';
+
+export const LOST_REASONS = [
+  { value: 'konkurrent', label: 'Förlorad till konkurrent' },
+  { value: 'pris', label: 'Pris för dyrt' },
+  { value: 'avvaktar', label: 'Kunden avvaktar / ångrar sig' },
+  { value: 'finansiering', label: 'Finansiering / budget' },
+  { value: 'renovering', label: 'Väljer renovering istället' },
+  { value: 'ingen_kontakt', label: 'Ingen kontakt (ghostad)' },
+  { value: 'ovrigt', label: 'Övrigt' },
+] as const;
+
+export const COMPETITORS = [
+  { value: 'elitfonster', label: 'Elitfönster' },
+  { value: 'morups', label: 'Morups' },
+  { value: 'svenskt_fonster', label: 'Svenskt Fönster' },
+  { value: 'nordan', label: 'Nordan' },
+  { value: 'skanska_byggvaror', label: 'Skånska Byggvaror' },
+  { value: 'annan', label: 'Annan' },
+] as const;

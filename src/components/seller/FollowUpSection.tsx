@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CalendarClock, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { SignedCaseDialog } from './SignedCaseDialog';
+import { LostVisitDialog } from './LostVisitDialog';
 
 const STORAGE_KEY = 'followup-collapsed';
 
@@ -17,6 +18,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
   const queryClient = useQueryClient();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [signedVisit, setSignedVisit] = useState<VisitRow | null>(null);
+  const [lostVisit, setLostVisit] = useState<VisitRow | null>(null);
 
   // Filter out lost visits
   const activeVisits = visits.filter(v => !v.lost);
@@ -39,16 +41,6 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
       queryClient.invalidateQueries({ queryKey: ['visits'] });
       toast.success('Besök uppdaterat');
       setUpdatingId(null);
-    },
-  });
-
-  const lostMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await updateVisit(id, { lost: true } as any);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visits'] });
-      toast.success('Besök markerat som tappad');
     },
   });
 
@@ -114,8 +106,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                         size="sm"
                         variant="ghost"
                         className="text-muted-foreground hover:text-destructive"
-                        disabled={lostMutation.isPending}
-                        onClick={() => lostMutation.mutate(v.id)}
+                        onClick={() => setLostVisit(v)}
                         title="Markera som tappad"
                       >
                         <X className="h-4 w-4 mr-1" />
@@ -130,6 +121,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
         </div>
       )}
       <SignedCaseDialog visit={signedVisit} sellerName={sellerName} onClose={() => setSignedVisit(null)} />
+      <LostVisitDialog visit={lostVisit} onClose={() => setLostVisit(null)} />
     </div>
   );
 }
