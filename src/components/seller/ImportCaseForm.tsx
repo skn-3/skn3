@@ -18,6 +18,8 @@ interface ImportCaseFormProps {
   sellerName: string;
 }
 
+const isValidDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+
 export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const queryClient = useQueryClient();
   const [importCount, setImportCount] = useState(0);
