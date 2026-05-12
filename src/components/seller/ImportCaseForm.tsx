@@ -62,18 +62,6 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       const parsed = data?.data;
       if (!parsed) throw new Error('Inget data returnerades');
 
-      // Rensa svenska sifferformat (t.ex. "2 785,58 kr" -> "2786")
-      const parseSwedishNumber = (val: string | number): string => {
-        if (val === null || val === undefined || val === '') return '';
-        const s = String(val)
-          .replace(/\s/g, '')
-          .replace(/kr$/i, '')
-          .replace(/,(\d{1,2})$/, '.$1')
-          .replace(/,/g, '')
-          .trim();
-        const num = parseFloat(s);
-        return isNaN(num) ? '' : String(Math.round(num));
-      };
       parsed.order_value = parseSwedishNumber(parsed.order_value);
       parsed.tb_percent = parseSwedishNumber(parsed.tb_percent);
 
