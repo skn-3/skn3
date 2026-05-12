@@ -107,11 +107,14 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
   });
 
   return (
-    <Dialog open={!!visit} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Skapa ärende från signerat avtal</DialogTitle>
-        </DialogHeader>
+    <Sheet open={!!visit} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent
+        side={isMobile ? 'bottom' : 'right'}
+        className={isMobile ? 'h-[90vh] overflow-y-auto' : 'w-full sm:max-w-xl overflow-y-auto'}
+      >
+        <SheetHeader>
+          <SheetTitle>Skapa ärende från signerat avtal</SheetTitle>
+        </SheetHeader>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
