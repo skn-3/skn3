@@ -149,9 +149,9 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         status: form.status,
         google_drive_link: form.google_drive_link || null,
         notes: form.notes || null,
-        km_date: form.km_date || null,
-        montage_date: form.montage_date || null,
-        delivery_date: form.delivery_date || null,
+        km_date: form.km_date && isValidDate(form.km_date) ? form.km_date : null,
+        montage_date: form.montage_date && isValidDate(form.montage_date) ? form.montage_date : null,
+        delivery_date: form.delivery_date && isValidDate(form.delivery_date) ? form.delivery_date : null,
         imported: true,
       };
 
