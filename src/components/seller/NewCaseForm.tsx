@@ -52,6 +52,79 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
     }
   }, [prefill]);
 
+  // Address autocomplete
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [existingCaseWarning, setExistingCaseWarning] = useState(false);
+  const addressWrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const term = form.address.trim();
+    if (term.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      const [casesRes, ordersRes] = await Promise.all([
+        supabase
+          .from('cases')
+          .select('id, address, customer_name, customer_phone, order_value')
+          .ilike('address', `%${term}%`)
+          .limit(5),
+        orderDb
+          .from('orders')
+          .select('id, customer_address, customer_name, customer_phone')
+          .ilike('customer_address', `%${term}%`)
+          .limit(5),
+      ]);
+      const list: AddressSuggestion[] = [];
+      (casesRes.data || []).forEach((c: any) => list.push({
+        source: 'case',
+        address: c.address,
+        customer_name: c.customer_name,
+        customer_phone: c.customer_phone || '',
+      }));
+      (ordersRes.data || []).forEach((o: any) => list.push({
+        source: 'order',
+        address: o.customer_address,
+        customer_name: o.customer_name,
+        customer_phone: o.customer_phone || '',
+      }));
+      setSuggestions(list);
+      setShowSuggestions(list.length > 0);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [form.address]);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (addressWrapperRef.current && !addressWrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowSuggestions(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  const pickSuggestion = (s: AddressSuggestion) => {
+    setForm((f) => ({
+      ...f,
+      address: s.address,
+      customer_name: s.customer_name || f.customer_name,
+      customer_phone: s.customer_phone || f.customer_phone,
+    }));
+    setExistingCaseWarning(s.source === 'case');
+    setShowSuggestions(false);
+  };
+
+
   const mutation = useMutation({
     mutationFn: async () => {
       const newCase = await createCase({
