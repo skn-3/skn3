@@ -210,9 +210,40 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
           <Label>E-post</Label>
           <Input value={form.customer_email} onChange={(e) => update('customer_email', e.target.value)} />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 relative" ref={addressWrapperRef}>
           <Label>Adress *</Label>
-          <Input value={form.address} onChange={(e) => update('address', e.target.value)} />
+          <Input
+            value={form.address}
+            onChange={(e) => { update('address', e.target.value); setExistingCaseWarning(false); }}
+            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+            autoComplete="off"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-card border rounded-lg shadow-lg max-h-64 overflow-y-auto z-50">
+              {suggestions.map((s, i) => (
+                <div
+                  key={i}
+                  onClick={() => pickSuggestion(s)}
+                  className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center justify-between gap-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium">{s.address}</span>
+                    {s.customer_name && (
+                      <span className="text-muted-foreground ml-2 text-sm">{s.customer_name}</span>
+                    )}
+                  </div>
+                  {s.source === 'case' ? (
+                    <Badge className="bg-teal-500 hover:bg-teal-500/90 text-white shrink-0">Ärende</Badge>
+                  ) : (
+                    <Badge className="bg-orange-500 hover:bg-orange-500/90 text-white shrink-0">Order</Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {existingCaseWarning && (
+            <p className="text-xs text-destructive">Det finns redan ett ärende på denna adress</p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label>Offertnummer (Mockfjärds)</Label>
