@@ -173,7 +173,23 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryClient.invalidateQueries({ queryKey: ['linked-orders', caseData.id] });
   };
 
-  const statusMutation = useMutation({
+  const assignmentMutation = useMutation({
+    mutationFn: async ({ field, value, label }: { field: 'team' | 'seller'; value: string; label: string }) => {
+      await updateCase(caseData.id, { [field]: value });
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: field === 'team' ? 'team_change' : 'seller_change',
+        description: `${label} ändrad till ${value}`,
+        created_by: currentUser,
+      });
+    },
+    onSuccess: (_d, vars) => {
+      invalidate();
+      toast.success(`${vars.label} uppdaterad`);
+    },
+    onError: (e: Error) => toast.error('Kunde inte uppdatera: ' + e.message),
+  });
+
     mutationFn: async ({ newStatus, description }: { newStatus: string; description: string }) => {
       await updateCase(caseData.id, { status: newStatus });
       await createCaseEvent({
