@@ -78,6 +78,11 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                       </span>
                     )}
                     <span className="text-muted-foreground">({daysSince} dagar sedan besök)</span>
+                    {((v as any).follow_up_count || 0) > 0 && (
+                      <span className="text-xs text-muted-foreground rounded-full bg-muted px-2 py-0.5">
+                        Följt upp {(v as any).follow_up_count} {(v as any).follow_up_count === 1 ? 'gång' : 'ggr'}
+                      </span>
+                    )}
                   </div>
                   {v.order_value && (
                     <span className="text-muted-foreground">{Number(v.order_value).toLocaleString('sv-SE')} kr</span>
@@ -102,7 +107,15 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                     </>
                   ) : (
                     <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => setUpdatingId(v.id)}>Uppdatera</Button>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setUpdatingId(v.id);
+                        updateVisit(v.id, {
+                          follow_up_count: ((v as any).follow_up_count || 0) + 1,
+                          last_follow_up_at: new Date().toISOString(),
+                        } as any).then(() => {
+                          queryClient.invalidateQueries({ queryKey: ['visits'] });
+                        }).catch(() => {});
+                      }}>Uppdatera</Button>
                       <Button
                         size="sm"
                         variant="ghost"

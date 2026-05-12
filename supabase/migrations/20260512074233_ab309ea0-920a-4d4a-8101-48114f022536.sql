@@ -1,0 +1,2 @@
+ALTER TABLE public.visits ADD COLUMN IF NOT EXISTS follow_up_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.visits ADD COLUMN IF NOT EXISTS last_follow_up_at TIMESTAMPTZ;

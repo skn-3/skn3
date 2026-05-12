@@ -280,8 +280,10 @@ export type Database = {
           created_at: string
           customer_name: string
           date: string
+          follow_up_count: number
           follow_up_date: string | null
           id: string
+          last_follow_up_at: string | null
           lost: boolean | null
           lost_comment: string | null
           lost_competitor: string | null
@@ -297,8 +299,10 @@ export type Database = {
           created_at?: string
           customer_name: string
           date: string
+          follow_up_count?: number
           follow_up_date?: string | null
           id?: string
+          last_follow_up_at?: string | null
           lost?: boolean | null
           lost_comment?: string | null
           lost_competitor?: string | null
@@ -314,8 +318,10 @@ export type Database = {
           created_at?: string
           customer_name?: string
           date?: string
+          follow_up_count?: number
           follow_up_date?: string | null
           id?: string
+          last_follow_up_at?: string | null
           lost?: boolean | null
           lost_comment?: string | null
           lost_competitor?: string | null
