@@ -494,6 +494,44 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </Select>
           </section>
 
+          <AlertDialog open={pendingStatus !== null} onOpenChange={(open) => {
+            if (!open) {
+              setPendingStatus(null);
+              setSelectedStatus(caseData.status);
+            }
+          }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Bekräfta statusändring</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2">
+                    <div>
+                      Vill du ändra status från <strong>{STATUS_LABELS[caseData.status] || caseData.status}</strong> till <strong>{pendingStatus ? (STATUS_LABELS[pendingStatus] || pendingStatus) : ''}</strong>?
+                    </div>
+                    {bigJump && (
+                      <div className="text-orange-600 font-medium">
+                        ⚠ Du hoppar över flera steg i processen. Är du säker?
+                      </div>
+                    )}
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => {
+                  setPendingStatus(null);
+                  setSelectedStatus(caseData.status);
+                }}>Avbryt</AlertDialogCancel>
+                <AlertDialogAction onClick={() => {
+                  if (pendingStatus) {
+                    const label = STATUS_LABELS[pendingStatus] || pendingStatus;
+                    changeStatus(pendingStatus, `Status ändrad till: ${label}`);
+                  }
+                  setPendingStatus(null);
+                }}>Bekräfta</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {/* Order info */}
           <section className="p-4 space-y-2">
             <div className="flex items-center justify-between">
