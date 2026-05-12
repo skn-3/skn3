@@ -92,8 +92,9 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                       }}>
                         Signerat avtal
                       </Button>
-                      <Button size="sm" variant="outline" disabled={updateMutation.isPending} onClick={() => {
-                        updateMutation.mutate({ id: v.id, updates: { result: 'nej' } });
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setLostVisit(v);
+                        setUpdatingId(null);
                       }}>
                         Nej
                       </Button>
