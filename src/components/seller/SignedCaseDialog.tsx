@@ -19,6 +19,7 @@ interface SignedCaseDialogProps {
 
 export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialogProps) {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [form, setForm] = useState({
     customer_name: visit?.customer_name || '',
     customer_phone: '',
