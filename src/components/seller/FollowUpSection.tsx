@@ -78,6 +78,11 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                       </span>
                     )}
                     <span className="text-muted-foreground">({daysSince} dagar sedan besök)</span>
+                    {((v as any).follow_up_count || 0) > 0 && (
+                      <span className="text-xs text-muted-foreground rounded-full bg-muted px-2 py-0.5">
+                        Följt upp {(v as any).follow_up_count} {(v as any).follow_up_count === 1 ? 'gång' : 'ggr'}
+                      </span>
+                    )}
                   </div>
                   {v.order_value && (
                     <span className="text-muted-foreground">{Number(v.order_value).toLocaleString('sv-SE')} kr</span>
