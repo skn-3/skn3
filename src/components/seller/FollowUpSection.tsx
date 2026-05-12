@@ -131,6 +131,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
         </div>
       )}
       <SignedCaseDialog visit={signedVisit} sellerName={sellerName} onClose={() => setSignedVisit(null)} />
+      <LostVisitDialog visit={lostVisit} onClose={() => setLostVisit(null)} />
     </div>
   );
 }
