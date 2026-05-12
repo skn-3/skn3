@@ -21,6 +21,80 @@ interface ImportCaseFormProps {
 export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const queryClient = useQueryClient();
   const [importCount, setImportCount] = useState(0);
+  const [pasteText, setPasteText] = useState('');
+  const [isParsing, setIsParsing] = useState(false);
+  const [aiFilled, setAiFilled] = useState<Set<string>>(new Set());
+  const [aiSuccessCount, setAiSuccessCount] = useState<number | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleAiExtract = async () => {
+    if (!pasteText.trim()) return;
+    setIsParsing(true);
+    setAiError(null);
+    setAiSuccessCount(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('parse-customer-portal', {
+        body: { text: pasteText },
+      });
+      clearTimeout(timeoutId);
+
+      if (error) throw new Error(error.message || 'Anrop misslyckades');
+      if (data?.error) throw new Error(data.error);
+      const parsed = data?.data;
+      if (!parsed) throw new Error('Inget data returnerades');
+
+      const filled = new Set<string>();
+      setForm((f) => {
+        const next = { ...f };
+        const apply = (key: keyof typeof f, value: string) => {
+          if (value && value.trim()) {
+            next[key] = value as any;
+            filled.add(key as string);
+          }
+        };
+        apply('customer_name', parsed.customer_name);
+        apply('customer_phone', parsed.customer_phone);
+        apply('customer_email', parsed.customer_email);
+        apply('address', parsed.address);
+        apply('offer_number', parsed.offer_number);
+        if (parsed.order_value) {
+          const v = String(parsed.order_value).replace(/[^0-9]/g, '');
+          if (v) { next.order_value = v; filled.add('order_value'); }
+        }
+        if (parsed.tb_percent) {
+          const v = String(parsed.tb_percent).replace(/[^0-9.]/g, '');
+          if (v) { next.tb_percent = v; filled.add('tb_percent'); }
+        }
+        apply('status', parsed.status);
+        apply('team', parsed.team);
+        apply('km_date', parsed.km_date);
+        apply('montage_date', parsed.montage_date);
+        apply('notes', parsed.notes);
+        return next;
+      });
+
+      setAiFilled(filled);
+      setAiSuccessCount(filled.size);
+      toast.success(`Data extraherad — ${filled.size} fält ifyllda. Granska innan du sparar.`);
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      const msg = err?.name === 'AbortError'
+        ? 'Tidsgräns nådd (15s). Försök igen.'
+        : (err?.message || 'Kunde inte tolka texten');
+      setAiError(msg);
+      toast.error(msg);
+      console.error('AI parse error:', err);
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  const aiClass = (key: string) =>
+    aiFilled.has(key) ? 'bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-800' : '';
 
   const [form, setForm] = useState({
     customer_name: '',
