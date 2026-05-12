@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS, HOUR_RATE } from '@/lib/constants';
+import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS, HOUR_RATE, SELLER_PIPELINE_COLUMNS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -438,13 +438,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     statusMutation.mutate({ newStatus, description });
   };
 
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+
   const handleManualStatusChange = (newStatus: string) => {
+    if (newStatus === caseData.status) return;
     setSelectedStatus(newStatus);
-    if (newStatus !== caseData.status) {
-      const label = STATUS_LABELS[newStatus] || newStatus;
-      changeStatus(newStatus, `Status ändrad till: ${label}`);
-    }
+    setPendingStatus(newStatus);
   };
+
+  const currentIdx = SELLER_PIPELINE_COLUMNS.indexOf(caseData.status as typeof SELLER_PIPELINE_COLUMNS[number]);
+  const newIdx = pendingStatus ? SELLER_PIPELINE_COLUMNS.indexOf(pendingStatus as typeof SELLER_PIPELINE_COLUMNS[number]) : -1;
+  const bigJump = pendingStatus !== null && currentIdx >= 0 && newIdx >= 0 && Math.abs(currentIdx - newIdx) > 2;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
@@ -489,6 +493,44 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               </SelectContent>
             </Select>
           </section>
+
+          <AlertDialog open={pendingStatus !== null} onOpenChange={(open) => {
+            if (!open) {
+              setPendingStatus(null);
+              setSelectedStatus(caseData.status);
+            }
+          }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Bekräfta statusändring</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2">
+                    <div>
+                      Vill du ändra status från <strong>{STATUS_LABELS[caseData.status] || caseData.status}</strong> till <strong>{pendingStatus ? (STATUS_LABELS[pendingStatus] || pendingStatus) : ''}</strong>?
+                    </div>
+                    {bigJump && (
+                      <div className="text-orange-600 font-medium">
+                        ⚠ Du hoppar över flera steg i processen. Är du säker?
+                      </div>
+                    )}
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => {
+                  setPendingStatus(null);
+                  setSelectedStatus(caseData.status);
+                }}>Avbryt</AlertDialogCancel>
+                <AlertDialogAction onClick={() => {
+                  if (pendingStatus) {
+                    const label = STATUS_LABELS[pendingStatus] || pendingStatus;
+                    changeStatus(pendingStatus, `Status ändrad till: ${label}`);
+                  }
+                  setPendingStatus(null);
+                }}>Bekräfta</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* Order info */}
           <section className="p-4 space-y-2">
