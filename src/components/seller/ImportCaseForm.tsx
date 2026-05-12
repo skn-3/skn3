@@ -196,7 +196,16 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     },
   });
 
-  const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  const update = (key: string, value: string) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    if (aiFilled.has(key)) {
+      setAiFilled((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 px-4 md:px-0">
@@ -215,6 +224,53 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       <p className="text-sm text-muted-foreground">
         Importera befintliga/historiska ärenden. Inga mail skickas och ärendet markeras som importerat.
       </p>
+
+      <Card className="border-primary/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Snabbimport från Kundportalen
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Öppna kunden i Kundportalen, markera all text på sidan (Ctrl+A) och klistra in nedan. AI:n extraherar automatiskt alla fält.
+          </p>
+          <Textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            rows={6}
+            placeholder="Klistra in text från Kundportalen här..."
+            disabled={isParsing}
+          />
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              type="button"
+              onClick={handleAiExtract}
+              disabled={!pasteText.trim() || isParsing}
+              size="sm"
+            >
+              {isParsing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              {isParsing ? 'Extraherar...' : 'Extrahera med AI'}
+            </Button>
+            {aiSuccessCount !== null && !aiError && (
+              <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                ✓ {aiSuccessCount} fält extraherade — granska och justera vid behov
+              </span>
+            )}
+            {aiError && (
+              <span className="text-xs text-destructive font-medium">{aiError}</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
