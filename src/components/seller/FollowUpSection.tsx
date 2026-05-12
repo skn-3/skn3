@@ -4,6 +4,7 @@ import { updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { CalendarClock, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { SignedCaseDialog } from './SignedCaseDialog';
 
 const STORAGE_KEY = 'followup-collapsed';
 
