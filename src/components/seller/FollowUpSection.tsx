@@ -94,8 +94,9 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                 <div className="flex gap-2">
                   {updatingId === v.id ? (
                     <>
-                      <Button size="sm" variant="default" disabled={updateMutation.isPending} onClick={() => {
-                        updateMutation.mutate({ id: v.id, updates: { result: 'signerat' } });
+                      <Button size="sm" variant="default" onClick={() => {
+                        setSignedVisit(v);
+                        setUpdatingId(null);
                       }}>
                         Signerat avtal
                       </Button>
