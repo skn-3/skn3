@@ -781,6 +781,160 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
           </div>
         </div>
       )}
+
+      {/* Förlorade affärer */}
+      {(() => {
+        const lostVisits = visits.filter(v => v.lost);
+        if (lostVisits.length === 0) return null;
+
+        const LOST_COLORS: Record<string, string> = {
+          konkurrent: 'hsl(var(--destructive))',
+          pris: '#F59E0B',
+          avvaktar: '#6B7280',
+          finansiering: '#8B5CF6',
+          renovering: '#10B981',
+          ingen_kontakt: '#3B82F6',
+          ovrigt: '#9CA3AF',
+        };
+
+        const totalLostValue = lostVisits.reduce((s, v) => s + (Number(v.order_value) || 0), 0);
+
+        const reasonCounts: Record<string, number> = {};
+        lostVisits.forEach(v => {
+          const r = v.lost_reason || 'ovrigt';
+          reasonCounts[r] = (reasonCounts[r] || 0) + 1;
+        });
+        const topReasonKey = Object.entries(reasonCounts).sort(([, a], [, b]) => b - a)[0]?.[0];
+        const topReasonLabel = LOST_REASONS.find(r => r.value === topReasonKey)?.label || topReasonKey || '–';
+
+        const reasonChart = Object.entries(reasonCounts).map(([key, count]) => ({
+          name: LOST_REASONS.find(r => r.value === key)?.label || key,
+          value: count,
+          key,
+        }));
+
+        const competitorVisits = lostVisits.filter(v => v.lost_reason === 'konkurrent');
+        const competitorMap: Record<string, { count: number; value: number }> = {};
+        competitorVisits.forEach(v => {
+          const k = v.lost_competitor || 'annan';
+          if (!competitorMap[k]) competitorMap[k] = { count: 0, value: 0 };
+          competitorMap[k].count++;
+          competitorMap[k].value += Number(v.order_value) || 0;
+        });
+        const competitorRows = Object.entries(competitorMap)
+          .map(([key, d]) => ({
+            name: COMPETITORS.find(c => c.value === key)?.label || key,
+            count: d.count,
+            value: d.value,
+          }))
+          .sort((a, b) => b.value - a.value);
+
+        const recent = [...lostVisits]
+          .sort((a, b) => (b.created_at || b.date).localeCompare(a.created_at || a.date))
+          .slice(0, 5);
+
+        return (
+          <div className="rounded-xl border bg-card p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <TrendingDown className="h-5 w-5 text-destructive" />
+              <h3 className="text-base font-semibold text-card-foreground">Förlorade affärer</h3>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-lg border bg-background p-3">
+                <p className="text-xs text-muted-foreground">Antal tappade</p>
+                <p className="text-2xl font-bold text-destructive">{lostVisits.length}</p>
+              </div>
+              <div className="rounded-lg border bg-background p-3">
+                <p className="text-xs text-muted-foreground">Förlorat ordervärde</p>
+                <p className="text-2xl font-bold text-destructive">{totalLostValue.toLocaleString('sv-SE')} kr</p>
+              </div>
+              <div className="rounded-lg border bg-background p-3">
+                <p className="text-xs text-muted-foreground">Vanligaste anledning</p>
+                <p className="text-lg font-semibold text-card-foreground">{topReasonLabel}</p>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Tappade affärer per anledning</h4>
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={reasonChart} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>
+                    {reasonChart.map((entry, i) => (
+                      <Cell key={i} fill={LOST_COLORS[entry.key] || '#9CA3AF'} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {competitorRows.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Förlorat till konkurrent</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-muted-foreground border-b">
+                        <th className="py-2">Konkurrent</th>
+                        <th className="py-2 text-right">Antal</th>
+                        <th className="py-2 text-right">Förlorat värde</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {competitorRows.map(r => (
+                        <tr key={r.name} className="border-b">
+                          <td className="py-2 font-medium text-card-foreground">{r.name}</td>
+                          <td className="py-2 text-right">{r.count}</td>
+                          <td className="py-2 text-right text-destructive font-medium">{r.value.toLocaleString('sv-SE')} kr</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Senaste tappade affärer</h4>
+              <div className="space-y-2">
+                {recent.map(v => {
+                  const reasonLabel = LOST_REASONS.find(r => r.value === v.lost_reason)?.label || v.lost_reason || '–';
+                  const competitorLabel = v.lost_competitor
+                    ? (COMPETITORS.find(c => c.value === v.lost_competitor)?.label || v.lost_competitor)
+                    : null;
+                  const comment = v.lost_comment && v.lost_comment.length > 80
+                    ? v.lost_comment.substring(0, 80) + '…'
+                    : v.lost_comment;
+                  return (
+                    <div key={v.id} className="rounded-lg border bg-background p-3 text-sm space-y-1">
+                      <div className="flex justify-between gap-2">
+                        <div>
+                          <div className="font-medium text-card-foreground">{v.address}</div>
+                          <div className="text-muted-foreground text-xs">{v.customer_name}</div>
+                        </div>
+                        {v.order_value != null && (
+                          <span className="text-destructive font-medium whitespace-nowrap">
+                            {Number(v.order_value).toLocaleString('sv-SE')} kr
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full bg-destructive/10 text-destructive px-2 py-0.5">{reasonLabel}</span>
+                        {competitorLabel && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{competitorLabel}</span>
+                        )}
+                      </div>
+                      {comment && <p className="text-xs text-muted-foreground italic">"{comment}"</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
