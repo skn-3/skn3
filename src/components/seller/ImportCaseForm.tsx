@@ -20,6 +20,19 @@ interface ImportCaseFormProps {
 
 const isValidDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
 
+// Rensa svenska sifferformat (t.ex. "2 785,58 kr" -> "2786")
+const parseSwedishNumber = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined || val === '') return '';
+  const s = String(val)
+    .replace(/\s/g, '')
+    .replace(/kr$/i, '')
+    .replace(/,(\d{1,2})$/, '.$1')
+    .replace(/,/g, '')
+    .trim();
+  const num = parseFloat(s);
+  return isNaN(num) ? '' : String(Math.round(num));
+};
+
 export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const queryClient = useQueryClient();
   const [importCount, setImportCount] = useState(0);
@@ -49,18 +62,6 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       const parsed = data?.data;
       if (!parsed) throw new Error('Inget data returnerades');
 
-      // Rensa svenska sifferformat (t.ex. "2 785,58 kr" -> "2786")
-      const parseSwedishNumber = (val: string | number): string => {
-        if (val === null || val === undefined || val === '') return '';
-        const s = String(val)
-          .replace(/\s/g, '')
-          .replace(/kr$/i, '')
-          .replace(/,(\d{1,2})$/, '.$1')
-          .replace(/,/g, '')
-          .trim();
-        const num = parseFloat(s);
-        return isNaN(num) ? '' : String(Math.round(num));
-      };
       parsed.order_value = parseSwedishNumber(parsed.order_value);
       parsed.tb_percent = parseSwedishNumber(parsed.tb_percent);
 
@@ -154,8 +155,8 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         customer_email: form.customer_email || null,
         address: form.address,
         offer_number: form.offer_number || null,
-        order_value: form.order_value ? Number(form.order_value) : null,
-        tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
+        order_value: parseSwedishNumber(form.order_value) ? Number(parseSwedishNumber(form.order_value)) : null,
+        tb_percent: parseSwedishNumber(form.tb_percent) ? Number(parseSwedishNumber(form.tb_percent)) : null,
         extra_hours_sold: Number(form.extra_hours_sold) || 0,
         extra_hours_requested: Number(form.extra_hours_requested) || 0,
         extra_hours_approved: Number(form.extra_hours_approved) || 0,
@@ -376,6 +377,11 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         <div className="space-y-1.5">
           <Label>Ordervärde (kr)</Label>
           <Input className={cn(aiClass('order_value'))} type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
+          {Number(parseSwedishNumber(form.order_value)) > 500000 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+              ⚠ Ordervärde över 500 000 kr — dubbelkolla att det stämmer
+            </p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label>TB (%)</Label>
