@@ -374,7 +374,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
       <div className="space-y-1.5">
         <Label>Anteckning</Label>
-        <Textarea value={form.notes} onChange={(e) => update('notes', e.target.value)} rows={3} />
+        <Textarea className={cn(aiClass('notes'))} value={form.notes} onChange={(e) => update('notes', e.target.value)} rows={3} />
       </div>
 
       <Button
