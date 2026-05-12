@@ -477,7 +477,65 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
           {/* Order info */}
           <section className="p-4 space-y-2">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Orderinfo</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Orderinfo</h3>
+              {isSeller && !editingCase && (
+                <Button size="sm" variant="outline" onClick={openEdit}>Redigera</Button>
+              )}
+            </div>
+            {editingCase ? (
+              <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Ordervärde (kr)</Label>
+                    <Input type="number" value={editForm.order_value} onChange={(e) => setEditForm(f => ({ ...f, order_value: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">TB (%)</Label>
+                    <Input type="number" value={editForm.tb_percent} onChange={(e) => setEditForm(f => ({ ...f, tb_percent: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Extra timmar sålda</Label>
+                    <Input type="number" value={editForm.extra_hours_sold} onChange={(e) => setEditForm(f => ({ ...f, extra_hours_sold: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Montör</Label>
+                    <Select value={editForm.team} onValueChange={(v) => setEditForm(f => ({ ...f, team: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Välj montör" /></SelectTrigger>
+                      <SelectContent>
+                        {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Offertnummer</Label>
+                    <Input value={editForm.offer_number} onChange={(e) => setEditForm(f => ({ ...f, offer_number: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Telefon</Label>
+                    <Input value={editForm.customer_phone} onChange={(e) => setEditForm(f => ({ ...f, customer_phone: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs">E-post</Label>
+                    <Input value={editForm.customer_email} onChange={(e) => setEditForm(f => ({ ...f, customer_email: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs">Google Drive-länk</Label>
+                    <Input value={editForm.google_drive_link} onChange={(e) => setEditForm(f => ({ ...f, google_drive_link: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs">Anteckning</Label>
+                    <Textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setEditingCase(false)} disabled={editCaseMutation.isPending}>Avbryt</Button>
+                  <Button size="sm" onClick={() => editCaseMutation.mutate()} disabled={editCaseMutation.isPending}>
+                    {editCaseMutation.isPending ? 'Sparar...' : 'Spara'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
             <div className="grid grid-cols-2 gap-2 text-sm">
               {caseData.offer_number && <div><span className="text-muted-foreground">Offert:</span> {caseData.offer_number}</div>}
               {caseData.order_value && <div><span className="text-muted-foreground">Värde:</span> {Number(caseData.order_value).toLocaleString('sv-SE')} kr</div>}
@@ -486,6 +544,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <div><span className="text-muted-foreground">Extra tim begärda:</span> {caseData.extra_hours_requested}</div>
               <div><span className="text-muted-foreground">Extra tim godkända:</span> {caseData.extra_hours_approved} st → {(caseData.extra_hours_approved * HOUR_RATE).toLocaleString('sv-SE')} kr</div>
             </div>
+            )}
             {(caseData.extra_hours_sold > 0 || caseData.extra_hours_approved > 0) && (() => {
               const revenue = caseData.extra_hours_sold * HOUR_RATE;
               const cost = caseData.extra_hours_approved * HOUR_RATE;
