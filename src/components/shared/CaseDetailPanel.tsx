@@ -190,6 +190,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onError: (e: Error) => toast.error('Kunde inte uppdatera: ' + e.message),
   });
 
+  const statusMutation = useMutation({
     mutationFn: async ({ newStatus, description }: { newStatus: string; description: string }) => {
       await updateCase(caseData.id, { status: newStatus });
       await createCaseEvent({
