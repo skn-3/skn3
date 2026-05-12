@@ -1,13 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, sendNotificationEmail } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
+import { orderDb } from '@/integrations/supabase/orderClient';
 import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+
+type AddressSuggestion = {
+  source: 'case' | 'order';
+  address: string;
+  customer_name: string;
+  customer_phone: string;
+};
 
 interface NewCaseFormProps {
   sellerName: string;
@@ -41,6 +51,79 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
       }));
     }
   }, [prefill]);
+
+  // Address autocomplete
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [existingCaseWarning, setExistingCaseWarning] = useState(false);
+  const addressWrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const term = form.address.trim();
+    if (term.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      const [casesRes, ordersRes] = await Promise.all([
+        supabase
+          .from('cases')
+          .select('id, address, customer_name, customer_phone, order_value')
+          .ilike('address', `%${term}%`)
+          .limit(5),
+        orderDb
+          .from('orders')
+          .select('id, customer_address, customer_name, customer_phone')
+          .ilike('customer_address', `%${term}%`)
+          .limit(5),
+      ]);
+      const list: AddressSuggestion[] = [];
+      (casesRes.data || []).forEach((c: any) => list.push({
+        source: 'case',
+        address: c.address,
+        customer_name: c.customer_name,
+        customer_phone: c.customer_phone || '',
+      }));
+      (ordersRes.data || []).forEach((o: any) => list.push({
+        source: 'order',
+        address: o.customer_address,
+        customer_name: o.customer_name,
+        customer_phone: o.customer_phone || '',
+      }));
+      setSuggestions(list);
+      setShowSuggestions(list.length > 0);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [form.address]);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (addressWrapperRef.current && !addressWrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowSuggestions(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  const pickSuggestion = (s: AddressSuggestion) => {
+    setForm((f) => ({
+      ...f,
+      address: s.address,
+      customer_name: s.customer_name || f.customer_name,
+      customer_phone: s.customer_phone || f.customer_phone,
+    }));
+    setExistingCaseWarning(s.source === 'case');
+    setShowSuggestions(false);
+  };
+
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -127,9 +210,40 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
           <Label>E-post</Label>
           <Input value={form.customer_email} onChange={(e) => update('customer_email', e.target.value)} />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 relative" ref={addressWrapperRef}>
           <Label>Adress *</Label>
-          <Input value={form.address} onChange={(e) => update('address', e.target.value)} />
+          <Input
+            value={form.address}
+            onChange={(e) => { update('address', e.target.value); setExistingCaseWarning(false); }}
+            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+            autoComplete="off"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-card border rounded-lg shadow-lg max-h-64 overflow-y-auto z-50">
+              {suggestions.map((s, i) => (
+                <div
+                  key={i}
+                  onClick={() => pickSuggestion(s)}
+                  className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center justify-between gap-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium">{s.address}</span>
+                    {s.customer_name && (
+                      <span className="text-muted-foreground ml-2 text-sm">{s.customer_name}</span>
+                    )}
+                  </div>
+                  {s.source === 'case' ? (
+                    <Badge className="bg-teal-500 hover:bg-teal-500/90 text-white shrink-0">Ärende</Badge>
+                  ) : (
+                    <Badge className="bg-orange-500 hover:bg-orange-500/90 text-white shrink-0">Order</Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {existingCaseWarning && (
+            <p className="text-xs text-destructive">Det finns redan ett ärende på denna adress</p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label>Offertnummer (Mockfjärds)</Label>
