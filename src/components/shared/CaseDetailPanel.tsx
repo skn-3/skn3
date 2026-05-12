@@ -60,6 +60,80 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   // Edit deviation cost
   const [editingDevCost, setEditingDevCost] = useState<string | null>(null);
   const [editDevCostValue, setEditDevCostValue] = useState('');
+  // Edit case fields
+  const [editingCase, setEditingCase] = useState(false);
+  const [editForm, setEditForm] = useState({
+    order_value: caseData.order_value != null ? String(caseData.order_value) : '',
+    tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
+    extra_hours_sold: String(caseData.extra_hours_sold ?? 0),
+    team: caseData.team || '',
+    google_drive_link: caseData.google_drive_link || '',
+    offer_number: caseData.offer_number || '',
+    customer_phone: caseData.customer_phone || '',
+    customer_email: caseData.customer_email || '',
+    notes: caseData.notes || '',
+  });
+
+  const openEdit = () => {
+    setEditForm({
+      order_value: caseData.order_value != null ? String(caseData.order_value) : '',
+      tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
+      extra_hours_sold: String(caseData.extra_hours_sold ?? 0),
+      team: caseData.team || '',
+      google_drive_link: caseData.google_drive_link || '',
+      offer_number: caseData.offer_number || '',
+      customer_phone: caseData.customer_phone || '',
+      customer_email: caseData.customer_email || '',
+      notes: caseData.notes || '',
+    });
+    setEditingCase(true);
+  };
+
+  const editCaseMutation = useMutation({
+    mutationFn: async () => {
+      const updates: Record<string, unknown> = {
+        order_value: editForm.order_value === '' ? null : Number(editForm.order_value),
+        tb_percent: editForm.tb_percent === '' ? null : Number(editForm.tb_percent),
+        extra_hours_sold: Number(editForm.extra_hours_sold) || 0,
+        team: editForm.team || null,
+        google_drive_link: editForm.google_drive_link || null,
+        offer_number: editForm.offer_number || null,
+        customer_phone: editForm.customer_phone,
+        customer_email: editForm.customer_email || null,
+        notes: editForm.notes || null,
+      };
+
+      // Build change summary
+      const fmtNum = (n: number) => Number(n).toLocaleString('sv-SE');
+      const changes: string[] = [];
+      const oldOV = caseData.order_value != null ? Number(caseData.order_value) : null;
+      const newOV = updates.order_value as number | null;
+      if (oldOV !== newOV) changes.push(`Ordervärde ändrat till ${newOV != null ? fmtNum(newOV) + ' kr' : '—'}`);
+      const oldTB = caseData.tb_percent != null ? Number(caseData.tb_percent) : null;
+      const newTB = updates.tb_percent as number | null;
+      if (oldTB !== newTB) changes.push(`TB ändrat till ${newTB != null ? newTB + '%' : '—'}`);
+      if ((caseData.extra_hours_sold ?? 0) !== (updates.extra_hours_sold as number)) changes.push(`Extra timmar sålda ändrade till ${updates.extra_hours_sold}`);
+      if ((caseData.team || '') !== (editForm.team || '')) changes.push(`Montör ändrad till ${editForm.team || '—'}`);
+      if ((caseData.google_drive_link || '') !== editForm.google_drive_link) changes.push('Google Drive-länk uppdaterad');
+      if ((caseData.offer_number || '') !== editForm.offer_number) changes.push(`Offertnummer ändrat till ${editForm.offer_number || '—'}`);
+      if ((caseData.customer_phone || '') !== editForm.customer_phone) changes.push('Telefon uppdaterad');
+      if ((caseData.customer_email || '') !== editForm.customer_email) changes.push('E-post uppdaterad');
+      if ((caseData.notes || '') !== editForm.notes) changes.push('Anteckning uppdaterad');
+
+      await updateCase(caseData.id, updates as any);
+
+      if (changes.length > 0) {
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'update',
+          description: changes.join(', '),
+          created_by: currentUser,
+        });
+      }
+    },
+    onSuccess: () => { setEditingCase(false); invalidate(); toast.success('Ärende uppdaterat!'); },
+    onError: (e: Error) => toast.error('Kunde inte uppdatera: ' + e.message),
+  });
 
   const { data: events } = useQuery({
     queryKey: ['case_events', caseData.id],
@@ -403,7 +477,65 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
           {/* Order info */}
           <section className="p-4 space-y-2">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Orderinfo</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Orderinfo</h3>
+              {isSeller && !editingCase && (
+                <Button size="sm" variant="outline" onClick={openEdit}>Redigera</Button>
+              )}
+            </div>
+            {editingCase ? (
+              <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Ordervärde (kr)</Label>
+                    <Input type="number" value={editForm.order_value} onChange={(e) => setEditForm(f => ({ ...f, order_value: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">TB (%)</Label>
+                    <Input type="number" value={editForm.tb_percent} onChange={(e) => setEditForm(f => ({ ...f, tb_percent: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Extra timmar sålda</Label>
+                    <Input type="number" value={editForm.extra_hours_sold} onChange={(e) => setEditForm(f => ({ ...f, extra_hours_sold: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Montör</Label>
+                    <Select value={editForm.team} onValueChange={(v) => setEditForm(f => ({ ...f, team: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Välj montör" /></SelectTrigger>
+                      <SelectContent>
+                        {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Offertnummer</Label>
+                    <Input value={editForm.offer_number} onChange={(e) => setEditForm(f => ({ ...f, offer_number: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Telefon</Label>
+                    <Input value={editForm.customer_phone} onChange={(e) => setEditForm(f => ({ ...f, customer_phone: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs">E-post</Label>
+                    <Input value={editForm.customer_email} onChange={(e) => setEditForm(f => ({ ...f, customer_email: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs">Google Drive-länk</Label>
+                    <Input value={editForm.google_drive_link} onChange={(e) => setEditForm(f => ({ ...f, google_drive_link: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs">Anteckning</Label>
+                    <Textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setEditingCase(false)} disabled={editCaseMutation.isPending}>Avbryt</Button>
+                  <Button size="sm" onClick={() => editCaseMutation.mutate()} disabled={editCaseMutation.isPending}>
+                    {editCaseMutation.isPending ? 'Sparar...' : 'Spara'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
             <div className="grid grid-cols-2 gap-2 text-sm">
               {caseData.offer_number && <div><span className="text-muted-foreground">Offert:</span> {caseData.offer_number}</div>}
               {caseData.order_value && <div><span className="text-muted-foreground">Värde:</span> {Number(caseData.order_value).toLocaleString('sv-SE')} kr</div>}
@@ -412,6 +544,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <div><span className="text-muted-foreground">Extra tim begärda:</span> {caseData.extra_hours_requested}</div>
               <div><span className="text-muted-foreground">Extra tim godkända:</span> {caseData.extra_hours_approved} st → {(caseData.extra_hours_approved * HOUR_RATE).toLocaleString('sv-SE')} kr</div>
             </div>
+            )}
             {(caseData.extra_hours_sold > 0 || caseData.extra_hours_approved > 0) && (() => {
               const revenue = caseData.extra_hours_sold * HOUR_RATE;
               const cost = caseData.extra_hours_approved * HOUR_RATE;
