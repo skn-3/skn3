@@ -377,6 +377,11 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         <div className="space-y-1.5">
           <Label>Ordervärde (kr)</Label>
           <Input className={cn(aiClass('order_value'))} type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
+          {Number(parseSwedishNumber(form.order_value)) > 500000 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+              ⚠ Ordervärde över 500 000 kr — dubbelkolla att det stämmer
+            </p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label>TB (%)</Label>
