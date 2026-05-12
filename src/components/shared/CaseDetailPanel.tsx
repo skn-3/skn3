@@ -494,6 +494,34 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               {caseData.customer_email && <div className="col-span-2"><span className="text-muted-foreground">E-post:</span> {caseData.customer_email}</div>}
               <div className="col-span-2"><span className="text-muted-foreground">Adress:</span> {caseData.address}</div>
             </div>
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Säljare</Label>
+                <Select
+                  value={caseData.seller || ''}
+                  onValueChange={(v) => assignmentMutation.mutate({ field: 'seller', value: v, label: 'Säljare' })}
+                  disabled={assignmentMutation.isPending}
+                >
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Välj säljare" /></SelectTrigger>
+                  <SelectContent>
+                    {SELLERS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Montör</Label>
+                <Select
+                  value={caseData.team || ''}
+                  onValueChange={(v) => assignmentMutation.mutate({ field: 'team', value: v, label: 'Montör' })}
+                  disabled={assignmentMutation.isPending}
+                >
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Välj montör" /></SelectTrigger>
+                  <SelectContent>
+                    {MONTORS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </section>
 
           {/* Status dropdown */}
