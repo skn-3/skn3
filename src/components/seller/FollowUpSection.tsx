@@ -4,6 +4,7 @@ import { updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { CalendarClock, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { SignedCaseDialog } from './SignedCaseDialog';
 
 const STORAGE_KEY = 'followup-collapsed';
 
@@ -15,6 +16,7 @@ interface FollowUpSectionProps {
 export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
   const queryClient = useQueryClient();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [signedVisit, setSignedVisit] = useState<VisitRow | null>(null);
 
   // Filter out lost visits
   const activeVisits = visits.filter(v => !v.lost);
@@ -92,8 +94,9 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                 <div className="flex gap-2">
                   {updatingId === v.id ? (
                     <>
-                      <Button size="sm" variant="default" disabled={updateMutation.isPending} onClick={() => {
-                        updateMutation.mutate({ id: v.id, updates: { result: 'signerat' } });
+                      <Button size="sm" variant="default" onClick={() => {
+                        setSignedVisit(v);
+                        setUpdatingId(null);
                       }}>
                         Signerat avtal
                       </Button>
@@ -126,6 +129,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
           })}
         </div>
       )}
+      <SignedCaseDialog visit={signedVisit} sellerName={sellerName} onClose={() => setSignedVisit(null)} />
     </div>
   );
 }
