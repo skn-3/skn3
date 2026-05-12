@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CalendarClock, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { SignedCaseDialog } from './SignedCaseDialog';
+import { LostVisitDialog } from './LostVisitDialog';
 
 const STORAGE_KEY = 'followup-collapsed';
 
