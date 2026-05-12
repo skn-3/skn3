@@ -180,7 +180,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
             {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
