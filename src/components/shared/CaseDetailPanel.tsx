@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS, HOUR_RATE, SELLER_PIPELINE_COLUMNS } from '@/lib/constants';
+import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS, SELLERS, HOUR_RATE, SELLER_PIPELINE_COLUMNS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -172,6 +172,23 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryClient.invalidateQueries({ queryKey: ['case_costs', caseData.id] });
     queryClient.invalidateQueries({ queryKey: ['linked-orders', caseData.id] });
   };
+
+  const assignmentMutation = useMutation({
+    mutationFn: async ({ field, value, label }: { field: 'team' | 'seller'; value: string; label: string }) => {
+      await updateCase(caseData.id, { [field]: value });
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: field === 'team' ? 'team_change' : 'seller_change',
+        description: `${label} ändrad till ${value}`,
+        created_by: currentUser,
+      });
+    },
+    onSuccess: (_d, vars) => {
+      invalidate();
+      toast.success(`${vars.label} uppdaterad`);
+    },
+    onError: (e: Error) => toast.error('Kunde inte uppdatera: ' + e.message),
+  });
 
   const statusMutation = useMutation({
     mutationFn: async ({ newStatus, description }: { newStatus: string; description: string }) => {
@@ -476,6 +493,34 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <div><span className="text-muted-foreground">Tel:</span> {caseData.customer_phone}</div>
               {caseData.customer_email && <div className="col-span-2"><span className="text-muted-foreground">E-post:</span> {caseData.customer_email}</div>}
               <div className="col-span-2"><span className="text-muted-foreground">Adress:</span> {caseData.address}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Säljare</Label>
+                <Select
+                  value={caseData.seller || ''}
+                  onValueChange={(v) => assignmentMutation.mutate({ field: 'seller', value: v, label: 'Säljare' })}
+                  disabled={assignmentMutation.isPending}
+                >
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Välj säljare" /></SelectTrigger>
+                  <SelectContent>
+                    {SELLERS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Montör</Label>
+                <Select
+                  value={caseData.team || ''}
+                  onValueChange={(v) => assignmentMutation.mutate({ field: 'team', value: v, label: 'Montör' })}
+                  disabled={assignmentMutation.isPending}
+                >
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Välj montör" /></SelectTrigger>
+                  <SelectContent>
+                    {MONTORS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </section>
 
