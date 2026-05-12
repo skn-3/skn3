@@ -60,6 +60,80 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   // Edit deviation cost
   const [editingDevCost, setEditingDevCost] = useState<string | null>(null);
   const [editDevCostValue, setEditDevCostValue] = useState('');
+  // Edit case fields
+  const [editingCase, setEditingCase] = useState(false);
+  const [editForm, setEditForm] = useState({
+    order_value: caseData.order_value != null ? String(caseData.order_value) : '',
+    tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
+    extra_hours_sold: String(caseData.extra_hours_sold ?? 0),
+    team: caseData.team || '',
+    google_drive_link: caseData.google_drive_link || '',
+    offer_number: caseData.offer_number || '',
+    customer_phone: caseData.customer_phone || '',
+    customer_email: caseData.customer_email || '',
+    notes: caseData.notes || '',
+  });
+
+  const openEdit = () => {
+    setEditForm({
+      order_value: caseData.order_value != null ? String(caseData.order_value) : '',
+      tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
+      extra_hours_sold: String(caseData.extra_hours_sold ?? 0),
+      team: caseData.team || '',
+      google_drive_link: caseData.google_drive_link || '',
+      offer_number: caseData.offer_number || '',
+      customer_phone: caseData.customer_phone || '',
+      customer_email: caseData.customer_email || '',
+      notes: caseData.notes || '',
+    });
+    setEditingCase(true);
+  };
+
+  const editCaseMutation = useMutation({
+    mutationFn: async () => {
+      const updates: Record<string, unknown> = {
+        order_value: editForm.order_value === '' ? null : Number(editForm.order_value),
+        tb_percent: editForm.tb_percent === '' ? null : Number(editForm.tb_percent),
+        extra_hours_sold: Number(editForm.extra_hours_sold) || 0,
+        team: editForm.team || null,
+        google_drive_link: editForm.google_drive_link || null,
+        offer_number: editForm.offer_number || null,
+        customer_phone: editForm.customer_phone,
+        customer_email: editForm.customer_email || null,
+        notes: editForm.notes || null,
+      };
+
+      // Build change summary
+      const fmtNum = (n: number) => Number(n).toLocaleString('sv-SE');
+      const changes: string[] = [];
+      const oldOV = caseData.order_value != null ? Number(caseData.order_value) : null;
+      const newOV = updates.order_value as number | null;
+      if (oldOV !== newOV) changes.push(`Ordervärde ändrat till ${newOV != null ? fmtNum(newOV) + ' kr' : '—'}`);
+      const oldTB = caseData.tb_percent != null ? Number(caseData.tb_percent) : null;
+      const newTB = updates.tb_percent as number | null;
+      if (oldTB !== newTB) changes.push(`TB ändrat till ${newTB != null ? newTB + '%' : '—'}`);
+      if ((caseData.extra_hours_sold ?? 0) !== (updates.extra_hours_sold as number)) changes.push(`Extra timmar sålda ändrade till ${updates.extra_hours_sold}`);
+      if ((caseData.team || '') !== (editForm.team || '')) changes.push(`Montör ändrad till ${editForm.team || '—'}`);
+      if ((caseData.google_drive_link || '') !== editForm.google_drive_link) changes.push('Google Drive-länk uppdaterad');
+      if ((caseData.offer_number || '') !== editForm.offer_number) changes.push(`Offertnummer ändrat till ${editForm.offer_number || '—'}`);
+      if ((caseData.customer_phone || '') !== editForm.customer_phone) changes.push('Telefon uppdaterad');
+      if ((caseData.customer_email || '') !== editForm.customer_email) changes.push('E-post uppdaterad');
+      if ((caseData.notes || '') !== editForm.notes) changes.push('Anteckning uppdaterad');
+
+      await updateCase(caseData.id, updates as any);
+
+      if (changes.length > 0) {
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'update',
+          description: changes.join(', '),
+          created_by: currentUser,
+        });
+      }
+    },
+    onSuccess: () => { setEditingCase(false); invalidate(); toast.success('Ärende uppdaterat!'); },
+    onError: (e: Error) => toast.error('Kunde inte uppdatera: ' + e.message),
+  });
 
   const { data: events } = useQuery({
     queryKey: ['case_events', caseData.id],
