@@ -151,12 +151,26 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryFn: () => fetchCaseCosts(caseData.id),
   });
 
+  const { data: linkedOrders } = useQuery({
+    queryKey: ['linked-orders', caseData.id],
+    queryFn: async () => {
+      const { data, error } = await orderDb
+        .from('orders')
+        .select('*')
+        .eq('case_id', caseData.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
     queryClient.invalidateQueries({ queryKey: ['cases'] });
     queryClient.invalidateQueries({ queryKey: ['case_events', caseData.id] });
     queryClient.invalidateQueries({ queryKey: ['deviations', caseData.id] });
     queryClient.invalidateQueries({ queryKey: ['case_costs', caseData.id] });
+    queryClient.invalidateQueries({ queryKey: ['linked-orders', caseData.id] });
   };
 
   const statusMutation = useMutation({
