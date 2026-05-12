@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 
 interface SignedCaseDialogProps {
@@ -18,6 +19,7 @@ interface SignedCaseDialogProps {
 
 export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialogProps) {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [form, setForm] = useState({
     customer_name: visit?.customer_name || '',
     customer_phone: '',
@@ -105,11 +107,14 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
   });
 
   return (
-    <Dialog open={!!visit} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Skapa ärende från signerat avtal</DialogTitle>
-        </DialogHeader>
+    <Sheet open={!!visit} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent
+        side={isMobile ? 'bottom' : 'right'}
+        className={isMobile ? 'h-[90vh] overflow-y-auto' : 'w-full sm:max-w-xl overflow-y-auto'}
+      >
+        <SheetHeader>
+          <SheetTitle>Skapa ärende från signerat avtal</SheetTitle>
+        </SheetHeader>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
@@ -175,7 +180,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
             {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
