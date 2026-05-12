@@ -32,7 +32,7 @@ const TOOL = {
         tb_percent: { type: "string" },
         status: {
           type: "string",
-          enum: ["", "ny", "vantar_km", "km_bokad", "km_klar", "vantar_godkannande", "godkand", "i_produktion", "leverans_klar", "montage_bokat", "montage_klart", "fakturerad", "pausad"],
+          enum: ["ny", "vantar_km", "km_bokad", "km_klar", "vantar_godkannande", "godkand", "i_produktion", "leverans_klar", "montage_bokat", "montage_klart", "fakturerad", "pausad"],
         },
         team: { type: "string" },
         km_date: { type: "string" },
