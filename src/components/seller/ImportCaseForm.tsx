@@ -20,6 +20,19 @@ interface ImportCaseFormProps {
 
 const isValidDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
 
+// Rensa svenska sifferformat (t.ex. "2 785,58 kr" -> "2786")
+const parseSwedishNumber = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined || val === '') return '';
+  const s = String(val)
+    .replace(/\s/g, '')
+    .replace(/kr$/i, '')
+    .replace(/,(\d{1,2})$/, '.$1')
+    .replace(/,/g, '')
+    .trim();
+  const num = parseFloat(s);
+  return isNaN(num) ? '' : String(Math.round(num));
+};
+
 export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const queryClient = useQueryClient();
   const [importCount, setImportCount] = useState(0);
