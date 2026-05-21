@@ -40,6 +40,8 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
     team: '',
     google_drive_link: '',
     notes: '',
+    media_consent: false,
+    carry_help_needed: false,
   });
 
   useEffect(() => {
