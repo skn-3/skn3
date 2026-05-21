@@ -374,7 +374,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
           <p className="text-3xl font-bold text-card-foreground">{visits.length}</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Tappat ordervärde</p>
+          <p className="text-sm text-muted-foreground">Tappat ordervärde <span className="text-xs">ex moms</span></p>
           <p className="text-3xl font-bold text-destructive">{lostValue.toLocaleString('sv-SE')} kr</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
