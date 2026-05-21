@@ -771,7 +771,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
       {/* Charts */}
       {monthlyChart.length > 0 && (
         <div className="rounded-xl border bg-card p-4">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Ordervärde per månad</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Ordervärde per månad <span className="text-xs normal-case">ex moms</span></h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyChart}>
