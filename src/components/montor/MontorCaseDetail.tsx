@@ -397,6 +397,16 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             {caseData.customer_email && <div className="text-muted-foreground">{caseData.customer_email}</div>}
             <div className="text-muted-foreground">{caseData.address}</div>
           </div>
+          {((caseData as any).media_consent || (caseData as any).carry_help_needed) && (
+            <div className="flex flex-wrap gap-2 pt-2">
+              {(caseData as any).media_consent && (
+                <Badge variant="secondary">📷 Foto/film OK</Badge>
+              )}
+              {(caseData as any).carry_help_needed && (
+                <Badge className="bg-amber-500 hover:bg-amber-500/90 text-white">⚠ Bärhjälp behövs</Badge>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Montage klart button */}
