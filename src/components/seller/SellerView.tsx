@@ -70,6 +70,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerVie
         {tab === 'import' && isAdmin && (
           <ImportCaseForm sellerName={role.name} />
         )}
+        {tab === 'clean-addresses' && isAdmin && (
+          <CleanAddressesView currentUser={role.name} />
+        )}
       </main>
 
       {selectedCase && (
