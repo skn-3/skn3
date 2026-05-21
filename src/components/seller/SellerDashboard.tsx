@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchAllCases, fetchAllDeviations, fetchAllVisits, fetchAllCaseEvents } from '@/lib/supabaseClient';
 import { STATUS_LABELS, SELLERS, MONTORS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, HOUR_RATE, LOST_REASONS, COMPETITORS } from '@/lib/constants';
 import { Loader2, TrendingDown } from 'lucide-react';
+import { formatAmount } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -339,11 +340,11 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         </div>
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">Totalt ordervärde <span className="text-xs">ex moms</span></p>
-          <p className="text-3xl font-bold text-primary">{totalValue.toLocaleString('sv-SE')} kr</p>
+          <p className="text-3xl font-bold text-primary">{formatAmount(totalValue)}</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">Snitt ordervärde <span className="text-xs">ex moms</span></p>
-          <p className="text-3xl font-bold text-card-foreground">{avgOrderValue.toLocaleString('sv-SE')} kr</p>
+          <p className="text-3xl font-bold text-card-foreground">{formatAmount(avgOrderValue)}</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">TB% genomsnitt</p>
@@ -351,7 +352,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         </div>
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">Reklamationskostnad</p>
-          <p className="text-3xl font-bold text-destructive">{totalDevCost.toLocaleString('sv-SE')} kr</p>
+          <p className="text-3xl font-bold text-destructive">{formatAmount(totalDevCost)}</p>
           <p className="text-xs text-muted-foreground">{unresolvedDevs} olösta avvikelser</p>
         </div>
       </div>
@@ -375,7 +376,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         </div>
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">Tappat ordervärde <span className="text-xs">ex moms</span></p>
-          <p className="text-3xl font-bold text-destructive">{lostValue.toLocaleString('sv-SE')} kr</p>
+          <p className="text-3xl font-bold text-destructive">{formatAmount(lostValue)}</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">Återkopplingar att följa</p>
@@ -452,7 +453,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                   <tr key={c.city} className="border-t">
                     <td className="py-1.5 text-card-foreground font-medium">{c.city}</td>
                     <td className="py-1.5">{c.count}</td>
-                    <td className="py-1.5">{c.value.toLocaleString('sv-SE')} kr</td>
+                    <td className="py-1.5">{formatAmount(c.value)}</td>
                     <td className="py-1.5 text-primary font-medium">{c.hitRate !== null ? `${c.hitRate}%` : '–'}</td>
                   </tr>
                 ))}
@@ -608,17 +609,17 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="text-center p-3 bg-muted rounded-lg">
             <p className="text-2xl font-bold text-primary">{totalSold} st</p>
-            <p className="text-sm font-medium text-card-foreground">{soldRevenue.toLocaleString('sv-SE')} kr</p>
+            <p className="text-sm font-medium text-card-foreground">{formatAmount(soldRevenue)}</p>
             <p className="text-xs text-muted-foreground">Sålda (intäkt)</p>
           </div>
           <div className="text-center p-3 bg-muted rounded-lg">
             <p className="text-2xl font-bold text-destructive">{totalApproved} st</p>
-            <p className="text-sm font-medium text-card-foreground">{approvedCost.toLocaleString('sv-SE')} kr</p>
+            <p className="text-sm font-medium text-card-foreground">{formatAmount(approvedCost)}</p>
             <p className="text-xs text-muted-foreground">Godkända (kostnad)</p>
           </div>
           <div className={`text-center p-3 rounded-lg ${netResult >= 0 ? 'bg-green-50' : 'bg-destructive/10'}`}>
             <p className={`text-2xl font-bold ${netResult >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-              {netResult >= 0 ? '+' : ''}{netResult.toLocaleString('sv-SE')} kr
+              {netResult >= 0 ? '+' : ''}{formatAmount(netResult)}
             </p>
             <p className="text-xs text-muted-foreground">Nettoresultat</p>
           </div>
@@ -736,7 +737,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                 <tr key={s.name} className="border-t">
                   <td className="py-1.5 text-card-foreground">{s.name}</td>
                   <td className="py-1.5">{s.count}</td>
-                  <td className="py-1.5">{s.value.toLocaleString('sv-SE')} kr</td>
+                  <td className="py-1.5">{formatAmount(s.value)}</td>
                 </tr>
               ))}
             </tbody>
@@ -882,7 +883,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
               </div>
               <div className="rounded-lg border bg-background p-3">
                 <p className="text-xs text-muted-foreground">Förlorat ordervärde</p>
-                <p className="text-2xl font-bold text-destructive">{totalLostValue.toLocaleString('sv-SE')} kr</p>
+                <p className="text-2xl font-bold text-destructive">{formatAmount(totalLostValue)}</p>
               </div>
               <div className="rounded-lg border bg-background p-3">
                 <p className="text-xs text-muted-foreground">Vanligaste anledning</p>
@@ -922,7 +923,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                         <tr key={r.name} className="border-b">
                           <td className="py-2 font-medium text-card-foreground">{r.name}</td>
                           <td className="py-2 text-right">{r.count}</td>
-                          <td className="py-2 text-right text-destructive font-medium">{r.value.toLocaleString('sv-SE')} kr</td>
+                          <td className="py-2 text-right text-destructive font-medium">{formatAmount(r.value)}</td>
                         </tr>
                       ))}
                     </tbody>
