@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-export type SellerTab = 'pipeline' | 'new' | 'visit' | 'dashboard' | 'import' | 'clean-addresses';
+export type SellerTab = 'pipeline' | 'calendar' | 'new' | 'visit' | 'dashboard' | 'import' | 'clean-addresses';
 
 interface SellerNavProps {
   active: SellerTab;
@@ -11,6 +11,7 @@ interface SellerNavProps {
 export function SellerNav({ active, onChange, isAdmin }: SellerNavProps) {
   const tabs: { value: SellerTab; label: string }[] = [
     { value: 'pipeline', label: 'Pipeline' },
+    { value: 'calendar', label: 'Kalender' },
     { value: 'new', label: 'Nytt ärende' },
     { value: 'visit', label: 'Registrera besök' },
     { value: 'dashboard', label: 'Dashboard' },
