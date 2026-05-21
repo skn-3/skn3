@@ -1,1 +1,4 @@
 project_id = "gzeovhwoouoxfenaxsss"
+
+[functions.calendar-ics]
+verify_jwt = false
