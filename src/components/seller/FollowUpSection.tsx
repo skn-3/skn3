@@ -85,7 +85,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                     )}
                   </div>
                   {v.order_value && (
-                    <span className="text-muted-foreground">{Number(v.order_value).toLocaleString('sv-SE')} kr</span>
+                    <span className="text-muted-foreground">{Number(v.order_value).toLocaleString('sv-SE')} kr <span className="text-xs ml-0.5">ex moms</span></span>
                   )}
                 </div>
                 <div className="flex gap-2">

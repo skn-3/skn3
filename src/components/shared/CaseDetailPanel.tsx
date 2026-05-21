@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info } from 'lucide-react';
 import { orderDb } from '@/integrations/supabase/orderClient';
 import { toast } from 'sonner';
@@ -73,6 +74,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     customer_phone: caseData.customer_phone || '',
     customer_email: caseData.customer_email || '',
     notes: caseData.notes || '',
+    media_consent: !!(caseData as any).media_consent,
+    carry_help_needed: !!(caseData as any).carry_help_needed,
   });
 
   const openEdit = () => {
@@ -86,6 +89,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       customer_phone: caseData.customer_phone || '',
       customer_email: caseData.customer_email || '',
       notes: caseData.notes || '',
+      media_consent: !!(caseData as any).media_consent,
+      carry_help_needed: !!(caseData as any).carry_help_needed,
     });
     setEditingCase(true);
   };
@@ -102,6 +107,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         customer_phone: editForm.customer_phone,
         customer_email: editForm.customer_email || null,
         notes: editForm.notes || null,
+        media_consent: editForm.media_consent,
+        carry_help_needed: editForm.carry_help_needed,
       };
 
       // Build change summary
@@ -120,6 +127,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       if ((caseData.customer_phone || '') !== editForm.customer_phone) changes.push('Telefon uppdaterad');
       if ((caseData.customer_email || '') !== editForm.customer_email) changes.push('E-post uppdaterad');
       if ((caseData.notes || '') !== editForm.notes) changes.push('Anteckning uppdaterad');
+      const oldMedia = !!(caseData as any).media_consent;
+      const oldCarry = !!(caseData as any).carry_help_needed;
+      if (oldMedia !== editForm.media_consent) changes.push(`Foto/film-samtycke ändrat till ${editForm.media_consent ? 'Ja' : 'Nej'}`);
+      if (oldCarry !== editForm.carry_help_needed) changes.push(`Bärhjälp behövs ändrat till ${editForm.carry_help_needed ? 'Ja' : 'Nej'}`);
 
       await updateCase(caseData.id, updates as any);
 
@@ -494,6 +505,16 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               {caseData.customer_email && <div className="col-span-2"><span className="text-muted-foreground">E-post:</span> {caseData.customer_email}</div>}
               <div className="col-span-2"><span className="text-muted-foreground">Adress:</span> {caseData.address}</div>
             </div>
+            {((caseData as any).media_consent || (caseData as any).carry_help_needed) && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {(caseData as any).media_consent && (
+                  <Badge variant="secondary">📷 Foto/film OK</Badge>
+                )}
+                {(caseData as any).carry_help_needed && (
+                  <Badge className="bg-amber-500 hover:bg-amber-500/90 text-white">⚠ Bärhjälp behövs</Badge>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2 pt-2">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Säljare</Label>
@@ -589,7 +610,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Ordervärde (kr)</Label>
+                    <Label className="text-xs">Ordervärde (kr) <span className="text-muted-foreground ml-1">ex moms</span></Label>
                     <Input type="number" value={editForm.order_value} onChange={(e) => setEditForm(f => ({ ...f, order_value: e.target.value }))} />
                   </div>
                   <div className="space-y-1">
@@ -629,6 +650,23 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <Label className="text-xs">Anteckning</Label>
                     <Textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
                   </div>
+                  <div className="col-span-2 space-y-2 rounded-md border p-2 bg-background">
+                    <p className="text-xs font-medium text-muted-foreground">Att tänka på vid montage</p>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={editForm.media_consent}
+                        onCheckedChange={(c) => setEditForm(f => ({ ...f, media_consent: c === true }))}
+                      />
+                      Kan vi filma/fota hos kund?
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={editForm.carry_help_needed}
+                        onCheckedChange={(c) => setEditForm(f => ({ ...f, carry_help_needed: c === true }))}
+                      />
+                      Behövs bärhjälp?
+                    </label>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button size="sm" variant="ghost" onClick={() => setEditingCase(false)} disabled={editCaseMutation.isPending}>Avbryt</Button>
@@ -640,7 +678,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             ) : (
             <div className="grid grid-cols-2 gap-2 text-sm">
               {caseData.offer_number && <div><span className="text-muted-foreground">Offert:</span> {caseData.offer_number}</div>}
-              {caseData.order_value && <div><span className="text-muted-foreground">Värde:</span> {Number(caseData.order_value).toLocaleString('sv-SE')} kr</div>}
+              {caseData.order_value && <div><span className="text-muted-foreground">Värde:</span> {Number(caseData.order_value).toLocaleString('sv-SE')} kr <span className="text-muted-foreground text-xs ml-1">ex moms</span></div>}
               {caseData.tb_percent != null && <div><span className="text-muted-foreground">TB:</span> {Number(caseData.tb_percent)}%</div>}
               <div><span className="text-muted-foreground">Extra tim sålda:</span> {caseData.extra_hours_sold} st → {(caseData.extra_hours_sold * HOUR_RATE).toLocaleString('sv-SE')} kr</div>
               <div><span className="text-muted-foreground">Extra tim begärda:</span> {caseData.extra_hours_requested}</div>

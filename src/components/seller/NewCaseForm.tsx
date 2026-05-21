@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 
 type AddressSuggestion = {
@@ -39,6 +40,8 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
     team: '',
     google_drive_link: '',
     notes: '',
+    media_consent: false,
+    carry_help_needed: false,
   });
 
   useEffect(() => {
@@ -141,6 +144,8 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         notes: form.notes || null,
         seller: sellerName,
         status: 'vantar_km',
+        media_consent: form.media_consent,
+        carry_help_needed: form.carry_help_needed,
       });
       await createCaseEvent({
         case_id: newCase.id,
@@ -191,7 +196,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
     },
   });
 
-  const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 px-4 md:px-0">
@@ -250,7 +255,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
           <Input value={form.offer_number} onChange={(e) => update('offer_number', e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label>Ordervärde (kr)</Label>
+          <Label>Ordervärde (kr) <span className="text-muted-foreground text-xs ml-1">ex moms</span></Label>
           <Input type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
         </div>
         <div className="space-y-1.5">
@@ -281,6 +286,24 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
       <div className="space-y-1.5">
         <Label>Anteckning</Label>
         <Textarea value={form.notes} onChange={(e) => update('notes', e.target.value)} rows={3} />
+      </div>
+
+      <div className="space-y-2 rounded-lg border p-3 bg-muted/30">
+        <h3 className="text-sm font-semibold text-foreground">Att tänka på vid montage</h3>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={form.media_consent}
+            onCheckedChange={(c) => update('media_consent', c === true)}
+          />
+          Kan vi filma/fota hos kund?
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={form.carry_help_needed}
+            onCheckedChange={(c) => update('carry_help_needed', c === true)}
+          />
+          Behövs bärhjälp?
+        </label>
       </div>
 
       <Button

@@ -338,11 +338,11 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
           <p className="text-3xl font-bold text-card-foreground">{cases.length}</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Totalt ordervärde</p>
+          <p className="text-sm text-muted-foreground">Totalt ordervärde <span className="text-xs">ex moms</span></p>
           <p className="text-3xl font-bold text-primary">{totalValue.toLocaleString('sv-SE')} kr</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Snitt ordervärde</p>
+          <p className="text-sm text-muted-foreground">Snitt ordervärde <span className="text-xs">ex moms</span></p>
           <p className="text-3xl font-bold text-card-foreground">{avgOrderValue.toLocaleString('sv-SE')} kr</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
@@ -374,7 +374,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
           <p className="text-3xl font-bold text-card-foreground">{visits.length}</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Tappat ordervärde</p>
+          <p className="text-sm text-muted-foreground">Tappat ordervärde <span className="text-xs">ex moms</span></p>
           <p className="text-3xl font-bold text-destructive">{lostValue.toLocaleString('sv-SE')} kr</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
@@ -443,7 +443,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                 <tr className="text-left text-muted-foreground">
                   <th className="pb-2">Ort</th>
                   <th className="pb-2">Antal ärenden</th>
-                  <th className="pb-2">Ordervärde</th>
+                  <th className="pb-2">Ordervärde <span className="text-xs font-normal">ex moms</span></th>
                   <th className="pb-2">Hit rate</th>
                 </tr>
               </thead>
@@ -728,7 +728,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
               <tr className="text-left text-muted-foreground">
                 <th className="pb-2">Säljare</th>
                 <th className="pb-2">Antal</th>
-                <th className="pb-2">Ordervärde</th>
+                <th className="pb-2">Ordervärde <span className="text-xs font-normal">ex moms</span></th>
               </tr>
             </thead>
             <tbody>
@@ -771,7 +771,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
       {/* Charts */}
       {monthlyChart.length > 0 && (
         <div className="rounded-xl border bg-card p-4">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Ordervärde per månad</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Ordervärde per månad <span className="text-xs normal-case">ex moms</span></h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyChart}>

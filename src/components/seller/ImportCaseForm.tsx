@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
@@ -78,10 +79,10 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
       const filled = new Set<string>();
       setForm((f) => {
-        const next = { ...f };
+        const next: any = { ...f };
         const apply = (key: keyof typeof f, value: string) => {
           if (value && value.trim()) {
-            next[key] = value as any;
+            next[key] = value;
             filled.add(key as string);
           }
         };
@@ -145,6 +146,8 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     delivery_date: '',
     google_drive_link: '',
     notes: 'Importerat manuellt, befintligt ärende',
+    media_consent: false,
+    carry_help_needed: false,
   });
 
   const mutation = useMutation({
@@ -169,6 +172,8 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         montage_date: form.montage_date && isValidDate(form.montage_date) ? form.montage_date : null,
         delivery_date: form.delivery_date && isValidDate(form.delivery_date) ? form.delivery_date : null,
         imported: true,
+        media_consent: form.media_consent,
+        carry_help_needed: form.carry_help_needed,
       };
 
       // Set historical created_at if provided
@@ -218,6 +223,8 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         notes: 'Importerat manuellt, befintligt ärende',
         seller: keepSeller,
         team: keepTeam,
+        media_consent: false,
+        carry_help_needed: false,
       }));
     },
     onError: (err: Error) => {
@@ -225,9 +232,9 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     },
   });
 
-  const update = (key: string, value: string) => {
-    setForm((f) => ({ ...f, [key]: value }));
-    if (aiFilled.has(key)) {
+  const update = (key: string, value: string | boolean) => {
+    setForm((f) => ({ ...f, [key]: value } as any));
+    if (typeof value === 'string' && aiFilled.has(key)) {
       setAiFilled((prev) => {
         const next = new Set(prev);
         next.delete(key);
@@ -375,7 +382,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
           <Input className={cn(aiClass('offer_number'))} value={form.offer_number} onChange={(e) => update('offer_number', e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label>Ordervärde (kr)</Label>
+          <Label>Ordervärde (kr) <span className="text-muted-foreground text-xs ml-1">ex moms</span></Label>
           <Input className={cn(aiClass('order_value'))} type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
           {Number(parseSwedishNumber(form.order_value)) > 500000 && (
             <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
@@ -409,6 +416,18 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       <div className="space-y-1.5">
         <Label>Anteckning</Label>
         <Textarea className={cn(aiClass('notes'))} value={form.notes} onChange={(e) => update('notes', e.target.value)} rows={3} />
+      </div>
+
+      <div className="space-y-2 rounded-lg border p-3 bg-muted/30">
+        <h3 className="text-sm font-semibold text-foreground">Att tänka på vid montage</h3>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox checked={form.media_consent} onCheckedChange={(c) => update('media_consent', c === true)} />
+          Kan vi filma/fota hos kund?
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox checked={form.carry_help_needed} onCheckedChange={(c) => update('carry_help_needed', c === true)} />
+          Behövs bärhjälp?
+        </label>
       </div>
 
       <Button
