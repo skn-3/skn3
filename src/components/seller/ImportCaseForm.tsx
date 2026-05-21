@@ -155,14 +155,21 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     status: 'ny',
     created_at: '',
     km_date: '',
+    km_time: '',
     montage_date: '',
+    montage_time: '',
+    delivery_mode: 'date' as 'date' | 'week',
     delivery_date: '',
+    delivery_time: '',
+    delivery_week: '',
+    delivery_year: String(new Date().getFullYear()),
     google_drive_link: '',
     notes: 'Importerat manuellt, befintligt ärende',
     media_consent: false,
     carry_help_needed: false,
     scheduled_delivery: false,
   });
+
 
   const mutation = useMutation({
     mutationFn: async () => {
