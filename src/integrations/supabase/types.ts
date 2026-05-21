@@ -300,6 +300,24 @@ export type Database = {
           },
         ]
       }
+      user_calendar_tokens: {
+        Row: {
+          created_at: string
+          token: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string
+          token?: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string
+          token?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       visits: {
         Row: {
           address: string
