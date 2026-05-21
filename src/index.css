@@ -61,3 +61,13 @@
     @apply bg-background text-foreground font-sans;
   }
 }
+
+/* Hide Lovable preview/edit badge */
+[data-lovable-badge],
+#lovable-badge,
+.lovable-badge,
+a[href*="lovable.dev"][class*="badge"],
+a[href*="lovable.app"][class*="badge"] {
+  display: none !important;
+}
+
