@@ -196,7 +196,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
     },
   });
 
-  const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 px-4 md:px-0">
