@@ -77,6 +77,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     notes: caseData.notes || '',
     media_consent: !!(caseData as any).media_consent,
     carry_help_needed: !!(caseData as any).carry_help_needed,
+    scheduled_delivery: !!(caseData as any).scheduled_delivery,
   });
 
   const openEdit = () => {
@@ -93,6 +94,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       notes: caseData.notes || '',
       media_consent: !!(caseData as any).media_consent,
       carry_help_needed: !!(caseData as any).carry_help_needed,
+      scheduled_delivery: !!(caseData as any).scheduled_delivery,
     });
     setEditingCase(true);
   };
@@ -112,6 +114,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         notes: editForm.notes || null,
         media_consent: editForm.media_consent,
         carry_help_needed: editForm.carry_help_needed,
+        scheduled_delivery: editForm.scheduled_delivery,
       };
 
       // Build change summary
@@ -134,8 +137,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       if ((caseData.notes || '') !== editForm.notes) changes.push('Anteckning uppdaterad');
       const oldMedia = !!(caseData as any).media_consent;
       const oldCarry = !!(caseData as any).carry_help_needed;
-      if (oldMedia !== editForm.media_consent) changes.push(`Foto/film-samtycke ändrat till ${editForm.media_consent ? 'Ja' : 'Nej'}`);
+      const oldScheduled = !!(caseData as any).scheduled_delivery;
+      if (oldMedia !== editForm.media_consent) changes.push(`Foto/film överenskommet ändrat till ${editForm.media_consent ? 'Ja' : 'Nej'}`);
       if (oldCarry !== editForm.carry_help_needed) changes.push(`Bärhjälp behövs ändrat till ${editForm.carry_help_needed ? 'Ja' : 'Nej'}`);
+      if (oldScheduled !== editForm.scheduled_delivery) changes.push(`Tidsstyrd leverans ändrat till ${editForm.scheduled_delivery ? 'Ja' : 'Nej'}`);
 
       await updateCase(caseData.id, updates as any);
 
@@ -511,13 +516,16 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <div className="col-span-2"><span className="text-muted-foreground">Adress:</span> {caseData.address}</div>
               <div className="col-span-2"><span className="text-muted-foreground">Ort:</span> {(caseData as any).city || <span className="text-destructive">— saknas</span>}</div>
             </div>
-            {((caseData as any).media_consent || (caseData as any).carry_help_needed) && (
+            {((caseData as any).media_consent || (caseData as any).carry_help_needed || (caseData as any).scheduled_delivery) && (
               <div className="flex flex-wrap gap-2 pt-1">
                 {(caseData as any).media_consent && (
-                  <Badge variant="secondary">📷 Foto/film OK</Badge>
+                  <Badge variant="secondary">📷 Foto/film överenskommet</Badge>
                 )}
                 {(caseData as any).carry_help_needed && (
                   <Badge className="bg-amber-500 hover:bg-amber-500/90 text-white">⚠ Bärhjälp behövs</Badge>
+                )}
+                {(caseData as any).scheduled_delivery && (
+                  <Badge className="bg-orange-500 hover:bg-orange-500/90 text-white">🕐 Tidsstyrd leverans</Badge>
                 )}
               </div>
             )}
@@ -667,7 +675,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                         checked={editForm.media_consent}
                         onCheckedChange={(c) => setEditForm(f => ({ ...f, media_consent: c === true }))}
                       />
-                      Kan vi filma/fota hos kund?
+                      Foto/film överenskommet med kund
                     </label>
                     <label className="flex items-center gap-2 text-sm">
                       <Checkbox
@@ -675,6 +683,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                         onCheckedChange={(c) => setEditForm(f => ({ ...f, carry_help_needed: c === true }))}
                       />
                       Behövs bärhjälp?
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={editForm.scheduled_delivery}
+                        onCheckedChange={(c) => setEditForm(f => ({ ...f, scheduled_delivery: c === true }))}
+                      />
+                      Tidsstyrd leverans (tidslossning)
                     </label>
                   </div>
                 </div>
