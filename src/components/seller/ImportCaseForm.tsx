@@ -191,8 +191,13 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         google_drive_link: form.google_drive_link || null,
         notes: form.notes || null,
         km_date: form.km_date && isValidDate(form.km_date) ? form.km_date : null,
+        km_time: form.km_time || null,
         montage_date: form.montage_date && isValidDate(form.montage_date) ? form.montage_date : null,
-        delivery_date: form.delivery_date && isValidDate(form.delivery_date) ? form.delivery_date : null,
+        montage_time: form.montage_time || null,
+        delivery_date: form.delivery_mode === 'date' && form.delivery_date && isValidDate(form.delivery_date) ? form.delivery_date : null,
+        delivery_time: form.delivery_mode === 'date' && form.delivery_time ? form.delivery_time : null,
+        delivery_week: form.delivery_mode === 'week' && form.delivery_week ? Number(form.delivery_week) : null,
+        delivery_year: form.delivery_mode === 'week' && form.delivery_week ? Number(form.delivery_year) : null,
         imported: true,
         media_consent: form.media_consent,
         carry_help_needed: form.carry_help_needed,
@@ -203,6 +208,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       if (form.created_at) {
         caseData.created_at = new Date(form.created_at).toISOString();
       }
+
 
       const newCase = await createCase(caseData);
 
