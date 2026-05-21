@@ -162,6 +162,17 @@ const TYPE_OPTIONS: { value: EventType; label: string }[] = [
   { value: 'leverans', label: 'Leverans' },
 ];
 
+function MonthEvent({ event }: { event: CalEvent }) {
+  const { type } = event.resource;
+  const short = type === 'km' ? 'KM' : type === 'montage' ? 'Mont' : 'Lev';
+  const time = event.allDay ? '' : ` ${format(event.start, 'HH:mm')}`;
+  return <span className="truncate">{short}{time}</span>;
+}
+
+function FullEvent({ event }: { event: CalEvent }) {
+  return <span className="truncate">{event.title}</span>;
+}
+
 export function CalendarView({ onSelectCase }: CalendarViewProps) {
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
   const [view, setView] = useState<View>(isMobile ? Views.AGENDA : Views.MONTH);
@@ -170,6 +181,17 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
   const [teamFilter, setTeamFilter] = useState<string>('alla');
   const [sellerFilter, setSellerFilter] = useState<string>('alla');
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth < 768 && view !== Views.AGENDA) {
+        setView(Views.AGENDA);
+      }
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [view]);
+
 
   const { data: cases, isLoading } = useQuery({
     queryKey: ['cases', 'all-calendar'],
@@ -300,7 +322,16 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
           style={{ height: 'calc(100vh - 280px)', minHeight: 500 }}
           eventPropGetter={eventPropGetter as any}
           onSelectEvent={(e: any) => onSelectCase(e.resource.caseData)}
-          components={{ toolbar: CustomToolbar as any }}
+          components={{
+            toolbar: CustomToolbar as any,
+            month: { event: MonthEvent as any },
+            week: { event: FullEvent as any },
+            day: { event: FullEvent as any },
+            agenda: { event: FullEvent as any },
+          }}
+          min={new Date(1970, 0, 1, 6, 0, 0)}
+          max={new Date(1970, 0, 1, 20, 0, 0)}
+          scrollToTime={new Date(1970, 0, 1, 7, 0, 0)}
           length={7}
           messages={{
             today: 'Idag', previous: 'Föregående', next: 'Nästa',
@@ -309,6 +340,7 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
             showMore: (n) => `+${n} fler`,
           }}
         />
+
       </div>
     </div>
   );
