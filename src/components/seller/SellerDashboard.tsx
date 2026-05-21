@@ -1066,6 +1066,15 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
           </div>
         );
       })()}
+
+      {selectedCase && (
+        <CaseDetailPanel
+          caseData={selectedCase}
+          currentUser={sellerName}
+          isSeller={true}
+          onClose={() => setSelectedCase(null)}
+        />
+      )}
     </div>
   );
 }
