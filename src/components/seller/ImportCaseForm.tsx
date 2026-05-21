@@ -157,6 +157,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     notes: 'Importerat manuellt, befintligt ärende',
     media_consent: false,
     carry_help_needed: false,
+    scheduled_delivery: false,
   });
 
   const mutation = useMutation({
@@ -184,6 +185,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         imported: true,
         media_consent: form.media_consent,
         carry_help_needed: form.carry_help_needed,
+        scheduled_delivery: form.scheduled_delivery,
       };
 
       // Set historical created_at if provided
@@ -236,6 +238,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         team: keepTeam,
         media_consent: false,
         carry_help_needed: false,
+        scheduled_delivery: false,
       }));
     },
     onError: (err: Error) => {
@@ -454,11 +457,15 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         <h3 className="text-sm font-semibold text-foreground">Att tänka på vid montage</h3>
         <label className="flex items-center gap-2 text-sm">
           <Checkbox checked={form.media_consent} onCheckedChange={(c) => update('media_consent', c === true)} />
-          Kan vi filma/fota hos kund?
+          Foto/film överenskommet med kund
         </label>
         <label className="flex items-center gap-2 text-sm">
           <Checkbox checked={form.carry_help_needed} onCheckedChange={(c) => update('carry_help_needed', c === true)} />
           Behövs bärhjälp?
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox checked={form.scheduled_delivery} onCheckedChange={(c) => update('scheduled_delivery', c === true)} />
+          Tidsstyrd leverans (tidslossning)
         </label>
       </div>
 
