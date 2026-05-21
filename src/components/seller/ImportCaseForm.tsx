@@ -267,6 +267,10 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleSubmit = () => {
+    if (!form.seller || !(SELLERS as readonly string[]).includes(form.seller)) {
+      toast.error(`Säljare måste vara en av: ${SELLERS.join(', ')}`);
+      return;
+    }
     if (ovNum > 500_000) {
       setConfirmOpen(true);
       return;
