@@ -5,10 +5,10 @@ import { MONTORS, type UserRole } from '@/lib/constants';
 import { AppHeader } from '@/components/AppHeader';
 import { MontorCaseList } from '@/components/montor/MontorCaseList';
 import { MontorCaseDetail } from '@/components/montor/MontorCaseDetail';
-import { Loader2, ArrowLeft, Search, X } from 'lucide-react';
+import { Loader2, Search, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 interface MontorViewProps {
   role: UserRole;
@@ -154,15 +154,14 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader role={role} onChangeRole={onChangeRole}>
-        {isAdmin && onToggleView && (
-          <Button variant="ghost" size="sm" onClick={onToggleView}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Säljarvy
-          </Button>
-        )}
-      </AppHeader>
+      <AppHeader
+        role={role}
+        onChangeRole={onChangeRole}
+        toggleView={isAdmin && onToggleView ? { label: 'Visa säljarvy', onClick: onToggleView } : undefined}
+      />
 
-      <main className="py-4 max-w-[480px] mx-auto px-4">
+
+      <main className="py-4 max-w-[480px] mx-auto px-3">
         {/* Admin montör filter */}
         {isAdmin && (
           <div className="mb-4">
