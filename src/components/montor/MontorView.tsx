@@ -226,9 +226,11 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
               }`}
             >
               {t.label}
-              <span className={`ml-1 text-xs ${activeTab === t.key ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                {counts[t.key]}
-              </span>
+              {counts[t.key] !== null && (
+                <span className={`ml-1 text-xs ${activeTab === t.key ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                  {counts[t.key]}
+                </span>
+              )}
             </button>
           ))}
         </div>
