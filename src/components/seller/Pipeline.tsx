@@ -68,6 +68,17 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
     queryFn: () => fetchVisits(isAdmin ? {} : { seller: sellerName }),
   });
 
+  const filteredCases = useMemo(() => (cases || []).filter(c => {
+    if (!isAdmin) return true;
+    if (adminFilter === 'alla') return true;
+    return c.seller === adminFilter;
+  }), [cases, isAdmin, adminFilter]);
+
+  const searchedCases = useMemo(() => {
+    if (!debouncedSearch) return filteredCases;
+    return filteredCases.filter(c => matchesSearch(c, debouncedSearch));
+  }, [filteredCases, debouncedSearch]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -77,18 +88,6 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
   }
 
   const followUps = (visits || []).filter((v) => v.result === 'aterkoppla' && !v.case_id);
-
-  // Apply admin seller filter
-  const filteredCases = (cases || []).filter(c => {
-    if (!isAdmin) return true;
-    if (adminFilter === 'alla') return true;
-    return c.seller === adminFilter;
-  });
-
-  const searchedCases = useMemo(() => {
-    if (!debouncedSearch) return filteredCases;
-    return filteredCases.filter(c => matchesSearch(c, debouncedSearch));
-  }, [filteredCases, debouncedSearch]);
 
   const showSellerBadge = !!isAdmin && adminFilter === 'alla';
 
