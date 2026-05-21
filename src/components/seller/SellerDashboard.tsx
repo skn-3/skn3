@@ -541,7 +541,13 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                         {o.caseData.address}
                       </button>
                     </td>
-                    <td className="py-1.5">{o.caseData.seller}</td>
+                    <td className="py-1.5">
+                      {o.missingSeller
+                        ? <span className="text-destructive italic">(saknas)</span>
+                        : o.unknownSeller
+                          ? <span className="text-destructive italic">(okänd: {o.seller})</span>
+                          : o.caseData.seller}
+                    </td>
                     <td className="py-1.5">{formatAmount(o.ov)}</td>
                     <td className="py-1.5">{o.tb != null ? `${o.tb}%` : '–'}</td>
                     <td className="py-1.5">
@@ -551,6 +557,12 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                         )}
                         {o.badTB && (
                           <Badge variant="destructive">Ogiltigt TB%</Badge>
+                        )}
+                        {o.unknownSeller && (
+                          <Badge variant="destructive">Okänd säljare</Badge>
+                        )}
+                        {o.missingSeller && (
+                          <Badge variant="destructive">Säljare saknas</Badge>
                         )}
                       </div>
                     </td>
