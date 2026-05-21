@@ -8,6 +8,7 @@ import { NewCaseForm } from './NewCaseForm';
 import { SellerDashboard } from './SellerDashboard';
 import { VisitForm } from './VisitForm';
 import { ImportCaseForm } from './ImportCaseForm';
+import { CleanAddressesView } from './CleanAddressesView';
 import { ADMIN_USERS } from '@/lib/constants';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { Button } from '@/components/ui/button';
