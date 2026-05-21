@@ -661,7 +661,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             ) : (
             <div className="grid grid-cols-2 gap-2 text-sm">
               {caseData.offer_number && <div><span className="text-muted-foreground">Offert:</span> {caseData.offer_number}</div>}
-              {caseData.order_value && <div><span className="text-muted-foreground">Värde:</span> {Number(caseData.order_value).toLocaleString('sv-SE')} kr</div>}
+              {caseData.order_value && <div><span className="text-muted-foreground">Värde:</span> {Number(caseData.order_value).toLocaleString('sv-SE')} kr <span className="text-muted-foreground text-xs ml-1">ex moms</span></div>}
               {caseData.tb_percent != null && <div><span className="text-muted-foreground">TB:</span> {Number(caseData.tb_percent)}%</div>}
               <div><span className="text-muted-foreground">Extra tim sålda:</span> {caseData.extra_hours_sold} st → {(caseData.extra_hours_sold * HOUR_RATE).toLocaleString('sv-SE')} kr</div>
               <div><span className="text-muted-foreground">Extra tim begärda:</span> {caseData.extra_hours_requested}</div>
