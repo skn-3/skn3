@@ -79,10 +79,10 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
       const filled = new Set<string>();
       setForm((f) => {
-        const next = { ...f };
+        const next: any = { ...f };
         const apply = (key: keyof typeof f, value: string) => {
           if (value && value.trim()) {
-            next[key] = value as any;
+            next[key] = value;
             filled.add(key as string);
           }
         };
