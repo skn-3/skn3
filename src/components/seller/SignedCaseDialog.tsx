@@ -43,6 +43,20 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
 
   const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value } as any));
 
+  const tbNum = form.tb_percent === '' ? null : Number(form.tb_percent);
+  const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
+  const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleSubmit = () => {
+    if (ovNum > 500_000) {
+      setConfirmOpen(true);
+      return;
+    }
+    mutation.mutate();
+  };
+
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (!visit) throw new Error('Inget besök valt');
