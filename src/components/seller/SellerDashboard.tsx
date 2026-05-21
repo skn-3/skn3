@@ -155,23 +155,23 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
     ? positiveValues[Math.floor(positiveValues.length / 2)]
     : 0;
   const medianThreshold = medianOV * 3;
-  const outlierCases = cases.filter(c => {
+  const SELLERS_LIST: string[] = [...SELLERS];
+  const outlierCases = cases.map(c => {
     const ov = Number(c.order_value) || 0;
     const tb = c.tb_percent != null ? Number(c.tb_percent) : null;
-    const highOV = ov > 500_000 || (medianThreshold > 0 && ov > medianThreshold);
-    const badTB = tb != null && (tb > 100 || tb < 0);
-    return highOV || badTB;
-  }).map(c => {
-    const ov = Number(c.order_value) || 0;
-    const tb = c.tb_percent != null ? Number(c.tb_percent) : null;
+    const seller = (c.seller || '').trim();
     return {
       caseData: c,
       highOV: ov > 500_000 || (medianThreshold > 0 && ov > medianThreshold),
       badTB: tb != null && (tb > 100 || tb < 0),
+      missingSeller: !seller,
+      unknownSeller: !!seller && !SELLERS_LIST.includes(seller),
       ov,
       tb,
+      seller,
     };
-  }).sort((a, b) => b.ov - a.ov);
+  }).filter(o => o.highOV || o.badTB || o.missingSeller || o.unknownSeller)
+    .sort((a, b) => b.ov - a.ov);
 
   // --- Conversion funnel ---
   const totalVisits = visits.length;
@@ -541,7 +541,13 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                         {o.caseData.address}
                       </button>
                     </td>
-                    <td className="py-1.5">{o.caseData.seller}</td>
+                    <td className="py-1.5">
+                      {o.missingSeller
+                        ? <span className="text-destructive italic">(saknas)</span>
+                        : o.unknownSeller
+                          ? <span className="text-destructive italic">(okänd: {o.seller})</span>
+                          : o.caseData.seller}
+                    </td>
                     <td className="py-1.5">{formatAmount(o.ov)}</td>
                     <td className="py-1.5">{o.tb != null ? `${o.tb}%` : '–'}</td>
                     <td className="py-1.5">
@@ -551,6 +557,12 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                         )}
                         {o.badTB && (
                           <Badge variant="destructive">Ogiltigt TB%</Badge>
+                        )}
+                        {o.unknownSeller && (
+                          <Badge variant="destructive">Okänd säljare</Badge>
+                        )}
+                        {o.missingSeller && (
+                          <Badge variant="destructive">Säljare saknas</Badge>
                         )}
                       </div>
                     </td>

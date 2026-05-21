@@ -64,6 +64,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [editDevCostValue, setEditDevCostValue] = useState('');
   // Edit case fields
   const [editingCase, setEditingCase] = useState(false);
+  const [ovConfirmOpen, setOvConfirmOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     order_value: caseData.order_value != null ? String(caseData.order_value) : '',
     tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
@@ -612,6 +613,23 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </AlertDialogContent>
           </AlertDialog>
 
+          <AlertDialog open={ovConfirmOpen} onOpenChange={setOvConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Bekräfta ordervärde</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Du har angett {formatAmount(editForm.order_value === '' ? 0 : Number(editForm.order_value))} — stämmer det? Detta är ovanligt högt.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Avbryt, rätta värdet</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { setOvConfirmOpen(false); editCaseMutation.mutate(); }}>
+                  Ja, värdet stämmer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {/* Order info */}
           <section className="p-4 space-y-2">
             <div className="flex items-center justify-between">
@@ -698,7 +716,24 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button size="sm" variant="ghost" onClick={() => setEditingCase(false)} disabled={editCaseMutation.isPending}>Avbryt</Button>
-                  <Button size="sm" onClick={() => editCaseMutation.mutate()} disabled={editCaseMutation.isPending}>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const tbVal = editForm.tb_percent === '' ? null : Number(editForm.tb_percent);
+                      if (tbVal != null && (isNaN(tbVal) || tbVal < 0 || tbVal > 100)) return;
+                      const newOV = editForm.order_value === '' ? 0 : Number(editForm.order_value);
+                      const oldOV = caseData.order_value != null ? Number(caseData.order_value) : 0;
+                      if (newOV > 500_000 && newOV !== oldOV) {
+                        setOvConfirmOpen(true);
+                        return;
+                      }
+                      editCaseMutation.mutate();
+                    }}
+                    disabled={
+                      editCaseMutation.isPending ||
+                      (editForm.tb_percent !== '' && (Number(editForm.tb_percent) < 0 || Number(editForm.tb_percent) > 100))
+                    }
+                  >
                     {editCaseMutation.isPending ? 'Sparar...' : 'Spara'}
                   </Button>
                 </div>

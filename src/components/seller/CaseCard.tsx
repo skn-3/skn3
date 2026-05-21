@@ -1,12 +1,13 @@
 import type { CaseRow } from '@/lib/supabaseClient';
-import { User, Wrench } from 'lucide-react';
+import { User, Wrench, UserCircle } from 'lucide-react';
 
 interface CaseCardProps {
   caseData: CaseRow;
   onClick: () => void;
+  showSeller?: boolean;
 }
 
-export function CaseCard({ caseData, onClick }: CaseCardProps) {
+export function CaseCard({ caseData, onClick, showSeller }: CaseCardProps) {
   return (
     <button
       onClick={onClick}
@@ -24,6 +25,12 @@ export function CaseCard({ caseData, onClick }: CaseCardProps) {
             {caseData.team}
           </div>
         )}
+        {showSeller && (
+          <div className="flex items-center gap-1.5">
+            <UserCircle className="h-3 w-3 shrink-0" />
+            <span className="italic">{caseData.seller || '(saknas)'}</span>
+          </div>
+        )}
         {caseData.order_value && (
           <div className="text-primary font-medium">
             {Number(caseData.order_value).toLocaleString('sv-SE')} kr
@@ -33,3 +40,4 @@ export function CaseCard({ caseData, onClick }: CaseCardProps) {
     </button>
   );
 }
+

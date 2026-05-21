@@ -1,24 +1,32 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCases, fetchVisits, type CaseRow } from '@/lib/supabaseClient';
-import { SELLER_PIPELINE_COLUMNS, STATUS_LABELS } from '@/lib/constants';
+import { SELLER_PIPELINE_COLUMNS, STATUS_LABELS, SELLERS } from '@/lib/constants';
 import { CaseCard } from './CaseCard';
 import { FollowUpSection } from './FollowUpSection';
 import { Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 interface PipelineProps {
   sellerName: string;
+  isAdmin?: boolean;
   onSelectCase: (c: CaseRow) => void;
 }
 
-export function Pipeline({ sellerName, onSelectCase }: PipelineProps) {
+export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
+  const [adminFilter, setAdminFilter] = useState<string>('alla');
+
+  const queryFilter = isAdmin ? {} : { seller: sellerName };
+
   const { data: cases, isLoading } = useQuery({
-    queryKey: ['cases', sellerName],
-    queryFn: () => fetchCases({ seller: sellerName }),
+    queryKey: ['cases', isAdmin ? 'admin' : sellerName],
+    queryFn: () => fetchCases(queryFilter),
   });
 
   const { data: visits } = useQuery({
-    queryKey: ['visits', sellerName],
-    queryFn: () => fetchVisits({ seller: sellerName }),
+    queryKey: ['visits', isAdmin ? 'admin' : sellerName],
+    queryFn: () => fetchVisits(isAdmin ? {} : { seller: sellerName }),
   });
 
   if (isLoading) {
@@ -31,23 +39,22 @@ export function Pipeline({ sellerName, onSelectCase }: PipelineProps) {
 
   const followUps = (visits || []).filter((v) => v.result === 'aterkoppla' && !v.case_id);
 
-  // Debug logging
-  if (cases) {
-    console.log('Alla ärenden:', cases);
-    console.log('Statusar:', [...new Set(cases.map(c => c.status))]);
-  }
+  // Apply admin seller filter
+  const filteredCases = (cases || []).filter(c => {
+    if (!isAdmin) return true;
+    if (adminFilter === 'alla') return true;
+    return c.seller === adminFilter;
+  });
+
+  const showSellerBadge = !!isAdmin && adminFilter === 'alla';
 
   const grouped = SELLER_PIPELINE_COLUMNS.reduce((acc, status) => {
-    acc[status] = (cases || []).filter((c) => {
+    acc[status] = filteredCases.filter((c) => {
       if (status === 'godkand') return c.status === 'godkand' || c.status === 'i_produktion';
       return c.status === status;
     });
     return acc;
   }, {} as Record<string, CaseRow[]>);
-
-  console.log('Kolumn-filter:', Object.fromEntries(
-    SELLER_PIPELINE_COLUMNS.map(s => [s, grouped[s]?.length || 0])
-  ));
 
   const columnLabels: Record<string, string> = {
     ...STATUS_LABELS,
@@ -56,6 +63,21 @@ export function Pipeline({ sellerName, onSelectCase }: PipelineProps) {
 
   return (
     <div className="space-y-4">
+      {isAdmin && (
+        <div className="px-4 md:px-0 flex items-end gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs">Visa säljare</Label>
+            <Select value={adminFilter} onValueChange={setAdminFilter}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="alla">Alla</SelectItem>
+                {SELLERS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
       {followUps.length > 0 && (
         <FollowUpSection visits={followUps} sellerName={sellerName} />
       )}
@@ -74,7 +96,7 @@ export function Pipeline({ sellerName, onSelectCase }: PipelineProps) {
               </div>
               <div className="space-y-2">
                 {grouped[status]?.map((c) => (
-                  <CaseCard key={c.id} caseData={c} onClick={() => onSelectCase(c)} />
+                  <CaseCard key={c.id} caseData={c} onClick={() => onSelectCase(c)} showSeller={showSellerBadge} />
                 ))}
               </div>
             </div>
