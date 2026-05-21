@@ -235,12 +235,32 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Avbryt</Button>
           <Button
-            onClick={() => mutation.mutate()}
-            disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || mutation.isPending}
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Avbryt</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
           >
             {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}
           </Button>
         </div>
+
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Bekräfta ordervärde</AlertDialogTitle>
+              <AlertDialogDescription>
+                Du har angett {formatAmount(ovNum)} — stämmer det? Detta är ovanligt högt.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Avbryt, rätta värdet</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setConfirmOpen(false); mutation.mutate(); }}>
+                Ja, värdet stämmer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SheetContent>
     </Sheet>
   );
