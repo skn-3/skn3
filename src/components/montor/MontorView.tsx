@@ -8,6 +8,7 @@ import { MontorCaseDetail } from '@/components/montor/MontorCaseDetail';
 import { Loader2, Search, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CalendarView } from '@/components/calendar/CalendarView';
 
 
 interface MontorViewProps {
@@ -17,7 +18,7 @@ interface MontorViewProps {
   onToggleView?: () => void;
 }
 
-type Tab = 'alla' | 'montage' | 'reklamationer' | 'klara';
+type Tab = 'alla' | 'montage' | 'reklamationer' | 'klara' | 'kalender';
 
 const statusOrder = ['vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat', 'montage_klart', 'fakturerad', 'pausad'];
 
@@ -127,16 +128,18 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
     }
   }, [searched, activeTab, unresolvedDeviationCaseIds]);
 
-  const counts = useMemo(() => ({
+  const counts: Record<Tab, number | null> = useMemo(() => ({
     alla: searched.filter(c => ['montage_bokat', 'leverans_klar', 'vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'montage_klart', 'fakturerad', 'pausad'].includes(c.status)).length,
     montage: searched.filter(c => ['montage_bokat', 'leverans_klar'].includes(c.status)).length,
     reklamationer: searched.filter(c => unresolvedDeviationCaseIds.has(c.id)).length,
     klara: searched.filter(c => ['montage_klart', 'fakturerad'].includes(c.status)).length,
+    kalender: null,
   }), [searched, unresolvedDeviationCaseIds]);
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'alla', label: 'Alla' },
     { key: 'montage', label: 'Montage' },
+    { key: 'kalender', label: 'Kalender' },
     { key: 'reklamationer', label: 'Reklam.' },
     { key: 'klara', label: 'Klara' },
   ];
@@ -223,14 +226,18 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
               }`}
             >
               {t.label}
-              <span className={`ml-1 text-xs ${activeTab === t.key ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                {counts[t.key]}
-              </span>
+              {counts[t.key] !== null && (
+                <span className={`ml-1 text-xs ${activeTab === t.key ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                  {counts[t.key]}
+                </span>
+              )}
             </button>
           ))}
         </div>
 
-        {isLoading ? (
+        {activeTab === 'kalender' ? (
+          <CalendarView onSelectCase={setSelectedCase} />
+        ) : isLoading ? (
           <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-center py-20">Inga ärenden att visa.</p>

@@ -11,6 +11,7 @@ import { ImportCaseForm } from './ImportCaseForm';
 import { CleanAddressesView } from './CleanAddressesView';
 import { ADMIN_USERS } from '@/lib/constants';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
+import { CalendarView } from '@/components/calendar/CalendarView';
 
 interface SellerViewProps {
   role: UserRole;
@@ -48,6 +49,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerVie
 
         {tab === 'pipeline' && (
           <Pipeline sellerName={role.name} isAdmin={isAdmin} onSelectCase={setSelectedCase} />
+        )}
+        {tab === 'calendar' && (
+          <CalendarView onSelectCase={setSelectedCase} />
         )}
         {tab === 'new' && (
           <NewCaseForm
