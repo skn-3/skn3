@@ -128,11 +128,12 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
     }
   }, [searched, activeTab, unresolvedDeviationCaseIds]);
 
-  const counts = useMemo(() => ({
+  const counts: Record<Tab, number | null> = useMemo(() => ({
     alla: searched.filter(c => ['montage_bokat', 'leverans_klar', 'vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'montage_klart', 'fakturerad', 'pausad'].includes(c.status)).length,
     montage: searched.filter(c => ['montage_bokat', 'leverans_klar'].includes(c.status)).length,
     reklamationer: searched.filter(c => unresolvedDeviationCaseIds.has(c.id)).length,
     klara: searched.filter(c => ['montage_klart', 'fakturerad'].includes(c.status)).length,
+    kalender: null,
   }), [searched, unresolvedDeviationCaseIds]);
 
   const tabs: { key: Tab; label: string }[] = [
