@@ -437,15 +437,13 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         <div className="space-y-1.5">
           <Label>Ordervärde (kr) <span className="text-muted-foreground text-xs ml-1">ex moms</span></Label>
           <Input className={cn(aiClass('order_value'))} type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
-          {Number(parseSwedishNumber(form.order_value)) > 500000 && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-              ⚠ Ordervärde över 500 000 kr — dubbelkolla att det stämmer
-            </p>
-          )}
         </div>
         <div className="space-y-1.5">
           <Label>TB (%)</Label>
-          <Input className={cn(aiClass('tb_percent'))} type="number" value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+          <Input className={cn(aiClass('tb_percent'))} type="number" min={0} max={100} value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+          {tbInvalid && (
+            <p className="text-xs text-destructive">TB% måste vara mellan 0 och 100. Skrev du 160 istället för 16?</p>
+          )}
         </div>
 
         <div className="space-y-1.5">
