@@ -21,7 +21,7 @@ export function SellerNav({ active, onChange, isAdmin }: SellerNavProps) {
   ];
 
   return (
-    <nav className="flex gap-1 px-4 md:px-0 overflow-x-auto">
+    <nav className="flex gap-1 px-3 md:px-0 overflow-x-auto">
       {tabs.map((t) => (
         <button
           key={t.value}
