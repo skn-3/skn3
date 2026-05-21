@@ -107,6 +107,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         customer_phone: editForm.customer_phone,
         customer_email: editForm.customer_email || null,
         notes: editForm.notes || null,
+        media_consent: editForm.media_consent,
+        carry_help_needed: editForm.carry_help_needed,
       };
 
       // Build change summary
@@ -125,6 +127,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       if ((caseData.customer_phone || '') !== editForm.customer_phone) changes.push('Telefon uppdaterad');
       if ((caseData.customer_email || '') !== editForm.customer_email) changes.push('E-post uppdaterad');
       if ((caseData.notes || '') !== editForm.notes) changes.push('Anteckning uppdaterad');
+      const oldMedia = !!(caseData as any).media_consent;
+      const oldCarry = !!(caseData as any).carry_help_needed;
+      if (oldMedia !== editForm.media_consent) changes.push(`Foto/film-samtycke ändrat till ${editForm.media_consent ? 'Ja' : 'Nej'}`);
+      if (oldCarry !== editForm.carry_help_needed) changes.push(`Bärhjälp behövs ändrat till ${editForm.carry_help_needed ? 'Ja' : 'Nej'}`);
 
       await updateCase(caseData.id, updates as any);
 
