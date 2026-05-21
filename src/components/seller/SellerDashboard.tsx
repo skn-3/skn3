@@ -499,6 +499,65 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         </div>
       )}
 
+      {/* Data quality outliers */}
+      <div className="rounded-xl border bg-card p-4">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4" />
+          DATAKVALITET — {outlierCases.length > 0 ? `${outlierCases.length} ärenden att granska` : 'ärenden att granska'}
+        </h3>
+        {outlierCases.length === 0 ? (
+          <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-3 py-2 text-sm text-green-700 dark:text-green-300">
+            Ingen avvikande data — allt ser bra ut ✓
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="pb-2">Adress</th>
+                  <th className="pb-2">Säljare</th>
+                  <th className="pb-2">Ordervärde <span className="text-xs font-normal">ex moms</span></th>
+                  <th className="pb-2">TB%</th>
+                  <th className="pb-2">Anledning</th>
+                  <th className="pb-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {outlierCases.map(o => (
+                  <tr key={o.caseData.id} className="border-t">
+                    <td className="py-1.5">
+                      <button
+                        onClick={() => setSelectedCase(o.caseData)}
+                        className="text-card-foreground font-medium hover:text-primary hover:underline text-left"
+                      >
+                        {o.caseData.address}
+                      </button>
+                    </td>
+                    <td className="py-1.5">{o.caseData.seller}</td>
+                    <td className="py-1.5">{formatAmount(o.ov)}</td>
+                    <td className="py-1.5">{o.tb != null ? `${o.tb}%` : '–'}</td>
+                    <td className="py-1.5">
+                      <div className="flex flex-wrap gap-1">
+                        {o.highOV && (
+                          <Badge className="bg-orange-500 hover:bg-orange-500/90 text-white">Högt ordervärde</Badge>
+                        )}
+                        {o.badTB && (
+                          <Badge variant="destructive">Ogiltigt TB%</Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-1.5">
+                      <Button size="sm" variant="outline" onClick={() => setSelectedCase(o.caseData)}>Granska</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+
       {/* ROW 3: Conversion funnel */}
       <div className="rounded-xl border bg-card p-4">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Konverteringstratt</h3>
