@@ -4,9 +4,12 @@ import { fetchCases, fetchVisits, type CaseRow } from '@/lib/supabaseClient';
 import { SELLER_PIPELINE_COLUMNS, STATUS_LABELS, SELLERS } from '@/lib/constants';
 import { CaseCard } from './CaseCard';
 import { FollowUpSection } from './FollowUpSection';
-import { Loader2, Search, X } from 'lucide-react';
+import { Loader2, Search, X, SlidersHorizontal } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+
 
 interface PipelineProps {
   sellerName: string;
