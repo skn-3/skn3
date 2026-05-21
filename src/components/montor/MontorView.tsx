@@ -154,13 +154,12 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader role={role} onChangeRole={onChangeRole}>
-        {isAdmin && onToggleView && (
-          <Button variant="ghost" size="sm" onClick={onToggleView}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Säljarvy
-          </Button>
-        )}
-      </AppHeader>
+      <AppHeader
+        role={role}
+        onChangeRole={onChangeRole}
+        toggleView={isAdmin && onToggleView ? { label: 'Visa säljarvy', onClick: onToggleView } : undefined}
+      />
+
 
       <main className="py-4 max-w-[480px] mx-auto px-4">
         {/* Admin montör filter */}
