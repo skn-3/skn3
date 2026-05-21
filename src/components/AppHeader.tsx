@@ -59,6 +59,10 @@ export function AppHeader({ role, onChangeRole, toggleView, children }: AppHeade
                   {toggleView.label}
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onClick={() => setCalendarOpen(true)}>
+                <Calendar className="h-4 w-4 mr-2" />
+                Min kalender
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onChangeRole}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Byt roll
@@ -91,12 +95,17 @@ export function AppHeader({ role, onChangeRole, toggleView, children }: AppHeade
           <span className="text-sm text-muted-foreground">
             {roleLabel}: <strong className="text-card-foreground">{role.name}</strong>
           </span>
+          <Button variant="ghost" size="sm" onClick={() => setCalendarOpen(true)}>
+            <Calendar className="h-4 w-4 mr-1" />
+            Min kalender
+          </Button>
           <Button variant="ghost" size="sm" onClick={onChangeRole}>
             <LogOut className="h-4 w-4 mr-1" />
             Byt roll
           </Button>
         </div>
       </div>
+      <MyCalendarDialog open={calendarOpen} onOpenChange={setCalendarOpen} userName={role.name} />
     </header>
   );
 }
