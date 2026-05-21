@@ -41,6 +41,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [includeImported, setIncludeImported] = useState(true);
+  const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
 
   const { data: allCasesRaw, isLoading: loadingCases } = useQuery({ queryKey: ['cases_all'], queryFn: fetchAllCases });
   const { data: allDeviations } = useQuery({ queryKey: ['deviations_all'], queryFn: fetchAllDeviations });
