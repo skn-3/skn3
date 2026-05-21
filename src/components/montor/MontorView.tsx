@@ -8,6 +8,7 @@ import { MontorCaseDetail } from '@/components/montor/MontorCaseDetail';
 import { Loader2, Search, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CalendarView } from '@/components/calendar/CalendarView';
 
 
 interface MontorViewProps {
@@ -17,7 +18,7 @@ interface MontorViewProps {
   onToggleView?: () => void;
 }
 
-type Tab = 'alla' | 'montage' | 'reklamationer' | 'klara';
+type Tab = 'alla' | 'montage' | 'reklamationer' | 'klara' | 'kalender';
 
 const statusOrder = ['vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat', 'montage_klart', 'fakturerad', 'pausad'];
 
@@ -137,6 +138,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
   const tabs: { key: Tab; label: string }[] = [
     { key: 'alla', label: 'Alla' },
     { key: 'montage', label: 'Montage' },
+    { key: 'kalender', label: 'Kalender' },
     { key: 'reklamationer', label: 'Reklam.' },
     { key: 'klara', label: 'Klara' },
   ];
@@ -230,7 +232,9 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
           ))}
         </div>
 
-        {isLoading ? (
+        {activeTab === 'kalender' ? (
+          <CalendarView onSelectCase={setSelectedCase} />
+        ) : isLoading ? (
           <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-center py-20">Inga ärenden att visa.</p>
