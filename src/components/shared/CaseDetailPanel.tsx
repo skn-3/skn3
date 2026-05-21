@@ -756,6 +756,60 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       Tidsstyrd leverans (tidslossning)
                     </label>
                   </div>
+                  <div className="col-span-2 space-y-3 rounded-md border p-2 bg-background">
+                    <p className="text-xs font-medium text-muted-foreground">Datum</p>
+                    <div className="space-y-1">
+                      <Label className="text-xs">KM-datum / Tid (valfritt)</Label>
+                      <div className="flex gap-2">
+                        <Input type="date" className="flex-1" value={editForm.km_date} onChange={(e) => setEditForm(f => ({ ...f, km_date: e.target.value }))} />
+                        <Input type="time" className="w-28" value={editForm.km_time} onChange={(e) => setEditForm(f => ({ ...f, km_time: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Montagedatum / Tid (valfritt)</Label>
+                      <div className="flex gap-2">
+                        <Input type="date" className="flex-1" value={editForm.montage_date} onChange={(e) => setEditForm(f => ({ ...f, montage_date: e.target.value }))} />
+                        <Input type="time" className="w-28" value={editForm.montage_time} onChange={(e) => setEditForm(f => ({ ...f, montage_time: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Leverans</Label>
+                      <RadioGroup
+                        value={editForm.scheduled_delivery ? 'date' : editForm.delivery_mode}
+                        onValueChange={(v) => setEditForm(f => ({ ...f, delivery_mode: v as 'date' | 'week' }))}
+                        className="flex gap-4"
+                        disabled={editForm.scheduled_delivery}
+                      >
+                        <label className="flex items-center gap-2 text-sm">
+                          <RadioGroupItem value="date" /> Exakt datum
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <RadioGroupItem value="week" disabled={editForm.scheduled_delivery} /> Vecka
+                        </label>
+                      </RadioGroup>
+                      {editForm.scheduled_delivery && (
+                        <p className="text-xs text-muted-foreground">Tidslossning kräver exakt datum och tid</p>
+                      )}
+                      {(editForm.scheduled_delivery || editForm.delivery_mode === 'date') ? (
+                        <div className="flex gap-2">
+                          <Input type="date" className="flex-1" value={editForm.delivery_date} onChange={(e) => setEditForm(f => ({ ...f, delivery_date: e.target.value }))} />
+                          <Input
+                            type="time"
+                            className="w-28"
+                            value={editForm.delivery_time}
+                            onChange={(e) => setEditForm(f => ({ ...f, delivery_time: e.target.value }))}
+                            placeholder={editForm.scheduled_delivery ? 'Tid *' : 'Tid'}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Input type="number" min={1} max={53} placeholder="Vecka" className="flex-1" value={editForm.delivery_week} onChange={(e) => setEditForm(f => ({ ...f, delivery_week: e.target.value }))} />
+                          <Input type="number" className="w-28" placeholder="År" value={editForm.delivery_year} onChange={(e) => setEditForm(f => ({ ...f, delivery_year: e.target.value }))} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button size="sm" variant="ghost" onClick={() => setEditingCase(false)} disabled={editCaseMutation.isPending}>Avbryt</Button>
