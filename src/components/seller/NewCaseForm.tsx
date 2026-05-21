@@ -33,6 +33,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
     customer_phone: '',
     customer_email: '',
     address: prefill?.address || '',
+    city: '',
     offer_number: '',
     order_value: prefill?.order_value || '',
     tb_percent: '',
@@ -117,12 +118,20 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
   }, []);
 
   const pickSuggestion = (s: AddressSuggestion) => {
-    setForm((f) => ({
-      ...f,
-      address: s.address,
-      customer_name: s.customer_name || f.customer_name,
-      customer_phone: s.customer_phone || f.customer_phone,
-    }));
+    setForm((f) => {
+      let nextCity = f.city;
+      if (!nextCity.trim()) {
+        const idx = s.address.lastIndexOf(',');
+        if (idx !== -1) nextCity = s.address.substring(idx + 1).trim();
+      }
+      return {
+        ...f,
+        address: s.address,
+        city: nextCity,
+        customer_name: s.customer_name || f.customer_name,
+        customer_phone: s.customer_phone || f.customer_phone,
+      };
+    });
     setExistingCaseWarning(s.source === 'case');
     setShowSuggestions(false);
   };
@@ -135,6 +144,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         customer_phone: form.customer_phone,
         customer_email: form.customer_email || null,
         address: form.address,
+        city: form.city,
         offer_number: form.offer_number || null,
         order_value: form.order_value ? Number(form.order_value) : null,
         tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
@@ -146,7 +156,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         status: 'vantar_km',
         media_consent: form.media_consent,
         carry_help_needed: form.carry_help_needed,
-      });
+      } as any);
       await createCaseEvent({
         case_id: newCase.id,
         event_type: 'status_change',
@@ -219,7 +229,18 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
           <Label>Adress *</Label>
           <Input
             value={form.address}
-            onChange={(e) => { update('address', e.target.value); setExistingCaseWarning(false); }}
+            onChange={(e) => {
+              const newAddr = e.target.value;
+              setForm((f) => {
+                let nextCity = f.city;
+                if (!nextCity.trim()) {
+                  const idx = newAddr.lastIndexOf(',');
+                  if (idx !== -1) nextCity = newAddr.substring(idx + 1).trim();
+                }
+                return { ...f, address: newAddr, city: nextCity };
+              });
+              setExistingCaseWarning(false);
+            }}
             onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
             autoComplete="off"
           />
@@ -249,6 +270,10 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
           {existingCaseWarning && (
             <p className="text-xs text-destructive">Det finns redan ett ärende på denna adress</p>
           )}
+        </div>
+        <div className="space-y-1.5">
+          <Label>Ort *</Label>
+          <Input value={form.city} onChange={(e) => update('city', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Offertnummer (Mockfjärds)</Label>
@@ -308,7 +333,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
 
       <Button
         onClick={() => mutation.mutate()}
-        disabled={!form.customer_name || !form.customer_phone || !form.address || mutation.isPending}
+        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || mutation.isPending}
         className="w-full sm:w-auto"
       >
         {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}

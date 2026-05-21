@@ -90,6 +90,14 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         apply('customer_phone', parsed.customer_phone);
         apply('customer_email', parsed.customer_email);
         apply('address', parsed.address);
+        // Autofill city from address if empty
+        if (parsed.address && (!next.city || !next.city.trim())) {
+          const idx = String(parsed.address).lastIndexOf(',');
+          if (idx !== -1) {
+            const c = String(parsed.address).substring(idx + 1).trim();
+            if (c) { next.city = c; filled.add('city'); }
+          }
+        }
         apply('offer_number', parsed.offer_number);
         if (parsed.order_value) {
           next.order_value = parsed.order_value;
@@ -131,6 +139,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     customer_phone: '',
     customer_email: '',
     address: '',
+    city: '',
     offer_number: '',
     order_value: '',
     tb_percent: '',
@@ -157,6 +166,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         customer_phone: form.customer_phone,
         customer_email: form.customer_email || null,
         address: form.address,
+        city: form.city,
         offer_number: form.offer_number || null,
         order_value: parseSwedishNumber(form.order_value) ? Number(parseSwedishNumber(form.order_value)) : null,
         tb_percent: parseSwedishNumber(form.tb_percent) ? Number(parseSwedishNumber(form.tb_percent)) : null,
@@ -208,6 +218,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         customer_phone: '',
         customer_email: '',
         address: '',
+        city: '',
         offer_number: '',
         order_value: '',
         tb_percent: '',
@@ -323,7 +334,28 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         </div>
         <div className="space-y-1.5">
           <Label>Adress *</Label>
-          <Input className={cn(aiClass('address'))} value={form.address} onChange={(e) => update('address', e.target.value)} />
+          <Input
+            className={cn(aiClass('address'))}
+            value={form.address}
+            onChange={(e) => {
+              const newAddr = e.target.value;
+              setForm((f) => {
+                let nextCity = f.city;
+                if (!nextCity.trim()) {
+                  const idx = newAddr.lastIndexOf(',');
+                  if (idx !== -1) nextCity = newAddr.substring(idx + 1).trim();
+                }
+                return { ...f, address: newAddr, city: nextCity };
+              });
+              if (aiFilled.has('address')) {
+                setAiFilled((prev) => { const n = new Set(prev); n.delete('address'); return n; });
+              }
+            }}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Ort *</Label>
+          <Input value={form.city} onChange={(e) => update('city', e.target.value)} />
         </div>
 
         <div className="space-y-1.5">
@@ -432,7 +464,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
       <Button
         onClick={() => mutation.mutate()}
-        disabled={!form.customer_name || !form.customer_phone || !form.address || mutation.isPending}
+        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || mutation.isPending}
         className="w-full sm:w-auto"
       >
         <Upload className="h-4 w-4 mr-2" />
