@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, formatAmount } from '@/lib/utils';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 
 interface CaseDetailPanelProps {
@@ -629,7 +629,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">TB (%)</Label>
-                    <Input type="number" value={editForm.tb_percent} onChange={(e) => setEditForm(f => ({ ...f, tb_percent: e.target.value }))} />
+                    <Input type="number" min={0} max={100} value={editForm.tb_percent} onChange={(e) => setEditForm(f => ({ ...f, tb_percent: e.target.value }))} />
+                    {editForm.tb_percent !== '' && (Number(editForm.tb_percent) < 0 || Number(editForm.tb_percent) > 100) && (
+                      <p className="text-xs text-destructive">TB% måste vara mellan 0 och 100. Skrev du 160 istället för 16?</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Extra timmar sålda</Label>

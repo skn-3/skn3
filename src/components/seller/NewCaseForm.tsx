@@ -11,6 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { formatAmount } from '@/lib/utils';
 import { toast } from 'sonner';
 
 type AddressSuggestion = {
@@ -210,6 +212,19 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
 
   const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
 
+  const tbNum = form.tb_percent === '' ? null : Number(form.tb_percent);
+  const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
+  const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleSubmit = () => {
+    if (ovNum > 500_000) {
+      setConfirmOpen(true);
+      return;
+    }
+    mutation.mutate();
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 px-4 md:px-0">
       <h2 className="text-xl font-bold text-foreground">Nytt ärende</h2>
@@ -287,7 +302,10 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         </div>
         <div className="space-y-1.5">
           <Label>TB (%)</Label>
-          <Input type="number" value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+          <Input type="number" min={0} max={100} value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+          {tbInvalid && (
+            <p className="text-xs text-destructive">TB% måste vara mellan 0 och 100. Skrev du 160 istället för 16?</p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label>Extra timmar sålda till kund (á {HOUR_RATE} kr/st)</Label>
@@ -341,12 +359,29 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
       </div>
 
       <Button
-        onClick={() => mutation.mutate()}
-        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || mutation.isPending}
+        onClick={handleSubmit}
+        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
         className="w-full sm:w-auto"
       >
         {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}
       </Button>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bekräfta ordervärde</AlertDialogTitle>
+            <AlertDialogDescription>
+              Du har angett {formatAmount(ovNum)} — stämmer det? Detta är ovanligt högt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt, rätta värdet</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmOpen(false); mutation.mutate(); }}>
+              Ja, värdet stämmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

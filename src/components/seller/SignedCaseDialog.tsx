@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { formatAmount } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 
@@ -40,6 +42,20 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
   });
 
   const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value } as any));
+
+  const tbNum = form.tb_percent === '' ? null : Number(form.tb_percent);
+  const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
+  const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleSubmit = () => {
+    if (ovNum > 500_000) {
+      setConfirmOpen(true);
+      return;
+    }
+    mutation.mutate();
+  };
+
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -169,7 +185,10 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           </div>
           <div className="space-y-1.5">
             <Label>TB (%)</Label>
-            <Input type="number" value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+            <Input type="number" min={0} max={100} value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+            {tbInvalid && (
+              <p className="text-xs text-destructive">TB% måste vara mellan 0 och 100. Skrev du 160 istället för 16?</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>Extra timmar sålda (á {HOUR_RATE} kr/st)</Label>
@@ -216,12 +235,29 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Avbryt</Button>
           <Button
-            onClick={() => mutation.mutate()}
-            disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || mutation.isPending}
+            onClick={handleSubmit}
+            disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
           >
             {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}
           </Button>
         </div>
+
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Bekräfta ordervärde</AlertDialogTitle>
+              <AlertDialogDescription>
+                Du har angett {formatAmount(ovNum)} — stämmer det? Detta är ovanligt högt.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Avbryt, rätta värdet</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setConfirmOpen(false); mutation.mutate(); }}>
+                Ja, värdet stämmer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SheetContent>
     </Sheet>
   );

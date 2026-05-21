@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { formatAmount } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Upload, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -257,6 +259,22 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     }
   };
 
+  const tbStr = parseSwedishNumber(form.tb_percent);
+  const tbNum = tbStr === '' ? null : Number(tbStr);
+  const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
+  const ovStr = parseSwedishNumber(form.order_value);
+  const ovNum = ovStr === '' ? 0 : Number(ovStr);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleSubmit = () => {
+    if (ovNum > 500_000) {
+      setConfirmOpen(true);
+      return;
+    }
+    mutation.mutate();
+  };
+
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 px-4 md:px-0">
       <div className="flex items-center justify-between">
@@ -419,15 +437,13 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         <div className="space-y-1.5">
           <Label>Ordervärde (kr) <span className="text-muted-foreground text-xs ml-1">ex moms</span></Label>
           <Input className={cn(aiClass('order_value'))} type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
-          {Number(parseSwedishNumber(form.order_value)) > 500000 && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-              ⚠ Ordervärde över 500 000 kr — dubbelkolla att det stämmer
-            </p>
-          )}
         </div>
         <div className="space-y-1.5">
           <Label>TB (%)</Label>
-          <Input className={cn(aiClass('tb_percent'))} type="number" value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+          <Input className={cn(aiClass('tb_percent'))} type="number" min={0} max={100} value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+          {tbInvalid && (
+            <p className="text-xs text-destructive">TB% måste vara mellan 0 och 100. Skrev du 160 istället för 16?</p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -470,13 +486,30 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       </div>
 
       <Button
-        onClick={() => mutation.mutate()}
-        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || mutation.isPending}
+        onClick={handleSubmit}
+        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
         className="w-full sm:w-auto"
       >
         <Upload className="h-4 w-4 mr-2" />
         {mutation.isPending ? 'Importerar...' : 'Importera ärende'}
       </Button>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bekräfta ordervärde</AlertDialogTitle>
+            <AlertDialogDescription>
+              Du har angett {formatAmount(ovNum)} — stämmer det? Detta är ovanligt högt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt, rätta värdet</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmOpen(false); mutation.mutate(); }}>
+              Ja, värdet stämmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

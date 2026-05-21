@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllCases, fetchAllDeviations, fetchAllVisits, fetchAllCaseEvents } from '@/lib/supabaseClient';
+import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, SELLERS, MONTORS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, HOUR_RATE, LOST_REASONS, COMPETITORS } from '@/lib/constants';
-import { Loader2, TrendingDown } from 'lucide-react';
+import { Loader2, TrendingDown, ShieldAlert } from 'lucide-react';
 import { formatAmount } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -37,6 +41,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [includeImported, setIncludeImported] = useState(true);
+  const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
 
   const { data: allCasesRaw, isLoading: loadingCases } = useQuery({ queryKey: ['cases_all'], queryFn: fetchAllCases });
   const { data: allDeviations } = useQuery({ queryKey: ['deviations_all'], queryFn: fetchAllDeviations });
@@ -135,6 +140,33 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
       hitRate: cityVisitMap[city]?.total ? Math.round((cityVisitMap[city].signerat / cityVisitMap[city].total) * 100) : null,
     }))
     .sort((a, b) => b.value - a.value);
+
+  // --- Data quality outliers ---
+  const positiveValues = (allCases || [])
+    .map(c => Number(c.order_value) || 0)
+    .filter(v => v > 0)
+    .sort((a, b) => a - b);
+  const medianOV = positiveValues.length
+    ? positiveValues[Math.floor(positiveValues.length / 2)]
+    : 0;
+  const medianThreshold = medianOV * 3;
+  const outlierCases = cases.filter(c => {
+    const ov = Number(c.order_value) || 0;
+    const tb = c.tb_percent != null ? Number(c.tb_percent) : null;
+    const highOV = ov > 500_000 || (medianThreshold > 0 && ov > medianThreshold);
+    const badTB = tb != null && (tb > 100 || tb < 0);
+    return highOV || badTB;
+  }).map(c => {
+    const ov = Number(c.order_value) || 0;
+    const tb = c.tb_percent != null ? Number(c.tb_percent) : null;
+    return {
+      caseData: c,
+      highOV: ov > 500_000 || (medianThreshold > 0 && ov > medianThreshold),
+      badTB: tb != null && (tb > 100 || tb < 0),
+      ov,
+      tb,
+    };
+  }).sort((a, b) => b.ov - a.ov);
 
   // --- Conversion funnel ---
   const totalVisits = visits.length;
@@ -466,6 +498,65 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
           </div>
         </div>
       )}
+
+      {/* Data quality outliers */}
+      <div className="rounded-xl border bg-card p-4">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4" />
+          DATAKVALITET — {outlierCases.length > 0 ? `${outlierCases.length} ärenden att granska` : 'ärenden att granska'}
+        </h3>
+        {outlierCases.length === 0 ? (
+          <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-3 py-2 text-sm text-green-700 dark:text-green-300">
+            Ingen avvikande data — allt ser bra ut ✓
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="pb-2">Adress</th>
+                  <th className="pb-2">Säljare</th>
+                  <th className="pb-2">Ordervärde <span className="text-xs font-normal">ex moms</span></th>
+                  <th className="pb-2">TB%</th>
+                  <th className="pb-2">Anledning</th>
+                  <th className="pb-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {outlierCases.map(o => (
+                  <tr key={o.caseData.id} className="border-t">
+                    <td className="py-1.5">
+                      <button
+                        onClick={() => setSelectedCase(o.caseData)}
+                        className="text-card-foreground font-medium hover:text-primary hover:underline text-left"
+                      >
+                        {o.caseData.address}
+                      </button>
+                    </td>
+                    <td className="py-1.5">{o.caseData.seller}</td>
+                    <td className="py-1.5">{formatAmount(o.ov)}</td>
+                    <td className="py-1.5">{o.tb != null ? `${o.tb}%` : '–'}</td>
+                    <td className="py-1.5">
+                      <div className="flex flex-wrap gap-1">
+                        {o.highOV && (
+                          <Badge className="bg-orange-500 hover:bg-orange-500/90 text-white">Högt ordervärde</Badge>
+                        )}
+                        {o.badTB && (
+                          <Badge variant="destructive">Ogiltigt TB%</Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-1.5">
+                      <Button size="sm" variant="outline" onClick={() => setSelectedCase(o.caseData)}>Granska</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
 
       {/* ROW 3: Conversion funnel */}
       <div className="rounded-xl border bg-card p-4">
@@ -975,6 +1066,15 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
           </div>
         );
       })()}
+
+      {selectedCase && (
+        <CaseDetailPanel
+          caseData={selectedCase}
+          currentUser={sellerName}
+          isSeller={true}
+          onClose={() => setSelectedCase(null)}
+        />
+      )}
     </div>
   );
 }
