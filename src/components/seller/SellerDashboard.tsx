@@ -83,8 +83,14 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   const unresolvedDevs = filteredDeviations.filter((d) => !d.resolved).length;
   const totalDevCost = filteredDeviations.reduce((sum, d) => sum + (Number((d as any).cost) || 0), 0);
 
-  // Budget progress
-  const allTotalValue = (allCases || []).reduce((sum, c) => sum + (Number(c.order_value) || 0), 0);
+  // Budget progress — only signed cases from current year, company-wide (not affected by seller/city/date filters)
+  const currentYear = new Date().getFullYear();
+  const signedThisYear = allCases.filter(c =>
+    c.status === 'signerat' &&
+    c.created_at &&
+    new Date(c.created_at).getFullYear() === currentYear
+  );
+  const allTotalValue = signedThisYear.reduce((sum, c) => sum + (Number(c.order_value) || 0), 0);
   const budgetPct = Math.min(100, (allTotalValue / BUDGET) * 100);
   const budgetColor = budgetPct > 50 ? 'text-green-600' : budgetPct > 25 ? 'text-yellow-600' : 'text-destructive';
 
@@ -396,12 +402,15 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
       {/* Budget progress */}
       <div className="rounded-xl border bg-card p-4">
         <div className="flex justify-between items-center mb-2">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Budgetmål</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Budgetmål {currentYear} (signerat)</h3>
           <span className={`text-sm font-bold ${budgetColor}`}>
-            {(allTotalValue / 1_000_000).toFixed(1)} msek av {(BUDGET / 1_000_000).toFixed(0)} msek ({budgetPct.toFixed(0)}%)
+            {(allTotalValue / 1_000_000).toFixed(1)} msek av {(BUDGET / 1_000_000).toFixed(0)} msek ({budgetPct.toFixed(0)}%) — {signedThisYear.length} ärenden
           </span>
         </div>
         <Progress value={budgetPct} className="h-3" />
+        <p className="text-xs text-muted-foreground mt-1">
+          Mäter ärenden med status &quot;Signerat avtal&quot; skapade {currentYear}. Pipeline och tidigare år räknas inte.
+        </p>
       </div>
 
       {/* Visit KPIs */}
