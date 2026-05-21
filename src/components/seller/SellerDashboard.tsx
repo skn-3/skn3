@@ -141,6 +141,33 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
     }))
     .sort((a, b) => b.value - a.value);
 
+  // --- Data quality outliers ---
+  const positiveValues = (allCases || [])
+    .map(c => Number(c.order_value) || 0)
+    .filter(v => v > 0)
+    .sort((a, b) => a - b);
+  const medianOV = positiveValues.length
+    ? positiveValues[Math.floor(positiveValues.length / 2)]
+    : 0;
+  const medianThreshold = medianOV * 3;
+  const outlierCases = cases.filter(c => {
+    const ov = Number(c.order_value) || 0;
+    const tb = c.tb_percent != null ? Number(c.tb_percent) : null;
+    const highOV = ov > 500_000 || (medianThreshold > 0 && ov > medianThreshold);
+    const badTB = tb != null && (tb > 100 || tb < 0);
+    return highOV || badTB;
+  }).map(c => {
+    const ov = Number(c.order_value) || 0;
+    const tb = c.tb_percent != null ? Number(c.tb_percent) : null;
+    return {
+      caseData: c,
+      highOV: ov > 500_000 || (medianThreshold > 0 && ov > medianThreshold),
+      badTB: tb != null && (tb > 100 || tb < 0),
+      ov,
+      tb,
+    };
+  }).sort((a, b) => b.ov - a.ov);
+
   // --- Conversion funnel ---
   const totalVisits = visits.length;
   const aterkoppla = visits.filter(v => v.result === 'aterkoppla').length;
