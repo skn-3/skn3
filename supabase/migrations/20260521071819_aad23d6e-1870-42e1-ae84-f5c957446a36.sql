@@ -1,0 +1,1 @@
+ALTER TABLE public.cases ADD COLUMN scheduled_delivery BOOLEAN NOT NULL DEFAULT false;

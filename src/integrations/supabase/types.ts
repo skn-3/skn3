@@ -109,6 +109,7 @@ export type Database = {
           notes: string | null
           offer_number: string | null
           order_value: number | null
+          scheduled_delivery: boolean
           seller: string
           status: string
           tb_percent: number | null
@@ -137,6 +138,7 @@ export type Database = {
           notes?: string | null
           offer_number?: string | null
           order_value?: number | null
+          scheduled_delivery?: boolean
           seller: string
           status?: string
           tb_percent?: number | null
@@ -165,6 +167,7 @@ export type Database = {
           notes?: string | null
           offer_number?: string | null
           order_value?: number | null
+          scheduled_delivery?: boolean
           seller?: string
           status?: string
           tb_percent?: number | null
