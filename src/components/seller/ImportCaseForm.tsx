@@ -259,6 +259,22 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     }
   };
 
+  const tbStr = parseSwedishNumber(form.tb_percent);
+  const tbNum = tbStr === '' ? null : Number(tbStr);
+  const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
+  const ovStr = parseSwedishNumber(form.order_value);
+  const ovNum = ovStr === '' ? 0 : Number(ovStr);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleSubmit = () => {
+    if (ovNum > 500_000) {
+      setConfirmOpen(true);
+      return;
+    }
+    mutation.mutate();
+  };
+
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 px-4 md:px-0">
       <div className="flex items-center justify-between">
