@@ -122,6 +122,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const editCaseMutation = useMutation({
     mutationFn: async () => {
+      const isWeekMode = editForm.delivery_mode === 'week' && !editForm.scheduled_delivery;
       const updates: Record<string, unknown> = {
         order_value: editForm.order_value === '' ? null : Number(editForm.order_value),
         tb_percent: editForm.tb_percent === '' ? null : Number(editForm.tb_percent),
@@ -136,6 +137,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         media_consent: editForm.media_consent,
         carry_help_needed: editForm.carry_help_needed,
         scheduled_delivery: editForm.scheduled_delivery,
+        km_date: editForm.km_date || null,
+        km_time: editForm.km_time || null,
+        montage_date: editForm.montage_date || null,
+        montage_time: editForm.montage_time || null,
+        delivery_date: isWeekMode ? null : (editForm.delivery_date || null),
+        delivery_time: isWeekMode ? null : (editForm.delivery_time || null),
+        delivery_week: isWeekMode && editForm.delivery_week ? Number(editForm.delivery_week) : null,
+        delivery_year: isWeekMode && editForm.delivery_week ? Number(editForm.delivery_year) : null,
       };
 
       // Build change summary
@@ -162,6 +171,18 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       if (oldMedia !== editForm.media_consent) changes.push(`Foto/film överenskommet ändrat till ${editForm.media_consent ? 'Ja' : 'Nej'}`);
       if (oldCarry !== editForm.carry_help_needed) changes.push(`Bärhjälp behövs ändrat till ${editForm.carry_help_needed ? 'Ja' : 'Nej'}`);
       if (oldScheduled !== editForm.scheduled_delivery) changes.push(`Tidsstyrd leverans ändrat till ${editForm.scheduled_delivery ? 'Ja' : 'Nej'}`);
+
+      // Date/time changes
+      if ((caseData.km_date || '') !== (editForm.km_date || '')) changes.push(`KM-datum ändrat till ${editForm.km_date || '—'}`);
+      if (((caseData as any).km_time || '') !== editForm.km_time) changes.push(`KM-tid ändrad till ${editForm.km_time || '—'}`);
+      if ((caseData.montage_date || '') !== (editForm.montage_date || '')) changes.push(`Montagedatum ändrat till ${editForm.montage_date || '—'}`);
+      if (((caseData as any).montage_time || '') !== editForm.montage_time) changes.push(`Montagetid ändrad till ${editForm.montage_time || '—'}`);
+      if ((caseData.delivery_date || '') !== (updates.delivery_date as string || '')) changes.push(`Leveransdatum ändrat till ${updates.delivery_date || '—'}`);
+      if (((caseData as any).delivery_time || '') !== (updates.delivery_time as string || '')) changes.push(`Leveranstid ändrad till ${updates.delivery_time || '—'}`);
+      const oldWeek = (caseData as any).delivery_week ?? null;
+      const newWeek = updates.delivery_week as number | null;
+      if (oldWeek !== newWeek) changes.push(`Leveransvecka ändrad till ${newWeek != null ? `v.${newWeek} ${updates.delivery_year}` : '—'}`);
+
 
       await updateCase(caseData.id, updates as any);
 
