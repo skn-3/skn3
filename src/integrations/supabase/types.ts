@@ -90,6 +90,7 @@ export type Database = {
       cases: {
         Row: {
           address: string
+          carry_help_needed: boolean
           created_at: string
           customer_email: string | null
           customer_name: string
@@ -102,6 +103,7 @@ export type Database = {
           id: string
           imported: boolean
           km_date: string | null
+          media_consent: boolean
           montage_date: string | null
           notes: string | null
           offer_number: string | null
@@ -115,6 +117,7 @@ export type Database = {
         }
         Insert: {
           address: string
+          carry_help_needed?: boolean
           created_at?: string
           customer_email?: string | null
           customer_name: string
@@ -127,6 +130,7 @@ export type Database = {
           id?: string
           imported?: boolean
           km_date?: string | null
+          media_consent?: boolean
           montage_date?: string | null
           notes?: string | null
           offer_number?: string | null
@@ -140,6 +144,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          carry_help_needed?: boolean
           created_at?: string
           customer_email?: string | null
           customer_name?: string
@@ -152,6 +157,7 @@ export type Database = {
           id?: string
           imported?: boolean
           km_date?: string | null
+          media_consent?: boolean
           montage_date?: string | null
           notes?: string | null
           offer_number?: string | null
