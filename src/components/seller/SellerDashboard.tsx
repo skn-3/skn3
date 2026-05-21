@@ -21,9 +21,13 @@ interface SellerDashboardProps {
 const BUDGET = 55_000_000;
 const PIE_COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', '#F59E0B', '#6B7280'];
 
-function extractCity(address: string): string {
-  const parts = address.split(',').map(s => s.trim());
+function extractCityFromAddress(address: string): string {
+  const parts = (address || '').split(',').map(s => s.trim());
   return parts.length > 1 ? parts[parts.length - 1] : parts[0];
+}
+
+function getCaseCity(c: { city?: string | null; address: string }): string {
+  return (c.city && c.city.trim()) ? c.city.trim() : extractCityFromAddress(c.address);
 }
 
 export function SellerDashboard({ sellerName }: SellerDashboardProps) {
@@ -45,12 +49,12 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   const allCases = (allCasesRaw || []).filter(c => includeImported || !(c as any).imported);
 
   // Extract all cities for filter
-  const allCities = [...new Set(allCases.map(c => extractCity(c.address)))].sort();
+  const allCities = [...new Set(allCases.map(c => getCaseCity(c as any)))].sort();
 
   const cases = allCases.filter((c) => {
     if (filterSeller !== 'all' && c.seller !== filterSeller) return false;
     if (filterMontor !== 'all' && c.team !== filterMontor) return false;
-    if (filterCity !== 'all' && extractCity(c.address) !== filterCity) return false;
+    if (filterCity !== 'all' && getCaseCity(c as any) !== filterCity) return false;
     if (dateFrom && c.created_at < dateFrom) return false;
     if (dateTo && c.created_at > dateTo + 'T23:59:59') return false;
     return true;
@@ -111,14 +115,14 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   // --- Sales per city ---
   const cityMap: Record<string, { count: number; value: number }> = {};
   cases.forEach(c => {
-    const city = extractCity(c.address);
+    const city = getCaseCity(c as any);
     if (!cityMap[city]) cityMap[city] = { count: 0, value: 0 };
     cityMap[city].count++;
     cityMap[city].value += Number(c.order_value) || 0;
   });
   const cityVisitMap: Record<string, { total: number; signerat: number }> = {};
   visits.forEach(v => {
-    const city = extractCity(v.address);
+    const city = extractCityFromAddress(v.address);
     if (!cityVisitMap[city]) cityVisitMap[city] = { total: 0, signerat: 0 };
     cityVisitMap[city].total++;
     if (v.result === 'signerat') cityVisitMap[city].signerat++;
