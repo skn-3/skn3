@@ -56,6 +56,8 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         notes: form.notes || null,
         seller: sellerName,
         status: 'vantar_km',
+        media_consent: form.media_consent,
+        carry_help_needed: form.carry_help_needed,
       });
 
       await updateVisit(visit.id, { result: 'signerat', case_id: newCase.id } as any);
