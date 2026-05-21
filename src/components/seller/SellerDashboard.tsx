@@ -443,7 +443,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                 <tr className="text-left text-muted-foreground">
                   <th className="pb-2">Ort</th>
                   <th className="pb-2">Antal ärenden</th>
-                  <th className="pb-2">Ordervärde</th>
+                  <th className="pb-2">Ordervärde <span className="text-xs font-normal">ex moms</span></th>
                   <th className="pb-2">Hit rate</th>
                 </tr>
               </thead>
