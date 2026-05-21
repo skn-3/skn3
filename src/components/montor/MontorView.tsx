@@ -5,10 +5,10 @@ import { MONTORS, type UserRole } from '@/lib/constants';
 import { AppHeader } from '@/components/AppHeader';
 import { MontorCaseList } from '@/components/montor/MontorCaseList';
 import { MontorCaseDetail } from '@/components/montor/MontorCaseDetail';
-import { Loader2, ArrowLeft, Search, X } from 'lucide-react';
+import { Loader2, Search, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 interface MontorViewProps {
   role: UserRole;
