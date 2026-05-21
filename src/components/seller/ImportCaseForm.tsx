@@ -456,7 +456,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
       <Button
         onClick={() => mutation.mutate()}
-        disabled={!form.customer_name || !form.customer_phone || !form.address || mutation.isPending}
+        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || mutation.isPending}
         className="w-full sm:w-auto"
       >
         <Upload className="h-4 w-4 mr-2" />
