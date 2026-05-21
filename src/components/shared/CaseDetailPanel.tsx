@@ -74,6 +74,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     customer_phone: caseData.customer_phone || '',
     customer_email: caseData.customer_email || '',
     notes: caseData.notes || '',
+    media_consent: !!(caseData as any).media_consent,
+    carry_help_needed: !!(caseData as any).carry_help_needed,
   });
 
   const openEdit = () => {
