@@ -112,42 +112,51 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
 
   return (
     <div className="space-y-4">
-      {isAdmin && (
-        <div className="px-4 md:px-0 flex items-end gap-2">
-          <div className="space-y-1">
-            <Label className="text-xs">Visa säljare</Label>
-            <Select value={adminFilter} onValueChange={setAdminFilter}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="alla">Alla</SelectItem>
-                {SELLERS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
+      {/* Search + filter row */}
+      <div className="px-3 md:px-0 space-y-1">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Sök ärenden..."
+              className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={() => { setSearchTerm(''); setDebouncedSearch(''); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Rensa sökning"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-        </div>
-      )}
-
-      {/* Search */}
-      <div className="px-4 md:px-0 space-y-1">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Sök ärenden..."
-            className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            autoFocus
-          />
-          {searchTerm && (
-            <button
-              onClick={() => { setSearchTerm(''); setDebouncedSearch(''); }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label="Rensa sökning"
-            >
-              <X className="h-4 w-4" />
-            </button>
+          {isAdmin && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span className="hidden sm:inline truncate max-w-[120px]">
+                    {adminFilter === 'alla' ? 'Alla säljare' : adminFilter}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56">
+                <Label className="text-xs">Visa säljare</Label>
+                <Select value={adminFilter} onValueChange={setAdminFilter}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="alla">Alla</SelectItem>
+                    {SELLERS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </PopoverContent>
+            </Popover>
           )}
         </div>
         {debouncedSearch && (
@@ -165,7 +174,8 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
       )}
 
       <div className="overflow-x-auto pb-4">
-        <div className="flex gap-3 min-w-max px-4 md:px-0">
+        <div className="flex gap-3 min-w-max px-3 md:px-0">
+
           {SELLER_PIPELINE_COLUMNS.map((status) => (
             <div key={status} className="w-56 shrink-0">
               <div className="mb-2 flex items-center gap-2">
