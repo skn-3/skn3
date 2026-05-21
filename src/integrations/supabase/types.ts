@@ -91,6 +91,7 @@ export type Database = {
         Row: {
           address: string
           carry_help_needed: boolean
+          city: string | null
           created_at: string
           customer_email: string | null
           customer_name: string
@@ -118,6 +119,7 @@ export type Database = {
         Insert: {
           address: string
           carry_help_needed?: boolean
+          city?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name: string
@@ -145,6 +147,7 @@ export type Database = {
         Update: {
           address?: string
           carry_help_needed?: boolean
+          city?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string
