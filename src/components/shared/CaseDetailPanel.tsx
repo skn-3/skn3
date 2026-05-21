@@ -610,7 +610,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Ordervärde (kr)</Label>
+                    <Label className="text-xs">Ordervärde (kr) <span className="text-muted-foreground ml-1">ex moms</span></Label>
                     <Input type="number" value={editForm.order_value} onChange={(e) => setEditForm(f => ({ ...f, order_value: e.target.value }))} />
                   </div>
                   <div className="space-y-1">
