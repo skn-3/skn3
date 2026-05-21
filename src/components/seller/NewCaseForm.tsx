@@ -144,6 +144,8 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         notes: form.notes || null,
         seller: sellerName,
         status: 'vantar_km',
+        media_consent: form.media_consent,
+        carry_help_needed: form.carry_help_needed,
       });
       await createCaseEvent({
         case_id: newCase.id,
