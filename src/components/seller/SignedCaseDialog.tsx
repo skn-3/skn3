@@ -176,6 +176,18 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           <Textarea value={form.notes} onChange={(e) => update('notes', e.target.value)} rows={3} />
         </div>
 
+        <div className="space-y-2 rounded-lg border p-3 bg-muted/30">
+          <h3 className="text-sm font-semibold text-foreground">Att tänka på vid montage</h3>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={form.media_consent} onCheckedChange={(c) => update('media_consent', c === true)} />
+            Kan vi filma/fota hos kund?
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={form.carry_help_needed} onCheckedChange={(c) => update('carry_help_needed', c === true)} />
+            Behövs bärhjälp?
+          </label>
+        </div>
+
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Avbryt</Button>
           <Button
