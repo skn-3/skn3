@@ -172,6 +172,8 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         montage_date: form.montage_date && isValidDate(form.montage_date) ? form.montage_date : null,
         delivery_date: form.delivery_date && isValidDate(form.delivery_date) ? form.delivery_date : null,
         imported: true,
+        media_consent: form.media_consent,
+        carry_help_needed: form.carry_help_needed,
       };
 
       // Set historical created_at if provided
