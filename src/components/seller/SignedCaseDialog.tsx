@@ -26,6 +26,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
     customer_phone: '',
     customer_email: '',
     address: visit?.address || '',
+    city: '',
     offer_number: '',
     order_value: visit?.order_value ? String(visit.order_value) : '',
     tb_percent: '',
@@ -47,6 +48,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         customer_phone: form.customer_phone,
         customer_email: form.customer_email || null,
         address: form.address,
+        city: form.city,
         offer_number: form.offer_number || null,
         order_value: form.order_value ? Number(form.order_value) : null,
         tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
@@ -58,7 +60,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         status: 'vantar_km',
         media_consent: form.media_consent,
         carry_help_needed: form.carry_help_needed,
-      });
+      } as any);
 
       await updateVisit(visit.id, { result: 'signerat', case_id: newCase.id } as any);
 
@@ -136,7 +138,24 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           </div>
           <div className="space-y-1.5">
             <Label>Adress *</Label>
-            <Input value={form.address} onChange={(e) => update('address', e.target.value)} />
+            <Input
+              value={form.address}
+              onChange={(e) => {
+                const newAddr = e.target.value;
+                setForm((f) => {
+                  let nextCity = f.city;
+                  if (!nextCity.trim()) {
+                    const idx = newAddr.lastIndexOf(',');
+                    if (idx !== -1) nextCity = newAddr.substring(idx + 1).trim();
+                  }
+                  return { ...f, address: newAddr, city: nextCity } as any;
+                });
+              }}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Ort *</Label>
+            <Input value={form.city} onChange={(e) => update('city', e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>Offertnummer</Label>
@@ -192,7 +211,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Avbryt</Button>
           <Button
             onClick={() => mutation.mutate()}
-            disabled={!form.customer_name || !form.customer_phone || !form.address || mutation.isPending}
+            disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || mutation.isPending}
           >
             {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}
           </Button>
