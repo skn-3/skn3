@@ -146,6 +146,8 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     delivery_date: '',
     google_drive_link: '',
     notes: 'Importerat manuellt, befintligt ärende',
+    media_consent: false,
+    carry_help_needed: false,
   });
 
   const mutation = useMutation({
