@@ -73,6 +73,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     offer_number: caseData.offer_number || '',
     customer_phone: caseData.customer_phone || '',
     customer_email: caseData.customer_email || '',
+    city: (caseData as any).city || '',
     notes: caseData.notes || '',
     media_consent: !!(caseData as any).media_consent,
     carry_help_needed: !!(caseData as any).carry_help_needed,
@@ -88,6 +89,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       offer_number: caseData.offer_number || '',
       customer_phone: caseData.customer_phone || '',
       customer_email: caseData.customer_email || '',
+      city: (caseData as any).city || '',
       notes: caseData.notes || '',
       media_consent: !!(caseData as any).media_consent,
       carry_help_needed: !!(caseData as any).carry_help_needed,
@@ -106,6 +108,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         offer_number: editForm.offer_number || null,
         customer_phone: editForm.customer_phone,
         customer_email: editForm.customer_email || null,
+        city: editForm.city || null,
         notes: editForm.notes || null,
         media_consent: editForm.media_consent,
         carry_help_needed: editForm.carry_help_needed,
@@ -126,6 +129,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       if ((caseData.offer_number || '') !== editForm.offer_number) changes.push(`Offertnummer ändrat till ${editForm.offer_number || '—'}`);
       if ((caseData.customer_phone || '') !== editForm.customer_phone) changes.push('Telefon uppdaterad');
       if ((caseData.customer_email || '') !== editForm.customer_email) changes.push('E-post uppdaterad');
+      const oldCity = ((caseData as any).city || '') as string;
+      if (oldCity !== editForm.city) changes.push(`Ort ändrad till ${editForm.city || '—'}`);
       if ((caseData.notes || '') !== editForm.notes) changes.push('Anteckning uppdaterad');
       const oldMedia = !!(caseData as any).media_consent;
       const oldCarry = !!(caseData as any).carry_help_needed;
