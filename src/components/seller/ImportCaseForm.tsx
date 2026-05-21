@@ -223,6 +223,8 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         notes: 'Importerat manuellt, befintligt ärende',
         seller: keepSeller,
         team: keepTeam,
+        media_consent: false,
+        carry_help_needed: false,
       }));
     },
     onError: (err: Error) => {
