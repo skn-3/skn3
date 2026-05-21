@@ -143,7 +143,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
             <Input value={form.offer_number} onChange={(e) => update('offer_number', e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Ordervärde (kr)</Label>
+            <Label>Ordervärde (kr) <span className="text-muted-foreground text-xs ml-1">ex moms</span></Label>
             <Input type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
           </div>
           <div className="space-y-1.5">
