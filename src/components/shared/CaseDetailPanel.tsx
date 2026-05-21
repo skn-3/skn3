@@ -188,6 +188,37 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
       await updateCase(caseData.id, updates as any);
 
+      // Sync to n3prenad if montage date/time changed
+      const montageDateChanged = (caseData.montage_date || '') !== (editForm.montage_date || '');
+      const montageTimeChanged = ((caseData as any).montage_time || '') !== editForm.montage_time;
+      if (montageDateChanged || montageTimeChanged) {
+        try {
+          const { data: order } = await orderDb
+            .from('orders')
+            .select('id, date')
+            .eq('case_id', caseData.id)
+            .maybeSingle();
+          const newDate = editForm.montage_date || null;
+          if (order && newDate && order.date !== newDate) {
+            const { error: updErr } = await orderDb
+              .from('orders')
+              .update({ date: newDate })
+              .eq('id', order.id);
+            if (updErr) throw updErr;
+            await createCaseEvent({
+              case_id: caseData.id,
+              event_type: 'sync',
+              description: `Montagedatum synkat till n3prenad: ${newDate}`,
+              created_by: currentUser,
+            });
+            toast.info('Datum uppdaterat även i orderssystemet');
+          }
+        } catch (syncErr) {
+          console.warn('n3prenad sync failed', syncErr);
+          toast.warning('Kunde inte synka till n3prenad — manuell uppdatering behövs');
+        }
+      }
+
       if (changes.length > 0) {
         await createCaseEvent({
           case_id: caseData.id,

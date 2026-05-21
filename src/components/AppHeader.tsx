@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/lib/constants';
-import { LogOut, Eye } from 'lucide-react';
+import { LogOut, Eye, Calendar } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { MyCalendarDialog } from '@/components/calendar/MyCalendarDialog';
 
 interface AppHeaderProps {
   role: UserRole;
@@ -26,6 +28,7 @@ function getInitials(name: string): string {
 export function AppHeader({ role, onChangeRole, toggleView, children }: AppHeaderProps) {
   const roleLabel = role.type === 'seller' ? 'Säljare' : 'Montör';
   const initials = getInitials(role.name);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b bg-card shadow-sm">
@@ -56,6 +59,10 @@ export function AppHeader({ role, onChangeRole, toggleView, children }: AppHeade
                   {toggleView.label}
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onClick={() => setCalendarOpen(true)}>
+                <Calendar className="h-4 w-4 mr-2" />
+                Min kalender
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onChangeRole}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Byt roll
@@ -88,12 +95,17 @@ export function AppHeader({ role, onChangeRole, toggleView, children }: AppHeade
           <span className="text-sm text-muted-foreground">
             {roleLabel}: <strong className="text-card-foreground">{role.name}</strong>
           </span>
+          <Button variant="ghost" size="sm" onClick={() => setCalendarOpen(true)}>
+            <Calendar className="h-4 w-4 mr-1" />
+            Min kalender
+          </Button>
           <Button variant="ghost" size="sm" onClick={onChangeRole}>
             <LogOut className="h-4 w-4 mr-1" />
             Byt roll
           </Button>
         </div>
       </div>
+      <MyCalendarDialog open={calendarOpen} onOpenChange={setCalendarOpen} userName={role.name} />
     </header>
   );
 }
