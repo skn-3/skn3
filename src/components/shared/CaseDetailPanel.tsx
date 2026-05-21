@@ -505,6 +505,16 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               {caseData.customer_email && <div className="col-span-2"><span className="text-muted-foreground">E-post:</span> {caseData.customer_email}</div>}
               <div className="col-span-2"><span className="text-muted-foreground">Adress:</span> {caseData.address}</div>
             </div>
+            {((caseData as any).media_consent || (caseData as any).carry_help_needed) && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {(caseData as any).media_consent && (
+                  <Badge variant="secondary">📷 Foto/film OK</Badge>
+                )}
+                {(caseData as any).carry_help_needed && (
+                  <Badge className="bg-amber-500 hover:bg-amber-500/90 text-white">⚠ Bärhjälp behövs</Badge>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2 pt-2">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Säljare</Label>
