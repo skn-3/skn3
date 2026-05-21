@@ -83,10 +83,9 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   const unresolvedDevs = filteredDeviations.filter((d) => !d.resolved).length;
   const totalDevCost = filteredDeviations.reduce((sum, d) => sum + (Number((d as any).cost) || 0), 0);
 
-  // Budget progress — only signed cases from current year, company-wide (not affected by seller/city/date filters)
+  // Budget progress — only cases from current year, company-wide (not affected by seller/city/date filters)
   const currentYear = new Date().getFullYear();
   const signedThisYear = allCases.filter(c =>
-    c.status === 'signerat' &&
     c.created_at &&
     new Date(c.created_at).getFullYear() === currentYear
   );
