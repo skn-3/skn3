@@ -33,9 +33,11 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
     team: '',
     google_drive_link: '',
     notes: '',
+    media_consent: false,
+    carry_help_needed: false,
   });
 
-  const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value } as any));
 
   const mutation = useMutation({
     mutationFn: async () => {
