@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/lib/constants';
-import { LogOut, Eye } from 'lucide-react';
+import { LogOut, Eye, Calendar } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { MyCalendarDialog } from '@/components/calendar/MyCalendarDialog';
 
 interface AppHeaderProps {
   role: UserRole;
@@ -26,6 +28,7 @@ function getInitials(name: string): string {
 export function AppHeader({ role, onChangeRole, toggleView, children }: AppHeaderProps) {
   const roleLabel = role.type === 'seller' ? 'Säljare' : 'Montör';
   const initials = getInitials(role.name);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b bg-card shadow-sm">
