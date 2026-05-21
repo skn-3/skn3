@@ -38,19 +38,16 @@ export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerVie
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader role={role} onChangeRole={onChangeRole}>
+      <AppHeader
+        role={role}
+        onChangeRole={onChangeRole}
+        toggleView={onToggleMontorView ? { label: 'Visa montörvy', onClick: onToggleMontorView } : undefined}
+      >
         <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} />
       </AppHeader>
 
-      {onToggleMontorView && (
-        <div className="flex justify-end px-4 pt-2 max-w-screen-2xl mx-auto">
-          <Button variant="outline" size="sm" onClick={onToggleMontorView}>
-            <Eye className="h-4 w-4 mr-1" /> Visa montörvy
-          </Button>
-        </div>
-      )}
-
       <main className="py-4 md:py-6 max-w-screen-2xl mx-auto">
+
         {tab === 'pipeline' && (
           <Pipeline sellerName={role.name} isAdmin={isAdmin} onSelectCase={setSelectedCase} />
         )}
