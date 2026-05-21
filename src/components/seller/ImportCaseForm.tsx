@@ -293,12 +293,28 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       toast.error(`Säljare måste vara en av: ${SELLERS.join(', ')}`);
       return;
     }
+    if (form.scheduled_delivery && !form.delivery_time) {
+      toast.error('Tidslossning kräver klockslag');
+      return;
+    }
+    if (form.delivery_mode === 'week' && form.delivery_week && !form.delivery_year) {
+      toast.error('Vecka kräver också år');
+      return;
+    }
+    if (form.delivery_mode === 'week' && form.delivery_week) {
+      const w = Number(form.delivery_week);
+      if (isNaN(w) || w < 1 || w > 53) {
+        toast.error('Vecka måste vara mellan 1 och 53');
+        return;
+      }
+    }
     if (ovNum > 500_000) {
       setConfirmOpen(true);
       return;
     }
     mutation.mutate();
   };
+
 
 
   return (
