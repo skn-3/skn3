@@ -728,7 +728,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
               <tr className="text-left text-muted-foreground">
                 <th className="pb-2">Säljare</th>
                 <th className="pb-2">Antal</th>
-                <th className="pb-2">Ordervärde</th>
+                <th className="pb-2">Ordervärde <span className="text-xs font-normal">ex moms</span></th>
               </tr>
             </thead>
             <tbody>
