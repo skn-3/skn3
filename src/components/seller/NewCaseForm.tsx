@@ -212,6 +212,19 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
 
   const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
 
+  const tbNum = form.tb_percent === '' ? null : Number(form.tb_percent);
+  const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
+  const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleSubmit = () => {
+    if (ovNum > 500_000) {
+      setConfirmOpen(true);
+      return;
+    }
+    mutation.mutate();
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 px-4 md:px-0">
       <h2 className="text-xl font-bold text-foreground">Nytt ärende</h2>
