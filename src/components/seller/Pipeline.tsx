@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCases, fetchVisits, type CaseRow } from '@/lib/supabaseClient';
 import { SELLER_PIPELINE_COLUMNS, STATUS_LABELS, SELLERS } from '@/lib/constants';
 import { CaseCard } from './CaseCard';
 import { FollowUpSection } from './FollowUpSection';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
@@ -14,8 +14,47 @@ interface PipelineProps {
   onSelectCase: (c: CaseRow) => void;
 }
 
+function matchesSearch(c: CaseRow, term: string): boolean {
+  if (!term) return true;
+  const t = term.toLowerCase();
+  const fields = [
+    c.address,
+    c.customer_name,
+    c.customer_phone,
+    c.offer_number,
+    (c as any).city,
+    c.notes,
+  ];
+  return fields.some(f => f && String(f).toLowerCase().includes(t));
+}
+
 export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
   const [adminFilter, setAdminFilter] = useState<string>('alla');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Debounce
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(searchTerm), 200);
+    return () => clearTimeout(id);
+  }, [searchTerm]);
+
+  // Keyboard shortcut "/"
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement !== inputRef.current) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+      if (e.key === 'Escape') {
+        setSearchTerm('');
+        setDebouncedSearch('');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const queryFilter = isAdmin ? {} : { seller: sellerName };
 
@@ -46,15 +85,23 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
     return c.seller === adminFilter;
   });
 
+  const searchedCases = useMemo(() => {
+    if (!debouncedSearch) return filteredCases;
+    return filteredCases.filter(c => matchesSearch(c, debouncedSearch));
+  }, [filteredCases, debouncedSearch]);
+
   const showSellerBadge = !!isAdmin && adminFilter === 'alla';
 
   const grouped = SELLER_PIPELINE_COLUMNS.reduce((acc, status) => {
-    acc[status] = filteredCases.filter((c) => {
+    acc[status] = searchedCases.filter((c) => {
       if (status === 'godkand') return c.status === 'godkand' || c.status === 'i_produktion';
       return c.status === status;
     });
     return acc;
   }, {} as Record<string, CaseRow[]>);
+
+  const totalVisible = searchedCases.length;
+  const totalCases = filteredCases.length;
 
   const columnLabels: Record<string, string> = {
     ...STATUS_LABELS,
@@ -77,6 +124,39 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
           </div>
         </div>
       )}
+
+      {/* Search */}
+      <div className="px-4 md:px-0 space-y-1">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Sök ärenden..."
+            className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            autoFocus
+          />
+          {searchTerm && (
+            <button
+              onClick={() => { setSearchTerm(''); setDebouncedSearch(''); }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Rensa sökning"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {debouncedSearch && (
+          <p className="text-xs text-muted-foreground flex items-center gap-2">
+            <span>Visar {totalVisible} ärenden av {totalCases}</span>
+            <button onClick={() => { setSearchTerm(''); setDebouncedSearch(''); }} className="text-primary hover:underline">
+              Rensa
+            </button>
+          </p>
+        )}
+      </div>
 
       {followUps.length > 0 && (
         <FollowUpSection visits={followUps} sellerName={sellerName} />
