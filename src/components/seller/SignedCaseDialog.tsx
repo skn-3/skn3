@@ -185,7 +185,10 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           </div>
           <div className="space-y-1.5">
             <Label>TB (%)</Label>
-            <Input type="number" value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+            <Input type="number" min={0} max={100} value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
+            {tbInvalid && (
+              <p className="text-xs text-destructive">TB% måste vara mellan 0 och 100. Skrev du 160 istället för 16?</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>Extra timmar sålda (á {HOUR_RATE} kr/st)</Label>
