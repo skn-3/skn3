@@ -613,6 +613,23 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </AlertDialogContent>
           </AlertDialog>
 
+          <AlertDialog open={ovConfirmOpen} onOpenChange={setOvConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Bekräfta ordervärde</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Du har angett {formatAmount(editForm.order_value === '' ? 0 : Number(editForm.order_value))} — stämmer det? Detta är ovanligt högt.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Avbryt, rätta värdet</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { setOvConfirmOpen(false); editCaseMutation.mutate(); }}>
+                  Ja, värdet stämmer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {/* Order info */}
           <section className="p-4 space-y-2">
             <div className="flex items-center justify-between">
