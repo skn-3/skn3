@@ -232,9 +232,9 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     },
   });
 
-  const update = (key: string, value: string) => {
-    setForm((f) => ({ ...f, [key]: value }));
-    if (aiFilled.has(key)) {
+  const update = (key: string, value: string | boolean) => {
+    setForm((f) => ({ ...f, [key]: value } as any));
+    if (typeof value === 'string' && aiFilled.has(key)) {
       setAiFilled((prev) => {
         const next = new Set(prev);
         next.delete(key);
