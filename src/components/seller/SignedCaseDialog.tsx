@@ -235,9 +235,6 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Avbryt</Button>
           <Button
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Avbryt</Button>
-          <Button
             onClick={handleSubmit}
             disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
           >
