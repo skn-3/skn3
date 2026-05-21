@@ -90,6 +90,14 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         apply('customer_phone', parsed.customer_phone);
         apply('customer_email', parsed.customer_email);
         apply('address', parsed.address);
+        // Autofill city from address if empty
+        if (parsed.address && (!next.city || !next.city.trim())) {
+          const idx = String(parsed.address).lastIndexOf(',');
+          if (idx !== -1) {
+            const c = String(parsed.address).substring(idx + 1).trim();
+            if (c) { next.city = c; filled.add('city'); }
+          }
+        }
         apply('offer_number', parsed.offer_number);
         if (parsed.order_value) {
           next.order_value = parsed.order_value;
