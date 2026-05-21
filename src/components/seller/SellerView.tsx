@@ -51,7 +51,7 @@ export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerVie
 
       <main className="py-4 md:py-6 max-w-screen-2xl mx-auto">
         {tab === 'pipeline' && (
-          <Pipeline sellerName={role.name} onSelectCase={setSelectedCase} />
+          <Pipeline sellerName={role.name} isAdmin={isAdmin} onSelectCase={setSelectedCase} />
         )}
         {tab === 'new' && (
           <NewCaseForm
