@@ -97,6 +97,9 @@ export type Database = {
           customer_name: string
           customer_phone: string
           delivery_date: string | null
+          delivery_time: string | null
+          delivery_week: number | null
+          delivery_year: number | null
           extra_hours_approved: number
           extra_hours_requested: number
           extra_hours_sold: number
@@ -104,8 +107,10 @@ export type Database = {
           id: string
           imported: boolean
           km_date: string | null
+          km_time: string | null
           media_consent: boolean
           montage_date: string | null
+          montage_time: string | null
           notes: string | null
           offer_number: string | null
           order_value: number | null
@@ -126,6 +131,9 @@ export type Database = {
           customer_name: string
           customer_phone: string
           delivery_date?: string | null
+          delivery_time?: string | null
+          delivery_week?: number | null
+          delivery_year?: number | null
           extra_hours_approved?: number
           extra_hours_requested?: number
           extra_hours_sold?: number
@@ -133,8 +141,10 @@ export type Database = {
           id?: string
           imported?: boolean
           km_date?: string | null
+          km_time?: string | null
           media_consent?: boolean
           montage_date?: string | null
+          montage_time?: string | null
           notes?: string | null
           offer_number?: string | null
           order_value?: number | null
@@ -155,6 +165,9 @@ export type Database = {
           customer_name?: string
           customer_phone?: string
           delivery_date?: string | null
+          delivery_time?: string | null
+          delivery_week?: number | null
+          delivery_year?: number | null
           extra_hours_approved?: number
           extra_hours_requested?: number
           extra_hours_sold?: number
@@ -162,8 +175,10 @@ export type Database = {
           id?: string
           imported?: boolean
           km_date?: string | null
+          km_time?: string | null
           media_consent?: boolean
           montage_date?: string | null
+          montage_time?: string | null
           notes?: string | null
           offer_number?: string | null
           order_value?: number | null
