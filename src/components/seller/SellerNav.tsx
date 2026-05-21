@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-export type SellerTab = 'pipeline' | 'new' | 'visit' | 'dashboard' | 'import';
+export type SellerTab = 'pipeline' | 'new' | 'visit' | 'dashboard' | 'import' | 'clean-addresses';
 
 interface SellerNavProps {
   active: SellerTab;
@@ -14,7 +14,10 @@ export function SellerNav({ active, onChange, isAdmin }: SellerNavProps) {
     { value: 'new', label: 'Nytt ärende' },
     { value: 'visit', label: 'Registrera besök' },
     { value: 'dashboard', label: 'Dashboard' },
-    ...(isAdmin ? [{ value: 'import' as SellerTab, label: 'Importera ärende' }] : []),
+    ...(isAdmin ? [
+      { value: 'import' as SellerTab, label: 'Importera ärende' },
+      { value: 'clean-addresses' as SellerTab, label: 'Städa adresser' },
+    ] : []),
   ];
 
   return (
