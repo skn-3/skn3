@@ -79,7 +79,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     media_consent: !!(caseData as any).media_consent,
     carry_help_needed: !!(caseData as any).carry_help_needed,
     scheduled_delivery: !!(caseData as any).scheduled_delivery,
+    km_date: caseData.km_date || '',
+    km_time: (caseData as any).km_time || '',
+    montage_date: caseData.montage_date || '',
+    montage_time: (caseData as any).montage_time || '',
+    delivery_mode: ((caseData as any).delivery_week ? 'week' : 'date') as 'date' | 'week',
+    delivery_date: caseData.delivery_date || '',
+    delivery_time: (caseData as any).delivery_time || '',
+    delivery_week: (caseData as any).delivery_week != null ? String((caseData as any).delivery_week) : '',
+    delivery_year: (caseData as any).delivery_year != null ? String((caseData as any).delivery_year) : String(new Date().getFullYear()),
   });
+
 
   const openEdit = () => {
     setEditForm({
