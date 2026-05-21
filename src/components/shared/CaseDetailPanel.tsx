@@ -509,6 +509,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <div><span className="text-muted-foreground">Tel:</span> {caseData.customer_phone}</div>
               {caseData.customer_email && <div className="col-span-2"><span className="text-muted-foreground">E-post:</span> {caseData.customer_email}</div>}
               <div className="col-span-2"><span className="text-muted-foreground">Adress:</span> {caseData.address}</div>
+              <div className="col-span-2"><span className="text-muted-foreground">Ort:</span> {(caseData as any).city || <span className="text-destructive">— saknas</span>}</div>
             </div>
             {((caseData as any).media_consent || (caseData as any).carry_help_needed) && (
               <div className="flex flex-wrap gap-2 pt-1">
@@ -646,6 +647,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   <div className="space-y-1 col-span-2">
                     <Label className="text-xs">E-post</Label>
                     <Input value={editForm.customer_email} onChange={(e) => setEditForm(f => ({ ...f, customer_email: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <Label className="text-xs">Ort *</Label>
+                    <Input value={editForm.city} onChange={(e) => setEditForm(f => ({ ...f, city: e.target.value }))} />
                   </div>
                   <div className="space-y-1 col-span-2">
                     <Label className="text-xs">Google Drive-länk</Label>
