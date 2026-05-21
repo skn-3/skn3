@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -153,14 +155,21 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     status: 'ny',
     created_at: '',
     km_date: '',
+    km_time: '',
     montage_date: '',
+    montage_time: '',
+    delivery_mode: 'date' as 'date' | 'week',
     delivery_date: '',
+    delivery_time: '',
+    delivery_week: '',
+    delivery_year: String(new Date().getFullYear()),
     google_drive_link: '',
     notes: 'Importerat manuellt, befintligt ärende',
     media_consent: false,
     carry_help_needed: false,
     scheduled_delivery: false,
   });
+
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -182,8 +191,13 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         google_drive_link: form.google_drive_link || null,
         notes: form.notes || null,
         km_date: form.km_date && isValidDate(form.km_date) ? form.km_date : null,
+        km_time: form.km_time || null,
         montage_date: form.montage_date && isValidDate(form.montage_date) ? form.montage_date : null,
-        delivery_date: form.delivery_date && isValidDate(form.delivery_date) ? form.delivery_date : null,
+        montage_time: form.montage_time || null,
+        delivery_date: form.delivery_mode === 'date' && form.delivery_date && isValidDate(form.delivery_date) ? form.delivery_date : null,
+        delivery_time: form.delivery_mode === 'date' && form.delivery_time ? form.delivery_time : null,
+        delivery_week: form.delivery_mode === 'week' && form.delivery_week ? Number(form.delivery_week) : null,
+        delivery_year: form.delivery_mode === 'week' && form.delivery_week ? Number(form.delivery_year) : null,
         imported: true,
         media_consent: form.media_consent,
         carry_help_needed: form.carry_help_needed,
@@ -194,6 +208,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       if (form.created_at) {
         caseData.created_at = new Date(form.created_at).toISOString();
       }
+
 
       const newCase = await createCase(caseData);
 
@@ -232,8 +247,15 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         status: 'ny',
         created_at: '',
         km_date: '',
+        km_time: '',
         montage_date: '',
+        montage_time: '',
+        delivery_mode: 'date',
         delivery_date: '',
+        delivery_time: '',
+        delivery_week: '',
+        delivery_year: String(new Date().getFullYear()),
+
         google_drive_link: '',
         notes: 'Importerat manuellt, befintligt ärende',
         seller: keepSeller,
@@ -271,12 +293,28 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       toast.error(`Säljare måste vara en av: ${SELLERS.join(', ')}`);
       return;
     }
+    if (form.scheduled_delivery && !form.delivery_time) {
+      toast.error('Tidslossning kräver klockslag');
+      return;
+    }
+    if (form.delivery_mode === 'week' && form.delivery_week && !form.delivery_year) {
+      toast.error('Vecka kräver också år');
+      return;
+    }
+    if (form.delivery_mode === 'week' && form.delivery_week) {
+      const w = Number(form.delivery_week);
+      if (isNaN(w) || w < 1 || w > 53) {
+        toast.error('Vecka måste vara mellan 1 och 53');
+        return;
+      }
+    }
     if (ovNum > 500_000) {
       setConfirmOpen(true);
       return;
     }
     mutation.mutate();
   };
+
 
 
   return (
@@ -423,16 +461,55 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
         <div className="space-y-1.5">
           <Label>KM-datum</Label>
-          <Input className={cn(aiClass('km_date'))} type="date" value={form.km_date} onChange={(e) => update('km_date', e.target.value)} />
+          <div className="flex gap-2">
+            <Input className={cn(aiClass('km_date'), 'flex-1')} type="date" value={form.km_date} onChange={(e) => update('km_date', e.target.value)} />
+            <Input type="time" className="w-28" value={form.km_time} onChange={(e) => update('km_time', e.target.value)} placeholder="Tid" />
+          </div>
         </div>
         <div className="space-y-1.5">
           <Label>Montagedatum</Label>
-          <Input className={cn(aiClass('montage_date'))} type="date" value={form.montage_date} onChange={(e) => update('montage_date', e.target.value)} />
+          <div className="flex gap-2">
+            <Input className={cn(aiClass('montage_date'), 'flex-1')} type="date" value={form.montage_date} onChange={(e) => update('montage_date', e.target.value)} />
+            <Input type="time" className="w-28" value={form.montage_time} onChange={(e) => update('montage_time', e.target.value)} placeholder="Tid" />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label>Leveransdatum</Label>
-          <Input type="date" value={form.delivery_date} onChange={(e) => update('delivery_date', e.target.value)} />
+        <div className="space-y-1.5 col-span-2">
+          <Label>Leverans</Label>
+          <RadioGroup
+            value={form.scheduled_delivery ? 'date' : form.delivery_mode}
+            onValueChange={(v) => update('delivery_mode', v)}
+            className="flex gap-4"
+            disabled={form.scheduled_delivery}
+          >
+            <label className="flex items-center gap-2 text-sm">
+              <RadioGroupItem value="date" /> Exakt datum
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <RadioGroupItem value="week" disabled={form.scheduled_delivery} /> Vecka
+            </label>
+          </RadioGroup>
+          {form.scheduled_delivery && (
+            <p className="text-xs text-muted-foreground">Tidslossning kräver exakt datum och tid</p>
+          )}
+          {(form.scheduled_delivery || form.delivery_mode === 'date') ? (
+            <div className="flex gap-2">
+              <Input type="date" className="flex-1" value={form.delivery_date} onChange={(e) => update('delivery_date', e.target.value)} />
+              <Input
+                type="time"
+                className="w-28"
+                value={form.delivery_time}
+                onChange={(e) => update('delivery_time', e.target.value)}
+                placeholder={form.scheduled_delivery ? 'Tid *' : 'Tid'}
+              />
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input type="number" min={1} max={53} placeholder="Vecka" className="flex-1" value={form.delivery_week} onChange={(e) => update('delivery_week', e.target.value)} />
+              <Input type="number" className="w-28" placeholder="År" value={form.delivery_year} onChange={(e) => update('delivery_year', e.target.value)} />
+            </div>
+          )}
         </div>
+
 
         <div className="space-y-1.5">
           <Label>Offertnummer</Label>

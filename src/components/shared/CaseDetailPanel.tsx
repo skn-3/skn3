@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+
 import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info } from 'lucide-react';
 import { orderDb } from '@/integrations/supabase/orderClient';
 import { toast } from 'sonner';
@@ -79,7 +81,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     media_consent: !!(caseData as any).media_consent,
     carry_help_needed: !!(caseData as any).carry_help_needed,
     scheduled_delivery: !!(caseData as any).scheduled_delivery,
+    km_date: caseData.km_date || '',
+    km_time: (caseData as any).km_time || '',
+    montage_date: caseData.montage_date || '',
+    montage_time: (caseData as any).montage_time || '',
+    delivery_mode: ((caseData as any).delivery_week ? 'week' : 'date') as 'date' | 'week',
+    delivery_date: caseData.delivery_date || '',
+    delivery_time: (caseData as any).delivery_time || '',
+    delivery_week: (caseData as any).delivery_week != null ? String((caseData as any).delivery_week) : '',
+    delivery_year: (caseData as any).delivery_year != null ? String((caseData as any).delivery_year) : String(new Date().getFullYear()),
   });
+
 
   const openEdit = () => {
     setEditForm({
@@ -96,12 +108,23 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       media_consent: !!(caseData as any).media_consent,
       carry_help_needed: !!(caseData as any).carry_help_needed,
       scheduled_delivery: !!(caseData as any).scheduled_delivery,
+      km_date: caseData.km_date || '',
+      km_time: (caseData as any).km_time || '',
+      montage_date: caseData.montage_date || '',
+      montage_time: (caseData as any).montage_time || '',
+      delivery_mode: ((caseData as any).delivery_week ? 'week' : 'date') as 'date' | 'week',
+      delivery_date: caseData.delivery_date || '',
+      delivery_time: (caseData as any).delivery_time || '',
+      delivery_week: (caseData as any).delivery_week != null ? String((caseData as any).delivery_week) : '',
+      delivery_year: (caseData as any).delivery_year != null ? String((caseData as any).delivery_year) : String(new Date().getFullYear()),
     });
     setEditingCase(true);
   };
 
+
   const editCaseMutation = useMutation({
     mutationFn: async () => {
+      const isWeekMode = editForm.delivery_mode === 'week' && !editForm.scheduled_delivery;
       const updates: Record<string, unknown> = {
         order_value: editForm.order_value === '' ? null : Number(editForm.order_value),
         tb_percent: editForm.tb_percent === '' ? null : Number(editForm.tb_percent),
@@ -116,6 +139,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         media_consent: editForm.media_consent,
         carry_help_needed: editForm.carry_help_needed,
         scheduled_delivery: editForm.scheduled_delivery,
+        km_date: editForm.km_date || null,
+        km_time: editForm.km_time || null,
+        montage_date: editForm.montage_date || null,
+        montage_time: editForm.montage_time || null,
+        delivery_date: isWeekMode ? null : (editForm.delivery_date || null),
+        delivery_time: isWeekMode ? null : (editForm.delivery_time || null),
+        delivery_week: isWeekMode && editForm.delivery_week ? Number(editForm.delivery_week) : null,
+        delivery_year: isWeekMode && editForm.delivery_week ? Number(editForm.delivery_year) : null,
       };
 
       // Build change summary
@@ -142,6 +173,18 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       if (oldMedia !== editForm.media_consent) changes.push(`Foto/film överenskommet ändrat till ${editForm.media_consent ? 'Ja' : 'Nej'}`);
       if (oldCarry !== editForm.carry_help_needed) changes.push(`Bärhjälp behövs ändrat till ${editForm.carry_help_needed ? 'Ja' : 'Nej'}`);
       if (oldScheduled !== editForm.scheduled_delivery) changes.push(`Tidsstyrd leverans ändrat till ${editForm.scheduled_delivery ? 'Ja' : 'Nej'}`);
+
+      // Date/time changes
+      if ((caseData.km_date || '') !== (editForm.km_date || '')) changes.push(`KM-datum ändrat till ${editForm.km_date || '—'}`);
+      if (((caseData as any).km_time || '') !== editForm.km_time) changes.push(`KM-tid ändrad till ${editForm.km_time || '—'}`);
+      if ((caseData.montage_date || '') !== (editForm.montage_date || '')) changes.push(`Montagedatum ändrat till ${editForm.montage_date || '—'}`);
+      if (((caseData as any).montage_time || '') !== editForm.montage_time) changes.push(`Montagetid ändrad till ${editForm.montage_time || '—'}`);
+      if ((caseData.delivery_date || '') !== (updates.delivery_date as string || '')) changes.push(`Leveransdatum ändrat till ${updates.delivery_date || '—'}`);
+      if (((caseData as any).delivery_time || '') !== (updates.delivery_time as string || '')) changes.push(`Leveranstid ändrad till ${updates.delivery_time || '—'}`);
+      const oldWeek = (caseData as any).delivery_week ?? null;
+      const newWeek = updates.delivery_week as number | null;
+      if (oldWeek !== newWeek) changes.push(`Leveransvecka ändrad till ${newWeek != null ? `v.${newWeek} ${updates.delivery_year}` : '—'}`);
+
 
       await updateCase(caseData.id, updates as any);
 
@@ -575,6 +618,32 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </Select>
           </section>
 
+          {/* Datum */}
+          <section className="p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Datum</h3>
+            {(() => {
+              const fmt = (d?: string | null, t?: string | null) => {
+                if (!d) return '—';
+                const time = t ? ` kl ${t.slice(0, 5)}` : '';
+                return `${d}${time}`;
+              };
+              const dw = (caseData as any).delivery_week as number | null;
+              const dy = (caseData as any).delivery_year as number | null;
+              const dt = (caseData as any).delivery_time as string | null;
+              const leverans = dw
+                ? `Vecka ${dw}${dy ? `, ${dy}` : ''}`
+                : fmt(caseData.delivery_date, dt);
+              return (
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  <div><span className="text-muted-foreground block text-xs">KM</span>{fmt(caseData.km_date, (caseData as any).km_time)}</div>
+                  <div><span className="text-muted-foreground block text-xs">Montage</span>{fmt(caseData.montage_date, (caseData as any).montage_time)}</div>
+                  <div><span className="text-muted-foreground block text-xs">Leverans</span>{leverans}</div>
+                </div>
+              );
+            })()}
+          </section>
+
+
           <AlertDialog open={pendingStatus !== null} onOpenChange={(open) => {
             if (!open) {
               setPendingStatus(null);
@@ -713,6 +782,60 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       Tidsstyrd leverans (tidslossning)
                     </label>
                   </div>
+                  <div className="col-span-2 space-y-3 rounded-md border p-2 bg-background">
+                    <p className="text-xs font-medium text-muted-foreground">Datum</p>
+                    <div className="space-y-1">
+                      <Label className="text-xs">KM-datum / Tid (valfritt)</Label>
+                      <div className="flex gap-2">
+                        <Input type="date" className="flex-1" value={editForm.km_date} onChange={(e) => setEditForm(f => ({ ...f, km_date: e.target.value }))} />
+                        <Input type="time" className="w-28" value={editForm.km_time} onChange={(e) => setEditForm(f => ({ ...f, km_time: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Montagedatum / Tid (valfritt)</Label>
+                      <div className="flex gap-2">
+                        <Input type="date" className="flex-1" value={editForm.montage_date} onChange={(e) => setEditForm(f => ({ ...f, montage_date: e.target.value }))} />
+                        <Input type="time" className="w-28" value={editForm.montage_time} onChange={(e) => setEditForm(f => ({ ...f, montage_time: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Leverans</Label>
+                      <RadioGroup
+                        value={editForm.scheduled_delivery ? 'date' : editForm.delivery_mode}
+                        onValueChange={(v) => setEditForm(f => ({ ...f, delivery_mode: v as 'date' | 'week' }))}
+                        className="flex gap-4"
+                        disabled={editForm.scheduled_delivery}
+                      >
+                        <label className="flex items-center gap-2 text-sm">
+                          <RadioGroupItem value="date" /> Exakt datum
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <RadioGroupItem value="week" disabled={editForm.scheduled_delivery} /> Vecka
+                        </label>
+                      </RadioGroup>
+                      {editForm.scheduled_delivery && (
+                        <p className="text-xs text-muted-foreground">Tidslossning kräver exakt datum och tid</p>
+                      )}
+                      {(editForm.scheduled_delivery || editForm.delivery_mode === 'date') ? (
+                        <div className="flex gap-2">
+                          <Input type="date" className="flex-1" value={editForm.delivery_date} onChange={(e) => setEditForm(f => ({ ...f, delivery_date: e.target.value }))} />
+                          <Input
+                            type="time"
+                            className="w-28"
+                            value={editForm.delivery_time}
+                            onChange={(e) => setEditForm(f => ({ ...f, delivery_time: e.target.value }))}
+                            placeholder={editForm.scheduled_delivery ? 'Tid *' : 'Tid'}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Input type="number" min={1} max={53} placeholder="Vecka" className="flex-1" value={editForm.delivery_week} onChange={(e) => setEditForm(f => ({ ...f, delivery_week: e.target.value }))} />
+                          <Input type="number" className="w-28" placeholder="År" value={editForm.delivery_year} onChange={(e) => setEditForm(f => ({ ...f, delivery_year: e.target.value }))} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button size="sm" variant="ghost" onClick={() => setEditingCase(false)} disabled={editCaseMutation.isPending}>Avbryt</Button>
@@ -721,6 +844,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     onClick={() => {
                       const tbVal = editForm.tb_percent === '' ? null : Number(editForm.tb_percent);
                       if (tbVal != null && (isNaN(tbVal) || tbVal < 0 || tbVal > 100)) return;
+                      if (editForm.scheduled_delivery && !editForm.delivery_time) {
+                        toast.error('Tidslossning kräver klockslag');
+                        return;
+                      }
+                      if (editForm.delivery_mode === 'week' && !editForm.scheduled_delivery && editForm.delivery_week) {
+                        const w = Number(editForm.delivery_week);
+                        if (isNaN(w) || w < 1 || w > 53) { toast.error('Vecka måste vara 1–53'); return; }
+                        if (!editForm.delivery_year) { toast.error('Vecka kräver också år'); return; }
+                      }
                       const newOV = editForm.order_value === '' ? 0 : Number(editForm.order_value);
                       const oldOV = caseData.order_value != null ? Number(caseData.order_value) : 0;
                       if (newOV > 500_000 && newOV !== oldOV) {
@@ -729,6 +861,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       }
                       editCaseMutation.mutate();
                     }}
+
                     disabled={
                       editCaseMutation.isPending ||
                       (editForm.tb_percent !== '' && (Number(editForm.tb_percent) < 0 || Number(editForm.tb_percent) > 100))
