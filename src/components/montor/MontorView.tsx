@@ -161,7 +161,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
       />
 
 
-      <main className="py-4 max-w-[480px] mx-auto px-4">
+      <main className="py-4 max-w-[480px] mx-auto px-3">
         {/* Admin montör filter */}
         {isAdmin && (
           <div className="mb-4">
