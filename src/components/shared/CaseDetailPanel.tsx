@@ -618,6 +618,32 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </Select>
           </section>
 
+          {/* Datum */}
+          <section className="p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Datum</h3>
+            {(() => {
+              const fmt = (d?: string | null, t?: string | null) => {
+                if (!d) return '—';
+                const time = t ? ` kl ${t.slice(0, 5)}` : '';
+                return `${d}${time}`;
+              };
+              const dw = (caseData as any).delivery_week as number | null;
+              const dy = (caseData as any).delivery_year as number | null;
+              const dt = (caseData as any).delivery_time as string | null;
+              const leverans = dw
+                ? `Vecka ${dw}${dy ? `, ${dy}` : ''}`
+                : fmt(caseData.delivery_date, dt);
+              return (
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  <div><span className="text-muted-foreground block text-xs">KM</span>{fmt(caseData.km_date, (caseData as any).km_time)}</div>
+                  <div><span className="text-muted-foreground block text-xs">Montage</span>{fmt(caseData.montage_date, (caseData as any).montage_time)}</div>
+                  <div><span className="text-muted-foreground block text-xs">Leverans</span>{leverans}</div>
+                </div>
+              );
+            })()}
+          </section>
+
+
           <AlertDialog open={pendingStatus !== null} onOpenChange={(open) => {
             if (!open) {
               setPendingStatus(null);
