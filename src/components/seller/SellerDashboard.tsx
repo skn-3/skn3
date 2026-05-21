@@ -338,11 +338,11 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
           <p className="text-3xl font-bold text-card-foreground">{cases.length}</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Totalt ordervärde</p>
+          <p className="text-sm text-muted-foreground">Totalt ordervärde <span className="text-xs">ex moms</span></p>
           <p className="text-3xl font-bold text-primary">{totalValue.toLocaleString('sv-SE')} kr</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Snitt ordervärde</p>
+          <p className="text-sm text-muted-foreground">Snitt ordervärde <span className="text-xs">ex moms</span></p>
           <p className="text-3xl font-bold text-card-foreground">{avgOrderValue.toLocaleString('sv-SE')} kr</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
