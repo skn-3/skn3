@@ -486,13 +486,30 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       </div>
 
       <Button
-        onClick={() => mutation.mutate()}
-        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || mutation.isPending}
+        onClick={handleSubmit}
+        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
         className="w-full sm:w-auto"
       >
         <Upload className="h-4 w-4 mr-2" />
         {mutation.isPending ? 'Importerar...' : 'Importera ärende'}
       </Button>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bekräfta ordervärde</AlertDialogTitle>
+            <AlertDialogDescription>
+              Du har angett {formatAmount(ovNum)} — stämmer det? Detta är ovanligt högt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt, rätta värdet</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmOpen(false); mutation.mutate(); }}>
+              Ja, värdet stämmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
