@@ -64,6 +64,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [editDevCostValue, setEditDevCostValue] = useState('');
   // Edit case fields
   const [editingCase, setEditingCase] = useState(false);
+  const [ovConfirmOpen, setOvConfirmOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     order_value: caseData.order_value != null ? String(caseData.order_value) : '',
     tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
