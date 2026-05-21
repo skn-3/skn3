@@ -118,12 +118,20 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
   }, []);
 
   const pickSuggestion = (s: AddressSuggestion) => {
-    setForm((f) => ({
-      ...f,
-      address: s.address,
-      customer_name: s.customer_name || f.customer_name,
-      customer_phone: s.customer_phone || f.customer_phone,
-    }));
+    setForm((f) => {
+      let nextCity = f.city;
+      if (!nextCity.trim()) {
+        const idx = s.address.lastIndexOf(',');
+        if (idx !== -1) nextCity = s.address.substring(idx + 1).trim();
+      }
+      return {
+        ...f,
+        address: s.address,
+        city: nextCity,
+        customer_name: s.customer_name || f.customer_name,
+        customer_phone: s.customer_phone || f.customer_phone,
+      };
+    });
     setExistingCaseWarning(s.source === 'case');
     setShowSuggestions(false);
   };
