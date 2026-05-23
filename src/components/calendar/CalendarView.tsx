@@ -310,15 +310,19 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
               key={opt.value}
               onClick={() => toggleType(opt.value)}
               className={cn(
-                'px-3 py-1.5 text-xs font-medium rounded-full border transition-colors',
-                active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-input hover:bg-muted'
+                'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-colors',
+                active
+                  ? opt.chipActive
+                  : 'bg-background text-muted-foreground border-input hover:bg-muted'
               )}
             >
+              <span className={cn('inline-block h-2 w-2 rounded-sm', active ? 'bg-white/90' : opt.dot)} />
               {opt.label}
             </button>
           );
         })}
       </div>
+
       <Select value={teamFilter} onValueChange={setTeamFilter}>
         <SelectTrigger className="h-9 w-full md:w-44"><SelectValue placeholder="Team" /></SelectTrigger>
         <SelectContent>
