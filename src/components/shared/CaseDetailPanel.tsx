@@ -533,6 +533,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onSuccess: () => {
       setShowDeviation(false);
       setDevForm({ type: '', description: '', responsible: '' });
+      setRespManuallySet(false);
       setProbPriority('medium');
       setProbFiles([]);
       setDevCost('');
