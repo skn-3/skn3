@@ -1082,10 +1082,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     onClick={() => {
                       const tbVal = editForm.tb_percent === '' ? null : Number(editForm.tb_percent);
                       if (tbVal != null && (isNaN(tbVal) || tbVal < 0 || tbVal > 100)) return;
-                      if (editForm.scheduled_delivery && !editForm.delivery_time) {
-                        toast.error('Tidslossning kräver klockslag');
-                        return;
-                      }
+                      // delivery_time is always optional — even for scheduled_delivery (set the week before)
                       if (editForm.delivery_mode === 'week' && !editForm.scheduled_delivery && editForm.delivery_week) {
                         const w = Number(editForm.delivery_week);
                         if (isNaN(w) || w < 1 || w > 53) { toast.error('Vecka måste vara 1–53'); return; }
