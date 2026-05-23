@@ -1161,6 +1161,23 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 </div>
               );
             })()}
+            {(() => {
+              const ov = Number(caseData.order_value) || 0;
+              const tbPct = caseData.tb_percent != null ? Number(caseData.tb_percent) : null;
+              const devCostSum = (deviations || []).reduce((s, d: any) => s + (Number(d.cost) || 0), 0);
+              if (ov <= 0 || tbPct == null || devCostSum <= 0) return null;
+              const realTbKr = (ov * tbPct / 100) - devCostSum;
+              const realTbPct = (realTbKr / ov) * 100;
+              return (
+                <div className="text-sm mt-1">
+                  <span className="text-muted-foreground">Verklig TB efter avvikelser:</span>{' '}
+                  <span className={`font-semibold ${realTbPct >= 0 ? 'text-card-foreground' : 'text-destructive'}`}>
+                    {realTbPct.toFixed(1)}% ({realTbKr.toLocaleString('sv-SE')} kr)
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-1">— avvikelsekostnad {devCostSum.toLocaleString('sv-SE')} kr</span>
+                </div>
+              );
+            })()}
             {caseData.google_drive_link && (
               <a href={caseData.google_drive_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
                 <ExternalLink className="h-3.5 w-3.5" /> Google Drive
