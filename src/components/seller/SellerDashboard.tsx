@@ -96,6 +96,13 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   const avgTb = tbValues.length ? (tbValues.reduce((a, b) => a + b, 0) / tbValues.length).toFixed(1) : '–';
   const unresolvedDevs = filteredDeviations.filter((d) => !d.resolved).length;
   const totalDevCost = filteredDeviations.reduce((sum, d) => sum + (Number((d as any).cost) || 0), 0);
+  // Verklig TB% (efter avvikelser): summa TB-kr - avvikelser, dividerat med ordervärde
+  const totalTbKr = cases.reduce((sum, c) => {
+    const ov = Number(c.order_value) || 0;
+    const tb = c.tb_percent != null ? Number(c.tb_percent) : null;
+    return sum + (tb != null ? ov * tb / 100 : 0);
+  }, 0);
+  const realAvgTb = totalValue > 0 ? ((totalTbKr - totalDevCost) / totalValue) * 100 : null;
 
   // Budget progress — only cases from current year, company-wide (not affected by seller/city/date filters)
   const currentYear = new Date().getFullYear();
