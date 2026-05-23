@@ -290,9 +290,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryClient.invalidateQueries({ queryKey: ['unlinked-orders'] });
   };
 
-  // --- Link / unlink A-order ---
-  const [linkOpen, setLinkOpen] = useState(false);
-  const [linkSearch, setLinkSearch] = useState('');
+  // --- Link / unlink A-order (linkOpen/linkSearch deklareras ovan) ---
   const [pendingLink, setPendingLink] = useState<any | null>(null);
   const [pendingUnlink, setPendingUnlink] = useState<any | null>(null);
 
