@@ -274,12 +274,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   };
 
   const assignmentMutation = useMutation({
-    mutationFn: async ({ field, value, label }: { field: 'team' | 'seller'; value: string; label: string }) => {
-      await updateCase(caseData.id, { [field]: value });
+    mutationFn: async ({ field, value, label }: { field: 'team' | 'seller' | 'km_team'; value: string; label: string }) => {
+      const newValue = value ? value : null;
+      await updateCase(caseData.id, { [field]: newValue } as any);
       await createCaseEvent({
         case_id: caseData.id,
-        event_type: field === 'team' ? 'team_change' : 'seller_change',
-        description: `${label} ändrad till ${value}`,
+        event_type: field === 'seller' ? 'seller_change' : 'team_change',
+        description: `${label} ändrad till ${newValue || '—'}`,
         created_by: currentUser,
       });
     },
