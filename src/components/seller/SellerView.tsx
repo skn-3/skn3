@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import type { UserRole } from '@/lib/constants';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { AppHeader } from '@/components/AppHeader';
@@ -13,17 +15,44 @@ import { ValidatePipelineView } from './ValidatePipelineView';
 import { ADMIN_USERS } from '@/lib/constants';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { CalendarView } from '@/components/calendar/CalendarView';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SellerViewProps {
   role: UserRole;
   onChangeRole: () => void;
   onToggleMontorView?: () => void;
+  initialCaseId?: string | null;
+  onInitialCaseHandled?: () => void;
 }
 
-export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerViewProps) {
+export function SellerView({ role, onChangeRole, onToggleMontorView, initialCaseId, onInitialCaseHandled }: SellerViewProps) {
   const [tab, setTab] = useState<SellerTab>('pipeline');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [prefill, setPrefill] = useState<{ customer_name?: string; address?: string; order_value?: string } | null>(null);
+  const [, setSearchParams] = useSearchParams();
+
+  // Deep-link: open case panel when ?case=<id> is provided
+  useEffect(() => {
+    if (!initialCaseId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.from('cases').select('*').eq('id', initialCaseId).maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        toast.info('Kunde inte hitta ärendet — kontrollera att du är inloggad som rätt roll');
+      } else {
+        setSelectedCase(data as CaseRow);
+      }
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('case');
+        return next;
+      }, { replace: true });
+      onInitialCaseHandled?.();
+    })();
+    return () => { cancelled = true; };
+  }, [initialCaseId]);
+
 
   const handleCreateFromVisit = (data: { customer_name: string; address: string; order_value?: number }) => {
     setPrefill({

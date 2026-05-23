@@ -231,6 +231,9 @@ Deno.serve(async (req) => {
       body += actionCases.map(c => {
         const missing: string[] = [];
         if (!orderUnknown && !orderedCaseIds.has(c.id)) {
+          // TODO: when n3prenad supports a deep-link to OrderForm prefilled by case_id,
+          // point this link there instead. For now, the caseflow detail panel surfaces
+          // the existing n3prenad connection.
           missing.push(`<a href="${caseUrl(c.id)}" style="color:#DC2626;font-weight:600;text-decoration:underline;">Skapa A-order →</a>`);
         }
         if (!c.team) {
