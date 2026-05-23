@@ -803,10 +803,71 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         )}
       </div>
 
+      {/* Cost per montör / per säljare */}
+      {(costPerMontor.length > 0 || costPerSeller.length > 0) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {costPerMontor.length > 0 && (
+            <div className="rounded-xl border bg-card p-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Reklamationskostnad per montör</h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="pb-2">Montör</th>
+                    <th className="pb-2 text-right">Kostnad</th>
+                    <th className="pb-2 text-right">% av oms.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {costPerMontor.map(m => (
+                    <tr key={m.name} className="border-t">
+                      <td className="py-1.5 text-card-foreground font-medium">{m.name}</td>
+                      <td className="py-1.5 text-right">{formatAmount(m.cost)}</td>
+                      <td className="py-1.5 text-right text-muted-foreground">{m.pct != null ? `${m.pct.toFixed(2)}%` : '–'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {costPerSeller.length > 0 && (
+            <div className="rounded-xl border bg-card p-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Reklamationskostnad per säljare</h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="pb-2">Säljare</th>
+                    <th className="pb-2 text-right">Kostnad</th>
+                    <th className="pb-2 text-right">% av oms.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {costPerSeller.map(s => (
+                    <tr key={s.name} className="border-t">
+                      <td className="py-1.5 text-card-foreground font-medium">{s.name}</td>
+                      <td className="py-1.5 text-right">{formatAmount(s.cost)}</td>
+                      <td className="py-1.5 text-right text-muted-foreground">{s.pct != null ? `${s.pct.toFixed(2)}%` : '–'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Unresolved deviations */}
       {unresolvedList.length > 0 && (
         <div className="rounded-xl border bg-card p-4">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Olösta avvikelser ({unresolvedList.length})</h3>
+          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Olösta avvikelser ({unresolvedList.length})
+            </h3>
+            <div className="text-xs text-muted-foreground">
+              Snittålder: <span className="font-medium text-card-foreground">{avgUnresolvedAge}d</span>
+              {overdueCount > 0 && <> · <span className="font-medium text-destructive">{overdueCount} äldre än 14 dagar</span></>}
+              {avgResolutionDays && <> · Snittid att lösa: <span className="font-medium text-card-foreground">{avgResolutionDays}d</span></>}
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -819,13 +880,72 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
               </thead>
               <tbody>
                 {unresolvedList.map(d => (
-                  <tr key={d.id} className="border-t">
+                  <tr key={d.id} className={`border-t ${d.overdue ? 'bg-destructive/5' : ''}`}>
                     <td className="py-1.5 text-card-foreground font-medium">{d.address}</td>
                     <td className="py-1.5">{d.type}</td>
                     <td className="py-1.5 text-muted-foreground truncate max-w-[200px]">{d.description}</td>
-                    <td className="py-1.5 font-medium text-destructive">{d.daysSince}d</td>
+                    <td className={`py-1.5 font-medium ${d.overdue ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
+                      {d.daysSince}d{d.overdue ? ' ⚠' : ''}
+                    </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Okant cleanup — fix legacy "Okänt" deviations */}
+      {okantList.length > 0 && (
+        <div className="rounded-xl border bg-card p-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4" />
+            DATAKVALITET — Avvikelser utan ansvar ({okantList.length})
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">Sätt rätt ansvar så blir "Kostnad per ansvar" meningsfull.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="pb-2">Adress</th>
+                  <th className="pb-2">Typ</th>
+                  <th className="pb-2">Beskrivning</th>
+                  <th className="pb-2 text-right">Kostnad</th>
+                  <th className="pb-2">Ansvar</th>
+                  <th className="pb-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {okantList.map(o => {
+                  const pick = okantEdits[o.id] || '';
+                  return (
+                    <tr key={o.id} className="border-t">
+                      <td className="py-1.5 text-card-foreground font-medium">{o.address}</td>
+                      <td className="py-1.5">{o.type}</td>
+                      <td className="py-1.5 text-muted-foreground truncate max-w-[240px]">{o.description}</td>
+                      <td className="py-1.5 text-right">{o.cost > 0 ? formatAmount(o.cost) : '–'}</td>
+                      <td className="py-1.5">
+                        <Select value={pick} onValueChange={(v) => setOkantEdits(prev => ({ ...prev, [o.id]: v }))}>
+                          <SelectTrigger className="w-36 h-8"><SelectValue placeholder="Välj…" /></SelectTrigger>
+                          <SelectContent>
+                            {DEVIATION_RESPONSIBLE.filter(r => r.value !== 'okant').map(r => (
+                              <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="py-1.5">
+                        <Button
+                          size="sm"
+                          disabled={!pick || okantMutation.isPending}
+                          onClick={() => okantMutation.mutate({ id: o.id, responsible: pick })}
+                        >
+                          Spara
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
