@@ -40,6 +40,67 @@ const parseSwedishNumber = (val: string | number | null | undefined): string => 
   return isNaN(num) ? '' : String(Math.round(num));
 };
 
+
+// --- Duplicate detection helpers ---
+const normText = (s: string | null | undefined) =>
+  (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+const normPhone = (s: string | null | undefined) => {
+  let p = (s || '').replace(/\D/g, '');
+  if (p.startsWith('46')) p = '0' + p.slice(2);
+  return p.replace(/^0+/, '');
+};
+const normOffer = (s: string | null | undefined) =>
+  (s || '').trim().toLowerCase().replace(/\s+/g, '');
+
+export type DuplicateMatch = {
+  case: CaseRow;
+  reasons: string[];
+  strength: 'strong' | 'medium';
+};
+
+export function findPotentialDuplicates(
+  form: { customer_name: string; customer_phone: string; address: string; offer_number: string },
+  existingCases: CaseRow[],
+): DuplicateMatch[] {
+  const fName = normText(form.customer_name);
+  const fPhone = normPhone(form.customer_phone);
+  const fAddr = normText(form.address);
+  const fOffer = normOffer(form.offer_number);
+  const addrTokens = fAddr.split(/[\s,]+/).filter((t) => t.length >= 3);
+
+  const matches = new Map<string, DuplicateMatch>();
+  const add = (c: CaseRow, reason: string, strong: boolean) => {
+    const cur = matches.get(c.id);
+    if (cur) {
+      if (!cur.reasons.includes(reason)) cur.reasons.push(reason);
+      if (strong) cur.strength = 'strong';
+    } else {
+      matches.set(c.id, { case: c, reasons: [reason], strength: strong ? 'strong' : 'medium' });
+    }
+  };
+
+  for (const c of existingCases) {
+    const cOffer = normOffer(c.offer_number);
+    const cPhone = normPhone(c.customer_phone);
+    const cAddr = normText(c.address);
+    const cName = normText(c.customer_name);
+
+    if (fOffer && cOffer && fOffer === cOffer) add(c, 'Samma offertnummer', true);
+    if (fPhone && cPhone && fPhone === cPhone) add(c, 'Samma telefonnummer', true);
+    if (fAddr && cAddr && fAddr === cAddr) add(c, 'Samma adress', false);
+    if (fName && cName && fName === cName && addrTokens.length > 0) {
+      const cAddrTokens = cAddr.split(/[\s,]+/);
+      if (addrTokens.some((t) => cAddrTokens.includes(t))) {
+        add(c, 'Samma kund + del av adress', false);
+      }
+    }
+  }
+
+  return Array.from(matches.values()).sort((a, b) =>
+    a.strength === b.strength ? 0 : a.strength === 'strong' ? -1 : 1,
+  );
+}
+
 export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const queryClient = useQueryClient();
   const [importCount, setImportCount] = useState(0);
