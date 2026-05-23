@@ -350,8 +350,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const unlinkOrderMutation = useMutation({
     mutationFn: async (order: any) => {
-      const { error } = await orderDb.from('orders').update({ case_id: null }).eq('id', order.id);
-      if (error) throw error;
+      const ok = await gwUnlinkCase(order.id);
+      if (!ok) throw new Error('gateway unlink_case failed');
       const label = order.order_number || order.invoice_number || order.id.slice(0, 8);
       await createCaseEvent({
         case_id: caseData.id,
