@@ -1639,13 +1639,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               </div>
             )}
             <div>
-              <Label>Ansvar</Label>
-              <Select value={devForm.responsible} onValueChange={(v) => setDevForm(f => ({ ...f, responsible: v }))}>
+              <Label>Ansvar *</Label>
+              <Select value={devForm.responsible} onValueChange={(v) => { setRespManuallySet(true); setDevForm(f => ({ ...f, responsible: v })); }}>
                 <SelectTrigger><SelectValue placeholder="Välj ansvarig" /></SelectTrigger>
                 <SelectContent>
                   {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {!devForm.responsible && <p className="text-xs text-destructive mt-1">Välj ansvarig för att kunna spara</p>}
             </div>
             <div>
               <Label>Kostnad (kr)</Label>
