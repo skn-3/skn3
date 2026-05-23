@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, COORDINATOR_CC, EMAIL_MAP } from '@/lib/constants';
+import { canEnterStatus } from '@/lib/statusRules';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -197,6 +198,8 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
   const klarMutation = useMutation({
     mutationFn: async () => {
+      const check = canEnterStatus('montage_klart', caseData);
+      if (!check.ok) throw new Error(check.reason || 'Förutsättning saknas');
       await updateCase(caseData.id, { status: 'montage_klart' });
       await createCaseEvent({
         case_id: caseData.id,

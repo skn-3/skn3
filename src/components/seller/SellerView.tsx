@@ -9,6 +9,7 @@ import { SellerDashboard } from './SellerDashboard';
 import { VisitForm } from './VisitForm';
 import { ImportCaseForm } from './ImportCaseForm';
 import { CleanAddressesView } from './CleanAddressesView';
+import { ValidatePipelineView } from './ValidatePipelineView';
 import { ADMIN_USERS } from '@/lib/constants';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { CalendarView } from '@/components/calendar/CalendarView';
@@ -71,6 +72,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerVie
         )}
         {tab === 'clean-addresses' && isAdmin && (
           <CleanAddressesView currentUser={role.name} />
+        )}
+        {tab === 'validate' && isAdmin && (
+          <ValidatePipelineView currentUser={role.name} />
         )}
       </main>
 

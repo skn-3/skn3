@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS, SELLERS, HOUR_RATE, SELLER_PIPELINE_COLUMNS } from '@/lib/constants';
+import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS, SELLERS, HOUR_RATE, SELLER_PIPELINE_COLUMNS, ADMIN_USERS } from '@/lib/constants';
+import { canEnterStatus } from '@/lib/statusRules';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -651,8 +652,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     e.target.value = '';
   };
 
-  const changeStatus = (newStatus: string, description: string) => {
+  const isAdmin = ADMIN_USERS.includes(currentUser);
+
+  const [blockedStatus, setBlockedStatus] = useState<{ status: string; reason: string; description: string } | null>(null);
+
+  const performStatusChange = (newStatus: string, description: string) => {
     statusMutation.mutate({ newStatus, description });
+  };
+
+  const changeStatus = (newStatus: string, description: string) => {
+    const check = canEnterStatus(newStatus, caseData);
+    if (!check.ok) {
+      setBlockedStatus({ status: newStatus, reason: check.reason || 'Förutsättning saknas', description });
+      return;
+    }
+    performStatusChange(newStatus, description);
   };
 
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
@@ -660,6 +674,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const handleManualStatusChange = (newStatus: string) => {
     if (newStatus === caseData.status) return;
     setSelectedStatus(newStatus);
+    const check = canEnterStatus(newStatus, caseData);
+    if (!check.ok) {
+      setBlockedStatus({
+        status: newStatus,
+        reason: check.reason || 'Förutsättning saknas',
+        description: `Status ändrad till: ${STATUS_LABELS[newStatus] || newStatus}`,
+      });
+      return;
+    }
     setPendingStatus(newStatus);
   };
 
@@ -828,6 +851,60 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   }
                   setPendingStatus(null);
                 }}>Bekräfta</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={blockedStatus !== null} onOpenChange={(open) => {
+            if (!open) {
+              setBlockedStatus(null);
+              setSelectedStatus(caseData.status);
+            }
+          }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Kan inte ändra status</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2">
+                    <div>
+                      Kan inte sätta <strong>{blockedStatus ? (STATUS_LABELS[blockedStatus.status] || blockedStatus.status) : ''}</strong>:
+                    </div>
+                    <div className="text-destructive font-medium">{blockedStatus?.reason}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Vill du gå till ärendet och fylla i det som saknas?
+                    </div>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => {
+                  setBlockedStatus(null);
+                  setSelectedStatus(caseData.status);
+                }}>Avbryt</AlertDialogCancel>
+                <Button variant="outline" onClick={() => {
+                  setBlockedStatus(null);
+                  setSelectedStatus(caseData.status);
+                  openEdit();
+                }}>Gå till redigering</Button>
+                {isAdmin && blockedStatus && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      const b = blockedStatus;
+                      setBlockedStatus(null);
+                      // Log forced override
+                      createCaseEvent({
+                        case_id: caseData.id,
+                        event_type: 'status_forced',
+                        description: `Status tvingad till ${STATUS_LABELS[b.status] || b.status} trots saknad förutsättning: ${b.reason}`,
+                        created_by: currentUser,
+                      }).catch((e) => console.warn('Could not log force', e));
+                      performStatusChange(b.status, b.description);
+                    }}
+                  >
+                    Tvinga ändå (admin)
+                  </Button>
+                )}
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
