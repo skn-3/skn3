@@ -102,7 +102,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
   // Apply admin montör filter
   const teamFiltered = useMemo(() => {
     if (!isAdmin || adminFilter === 'alla') return cases || [];
-    return (cases || []).filter(c => c.team === adminFilter);
+    return (cases || []).filter(c => c.team === adminFilter || (c as any).km_team === adminFilter);
   }, [cases, isAdmin, adminFilter]);
 
   const sorted = useMemo(() => {
