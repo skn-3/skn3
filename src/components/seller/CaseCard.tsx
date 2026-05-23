@@ -125,8 +125,16 @@ export function CaseCard({ caseData, onClick, showSeller, warnings }: CaseCardPr
           </div>
         )}
       </div>
-      {(tidsBadge || (warnings && warnings.length > 0)) && (
+      {(deliveryBadge || tidsBadge || (warnings && warnings.length > 0)) && (
         <div className="flex flex-wrap gap-1 pt-1">
+          {deliveryBadge && (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${DELIVERY_TONE_CLASSES[deliveryBadge.tone]}${deliveryBadge.tone === 'red' ? ' font-semibold' : ''}`}
+            >
+              {deliveryBadge.label}
+            </span>
+          )}
+
           {tidsBadge && (
             <span
               className={
