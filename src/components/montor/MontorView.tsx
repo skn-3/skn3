@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { fetchCases, type CaseRow } from '@/lib/supabaseClient';
 import { MONTORS, type UserRole } from '@/lib/constants';
 import { AppHeader } from '@/components/AppHeader';
@@ -16,7 +18,10 @@ interface MontorViewProps {
   onChangeRole: () => void;
   isAdmin?: boolean;
   onToggleView?: () => void;
+  initialCaseId?: string | null;
+  onInitialCaseHandled?: () => void;
 }
+
 
 type Tab = 'alla' | 'montage' | 'reklamationer' | 'klara' | 'kalender';
 
