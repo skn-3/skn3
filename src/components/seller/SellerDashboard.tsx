@@ -494,6 +494,9 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">TB% genomsnitt</p>
           <p className="text-3xl font-bold text-card-foreground">{avgTb}%</p>
+          {totalDevCost > 0 && realAvgTb != null && (
+            <p className="text-xs text-muted-foreground">Verklig (efter avvikelser): <span className="font-medium text-card-foreground">{realAvgTb.toFixed(1)}%</span></p>
+          )}
         </div>
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">Reklamationskostnad</p>
