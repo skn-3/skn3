@@ -409,10 +409,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       toast.error(`Säljare måste vara en av: ${SELLERS.join(', ')}`);
       return;
     }
-    if (form.scheduled_delivery && !form.delivery_time) {
-      toast.error('Tidslossning kräver klockslag');
-      return;
-    }
+    // delivery_time is always optional — even when scheduled_delivery is true (set the week before)
     if (form.delivery_mode === 'week' && form.delivery_week && !form.delivery_year) {
       toast.error('Vecka kräver också år');
       return;
