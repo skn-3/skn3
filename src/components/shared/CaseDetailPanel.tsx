@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off } from 'lucide-react';
-import { orderDb } from '@/integrations/supabase/orderClient';
+import { getOrderByCaseId, listUnlinkedOrders, linkCase as gwLinkCase, unlinkCase as gwUnlinkCase, updateOrderDate } from '@/integrations/orderGateway';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -60,30 +60,6 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     setSelectedStatus(caseData.status);
   }, [caseData.status]);
 
-  // [DIAG] Temporary diagnostics for "Koppla befintlig A-order" issue (Odengatan 31)
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data: o15, error: e15 } = await orderDb.from('orders').select('id, order_number, customer_address, case_id, status').eq('order_number', 15);
-        console.log('[DIAG] Order #15:', o15, 'error:', e15);
-
-        const { data: oOden } = await orderDb.from('orders').select('id, order_number, customer_address, case_id, status').ilike('customer_address', '%Odengatan%');
-        console.log('[DIAG] Odengatan-orders:', oOden);
-
-        const { data: unl, error: eUnl } = await orderDb.from('orders').select('id, order_number, customer_address, case_id').is('case_id', null).limit(200);
-        console.log('[DIAG] Okopplade (case_id null):', unl?.length, 'st', 'error:', eUnl);
-
-        const { data: all } = await orderDb.from('orders').select('id, case_id');
-        const nNull = (all || []).filter((o: any) => o.case_id == null).length;
-        const nSet = (all || []).filter((o: any) => o.case_id != null).length;
-        console.log('[DIAG] Totalt orders:', all?.length, '| case_id null:', nNull, '| case_id satt:', nSet);
-
-        console.log('[DIAG] Detta ärende case.id:', caseData.id, '| address:', caseData.address);
-      } catch (err) {
-        console.error('[DIAG] error:', err);
-      }
-    })();
-  }, [caseData.id]);
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
   // KM approval form state
   const [approvalMontor, setApprovalMontor] = useState(caseData.team || '');
@@ -225,18 +201,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const montageTimeChanged = ((caseData as any).montage_time || '') !== editForm.montage_time;
       if (montageDateChanged || montageTimeChanged) {
         try {
-          const { data: order } = await orderDb
-            .from('orders')
-            .select('id, date')
-            .eq('case_id', caseData.id)
-            .maybeSingle();
+          const order = await getOrderByCaseId(caseData.id);
           const newDate = editForm.montage_date || null;
           if (order && newDate && order.date !== newDate) {
-            const { error: updErr } = await orderDb
-              .from('orders')
-              .update({ date: newDate })
-              .eq('id', order.id);
-            if (updErr) throw updErr;
+            const ok = await updateOrderDate(order.id, newDate);
+            if (!ok) throw new Error('gateway update_date failed');
             await createCaseEvent({
               case_id: caseData.id,
               event_type: 'sync',
@@ -282,13 +251,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const { data: linkedOrders } = useQuery({
     queryKey: ['linked-orders', caseData.id],
     queryFn: async () => {
-      const { data, error } = await orderDb
-        .from('orders')
-        .select('*')
-        .eq('case_id', caseData.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
+      const o = await getOrderByCaseId(caseData.id);
+      return o ? [o] : [];
     },
   });
 
@@ -297,38 +261,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const { data: unlinkedOrders = [] } = useQuery({
     queryKey: ['unlinked-orders'],
     queryFn: async () => {
-      // 1) Hämta alla orders (utan case_id-filter) — vi avgör orphan i klienten
-      const { data: allOrders, error: ordersErr } = await orderDb
-        .from('orders')
-        .select('id, order_number, invoice_number, customer_address, customer_name, total_amount, status, date, created_at, case_id')
-        .order('created_at', { ascending: false })
-        .limit(200);
-      if (ordersErr) {
-        console.error('[unlinkedOrders] orderDb error:', ordersErr);
-        return [];
-      }
-
-      // 2) Hämta alla giltiga case-id:n från caseflow
+      // Hämta alla giltiga case-id:n från caseflow för orphan-logik
       const { data: validCases, error: casesErr } = await supabase
         .from('cases')
         .select('id');
       if (casesErr) {
         console.error('[unlinkedOrders] caseflow cases error:', casesErr);
       }
-      const validIds = new Set((validCases || []).map((c: any) => c.id));
-
-      const orders = allOrders || [];
-      const nullCount = orders.filter((o: any) => o.case_id == null).length;
-      const setCount = orders.length - nullCount;
-      const orphanIds = orders
-        .filter((o: any) => o.case_id != null && !validIds.has(o.case_id))
-        .map((o: any) => ({ order: o.order_number ?? o.id.slice(0, 8), case_id: o.case_id }));
-      console.log('[unlinkedOrders] total:', orders.length, 'null:', nullCount, 'set:', setCount, 'orphans:', orphanIds);
-
-      // 3) Behåll: case_id null ELLER case_id som inte är giltigt
-      return orders
-        .filter((o: any) => o.case_id == null || !validIds.has(o.case_id))
-        .map((o: any) => ({ ...o, _orphan: o.case_id != null, _orphanCaseId: o.case_id }));
+      const knownIds = (validCases || []).map((c: any) => c.id as string);
+      const orders = await listUnlinkedOrders(knownIds);
+      console.log('[unlinkedOrders] gateway returned:', orders.length);
+      return orders;
     },
     enabled: true,
   });
@@ -379,8 +322,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const linkOrderMutation = useMutation({
     mutationFn: async (order: any) => {
-      const { error } = await orderDb.from('orders').update({ case_id: caseData.id }).eq('id', order.id);
-      if (error) throw error;
+      const ok = await gwLinkCase(order.id, caseData.id);
+      if (!ok) throw new Error('gateway link_case failed');
       const label = order.order_number || order.invoice_number || order.id.slice(0, 8);
       const desc = order._orphan
         ? `A-order ${label} omkopplad (tidigare felaktigt case_id: ${order._orphanCaseId})`
@@ -407,8 +350,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const unlinkOrderMutation = useMutation({
     mutationFn: async (order: any) => {
-      const { error } = await orderDb.from('orders').update({ case_id: null }).eq('id', order.id);
-      if (error) throw error;
+      const ok = await gwUnlinkCase(order.id);
+      if (!ok) throw new Error('gateway unlink_case failed');
       const label = order.order_number || order.invoice_number || order.id.slice(0, 8);
       await createCaseEvent({
         case_id: caseData.id,

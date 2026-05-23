@@ -13,9 +13,8 @@ const LOGO_URL = `${APP_URL}/logo.png`;
 const TO_EMAIL = 'mirna.malke@mockfjards.se';
 const CC_EMAIL = 'daniel@malke.se';
 
-// n3prenad / orderDb (same credentials as src/integrations/supabase/orderClient.ts)
-const ORDER_DB_URL = 'https://pjurpgqgqvabopoxkzja.supabase.co';
-const ORDER_DB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqdXJwZ3FncXZhYm9wb3hremphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NzI4NjYsImV4cCI6MjA5MTM0ODg2Nn0.pzVo2I34DIDV8hd4Zwd2D_SmMRiQYns3VRH4O_LMlYM';
+// n3prenad orders-gateway (RLS låst — vi måste gå via gatewayen med delad secret)
+const ORDERS_GATEWAY_URL = 'https://pjurpgqgqvabopoxkzja.supabase.co/functions/v1/orders-gateway';
 
 const RELEVANT_STATUSES = new Set(['godkand', 'i_produktion', 'leverans_klar', 'montage_bokat']);
 
@@ -158,7 +157,7 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-  const orderDb = createClient(ORDER_DB_URL, ORDER_DB_ANON_KEY);
+  const ORDERS_GATEWAY_SECRET = Deno.env.get('ORDERS_GATEWAY_SECRET');
 
   try {
     const now = new Date();
@@ -178,23 +177,30 @@ Deno.serve(async (req) => {
     const nextWeekCases = (allCases || []).filter(c => deliveryInWeek(c, nextWk.year, nextWk.week, nextRange));
     const followingWeekCases = (allCases || []).filter(c => deliveryInWeek(c, followingWk.year, followingWk.week, followingRange));
 
-    // A-order status from n3prenad — graceful fallback
+    // A-order status from n3prenad — graceful fallback via gateway
     let orderUnknown = false;
     const orderedCaseIds = new Set<string>();
     try {
+      if (!ORDERS_GATEWAY_SECRET) throw new Error('ORDERS_GATEWAY_SECRET saknas');
       const ids = [...new Set([...nextWeekCases, ...followingWeekCases].map(c => c.id))];
       if (ids.length > 0) {
-        const { data: orders, error: ordErr } = await orderDb
-          .from('orders')
-          .select('case_id')
-          .in('case_id', ids);
-        if (ordErr) throw ordErr;
-        for (const o of orders || []) {
-          if (o.case_id) orderedCaseIds.add(o.case_id);
+        const res = await fetch(ORDERS_GATEWAY_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-gateway-secret': ORDERS_GATEWAY_SECRET,
+          },
+          body: JSON.stringify({ action: 'list_by_case_ids', case_ids: ids }),
+        });
+        if (!res.ok) throw new Error(`gateway ${res.status}`);
+        const json = await res.json();
+        const orders = Array.isArray(json) ? json : (json?.data ?? json?.orders ?? []);
+        for (const o of orders) {
+          if (o?.case_id) orderedCaseIds.add(o.case_id);
         }
       }
     } catch (e) {
-      console.warn('n3prenad fetch failed, marking A-order status as unknown:', e);
+      console.warn('n3prenad gateway fetch failed, marking A-order status as unknown:', e);
       orderUnknown = true;
     }
 

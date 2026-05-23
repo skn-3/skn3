@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCases, fetchVisits, type CaseRow } from '@/lib/supabaseClient';
-import { orderDb } from '@/integrations/supabase/orderClient';
+import { listOrdersByCaseIds } from '@/integrations/orderGateway';
 import { SELLER_PIPELINE_COLUMNS, STATUS_LABELS, SELLERS } from '@/lib/constants';
 import { CaseCard } from './CaseCard';
 import { FollowUpSection } from './FollowUpSection';
@@ -88,19 +88,20 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
     queryFn: () => fetchVisits(isAdmin ? {} : { seller: sellerName }),
   });
 
-  // Fetch all n3prenad orders that have a case_id (to detect missing A-orders).
+  // Fetch n3prenad-orders for currently visible cases via gateway (RLS locked, direct anon = 0 rows).
   // Silently fail if n3prenad is unavailable — we'd rather show no flag than a false one.
+  const flaggedCaseIds = useMemo(
+    () => (cases || []).filter(c => FLAGGED_STATUSES.has(c.status)).map(c => c.id),
+    [cases],
+  );
   const { data: ordersByCaseId } = useQuery<Set<string> | null>({
-    queryKey: ['n3prenad-orders-by-case'],
+    queryKey: ['n3prenad-orders-by-case', flaggedCaseIds.join(',')],
+    enabled: flaggedCaseIds.length > 0,
     queryFn: async () => {
       try {
-        const { data, error } = await orderDb
-          .from('orders')
-          .select('case_id')
-          .not('case_id', 'is', null);
-        if (error) throw error;
+        const orders = await listOrdersByCaseIds(flaggedCaseIds);
         const s = new Set<string>();
-        (data || []).forEach((o: any) => { if (o.case_id) s.add(o.case_id); });
+        (orders || []).forEach((o: any) => { if (o.case_id) s.add(o.case_id); });
         return s;
       } catch (e) {
         console.warn('n3prenad orders lookup failed, A-order flag disabled', e);

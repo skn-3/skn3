@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, sendNotificationEmail } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
-import { orderDb } from '@/integrations/supabase/orderClient';
+import { searchOrders } from '@/integrations/orderGateway';
 import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,17 +73,13 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
       return;
     }
     const t = setTimeout(async () => {
-      const [casesRes, ordersRes] = await Promise.all([
+      const [casesRes, orderRows] = await Promise.all([
         supabase
           .from('cases')
           .select('id, address, customer_name, customer_phone, order_value')
           .ilike('address', `%${term}%`)
           .limit(5),
-        orderDb
-          .from('orders')
-          .select('id, customer_address, customer_name, customer_phone')
-          .ilike('customer_address', `%${term}%`)
-          .limit(5),
+        searchOrders(term),
       ]);
       const list: AddressSuggestion[] = [];
       (casesRes.data || []).forEach((c: any) => list.push({
@@ -92,7 +88,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         customer_name: c.customer_name,
         customer_phone: c.customer_phone || '',
       }));
-      (ordersRes.data || []).forEach((o: any) => list.push({
+      (orderRows || []).slice(0, 5).forEach((o: any) => list.push({
         source: 'order',
         address: o.customer_address,
         customer_name: o.customer_name,
