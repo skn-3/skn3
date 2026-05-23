@@ -307,6 +307,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     onSuccess: (newCase) => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['cases_all'] });
+      queryClient.invalidateQueries({ queryKey: ['cases_all_for_dup'] });
       setImportCount((c) => c + 1);
       toast.success(`Ärende importerat — ${form.address} (status: ${STATUS_LABELS[form.status] || form.status})`);
 
