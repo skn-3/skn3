@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createCase, createCaseEvent } from '@/lib/supabaseClient';
+import { useState, useEffect, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { createCase, createCaseEvent, fetchAllCases, type CaseRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { MONTORS, SELLERS, STATUS_LABELS, SELLER_PIPELINE_COLUMNS, HOUR_RATE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -13,10 +13,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { formatAmount } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Upload, Sparkles, Loader2 } from 'lucide-react';
+import { Upload, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ImportCaseFormProps {
@@ -38,6 +40,67 @@ const parseSwedishNumber = (val: string | number | null | undefined): string => 
   return isNaN(num) ? '' : String(Math.round(num));
 };
 
+
+// --- Duplicate detection helpers ---
+const normText = (s: string | null | undefined) =>
+  (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+const normPhone = (s: string | null | undefined) => {
+  let p = (s || '').replace(/\D/g, '');
+  if (p.startsWith('46')) p = '0' + p.slice(2);
+  return p.replace(/^0+/, '');
+};
+const normOffer = (s: string | null | undefined) =>
+  (s || '').trim().toLowerCase().replace(/\s+/g, '');
+
+export type DuplicateMatch = {
+  case: CaseRow;
+  reasons: string[];
+  strength: 'strong' | 'medium';
+};
+
+export function findPotentialDuplicates(
+  form: { customer_name: string; customer_phone: string; address: string; offer_number: string },
+  existingCases: CaseRow[],
+): DuplicateMatch[] {
+  const fName = normText(form.customer_name);
+  const fPhone = normPhone(form.customer_phone);
+  const fAddr = normText(form.address);
+  const fOffer = normOffer(form.offer_number);
+  const addrTokens = fAddr.split(/[\s,]+/).filter((t) => t.length >= 3);
+
+  const matches = new Map<string, DuplicateMatch>();
+  const add = (c: CaseRow, reason: string, strong: boolean) => {
+    const cur = matches.get(c.id);
+    if (cur) {
+      if (!cur.reasons.includes(reason)) cur.reasons.push(reason);
+      if (strong) cur.strength = 'strong';
+    } else {
+      matches.set(c.id, { case: c, reasons: [reason], strength: strong ? 'strong' : 'medium' });
+    }
+  };
+
+  for (const c of existingCases) {
+    const cOffer = normOffer(c.offer_number);
+    const cPhone = normPhone(c.customer_phone);
+    const cAddr = normText(c.address);
+    const cName = normText(c.customer_name);
+
+    if (fOffer && cOffer && fOffer === cOffer) add(c, 'Samma offertnummer', true);
+    if (fPhone && cPhone && fPhone === cPhone) add(c, 'Samma telefonnummer', true);
+    if (fAddr && cAddr && fAddr === cAddr) add(c, 'Samma adress', false);
+    if (fName && cName && fName === cName && addrTokens.length > 0) {
+      const cAddrTokens = cAddr.split(/[\s,]+/);
+      if (addrTokens.some((t) => cAddrTokens.includes(t))) {
+        add(c, 'Samma kund + del av adress', false);
+      }
+    }
+  }
+
+  return Array.from(matches.values()).sort((a, b) =>
+    a.strength === b.strength ? 0 : a.strength === 'strong' ? -1 : 1,
+  );
+}
+
 export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const queryClient = useQueryClient();
   const [importCount, setImportCount] = useState(0);
@@ -46,6 +109,16 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const [aiFilled, setAiFilled] = useState<Set<string>>(new Set());
   const [aiSuccessCount, setAiSuccessCount] = useState<number | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  const { data: existingCases = [] } = useQuery({
+    queryKey: ['cases_all_for_dup'],
+    queryFn: fetchAllCases,
+    staleTime: 60_000,
+  });
+
+  const [dupCandidates, setDupCandidates] = useState<DuplicateMatch[]>([]);
+  const [viewCase, setViewCase] = useState<CaseRow | null>(null);
+  const [dupConfirmOpen, setDupConfirmOpen] = useState(false);
 
   const handleAiExtract = async () => {
     if (!pasteText.trim()) return;
@@ -172,7 +245,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (vars: { dupReasons?: string[] } = {}) => {
       const caseData: any = {
         customer_name: form.customer_name,
         customer_phone: form.customer_phone,
@@ -220,11 +293,21 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         created_by: 'Admin (import)',
       });
 
+      if (vars.dupReasons && vars.dupReasons.length > 0) {
+        await createCaseEvent({
+          case_id: newCase.id,
+          event_type: 'import',
+          description: `Importerat trots möjlig dubblett (matchade: ${vars.dupReasons.join(', ')})`,
+          created_by: 'Admin (import)',
+        });
+      }
+
       return newCase;
     },
     onSuccess: (newCase) => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['cases_all'] });
+      queryClient.invalidateQueries({ queryKey: ['cases_all_for_dup'] });
       setImportCount((c) => c + 1);
       toast.success(`Ärende importerat — ${form.address} (status: ${STATUS_LABELS[form.status] || form.status})`);
 
@@ -288,6 +371,35 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const ovNum = ovStr === '' ? 0 : Number(ovStr);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // Debounced duplicate detection
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const hasInput =
+        form.customer_name.trim() ||
+        form.customer_phone.trim() ||
+        form.address.trim() ||
+        form.offer_number.trim();
+      if (!hasInput || existingCases.length === 0) {
+        setDupCandidates([]);
+        return;
+      }
+      setDupCandidates(findPotentialDuplicates(form, existingCases));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [form.customer_name, form.customer_phone, form.address, form.offer_number, existingCases]);
+
+  const strongMatches = useMemo(
+    () => dupCandidates.filter((m) => m.strength === 'strong'),
+    [dupCandidates],
+  );
+
+  const runImport = (acknowledgedDup: boolean) => {
+    const dupReasons = acknowledgedDup
+      ? Array.from(new Set(strongMatches.flatMap((m) => m.reasons)))
+      : undefined;
+    mutation.mutate({ dupReasons });
+  };
+
   const handleSubmit = () => {
     if (!form.seller || !(SELLERS as readonly string[]).includes(form.seller)) {
       toast.error(`Säljare måste vara en av: ${SELLERS.join(', ')}`);
@@ -312,8 +424,13 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       setConfirmOpen(true);
       return;
     }
-    mutation.mutate();
+    if (strongMatches.length > 0) {
+      setDupConfirmOpen(true);
+      return;
+    }
+    runImport(false);
   };
+
 
 
 
@@ -566,6 +683,47 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         </label>
       </div>
 
+
+      {dupCandidates.length > 0 && (
+        <div className={cn(
+          "rounded-lg border p-3 space-y-2",
+          strongMatches.length > 0
+            ? "border-orange-400 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-700"
+            : "border-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-700",
+        )}>
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <AlertTriangle className="h-4 w-4" />
+            Möjlig dubblett — {dupCandidates.length} liknande ärende{dupCandidates.length !== 1 ? 'n' : ''} finns redan
+          </div>
+          <ul className="space-y-1.5">
+            {dupCandidates.slice(0, 5).map((m) => (
+              <li key={m.case.id} className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-medium">{m.case.address}</span>
+                <span className="text-muted-foreground">· {m.case.customer_name}</span>
+                <span className="text-muted-foreground">· {m.case.seller}</span>
+                <span className="text-muted-foreground">· {new Date(m.case.created_at).toLocaleDateString('sv-SE')}</span>
+                {m.reasons.map((r) => (
+                  <Badge
+                    key={r}
+                    variant={m.strength === 'strong' ? 'destructive' : 'secondary'}
+                    className="text-[10px]"
+                  >
+                    {r}
+                  </Badge>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setViewCase(m.case)}
+                  className="ml-auto text-primary underline underline-offset-2 hover:no-underline"
+                >
+                  Visa ärende
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <Button
         onClick={handleSubmit}
         disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
@@ -574,6 +732,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         <Upload className="h-4 w-4 mr-2" />
         {mutation.isPending ? 'Importerar...' : 'Importera ärende'}
       </Button>
+
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
@@ -585,12 +744,59 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Avbryt, rätta värdet</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setConfirmOpen(false); mutation.mutate(); }}>
+            <AlertDialogAction onClick={() => {
+              setConfirmOpen(false);
+              if (strongMatches.length > 0) { setDupConfirmOpen(true); return; }
+              runImport(false);
+            }}>
               Ja, värdet stämmer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={dupConfirmOpen} onOpenChange={setDupConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Detta ärende finns kanske redan</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>En starkt matchande träff hittades:</p>
+                {strongMatches[0] && (
+                  <div className="rounded-md border bg-muted/40 p-2 text-sm text-foreground">
+                    <div className="font-medium">{strongMatches[0].case.address}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {strongMatches[0].case.customer_name}
+                      {strongMatches[0].case.offer_number ? ` · Offert ${strongMatches[0].case.offer_number}` : ''}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {strongMatches[0].reasons.map((r) => (
+                        <Badge key={r} variant="destructive" className="text-[10px]">{r}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p>Vill du importera ändå?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setDupConfirmOpen(false); runImport(true); }}>
+              Importera ändå
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {viewCase && (
+        <CaseDetailPanel
+          caseData={viewCase}
+          currentUser={sellerName}
+          isSeller={true}
+          onClose={() => setViewCase(null)}
+        />
+      )}
     </div>
   );
 }
