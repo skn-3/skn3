@@ -162,7 +162,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const newTB = updates.tb_percent as number | null;
       if (oldTB !== newTB) changes.push(`TB ändrat till ${newTB != null ? newTB + '%' : '—'}`);
       if ((caseData.extra_hours_sold ?? 0) !== (updates.extra_hours_sold as number)) changes.push(`Extra timmar sålda ändrade till ${updates.extra_hours_sold}`);
-      if ((caseData.team || '') !== (editForm.team || '')) changes.push(`Montör ändrad till ${editForm.team || '—'}`);
+      if ((caseData.team || '') !== (editForm.team || '')) changes.push(`Montage-montör ändrad till ${editForm.team || '—'}`);
+      if (((caseData as any).km_team || '') !== (editForm.km_team || '')) changes.push(`KM-montör ändrad till ${editForm.km_team || '—'}`);
       if ((caseData.google_drive_link || '') !== editForm.google_drive_link) changes.push('Google Drive-länk uppdaterad');
       if ((caseData.offer_number || '') !== editForm.offer_number) changes.push(`Offertnummer ändrat till ${editForm.offer_number || '—'}`);
       if ((caseData.customer_phone || '') !== editForm.customer_phone) changes.push('Telefon uppdaterad');
