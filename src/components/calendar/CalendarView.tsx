@@ -157,21 +157,52 @@ function CustomToolbar({ label, onNavigate, onView, view }: ToolbarProps) {
   );
 }
 
-const TYPE_OPTIONS: { value: EventType; label: string }[] = [
-  { value: 'km', label: 'KM' },
-  { value: 'montage', label: 'Montage' },
-  { value: 'leverans', label: 'Leverans' },
+type TypeStyle = { value: EventType; label: string; dot: string; chipActive: string };
+const TYPE_OPTIONS: TypeStyle[] = [
+  { value: 'km',       label: 'KM',       dot: 'bg-blue-500',   chipActive: 'bg-blue-500 text-white border-blue-500' },
+  { value: 'montage',  label: 'Montage',  dot: 'bg-green-600',  chipActive: 'bg-green-600 text-white border-green-600' },
+  { value: 'leverans', label: 'Leverans', dot: 'bg-orange-500', chipActive: 'bg-orange-500 text-white border-orange-500' },
 ];
 
+function shortAddress(a: string | null | undefined): string {
+  if (!a) return '';
+  // strip city/postal after comma
+  const base = a.split(',')[0].trim();
+  // also drop trailing postal codes if no comma
+  return base.replace(/\s+\d{3}\s?\d{2}\s.*$/, '').trim();
+}
+
 function MonthEvent({ event }: { event: CalEvent }) {
-  const { type } = event.resource;
-  const short = type === 'km' ? 'KM' : type === 'montage' ? 'Mont' : 'Lev';
-  const time = event.allDay ? '' : ` ${format(event.start, 'HH:mm')}`;
-  return <span className="truncate">{short}{time}</span>;
+  const { type, weekBased, caseData } = event.resource;
+  const anyC = caseData as any;
+  const addr = shortAddress(caseData.address);
+  let label = '';
+  if (type === 'km') {
+    label = `KM · ${addr}`;
+  } else if (type === 'montage') {
+    // Tid kommer endast från montage_time (bokad tid). Saknas tid → ingen tid visas.
+    const mt: string | null = anyC.montage_time ?? null;
+    const t = mt ? ` · ${mt.slice(0, 5)}` : '';
+    label = `Montage · ${addr}${t}`;
+  } else if (type === 'leverans') {
+    label = weekBased
+      ? `Leverans v${anyC.delivery_week} · ${addr}`
+      : `Leverans · ${addr}`;
+  }
+  return (
+    <span className={cn('truncate block', type === 'montage' && 'font-semibold tracking-tight')}>
+      {label}
+    </span>
+  );
 }
 
 function FullEvent({ event }: { event: CalEvent }) {
-  return <span className="truncate">{event.title}</span>;
+  const { type, weekBased, caseData } = event.resource;
+  const anyC = caseData as any;
+  if (type === 'leverans' && weekBased) {
+    return <span className="truncate">Leverans v{anyC.delivery_week} · {caseData.address} (hela veckan)</span>;
+  }
+  return <span className={cn('truncate', type === 'montage' && 'font-semibold')}>{event.title}</span>;
 }
 
 export function CalendarView({ onSelectCase }: CalendarViewProps) {
@@ -202,13 +233,32 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
   const allEvents = useMemo(() => detectConflicts(buildEvents(cases || [])), [cases]);
 
   const filteredEvents = useMemo(() => {
-    return allEvents.filter(e => {
-      if (!typeFilter.includes(e.resource.type)) return false;
-      if (teamFilter !== 'alla' && e.resource.team !== teamFilter) return false;
-      if (sellerFilter !== 'alla' && e.resource.seller !== sellerFilter) return false;
-      return true;
-    });
+    const priority: Record<EventType, number> = { montage: 0, km: 1, leverans: 2 };
+    return allEvents
+      .filter(e => {
+        if (!typeFilter.includes(e.resource.type)) return false;
+        if (teamFilter !== 'alla' && e.resource.team !== teamFilter) return false;
+        if (sellerFilter !== 'alla' && e.resource.seller !== sellerFilter) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        // Sortera så montage hamnar överst i samma dagcell
+        const t = a.start.getTime() - b.start.getTime();
+        if (t !== 0) return t;
+        return priority[a.resource.type] - priority[b.resource.type];
+      });
   }, [allEvents, typeFilter, teamFilter, sellerFilter]);
+
+  // I agenda-vyn: kollapsa vecko-leveranser till en enda rad (mån) istället för mån-sön
+  const displayedEvents = useMemo(() => {
+    if (view !== 'agenda') return filteredEvents;
+    return filteredEvents.map(e => {
+      if (e.resource.type === 'leverans' && e.resource.weekBased) {
+        return { ...e, end: endOfDay(e.start) };
+      }
+      return e;
+    });
+  }, [filteredEvents, view]);
 
   const conflictCount = useMemo(() => {
     const ids = new Set<string>();
@@ -222,20 +272,30 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
 
   const eventPropGetter = (event: CalEvent) => {
     const { type, weekBased, conflict } = event.resource;
-    let bg = 'hsl(210, 80%, 50%)';
-    if (type === 'montage') bg = 'hsl(142, 76%, 36%)';
-    else if (type === 'leverans') bg = 'hsl(25, 95%, 53%)';
+    let bg = 'hsl(210, 80%, 50%)';        // KM blå
+    if (type === 'montage')  bg = 'hsl(142, 76%, 36%)'; // grön
+    else if (type === 'leverans') bg = 'hsl(25, 95%, 53%)'; // orange
     const style: React.CSSProperties = {
       backgroundColor: bg,
       borderRadius: 6,
-      border: conflict ? '2px solid hsl(0, 84%, 50%)' : '1px solid rgba(0,0,0,0.1)',
+      border: conflict ? '2px solid hsl(0, 84%, 50%)' : '1px solid rgba(0,0,0,0.15)',
       color: 'white',
       fontSize: 12,
       padding: '2px 6px',
     };
+    if (type === 'montage') {
+      // Lyft montage visuellt — viktigaste eventet operativt
+      style.fontWeight = 600;
+      style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.35)';
+      if (!conflict) style.border = '1.5px solid hsl(142, 76%, 22%)';
+    }
     if (type === 'leverans' && weekBased) {
-      style.opacity = 0.85;
-      style.backgroundImage = 'repeating-linear-gradient(45deg, rgba(255,255,255,0.25) 0 6px, transparent 6px 12px)';
+      // Dämpa vecko-leverans — sekundär information
+      style.opacity = 0.55;
+      style.fontSize = 11;
+      style.padding = '0px 6px';
+      style.fontStyle = 'italic';
+      style.backgroundImage = 'repeating-linear-gradient(45deg, rgba(255,255,255,0.3) 0 6px, transparent 6px 12px)';
     }
     return { style };
   };
@@ -250,15 +310,19 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
               key={opt.value}
               onClick={() => toggleType(opt.value)}
               className={cn(
-                'px-3 py-1.5 text-xs font-medium rounded-full border transition-colors',
-                active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-input hover:bg-muted'
+                'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-colors',
+                active
+                  ? opt.chipActive
+                  : 'bg-background text-muted-foreground border-input hover:bg-muted'
               )}
             >
+              <span className={cn('inline-block h-2 w-2 rounded-sm', active ? 'bg-white/90' : opt.dot)} />
               {opt.label}
             </button>
           );
         })}
       </div>
+
       <Select value={teamFilter} onValueChange={setTeamFilter}>
         <SelectTrigger className="h-9 w-full md:w-44"><SelectValue placeholder="Team" /></SelectTrigger>
         <SelectContent>
@@ -300,6 +364,17 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
         </Sheet>
       </div>
 
+      {/* Färgförklaring */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-blue-500" /> KM</span>
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-green-600" /> Montage</span>
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-orange-500" /> Leverans</span>
+        <span className="inline-flex items-center gap-1.5 opacity-70">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-orange-500" style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.5) 0 3px, transparent 3px 6px)' }} />
+          Vecko-leverans (ungefärlig)
+        </span>
+      </div>
+
       {conflictCount > 0 && (
         <div className="flex items-center gap-2 rounded-md border border-yellow-400/50 bg-yellow-50 dark:bg-yellow-950/30 px-3 py-2 text-sm text-yellow-900 dark:text-yellow-200">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
@@ -311,7 +386,7 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
         <Calendar
           localizer={localizer}
           culture="sv"
-          events={filteredEvents}
+          events={displayedEvents}
           view={view}
           onView={setView}
           date={date}
