@@ -409,10 +409,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       toast.error(`Säljare måste vara en av: ${SELLERS.join(', ')}`);
       return;
     }
-    if (form.scheduled_delivery && !form.delivery_time) {
-      toast.error('Tidslossning kräver klockslag');
-      return;
-    }
+    // delivery_time is always optional — even when scheduled_delivery is true (set the week before)
     if (form.delivery_mode === 'week' && form.delivery_week && !form.delivery_year) {
       toast.error('Vecka kräver också år');
       return;
@@ -623,7 +620,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
             </label>
           </RadioGroup>
           {form.scheduled_delivery && (
-            <p className="text-xs text-muted-foreground">Tidslossning kräver exakt datum och tid</p>
+            <p className="text-xs text-muted-foreground">Tiden anges senare, veckan innan leverans</p>
           )}
           {(form.scheduled_delivery || form.delivery_mode === 'date') ? (
             <div className="flex gap-2">
@@ -633,7 +630,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
                 className="w-28"
                 value={form.delivery_time}
                 onChange={(e) => update('delivery_time', e.target.value)}
-                placeholder={form.scheduled_delivery ? 'Tid *' : 'Tid'}
+                placeholder="Tid"
               />
             </div>
           ) : (
@@ -694,9 +691,14 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
           <Checkbox checked={form.carry_help_needed} onCheckedChange={(c) => update('carry_help_needed', c === true)} />
           Behövs bärhjälp?
         </label>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox checked={form.scheduled_delivery} onCheckedChange={(c) => update('scheduled_delivery', c === true)} />
-          Tidsstyrd leverans (tidslossning)
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="flex items-center gap-2">
+            <Checkbox checked={form.scheduled_delivery} onCheckedChange={(c) => update('scheduled_delivery', c === true)} />
+            Tidsstyrd leverans (tidslossning)
+          </span>
+          {form.scheduled_delivery && (
+            <span className="text-xs text-muted-foreground pl-6">Tiden anges senare, veckan innan leverans</span>
+          )}
         </label>
       </div>
 
