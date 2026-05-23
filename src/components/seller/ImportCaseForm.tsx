@@ -702,7 +702,11 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Avbryt, rätta värdet</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setConfirmOpen(false); mutation.mutate(); }}>
+            <AlertDialogAction onClick={() => {
+              setConfirmOpen(false);
+              if (strongMatches.length > 0) { setDupConfirmOpen(true); return; }
+              runImport(false);
+            }}>
               Ja, värdet stämmer
             </AlertDialogAction>
           </AlertDialogFooter>
