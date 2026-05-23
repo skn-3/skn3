@@ -322,8 +322,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const linkOrderMutation = useMutation({
     mutationFn: async (order: any) => {
-      const { error } = await orderDb.from('orders').update({ case_id: caseData.id }).eq('id', order.id);
-      if (error) throw error;
+      const ok = await gwLinkCase(order.id, caseData.id);
+      if (!ok) throw new Error('gateway link_case failed');
       const label = order.order_number || order.invoice_number || order.id.slice(0, 8);
       const desc = order._orphan
         ? `A-order ${label} omkopplad (tidigare felaktigt case_id: ${order._orphanCaseId})`
