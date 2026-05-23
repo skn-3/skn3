@@ -233,13 +233,32 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
   const allEvents = useMemo(() => detectConflicts(buildEvents(cases || [])), [cases]);
 
   const filteredEvents = useMemo(() => {
-    return allEvents.filter(e => {
-      if (!typeFilter.includes(e.resource.type)) return false;
-      if (teamFilter !== 'alla' && e.resource.team !== teamFilter) return false;
-      if (sellerFilter !== 'alla' && e.resource.seller !== sellerFilter) return false;
-      return true;
-    });
+    const priority: Record<EventType, number> = { montage: 0, km: 1, leverans: 2 };
+    return allEvents
+      .filter(e => {
+        if (!typeFilter.includes(e.resource.type)) return false;
+        if (teamFilter !== 'alla' && e.resource.team !== teamFilter) return false;
+        if (sellerFilter !== 'alla' && e.resource.seller !== sellerFilter) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        // Sortera så montage hamnar överst i samma dagcell
+        const t = a.start.getTime() - b.start.getTime();
+        if (t !== 0) return t;
+        return priority[a.resource.type] - priority[b.resource.type];
+      });
   }, [allEvents, typeFilter, teamFilter, sellerFilter]);
+
+  // I agenda-vyn: kollapsa vecko-leveranser till en enda rad (mån) istället för mån-sön
+  const displayedEvents = useMemo(() => {
+    if (view !== 'agenda') return filteredEvents;
+    return filteredEvents.map(e => {
+      if (e.resource.type === 'leverans' && e.resource.weekBased) {
+        return { ...e, end: endOfDay(e.start) };
+      }
+      return e;
+    });
+  }, [filteredEvents, view]);
 
   const conflictCount = useMemo(() => {
     const ids = new Set<string>();
@@ -253,20 +272,30 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
 
   const eventPropGetter = (event: CalEvent) => {
     const { type, weekBased, conflict } = event.resource;
-    let bg = 'hsl(210, 80%, 50%)';
-    if (type === 'montage') bg = 'hsl(142, 76%, 36%)';
-    else if (type === 'leverans') bg = 'hsl(25, 95%, 53%)';
+    let bg = 'hsl(210, 80%, 50%)';        // KM blå
+    if (type === 'montage')  bg = 'hsl(142, 76%, 36%)'; // grön
+    else if (type === 'leverans') bg = 'hsl(25, 95%, 53%)'; // orange
     const style: React.CSSProperties = {
       backgroundColor: bg,
       borderRadius: 6,
-      border: conflict ? '2px solid hsl(0, 84%, 50%)' : '1px solid rgba(0,0,0,0.1)',
+      border: conflict ? '2px solid hsl(0, 84%, 50%)' : '1px solid rgba(0,0,0,0.15)',
       color: 'white',
       fontSize: 12,
       padding: '2px 6px',
     };
+    if (type === 'montage') {
+      // Lyft montage visuellt — viktigaste eventet operativt
+      style.fontWeight = 600;
+      style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.35)';
+      if (!conflict) style.border = '1.5px solid hsl(142, 76%, 22%)';
+    }
     if (type === 'leverans' && weekBased) {
-      style.opacity = 0.85;
-      style.backgroundImage = 'repeating-linear-gradient(45deg, rgba(255,255,255,0.25) 0 6px, transparent 6px 12px)';
+      // Dämpa vecko-leverans — sekundär information
+      style.opacity = 0.55;
+      style.fontSize = 11;
+      style.padding = '0px 6px';
+      style.fontStyle = 'italic';
+      style.backgroundImage = 'repeating-linear-gradient(45deg, rgba(255,255,255,0.3) 0 6px, transparent 6px 12px)';
     }
     return { style };
   };
