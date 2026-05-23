@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off } from 'lucide-react';
 import { orderDb } from '@/integrations/supabase/orderClient';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
