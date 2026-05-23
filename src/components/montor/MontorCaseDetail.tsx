@@ -198,6 +198,8 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
   const klarMutation = useMutation({
     mutationFn: async () => {
+      const check = canEnterStatus('montage_klart', caseData);
+      if (!check.ok) throw new Error(check.reason || 'Förutsättning saknas');
       await updateCase(caseData.id, { status: 'montage_klart' });
       await createCaseEvent({
         case_id: caseData.id,
