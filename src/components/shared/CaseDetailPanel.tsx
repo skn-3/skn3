@@ -652,8 +652,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     e.target.value = '';
   };
 
-  const changeStatus = (newStatus: string, description: string) => {
+  const isAdmin = ADMIN_USERS.includes(currentUser);
+
+  const [blockedStatus, setBlockedStatus] = useState<{ status: string; reason: string; description: string } | null>(null);
+
+  const performStatusChange = (newStatus: string, description: string) => {
     statusMutation.mutate({ newStatus, description });
+  };
+
+  const changeStatus = (newStatus: string, description: string) => {
+    const check = canEnterStatus(newStatus, caseData);
+    if (!check.ok) {
+      setBlockedStatus({ status: newStatus, reason: check.reason || 'Förutsättning saknas', description });
+      return;
+    }
+    performStatusChange(newStatus, description);
   };
 
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
@@ -661,6 +674,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const handleManualStatusChange = (newStatus: string) => {
     if (newStatus === caseData.status) return;
     setSelectedStatus(newStatus);
+    const check = canEnterStatus(newStatus, caseData);
+    if (!check.ok) {
+      setBlockedStatus({
+        status: newStatus,
+        reason: check.reason || 'Förutsättning saknas',
+        description: `Status ändrad till: ${STATUS_LABELS[newStatus] || newStatus}`,
+      });
+      return;
+    }
     setPendingStatus(newStatus);
   };
 
