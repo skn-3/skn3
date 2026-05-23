@@ -237,8 +237,82 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         type: DEVIATION_TYPES.find(dt => dt.value === d.type)?.label || d.type,
         description: d.description.substring(0, 80),
         daysSince,
+        overdue: daysSince > 14,
+      };
+    })
+    .sort((a, b) => b.daysSince - a.daysSince);
+
+  const overdueCount = unresolvedList.filter(d => d.overdue).length;
+  const avgUnresolvedAge = unresolvedList.length
+    ? Math.round(unresolvedList.reduce((s, d) => s + d.daysSince, 0) / unresolvedList.length)
+    : 0;
+
+  // --- Time to resolve (resolved deviations) ---
+  const resolvedTimes = filteredDeviations
+    .filter(d => d.resolved && (d as any).resolved_at)
+    .map(d => {
+      const start = new Date(d.created_at).getTime();
+      const end = new Date((d as any).resolved_at).getTime();
+      return Math.max(0, (end - start) / (1000 * 60 * 60 * 24));
+    });
+  const avgResolutionDays = resolvedTimes.length
+    ? (resolvedTimes.reduce((a, b) => a + b, 0) / resolvedTimes.length).toFixed(1)
+    : null;
+
+  // --- Cost share of revenue ---
+  const devCostPctOfRevenue = totalValue > 0 ? (totalDevCost / totalValue) * 100 : 0;
+
+  // --- Okant deviations cleanup list ---
+  const okantList = filteredDeviations
+    .filter(d => d.responsible === 'okant')
+    .map(d => {
+      const c = cases.find(c => c.id === d.case_id);
+      return {
+        id: d.id,
+        address: c?.address || '–',
+        type: DEVIATION_TYPES.find(dt => dt.value === d.type)?.label || d.type,
+        description: d.description.substring(0, 120),
+        cost: Number((d as any).cost) || 0,
       };
     });
+
+  // --- Cost per case (for real TB) ---
+  const devCostByCase: Record<string, number> = {};
+  filteredDeviations.forEach(d => {
+    devCostByCase[d.case_id] = (devCostByCase[d.case_id] || 0) + (Number((d as any).cost) || 0);
+  });
+
+  // --- Cost per montör (with reklamationsgrad) ---
+  const costPerMontor = MONTORS.map(m => {
+    const mc = cases.filter(c => c.team === m);
+    const mcIds = new Set(mc.map(c => c.id));
+    const cost = filteredDeviations
+      .filter(d => mcIds.has(d.case_id))
+      .reduce((s, d) => s + (Number((d as any).cost) || 0), 0);
+    const revenue = mc.reduce((s, c) => s + (Number(c.order_value) || 0), 0);
+    return {
+      name: m,
+      cost,
+      revenue,
+      pct: revenue > 0 ? (cost / revenue) * 100 : null,
+    };
+  }).filter(m => m.cost > 0 || m.revenue > 0).sort((a, b) => b.cost - a.cost);
+
+  // --- Cost per säljare ---
+  const costPerSeller = SELLERS.map(s => {
+    const sc = cases.filter(c => c.seller === s);
+    const scIds = new Set(sc.map(c => c.id));
+    const cost = filteredDeviations
+      .filter(d => scIds.has(d.case_id))
+      .reduce((sum, d) => sum + (Number((d as any).cost) || 0), 0);
+    const revenue = sc.reduce((sum, c) => sum + (Number(c.order_value) || 0), 0);
+    return {
+      name: s,
+      cost,
+      revenue,
+      pct: revenue > 0 ? (cost / revenue) * 100 : null,
+    };
+  }).filter(s => s.cost > 0 || s.revenue > 0).sort((a, b) => b.cost - a.cost);
 
   // --- Montör statistics ---
   const montorStats = MONTORS.map(m => {
