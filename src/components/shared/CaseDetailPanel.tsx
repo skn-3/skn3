@@ -623,14 +623,29 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Montör</Label>
+                <Label className="text-xs text-muted-foreground">KM-montör</Label>
                 <Select
-                  value={caseData.team || ''}
-                  onValueChange={(v) => assignmentMutation.mutate({ field: 'team', value: v, label: 'Montör' })}
+                  value={(caseData as any).km_team || '__none__'}
+                  onValueChange={(v) => assignmentMutation.mutate({ field: 'km_team' as any, value: v === '__none__' ? '' : v, label: 'KM-montör' })}
                   disabled={assignmentMutation.isPending}
                 >
-                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Välj montör" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Ingen vald" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none__">— Ingen —</SelectItem>
+                    {MONTORS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Montage-montör</Label>
+                <Select
+                  value={caseData.team || '__none__'}
+                  onValueChange={(v) => assignmentMutation.mutate({ field: 'team', value: v === '__none__' ? '' : v, label: 'Montage-montör' })}
+                  disabled={assignmentMutation.isPending}
+                >
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Ingen vald" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Ingen —</SelectItem>
                     {MONTORS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                   </SelectContent>
                 </Select>
