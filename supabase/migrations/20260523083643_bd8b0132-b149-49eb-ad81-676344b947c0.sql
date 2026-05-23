@@ -1,0 +1,1 @@
+UPDATE public.cases SET status = 'vantar_km' WHERE status = 'ny';
