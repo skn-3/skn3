@@ -1,5 +1,66 @@
 import type { CaseRow } from '@/lib/supabaseClient';
 import { User, Wrench, UserCircle, AlertTriangle, Clock } from 'lucide-react';
+import { differenceInCalendarDays, startOfISOWeek } from 'date-fns';
+
+const DELIVERY_RELEVANT_STATUSES = new Set([
+  'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat',
+]);
+
+type DeliveryBadge = { label: string; tone: 'red' | 'orange' | 'yellow' | 'gray' };
+
+function getDeliveryCountdownBadge(c: any): DeliveryBadge | null {
+  if (!DELIVERY_RELEVANT_STATUSES.has(c.status)) return null;
+  const dd: string | null = c.delivery_date || null;
+  const dw: number | null = c.delivery_week || null;
+  const dy: number | null = c.delivery_year || null;
+
+  let refDate: Date | null = null;
+  let weekStartDate: Date | null = null;
+  const isWeekBased = !dd && !!(dw && dy);
+
+  if (dd) {
+    refDate = new Date(dd + 'T00:00:00');
+  } else if (dw && dy) {
+    const jan4 = new Date(dy, 0, 4);
+    weekStartDate = startOfISOWeek(jan4);
+    weekStartDate.setDate(weekStartDate.getDate() + (dw - 1) * 7);
+    refDate = new Date(weekStartDate);
+    refDate.setDate(weekStartDate.getDate() + 6); // söndag
+  } else {
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysToEarliest = differenceInCalendarDays(isWeekBased ? weekStartDate! : refDate, today);
+  const daysToEnd = differenceInCalendarDays(refDate, today);
+
+  if (daysToEnd < 0) return { label: '✓ Levererad', tone: 'gray' };
+
+  if (isWeekBased) {
+    const weekTxt = `v${dw}`;
+    if (daysToEarliest <= 0) return { label: `📦 Leverans ${weekTxt} (denna vecka)`, tone: 'red' };
+    if (daysToEarliest <= 3) return { label: `📦 Leverans ${weekTxt} (om ${daysToEarliest} dag${daysToEarliest === 1 ? '' : 'ar'})`, tone: 'red' };
+    if (daysToEarliest <= 7) return { label: `📦 Leverans ${weekTxt} (om ${daysToEarliest} dagar)`, tone: 'orange' };
+    if (daysToEarliest <= 14) return { label: `📦 Leverans ${weekTxt} (om ${daysToEarliest} dagar)`, tone: 'yellow' };
+    return { label: `📦 Leverans ${weekTxt}`, tone: 'gray' };
+  }
+
+  const dateTxt = refDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
+  if (daysToEnd === 0) return { label: '📦 Levereras idag', tone: 'red' };
+  if (daysToEnd <= 3) return { label: `📦 Leverans om ${daysToEnd} dag${daysToEnd === 1 ? '' : 'ar'}`, tone: 'red' };
+  if (daysToEnd <= 7) return { label: `📦 Leverans om ${daysToEnd} dagar`, tone: 'orange' };
+  if (daysToEnd <= 14) return { label: `📦 Leverans om ${daysToEnd} dagar`, tone: 'yellow' };
+  return { label: `📦 Leverans ${dateTxt}`, tone: 'gray' };
+}
+
+const DELIVERY_TONE_CLASSES: Record<DeliveryBadge['tone'], string> = {
+  red: 'border-red-400 bg-red-100 text-red-800',
+  orange: 'border-orange-300 bg-orange-100 text-orange-800',
+  yellow: 'border-yellow-300 bg-yellow-100 text-yellow-800',
+  gray: 'border-gray-300 bg-gray-100 text-gray-700',
+};
+
 
 interface CaseCardProps {
   caseData: CaseRow;
