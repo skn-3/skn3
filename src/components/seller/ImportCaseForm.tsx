@@ -224,6 +224,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     extra_hours_requested: '0',
     extra_hours_approved: '0',
     team: '',
+    km_team: '',
     seller: sellerName,
     status: 'ny',
     created_at: '',
