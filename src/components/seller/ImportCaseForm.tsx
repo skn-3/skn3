@@ -260,6 +260,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         extra_hours_requested: Number(form.extra_hours_requested) || 0,
         extra_hours_approved: Number(form.extra_hours_approved) || 0,
         team: form.team || null,
+        km_team: form.km_team || null,
         seller: form.seller,
         status: form.status,
         google_drive_link: form.google_drive_link || null,
