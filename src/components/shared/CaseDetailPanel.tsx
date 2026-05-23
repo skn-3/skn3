@@ -1221,72 +1221,79 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 })}
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Info className="h-4 w-4" /> Ingen A-ORDER kopplad ännu
-                </div>
-                <Popover open={linkOpen} onOpenChange={setLinkOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Link2 className="h-4 w-4" /> Koppla befintlig A-order
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="p-0 w-[min(95vw,420px)]" align="start">
-                    <Command shouldFilter={false}>
-                      <CommandInput
-                        placeholder="Sök ordernr, fakturanr, adress, kund…"
-                        value={linkSearch}
-                        onValueChange={setLinkSearch}
-                      />
-                      <CommandList className="max-h-[320px]">
-                        <CommandEmpty>Inga okopplade A-ordrar hittades.</CommandEmpty>
-                        <CommandGroup>
-                          {filteredUnlinked.map((o: any) => {
-                            const label = o.order_number || o.invoice_number || o.id.slice(0, 8);
-                            const dateStr = o.date || (o.created_at ? String(o.created_at).slice(0, 10) : '');
-                            const likely = isLikely(o);
-                            return (
-                              <CommandItem
-                                key={o.id}
-                                value={o.id}
-                                onSelect={() => setPendingLink(o)}
-                                className="flex-col items-start gap-0.5"
-                              >
-                                <div className="flex items-center gap-2 w-full flex-wrap">
-                                  <span className="font-medium">#{label}</span>
-                                  {likely && (
-                                    <Badge className="bg-green-600 hover:bg-green-600/90 text-white text-[10px] px-1.5 py-0">
-                                      Trolig match
-                                    </Badge>
-                                  )}
-                                  {o._orphan && (
-                                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                      Felkopplad — pekar på borttaget ärende
-                                    </Badge>
-                                  )}
-                                  {o.total_amount != null && (
-                                    <span className="ml-auto text-xs text-muted-foreground">{formatAmount(Number(o.total_amount))}</span>
-                                  )}
-                                </div>
-                                {o.customer_name && (
-                                  <span className="text-xs text-muted-foreground">{o.customer_name}</span>
-                                )}
-                                {o.customer_address && (
-                                  <span className="text-xs text-muted-foreground">{o.customer_address}</span>
-                                )}
-                                {dateStr && (
-                                  <span className="text-[10px] text-muted-foreground">{dateStr}</span>
-                                )}
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Info className="h-4 w-4" /> Ingen A-ORDER kopplad ännu
               </div>
             )}
+            <Popover open={linkOpen} onOpenChange={setLinkOpen}>
+              <PopoverTrigger asChild>
+                {hasLinked ? (
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:text-foreground underline inline-flex items-center gap-1"
+                  >
+                    <Link2 className="h-3 w-3" /> Koppla ytterligare A-order
+                  </button>
+                ) : (
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Link2 className="h-4 w-4" /> Koppla befintlig A-order
+                  </Button>
+                )}
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-[min(95vw,420px)]" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Sök ordernr, fakturanr, adress, kund…"
+                    value={linkSearch}
+                    onValueChange={setLinkSearch}
+                  />
+                  <CommandList className="max-h-[320px]">
+                    <CommandEmpty>Inga okopplade A-ordrar hittades.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredUnlinked.map((o: any) => {
+                        const label = o.order_number || o.invoice_number || o.id.slice(0, 8);
+                        const dateStr = o.date || (o.created_at ? String(o.created_at).slice(0, 10) : '');
+                        const likely = isLikely(o);
+                        return (
+                          <CommandItem
+                            key={o.id}
+                            value={o.id}
+                            onSelect={() => setPendingLink(o)}
+                            className="flex-col items-start gap-0.5"
+                          >
+                            <div className="flex items-center gap-2 w-full flex-wrap">
+                              <span className="font-medium">#{label}</span>
+                              {likely && (
+                                <Badge className="bg-green-600 hover:bg-green-600/90 text-white text-[10px] px-1.5 py-0">
+                                  Trolig match
+                                </Badge>
+                              )}
+                              {o._orphan && (
+                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                  Felkopplad — pekar på borttaget ärende
+                                </Badge>
+                              )}
+                              {o.total_amount != null && (
+                                <span className="ml-auto text-xs text-muted-foreground">{formatAmount(Number(o.total_amount))}</span>
+                              )}
+                            </div>
+                            {o.customer_name && (
+                              <span className="text-xs text-muted-foreground">{o.customer_name}</span>
+                            )}
+                            {o.customer_address && (
+                              <span className="text-xs text-muted-foreground">{o.customer_address}</span>
+                            )}
+                            {dateStr && (
+                              <span className="text-[10px] text-muted-foreground">{dateStr}</span>
+                            )}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </section>
 
           <AlertDialog open={!!pendingLink} onOpenChange={(o) => !o && setPendingLink(null)}>
