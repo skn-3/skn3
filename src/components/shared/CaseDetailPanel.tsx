@@ -272,20 +272,40 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const { data: unlinkedOrders = [] } = useQuery({
     queryKey: ['unlinked-orders'],
     queryFn: async () => {
-      const { data, error } = await orderDb
+      // 1) Hämta alla orders (utan case_id-filter) — vi avgör orphan i klienten
+      const { data: allOrders, error: ordersErr } = await orderDb
         .from('orders')
-        .select('id, order_number, invoice_number, customer_address, customer_name, total_amount, status, date, created_at')
-        .is('case_id', null)
+        .select('id, order_number, invoice_number, customer_address, customer_name, total_amount, status, date, created_at, case_id')
         .order('created_at', { ascending: false })
         .limit(200);
-      console.log('[unlinkedOrders] fetched:', data?.length ?? 0, 'error:', error);
-      if (error) {
-        console.error('[unlinkedOrders] orderDb error:', error);
+      if (ordersErr) {
+        console.error('[unlinkedOrders] orderDb error:', ordersErr);
         return [];
       }
-      return data || [];
+
+      // 2) Hämta alla giltiga case-id:n från caseflow
+      const { data: validCases, error: casesErr } = await supabase
+        .from('cases')
+        .select('id');
+      if (casesErr) {
+        console.error('[unlinkedOrders] caseflow cases error:', casesErr);
+      }
+      const validIds = new Set((validCases || []).map((c: any) => c.id));
+
+      const orders = allOrders || [];
+      const nullCount = orders.filter((o: any) => o.case_id == null).length;
+      const setCount = orders.length - nullCount;
+      const orphanIds = orders
+        .filter((o: any) => o.case_id != null && !validIds.has(o.case_id))
+        .map((o: any) => ({ order: o.order_number ?? o.id.slice(0, 8), case_id: o.case_id }));
+      console.log('[unlinkedOrders] total:', orders.length, 'null:', nullCount, 'set:', setCount, 'orphans:', orphanIds);
+
+      // 3) Behåll: case_id null ELLER case_id som inte är giltigt
+      return orders
+        .filter((o: any) => o.case_id == null || !validIds.has(o.case_id))
+        .map((o: any) => ({ ...o, _orphan: o.case_id != null, _orphanCaseId: o.case_id }));
     },
-    enabled: !hasLinked,
+    enabled: true,
   });
 
   const invalidate = () => {
