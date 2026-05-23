@@ -201,18 +201,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const montageTimeChanged = ((caseData as any).montage_time || '') !== editForm.montage_time;
       if (montageDateChanged || montageTimeChanged) {
         try {
-          const { data: order } = await orderDb
-            .from('orders')
-            .select('id, date')
-            .eq('case_id', caseData.id)
-            .maybeSingle();
+          const order = await getOrderByCaseId(caseData.id);
           const newDate = editForm.montage_date || null;
           if (order && newDate && order.date !== newDate) {
-            const { error: updErr } = await orderDb
-              .from('orders')
-              .update({ date: newDate })
-              .eq('id', order.id);
-            if (updErr) throw updErr;
+            const ok = await updateOrderDate(order.id, newDate);
+            if (!ok) throw new Error('gateway update_date failed');
             await createCaseEvent({
               case_id: caseData.id,
               event_type: 'sync',
