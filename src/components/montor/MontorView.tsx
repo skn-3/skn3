@@ -25,7 +25,7 @@ interface MontorViewProps {
 
 type Tab = 'alla' | 'montage' | 'reklamationer' | 'klara' | 'kalender';
 
-const statusOrder = ['vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat', 'montage_klart', 'fakturerad', 'pausad'];
+const statusOrder = ['vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat', 'montage_pagar', 'montage_klart', 'fakturerad', 'pausad'];
 
 function matchesSearch(c: CaseRow, term: string): boolean {
   if (!term) return true;
@@ -149,7 +149,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   const filtered = useMemo(() => {
     switch (activeTab) {
       case 'montage':
-        return searched.filter(c => ['montage_bokat', 'leverans_klar'].includes(c.status));
+        return searched.filter(c => ['montage_bokat', 'montage_pagar', 'leverans_klar'].includes(c.status));
       case 'reklamationer':
         return searched.filter(c => unresolvedDeviationCaseIds.has(c.id));
       case 'klara':
@@ -160,12 +160,13 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   }, [searched, activeTab, unresolvedDeviationCaseIds]);
 
   const counts: Record<Tab, number | null> = useMemo(() => ({
-    alla: searched.filter(c => ['montage_bokat', 'leverans_klar', 'vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'montage_klart', 'fakturerad', 'pausad'].includes(c.status)).length,
-    montage: searched.filter(c => ['montage_bokat', 'leverans_klar'].includes(c.status)).length,
+    alla: searched.filter(c => ['montage_bokat', 'montage_pagar', 'leverans_klar', 'vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'montage_klart', 'fakturerad', 'pausad'].includes(c.status)).length,
+    montage: searched.filter(c => ['montage_bokat', 'montage_pagar', 'leverans_klar'].includes(c.status)).length,
     reklamationer: searched.filter(c => unresolvedDeviationCaseIds.has(c.id)).length,
     klara: searched.filter(c => ['montage_klart', 'fakturerad'].includes(c.status)).length,
     kalender: null,
   }), [searched, unresolvedDeviationCaseIds]);
+
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'alla', label: 'Alla' },

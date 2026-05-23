@@ -19,7 +19,9 @@ const statusColor: Record<string, string> = {
   i_produktion: 'bg-indigo-100 text-indigo-800',
   leverans_klar: 'bg-purple-100 text-purple-800',
   montage_bokat: 'bg-green-100 text-green-800',
+  montage_pagar: 'bg-indigo-100 text-indigo-800',
   montage_klart: 'bg-green-200 text-green-900',
+
   fakturerad: 'bg-gray-100 text-gray-700',
   pausad: 'bg-red-100 text-red-800',
 };
