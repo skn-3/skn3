@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCases, fetchVisits, type CaseRow } from '@/lib/supabaseClient';
-import { orderDb } from '@/integrations/supabase/orderClient';
+import { listOrdersByCaseIds } from '@/integrations/orderGateway';
 import { SELLER_PIPELINE_COLUMNS, STATUS_LABELS, SELLERS } from '@/lib/constants';
 import { CaseCard } from './CaseCard';
 import { FollowUpSection } from './FollowUpSection';
