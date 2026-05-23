@@ -265,6 +265,23 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
   });
 
+  const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
+
+  const { data: unlinkedOrders = [] } = useQuery({
+    queryKey: ['unlinked-orders'],
+    queryFn: async () => {
+      const { data, error } = await orderDb
+        .from('orders')
+        .select('id, order_number, invoice_number, customer_address, customer_name, total_amount, status, date, created_at')
+        .is('case_id', null)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !hasLinked,
+  });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
     queryClient.invalidateQueries({ queryKey: ['cases'] });
@@ -272,7 +289,88 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryClient.invalidateQueries({ queryKey: ['deviations', caseData.id] });
     queryClient.invalidateQueries({ queryKey: ['case_costs', caseData.id] });
     queryClient.invalidateQueries({ queryKey: ['linked-orders', caseData.id] });
+    queryClient.invalidateQueries({ queryKey: ['unlinked-orders'] });
   };
+
+  // --- Link / unlink A-order ---
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkSearch, setLinkSearch] = useState('');
+  const [pendingLink, setPendingLink] = useState<any | null>(null);
+  const [pendingUnlink, setPendingUnlink] = useState<any | null>(null);
+
+  const norm = (s: any) => String(s ?? '').toLowerCase().trim();
+  const caseAddr = norm(caseData.address);
+  const caseName = norm(caseData.customer_name);
+  const isLikely = (o: any) => {
+    const a = norm(o.customer_address);
+    const n = norm(o.customer_name);
+    if (!a && !n) return false;
+    if (a && caseAddr && (a.includes(caseAddr) || caseAddr.includes(a))) return true;
+    if (n && caseName && (n.includes(caseName) || caseName.includes(n))) return true;
+    return false;
+  };
+
+  const filteredUnlinked = (() => {
+    const q = norm(linkSearch);
+    const list = q
+      ? unlinkedOrders.filter((o: any) =>
+          norm(o.order_number).includes(q) ||
+          norm(o.invoice_number).includes(q) ||
+          norm(o.customer_address).includes(q) ||
+          norm(o.customer_name).includes(q)
+        )
+      : unlinkedOrders.slice();
+    return list.sort((a: any, b: any) => Number(isLikely(b)) - Number(isLikely(a)));
+  })();
+
+  const linkOrderMutation = useMutation({
+    mutationFn: async (order: any) => {
+      const { error } = await orderDb.from('orders').update({ case_id: caseData.id }).eq('id', order.id);
+      if (error) throw error;
+      const label = order.order_number || order.invoice_number || order.id.slice(0, 8);
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'order_link',
+        description: `A-order ${label} kopplad manuellt`,
+        created_by: currentUser,
+      });
+    },
+    onSuccess: () => {
+      invalidate();
+      toast.success('A-order kopplad');
+      setPendingLink(null);
+      setLinkOpen(false);
+      setLinkSearch('');
+    },
+    onError: (e: any) => {
+      console.warn('link order failed', e);
+      toast.error('Kunde inte uppdatera A-order i n3prenad');
+    },
+  });
+
+  const unlinkOrderMutation = useMutation({
+    mutationFn: async (order: any) => {
+      const { error } = await orderDb.from('orders').update({ case_id: null }).eq('id', order.id);
+      if (error) throw error;
+      const label = order.order_number || order.invoice_number || order.id.slice(0, 8);
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'order_link',
+        description: `A-order ${label} frånkopplad`,
+        created_by: currentUser,
+      });
+    },
+    onSuccess: () => {
+      invalidate();
+      toast.success('A-order frånkopplad');
+      setPendingUnlink(null);
+    },
+    onError: (e: any) => {
+      console.warn('unlink order failed', e);
+      toast.error('Kunde inte uppdatera A-order i n3prenad');
+    },
+  });
+
 
   const assignmentMutation = useMutation({
     mutationFn: async ({ field, value, label }: { field: 'team' | 'seller' | 'km_team'; value: string; label: string }) => {
