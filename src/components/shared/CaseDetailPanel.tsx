@@ -258,10 +258,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
 
+  // --- Link / unlink A-order state (lyft hit för att kunna styra unlinkedOrders-query) ---
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkSearch, setLinkSearch] = useState('');
+
   const { data: unlinkedOrders = [] } = useQuery({
     queryKey: ['unlinked-orders'],
     queryFn: async () => {
-      // Hämta alla giltiga case-id:n från caseflow för orphan-logik
       const { data: validCases, error: casesErr } = await supabase
         .from('cases')
         .select('id');
@@ -273,7 +276,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       console.log('[unlinkedOrders] gateway returned:', orders.length);
       return orders;
     },
-    enabled: true,
+    enabled: linkOpen,           // hämta först när "Koppla"-popovern öppnas
+    staleTime: 30_000,           // cacha 30s
   });
 
   const invalidate = () => {
@@ -286,9 +290,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryClient.invalidateQueries({ queryKey: ['unlinked-orders'] });
   };
 
-  // --- Link / unlink A-order ---
-  const [linkOpen, setLinkOpen] = useState(false);
-  const [linkSearch, setLinkSearch] = useState('');
+  // --- Link / unlink A-order (linkOpen/linkSearch deklareras ovan) ---
   const [pendingLink, setPendingLink] = useState<any | null>(null);
   const [pendingUnlink, setPendingUnlink] = useState<any | null>(null);
 
