@@ -48,6 +48,18 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [probDesc, setProbDesc] = useState('');
   const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
   const [probResponsible, setProbResponsible] = useState('');
+  const [respManuallySet, setRespManuallySet] = useState(false);
+
+  useEffect(() => {
+    if (respManuallySet) return;
+    const suggestion: Record<string, string> = {
+      felmatning: 'montor',
+      fabriksfel: 'fabrik',
+      extra_material: 'fabrik',
+    };
+    const s = suggestion[probType];
+    if (s && probResponsible !== s) setProbResponsible(s);
+  }, [probType, respManuallySet]);
   const [probFiles, setProbFiles] = useState<File[]>([]);
   const [probCost, setProbCost] = useState('');
 
