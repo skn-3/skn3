@@ -346,6 +346,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         notes: 'Importerat manuellt, befintligt ärende',
         seller: keepSeller,
         team: keepTeam,
+        km_team: keepKmTeam,
         media_consent: false,
         carry_help_needed: false,
         scheduled_delivery: false,
