@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, sendNotificationEmail } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
-import { orderDb } from '@/integrations/supabase/orderClient';
+import { searchOrders } from '@/integrations/orderGateway';
 import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
