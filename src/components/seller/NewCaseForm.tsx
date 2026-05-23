@@ -154,6 +154,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
         extra_hours_sold: Number(form.extra_hours_sold) || 0,
         team: form.team || null,
+        km_team: form.km_team || null,
         google_drive_link: form.google_drive_link || null,
         notes: form.notes || null,
         seller: sellerName,
