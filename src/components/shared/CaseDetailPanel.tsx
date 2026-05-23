@@ -855,6 +855,60 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </AlertDialogContent>
           </AlertDialog>
 
+          <AlertDialog open={blockedStatus !== null} onOpenChange={(open) => {
+            if (!open) {
+              setBlockedStatus(null);
+              setSelectedStatus(caseData.status);
+            }
+          }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Kan inte ändra status</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2">
+                    <div>
+                      Kan inte sätta <strong>{blockedStatus ? (STATUS_LABELS[blockedStatus.status] || blockedStatus.status) : ''}</strong>:
+                    </div>
+                    <div className="text-destructive font-medium">{blockedStatus?.reason}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Vill du gå till ärendet och fylla i det som saknas?
+                    </div>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => {
+                  setBlockedStatus(null);
+                  setSelectedStatus(caseData.status);
+                }}>Avbryt</AlertDialogCancel>
+                <Button variant="outline" onClick={() => {
+                  setBlockedStatus(null);
+                  setSelectedStatus(caseData.status);
+                  openEdit();
+                }}>Gå till redigering</Button>
+                {isAdmin && blockedStatus && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      const b = blockedStatus;
+                      setBlockedStatus(null);
+                      // Log forced override
+                      createCaseEvent({
+                        case_id: caseData.id,
+                        event_type: 'status_forced',
+                        description: `Status tvingad till ${STATUS_LABELS[b.status] || b.status} trots saknad förutsättning: ${b.reason}`,
+                        created_by: currentUser,
+                      }).catch((e) => console.warn('Could not log force', e));
+                      performStatusChange(b.status, b.description);
+                    }}
+                  >
+                    Tvinga ändå (admin)
+                  </Button>
+                )}
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <AlertDialog open={ovConfirmOpen} onOpenChange={setOvConfirmOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
