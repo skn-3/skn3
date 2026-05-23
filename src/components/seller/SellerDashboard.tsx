@@ -543,7 +543,20 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                   <th className="pb-2">Ort</th>
                   <th className="pb-2">Antal ärenden</th>
                   <th className="pb-2">Ordervärde <span className="text-xs font-normal">ex moms</span></th>
-                  <th className="pb-2">Hit rate</th>
+                  <th className="pb-2">
+                    <TooltipProvider>
+                      <UiTooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex items-center gap-1 cursor-help">
+                            Hit rate <Info className="h-3 w-3 text-muted-foreground" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          Andel registrerade kundbesök som ledde till signerat avtal. Importerade ärenden räknas inte (de saknar besökshistorik).
+                        </TooltipContent>
+                      </UiTooltip>
+                    </TooltipProvider>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -552,7 +565,11 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                     <td className="py-1.5 text-card-foreground font-medium">{c.city}</td>
                     <td className="py-1.5">{c.count}</td>
                     <td className="py-1.5">{formatAmount(c.value)}</td>
-                    <td className="py-1.5 text-primary font-medium">{c.hitRate !== null ? `${c.hitRate}%` : '–'}</td>
+                    <td className="py-1.5 text-primary font-medium">
+                      {c.hitRate !== null ? (
+                        <>{c.hitRate}% <span className="text-xs text-muted-foreground font-normal">({c.visitSigned}/{c.visitTotal})</span></>
+                      ) : '–'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
