@@ -620,7 +620,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
             </label>
           </RadioGroup>
           {form.scheduled_delivery && (
-            <p className="text-xs text-muted-foreground">Tidslossning kräver exakt datum och tid</p>
+            <p className="text-xs text-muted-foreground">Tiden anges senare, veckan innan leverans</p>
           )}
           {(form.scheduled_delivery || form.delivery_mode === 'date') ? (
             <div className="flex gap-2">
@@ -630,7 +630,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
                 className="w-28"
                 value={form.delivery_time}
                 onChange={(e) => update('delivery_time', e.target.value)}
-                placeholder={form.scheduled_delivery ? 'Tid *' : 'Tid'}
+                placeholder="Tid"
               />
             </div>
           ) : (
