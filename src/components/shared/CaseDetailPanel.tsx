@@ -452,11 +452,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const isReklam = devForm.type === 'reklamation';
       const descWithPriority = isReklam ? `[${probPriority.toUpperCase()}] ${devForm.description}` : devForm.description;
 
+      if (!devForm.responsible) {
+        throw new Error('Välj ansvarig innan du sparar');
+      }
       const deviation = await createDeviation({
         case_id: caseData.id,
         type: devForm.type,
         description: descWithPriority,
-        responsible: devForm.responsible || 'okant',
+        responsible: devForm.responsible,
         created_by: currentUser,
       });
 
