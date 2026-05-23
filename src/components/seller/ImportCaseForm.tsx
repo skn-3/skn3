@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createCase, createCaseEvent } from '@/lib/supabaseClient';
+import { useState, useEffect, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { createCase, createCaseEvent, fetchAllCases, type CaseRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { MONTORS, SELLERS, STATUS_LABELS, SELLER_PIPELINE_COLUMNS, HOUR_RATE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -13,10 +13,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { formatAmount } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Upload, Sparkles, Loader2 } from 'lucide-react';
+import { Upload, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ImportCaseFormProps {
