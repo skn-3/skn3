@@ -94,6 +94,8 @@ function getScheduledDeliveryBadge(c: any): { label: string; urgent: boolean } |
 
 export function CaseCard({ caseData, onClick, showSeller, warnings }: CaseCardProps) {
   const tidsBadge = getScheduledDeliveryBadge(caseData as any);
+  const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
+
   return (
     <button
       onClick={onClick}
