@@ -316,6 +316,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       // Keep seller and team prefilled for bulk import
       const keepSeller = form.seller;
       const keepTeam = form.team;
+      const keepKmTeam = form.km_team;
       setForm((f) => ({
         ...f,
         customer_name: '',
