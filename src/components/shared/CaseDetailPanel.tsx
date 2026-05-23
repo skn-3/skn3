@@ -1052,7 +1052,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                         </label>
                       </RadioGroup>
                       {editForm.scheduled_delivery && (
-                        <p className="text-xs text-muted-foreground">Tidslossning kräver exakt datum och tid</p>
+                        <p className="text-xs text-muted-foreground">Tiden anges senare, veckan innan leverans</p>
                       )}
                       {(editForm.scheduled_delivery || editForm.delivery_mode === 'date') ? (
                         <div className="flex gap-2">
@@ -1062,7 +1062,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                             className="w-28"
                             value={editForm.delivery_time}
                             onChange={(e) => setEditForm(f => ({ ...f, delivery_time: e.target.value }))}
-                            placeholder={editForm.scheduled_delivery ? 'Tid *' : 'Tid'}
+                            placeholder="Tid"
                           />
                         </div>
                       ) : (
