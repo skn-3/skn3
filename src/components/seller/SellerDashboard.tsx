@@ -491,7 +491,10 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">Reklamationskostnad</p>
           <p className="text-3xl font-bold text-destructive">{formatAmount(totalDevCost)}</p>
-          <p className="text-xs text-muted-foreground">{unresolvedDevs} olösta avvikelser</p>
+          <p className="text-xs text-muted-foreground">
+            {devCostPctOfRevenue > 0 ? `${devCostPctOfRevenue.toFixed(2)}% av omsättning · ` : ''}
+            {unresolvedDevs} olösta avvikelser
+          </p>
         </div>
       </div>
 
