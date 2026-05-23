@@ -224,6 +224,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     extra_hours_requested: '0',
     extra_hours_approved: '0',
     team: '',
+    km_team: '',
     seller: sellerName,
     status: 'ny',
     created_at: '',
@@ -259,6 +260,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         extra_hours_requested: Number(form.extra_hours_requested) || 0,
         extra_hours_approved: Number(form.extra_hours_approved) || 0,
         team: form.team || null,
+        km_team: form.km_team || null,
         seller: form.seller,
         status: form.status,
         google_drive_link: form.google_drive_link || null,
@@ -314,6 +316,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       // Keep seller and team prefilled for bulk import
       const keepSeller = form.seller;
       const keepTeam = form.team;
+      const keepKmTeam = form.km_team;
       setForm((f) => ({
         ...f,
         customer_name: '',
@@ -343,6 +346,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         notes: 'Importerat manuellt, befintligt ärende',
         seller: keepSeller,
         team: keepTeam,
+        km_team: keepKmTeam,
         media_consent: false,
         carry_help_needed: false,
         scheduled_delivery: false,
@@ -565,10 +569,23 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>Montör</Label>
-          <Select value={form.team} onValueChange={(v) => update('team', v)}>
-            <SelectTrigger className={cn(aiClass('team'))}><SelectValue placeholder="Välj montör..." /></SelectTrigger>
+          <Label>KM-montör (valfritt)</Label>
+          <Select value={form.km_team || '__none__'} onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}>
+            <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="__none__">— Ingen vald —</SelectItem>
+              {MONTORS.map((m) => (
+                <SelectItem key={m} value={m}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Montage-montör (valfritt)</Label>
+          <Select value={form.team || '__none__'} onValueChange={(v) => update('team', v === '__none__' ? '' : v)}>
+            <SelectTrigger className={cn(aiClass('team'))}><SelectValue placeholder="Ingen vald" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">— Ingen vald —</SelectItem>
               {MONTORS.map((m) => (
                 <SelectItem key={m} value={m}>{m}</SelectItem>
               ))}

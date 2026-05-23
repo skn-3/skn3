@@ -66,13 +66,16 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Admin sees all cases, regular montör sees only their own
-  const queryFilter = isAdmin ? {} : { team: role.name };
-
-  const { data: cases, isLoading } = useQuery({
+  // Admin sees all cases; regular montör sees cases where they are montage-team OR km_team.
+  // Fetch all + filter client-side (server-side .eq can't OR).
+  const { data: allCases, isLoading } = useQuery({
     queryKey: ['cases', 'montor', isAdmin ? 'admin' : role.name],
-    queryFn: () => fetchCases(queryFilter),
+    queryFn: () => fetchCases({}),
   });
+  const cases = useMemo(() => {
+    if (isAdmin) return allCases || [];
+    return (allCases || []).filter(c => c.team === role.name || (c as any).km_team === role.name);
+  }, [allCases, isAdmin, role.name]);
 
   // Fetch all deviations for cases
   const caseIds = useMemo(() => (cases || []).map(c => c.id), [cases]);
@@ -99,7 +102,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: Montor
   // Apply admin montör filter
   const teamFiltered = useMemo(() => {
     if (!isAdmin || adminFilter === 'alla') return cases || [];
-    return (cases || []).filter(c => c.team === adminFilter);
+    return (cases || []).filter(c => c.team === adminFilter || (c as any).km_team === adminFilter);
   }, [cases, isAdmin, adminFilter]);
 
   const sorted = useMemo(() => {

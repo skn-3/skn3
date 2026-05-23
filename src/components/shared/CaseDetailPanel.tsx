@@ -72,6 +72,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
     extra_hours_sold: String(caseData.extra_hours_sold ?? 0),
     team: caseData.team || '',
+    km_team: (caseData as any).km_team || '',
     google_drive_link: caseData.google_drive_link || '',
     offer_number: caseData.offer_number || '',
     customer_phone: caseData.customer_phone || '',
@@ -99,6 +100,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
       extra_hours_sold: String(caseData.extra_hours_sold ?? 0),
       team: caseData.team || '',
+      km_team: (caseData as any).km_team || '',
       google_drive_link: caseData.google_drive_link || '',
       offer_number: caseData.offer_number || '',
       customer_phone: caseData.customer_phone || '',
@@ -130,6 +132,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         tb_percent: editForm.tb_percent === '' ? null : Number(editForm.tb_percent),
         extra_hours_sold: Number(editForm.extra_hours_sold) || 0,
         team: editForm.team || null,
+        km_team: editForm.km_team || null,
         google_drive_link: editForm.google_drive_link || null,
         offer_number: editForm.offer_number || null,
         customer_phone: editForm.customer_phone,
@@ -159,7 +162,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const newTB = updates.tb_percent as number | null;
       if (oldTB !== newTB) changes.push(`TB ändrat till ${newTB != null ? newTB + '%' : '—'}`);
       if ((caseData.extra_hours_sold ?? 0) !== (updates.extra_hours_sold as number)) changes.push(`Extra timmar sålda ändrade till ${updates.extra_hours_sold}`);
-      if ((caseData.team || '') !== (editForm.team || '')) changes.push(`Montör ändrad till ${editForm.team || '—'}`);
+      if ((caseData.team || '') !== (editForm.team || '')) changes.push(`Montage-montör ändrad till ${editForm.team || '—'}`);
+      if (((caseData as any).km_team || '') !== (editForm.km_team || '')) changes.push(`KM-montör ändrad till ${editForm.km_team || '—'}`);
       if ((caseData.google_drive_link || '') !== editForm.google_drive_link) changes.push('Google Drive-länk uppdaterad');
       if ((caseData.offer_number || '') !== editForm.offer_number) changes.push(`Offertnummer ändrat till ${editForm.offer_number || '—'}`);
       if ((caseData.customer_phone || '') !== editForm.customer_phone) changes.push('Telefon uppdaterad');
@@ -270,12 +274,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   };
 
   const assignmentMutation = useMutation({
-    mutationFn: async ({ field, value, label }: { field: 'team' | 'seller'; value: string; label: string }) => {
-      await updateCase(caseData.id, { [field]: value });
+    mutationFn: async ({ field, value, label }: { field: 'team' | 'seller' | 'km_team'; value: string; label: string }) => {
+      const newValue = value ? value : null;
+      await updateCase(caseData.id, { [field]: newValue } as any);
       await createCaseEvent({
         case_id: caseData.id,
-        event_type: field === 'team' ? 'team_change' : 'seller_change',
-        description: `${label} ändrad till ${value}`,
+        event_type: field === 'seller' ? 'seller_change' : 'team_change',
+        description: `${label} ändrad till ${newValue || '—'}`,
         created_by: currentUser,
       });
     },
@@ -619,14 +624,29 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Montör</Label>
+                <Label className="text-xs text-muted-foreground">KM-montör</Label>
                 <Select
-                  value={caseData.team || ''}
-                  onValueChange={(v) => assignmentMutation.mutate({ field: 'team', value: v, label: 'Montör' })}
+                  value={(caseData as any).km_team || '__none__'}
+                  onValueChange={(v) => assignmentMutation.mutate({ field: 'km_team' as any, value: v === '__none__' ? '' : v, label: 'KM-montör' })}
                   disabled={assignmentMutation.isPending}
                 >
-                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Välj montör" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Ingen vald" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none__">— Ingen —</SelectItem>
+                    {MONTORS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Montage-montör</Label>
+                <Select
+                  value={caseData.team || '__none__'}
+                  onValueChange={(v) => assignmentMutation.mutate({ field: 'team', value: v === '__none__' ? '' : v, label: 'Montage-montör' })}
+                  disabled={assignmentMutation.isPending}
+                >
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Ingen vald" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Ingen —</SelectItem>
                     {MONTORS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -757,10 +777,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <Input type="number" value={editForm.extra_hours_sold} onChange={(e) => setEditForm(f => ({ ...f, extra_hours_sold: e.target.value }))} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Montör</Label>
-                    <Select value={editForm.team} onValueChange={(v) => setEditForm(f => ({ ...f, team: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Välj montör" /></SelectTrigger>
+                    <Label className="text-xs">KM-montör (valfritt)</Label>
+                    <Select value={editForm.km_team || '__none__'} onValueChange={(v) => setEditForm(f => ({ ...f, km_team: v === '__none__' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="__none__">— Ingen vald —</SelectItem>
+                        {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Montage-montör (valfritt)</Label>
+                    <Select value={editForm.team || '__none__'} onValueChange={(v) => setEditForm(f => ({ ...f, team: v === '__none__' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Ingen vald —</SelectItem>
                         {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                       </SelectContent>
                     </Select>

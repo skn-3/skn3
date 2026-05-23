@@ -59,12 +59,13 @@ function buildEvents(cases: CaseRow[]): CalEvent[] {
       const hasTime = !!anyC.km_time;
       const start = hasTime ? combineDateTime(c.km_date, anyC.km_time) : startOfDay(new Date(c.km_date + 'T00:00:00'));
       const end = hasTime ? addHours(start, 2) : endOfDay(start);
+      const kmTeam = (anyC.km_team as string | null) ?? null;
       events.push({
         id: `${c.id}-km`,
-        title: `KM — ${c.address}`,
+        title: `KM — ${c.address}${kmTeam ? ' (' + kmTeam + ')' : ''}`,
         start, end,
         allDay: !hasTime,
-        resource: { case_id: c.id, type: 'km', team: c.team, seller: c.seller, weekBased: false, caseData: c },
+        resource: { case_id: c.id, type: 'km', team: kmTeam, seller: c.seller, weekBased: false, caseData: c },
       });
     }
     if (c.montage_date) {

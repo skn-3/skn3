@@ -41,6 +41,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
     tb_percent: '',
     extra_hours_sold: '0',
     team: '',
+    km_team: '',
     google_drive_link: '',
     notes: '',
     media_consent: false,
@@ -153,6 +154,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
         extra_hours_sold: Number(form.extra_hours_sold) || 0,
         team: form.team || null,
+        km_team: form.km_team || null,
         google_drive_link: form.google_drive_link || null,
         notes: form.notes || null,
         seller: sellerName,
@@ -312,10 +314,23 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
           <Input type="number" value={form.extra_hours_sold} onChange={(e) => update('extra_hours_sold', e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label>Montör</Label>
-          <Select value={form.team} onValueChange={(v) => update('team', v)}>
-            <SelectTrigger><SelectValue placeholder="Välj montör..." /></SelectTrigger>
+          <Label>KM-montör (valfritt)</Label>
+          <Select value={form.km_team || '__none__'} onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}>
+            <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="__none__">— Ingen vald —</SelectItem>
+              {MONTORS.map((m) => (
+                <SelectItem key={m} value={m}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Montage-montör (valfritt)</Label>
+          <Select value={form.team || '__none__'} onValueChange={(v) => update('team', v === '__none__' ? '' : v)}>
+            <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">— Ingen vald —</SelectItem>
               {MONTORS.map((m) => (
                 <SelectItem key={m} value={m}>{m}</SelectItem>
               ))}
