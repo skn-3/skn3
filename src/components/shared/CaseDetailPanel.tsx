@@ -1676,7 +1676,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           </div>
           <DrawerFooter>
             <Button
-              disabled={!devForm.type || !devForm.description || problemMutation.isPending}
+              disabled={!devForm.type || !devForm.description || !devForm.responsible || problemMutation.isPending}
               onClick={() => problemMutation.mutate()}
             >
               {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}
