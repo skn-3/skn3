@@ -207,7 +207,12 @@ Deno.serve(async (req) => {
     const missingTeam = nextWeekCases.filter(c => !c.team).length;
 
     // ---------- Section 1: needs action ----------
-    const actionCases = nextWeekCases.filter(c => !c.team || (!orderUnknown && !orderedCaseIds.has(c.id)));
+    // Action needed: missing team, missing A-order, OR scheduled_delivery without time
+    const needsTime = (c: CaseRow) => c.scheduled_delivery && !c.delivery_time;
+    const actionCases = nextWeekCases.filter(c =>
+      !c.team || (!orderUnknown && !orderedCaseIds.has(c.id)) || needsTime(c)
+    );
+    const missingTime = nextWeekCases.filter(needsTime).length;
 
     let body = '';
 
@@ -216,7 +221,8 @@ Deno.serve(async (req) => {
       <strong>${nextWeekCases.length}</strong> leveranser nästa vecka ·
       Totalt ordervärde <strong>${formatMoney(totalValue)}</strong> ·
       <span style="color:${missingOrder > 0 ? '#DC2626' : '#1a1a1a'};">${orderUnknown ? '?' : missingOrder} saknar A-order</span> ·
-      <span style="color:${missingTeam > 0 ? '#DC2626' : '#1a1a1a'};">${missingTeam} saknar montör</span>
+      <span style="color:${missingTeam > 0 ? '#DC2626' : '#1a1a1a'};">${missingTeam} saknar montör</span> ·
+      <span style="color:${missingTime > 0 ? '#DC2626' : '#1a1a1a'};">${missingTime} tidsstyrd utan tid</span>
       ${orderUnknown ? '<div style="margin-top:6px;font-size:12px;color:#92400e;">⚠ Kunde inte hämta A-order-status från n3prenad — markerad som okänd.</div>' : ''}
     </div>`;
 
@@ -230,11 +236,14 @@ Deno.serve(async (req) => {
         if (!c.team) {
           missing.push(`<a href="${caseUrl(c.id)}" style="color:#DC2626;font-weight:600;text-decoration:underline;">Tilldela montör →</a>`);
         }
+        if (needsTime(c)) {
+          missing.push(`<a href="${caseUrl(c.id)}" style="color:#DC2626;font-weight:700;text-decoration:underline;">🕐 Tidsstyrd — TID MÅSTE ANGES — Ange tid →</a>`);
+        }
         return `<div style="border:1px solid #fecaca;background:#fef2f2;border-radius:8px;padding:12px;margin-bottom:8px;">
           <div style="font-weight:bold;color:#1a1a1a;">${c.address}${c.city ? `, ${c.city}` : ''}</div>
           <div style="font-size:13px;color:#4b5563;margin-top:2px;">${c.customer_name} · ${c.customer_phone || '—'}</div>
           <div style="font-size:13px;color:#4b5563;margin-top:2px;">Ordervärde: ${formatMoney(Number(c.order_value) || 0)}</div>
-          <div style="margin-top:8px;font-size:13px;">${missing.join(' &nbsp; ')}</div>
+          <div style="margin-top:8px;font-size:13px;display:flex;flex-direction:column;gap:4px;">${missing.join('<br/>')}</div>
         </div>`;
       }).join('');
     }
