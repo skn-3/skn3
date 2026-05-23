@@ -124,6 +124,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   );
 
   // --- Sales per city ---
+  const normalizeCity = (s: string) => (s || '').trim().toLowerCase();
   const cityMap: Record<string, { count: number; value: number }> = {};
   cases.forEach(c => {
     const city = getCaseCity(c as any);
@@ -131,20 +132,28 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
     cityMap[city].count++;
     cityMap[city].value += Number(c.order_value) || 0;
   });
+  // Key visits by normalized city so they match getCaseCity output regardless of case/whitespace
   const cityVisitMap: Record<string, { total: number; signerat: number }> = {};
   visits.forEach(v => {
-    const city = extractCityFromAddress(v.address);
-    if (!cityVisitMap[city]) cityVisitMap[city] = { total: 0, signerat: 0 };
-    cityVisitMap[city].total++;
-    if (v.result === 'signerat') cityVisitMap[city].signerat++;
+    const key = normalizeCity(extractCityFromAddress(v.address));
+    if (!key) return;
+    if (!cityVisitMap[key]) cityVisitMap[key] = { total: 0, signerat: 0 };
+    cityVisitMap[key].total++;
+    if (v.result === 'signerat') cityVisitMap[key].signerat++;
   });
   const cityData = Object.entries(cityMap)
-    .map(([city, d]) => ({
-      city,
-      count: d.count,
-      value: d.value,
-      hitRate: cityVisitMap[city]?.total ? Math.round((cityVisitMap[city].signerat / cityVisitMap[city].total) * 100) : null,
-    }))
+    .map(([city, d]) => {
+      const v = cityVisitMap[normalizeCity(city)];
+      const hasVisits = !!(v && v.total > 0);
+      return {
+        city,
+        count: d.count,
+        value: d.value,
+        hitRate: hasVisits ? Math.round((v!.signerat / v!.total) * 100) : null,
+        visitTotal: v?.total ?? 0,
+        visitSigned: v?.signerat ?? 0,
+      };
+    })
     .sort((a, b) => b.value - a.value);
 
   // --- Data quality outliers ---
