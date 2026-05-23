@@ -251,13 +251,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const { data: linkedOrders } = useQuery({
     queryKey: ['linked-orders', caseData.id],
     queryFn: async () => {
-      const { data, error } = await orderDb
-        .from('orders')
-        .select('*')
-        .eq('case_id', caseData.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
+      const o = await getOrderByCaseId(caseData.id);
+      return o ? [o] : [];
     },
   });
 
@@ -266,38 +261,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const { data: unlinkedOrders = [] } = useQuery({
     queryKey: ['unlinked-orders'],
     queryFn: async () => {
-      // 1) Hämta alla orders (utan case_id-filter) — vi avgör orphan i klienten
-      const { data: allOrders, error: ordersErr } = await orderDb
-        .from('orders')
-        .select('id, order_number, invoice_number, customer_address, customer_name, total_amount, status, date, created_at, case_id')
-        .order('created_at', { ascending: false })
-        .limit(200);
-      if (ordersErr) {
-        console.error('[unlinkedOrders] orderDb error:', ordersErr);
-        return [];
-      }
-
-      // 2) Hämta alla giltiga case-id:n från caseflow
+      // Hämta alla giltiga case-id:n från caseflow för orphan-logik
       const { data: validCases, error: casesErr } = await supabase
         .from('cases')
         .select('id');
       if (casesErr) {
         console.error('[unlinkedOrders] caseflow cases error:', casesErr);
       }
-      const validIds = new Set((validCases || []).map((c: any) => c.id));
-
-      const orders = allOrders || [];
-      const nullCount = orders.filter((o: any) => o.case_id == null).length;
-      const setCount = orders.length - nullCount;
-      const orphanIds = orders
-        .filter((o: any) => o.case_id != null && !validIds.has(o.case_id))
-        .map((o: any) => ({ order: o.order_number ?? o.id.slice(0, 8), case_id: o.case_id }));
-      console.log('[unlinkedOrders] total:', orders.length, 'null:', nullCount, 'set:', setCount, 'orphans:', orphanIds);
-
-      // 3) Behåll: case_id null ELLER case_id som inte är giltigt
-      return orders
-        .filter((o: any) => o.case_id == null || !validIds.has(o.case_id))
-        .map((o: any) => ({ ...o, _orphan: o.case_id != null, _orphanCaseId: o.case_id }));
+      const knownIds = (validCases || []).map((c: any) => c.id as string);
+      const orders = await listUnlinkedOrders(knownIds);
+      console.log('[unlinkedOrders] gateway returned:', orders.length);
+      return orders;
     },
     enabled: true,
   });
