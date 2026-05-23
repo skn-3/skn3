@@ -364,6 +364,17 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
         </Sheet>
       </div>
 
+      {/* Färgförklaring */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-blue-500" /> KM</span>
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-green-600" /> Montage</span>
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-orange-500" /> Leverans</span>
+        <span className="inline-flex items-center gap-1.5 opacity-70">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-orange-500" style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.5) 0 3px, transparent 3px 6px)' }} />
+          Vecko-leverans (ungefärlig)
+        </span>
+      </div>
+
       {conflictCount > 0 && (
         <div className="flex items-center gap-2 rounded-md border border-yellow-400/50 bg-yellow-50 dark:bg-yellow-950/30 px-3 py-2 text-sm text-yellow-900 dark:text-yellow-200">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
@@ -375,7 +386,7 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
         <Calendar
           localizer={localizer}
           culture="sv"
-          events={filteredEvents}
+          events={displayedEvents}
           view={view}
           onView={setView}
           date={date}
