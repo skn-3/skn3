@@ -100,6 +100,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
       extra_hours_sold: String(caseData.extra_hours_sold ?? 0),
       team: caseData.team || '',
+      km_team: (caseData as any).km_team || '',
       google_drive_link: caseData.google_drive_link || '',
       offer_number: caseData.offer_number || '',
       customer_phone: caseData.customer_phone || '',
