@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchAllCases, fetchAllDeviations, fetchAllVisits, fetchAllCaseEvents } from '@/lib/supabaseClient';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchAllCases, fetchAllDeviations, fetchAllVisits, fetchAllCaseEvents, updateDeviation } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, SELLERS, MONTORS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, HOUR_RATE, LOST_REASONS, COMPETITORS } from '@/lib/constants';
 import { Loader2, TrendingDown, ShieldAlert, Info } from 'lucide-react';
@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
+import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -36,6 +37,7 @@ function getCaseCity(c: { city?: string | null; address: string }): string {
 }
 
 export function SellerDashboard({ sellerName }: SellerDashboardProps) {
+  const queryClient = useQueryClient();
   const [filterSeller, setFilterSeller] = useState<string>('all');
   const [filterMontor, setFilterMontor] = useState<string>('all');
   const [filterCity, setFilterCity] = useState<string>('all');
@@ -43,6 +45,17 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   const [dateTo, setDateTo] = useState('');
   const [includeImported, setIncludeImported] = useState(true);
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
+  const [okantEdits, setOkantEdits] = useState<Record<string, string>>({});
+
+  const okantMutation = useMutation({
+    mutationFn: ({ id, responsible }: { id: string; responsible: string }) =>
+      updateDeviation(id, { responsible }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deviations_all'] });
+      toast.success('Ansvar uppdaterat');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: allCasesRaw, isLoading: loadingCases } = useQuery({ queryKey: ['cases_all'], queryFn: fetchAllCases });
   const { data: allDeviations } = useQuery({ queryKey: ['deviations_all'], queryFn: fetchAllDeviations });
@@ -83,6 +96,13 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   const avgTb = tbValues.length ? (tbValues.reduce((a, b) => a + b, 0) / tbValues.length).toFixed(1) : '–';
   const unresolvedDevs = filteredDeviations.filter((d) => !d.resolved).length;
   const totalDevCost = filteredDeviations.reduce((sum, d) => sum + (Number((d as any).cost) || 0), 0);
+  // Verklig TB% (efter avvikelser): summa TB-kr - avvikelser, dividerat med ordervärde
+  const totalTbKr = cases.reduce((sum, c) => {
+    const ov = Number(c.order_value) || 0;
+    const tb = c.tb_percent != null ? Number(c.tb_percent) : null;
+    return sum + (tb != null ? ov * tb / 100 : 0);
+  }, 0);
+  const realAvgTb = totalValue > 0 ? ((totalTbKr - totalDevCost) / totalValue) * 100 : null;
 
   // Budget progress — only cases from current year, company-wide (not affected by seller/city/date filters)
   const currentYear = new Date().getFullYear();
@@ -224,8 +244,82 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         type: DEVIATION_TYPES.find(dt => dt.value === d.type)?.label || d.type,
         description: d.description.substring(0, 80),
         daysSince,
+        overdue: daysSince > 14,
+      };
+    })
+    .sort((a, b) => b.daysSince - a.daysSince);
+
+  const overdueCount = unresolvedList.filter(d => d.overdue).length;
+  const avgUnresolvedAge = unresolvedList.length
+    ? Math.round(unresolvedList.reduce((s, d) => s + d.daysSince, 0) / unresolvedList.length)
+    : 0;
+
+  // --- Time to resolve (resolved deviations) ---
+  const resolvedTimes = filteredDeviations
+    .filter(d => d.resolved && (d as any).resolved_at)
+    .map(d => {
+      const start = new Date(d.created_at).getTime();
+      const end = new Date((d as any).resolved_at).getTime();
+      return Math.max(0, (end - start) / (1000 * 60 * 60 * 24));
+    });
+  const avgResolutionDays = resolvedTimes.length
+    ? (resolvedTimes.reduce((a, b) => a + b, 0) / resolvedTimes.length).toFixed(1)
+    : null;
+
+  // --- Cost share of revenue ---
+  const devCostPctOfRevenue = totalValue > 0 ? (totalDevCost / totalValue) * 100 : 0;
+
+  // --- Okant deviations cleanup list ---
+  const okantList = filteredDeviations
+    .filter(d => d.responsible === 'okant')
+    .map(d => {
+      const c = cases.find(c => c.id === d.case_id);
+      return {
+        id: d.id,
+        address: c?.address || '–',
+        type: DEVIATION_TYPES.find(dt => dt.value === d.type)?.label || d.type,
+        description: d.description.substring(0, 120),
+        cost: Number((d as any).cost) || 0,
       };
     });
+
+  // --- Cost per case (for real TB) ---
+  const devCostByCase: Record<string, number> = {};
+  filteredDeviations.forEach(d => {
+    devCostByCase[d.case_id] = (devCostByCase[d.case_id] || 0) + (Number((d as any).cost) || 0);
+  });
+
+  // --- Cost per montör (with reklamationsgrad) ---
+  const costPerMontor = MONTORS.map(m => {
+    const mc = cases.filter(c => c.team === m);
+    const mcIds = new Set(mc.map(c => c.id));
+    const cost = filteredDeviations
+      .filter(d => mcIds.has(d.case_id))
+      .reduce((s, d) => s + (Number((d as any).cost) || 0), 0);
+    const revenue = mc.reduce((s, c) => s + (Number(c.order_value) || 0), 0);
+    return {
+      name: m,
+      cost,
+      revenue,
+      pct: revenue > 0 ? (cost / revenue) * 100 : null,
+    };
+  }).filter(m => m.cost > 0 || m.revenue > 0).sort((a, b) => b.cost - a.cost);
+
+  // --- Cost per säljare ---
+  const costPerSeller = SELLERS.map(s => {
+    const sc = cases.filter(c => c.seller === s);
+    const scIds = new Set(sc.map(c => c.id));
+    const cost = filteredDeviations
+      .filter(d => scIds.has(d.case_id))
+      .reduce((sum, d) => sum + (Number((d as any).cost) || 0), 0);
+    const revenue = sc.reduce((sum, c) => sum + (Number(c.order_value) || 0), 0);
+    return {
+      name: s,
+      cost,
+      revenue,
+      pct: revenue > 0 ? (cost / revenue) * 100 : null,
+    };
+  }).filter(s => s.cost > 0 || s.revenue > 0).sort((a, b) => b.cost - a.cost);
 
   // --- Montör statistics ---
   const montorStats = MONTORS.map(m => {
@@ -400,11 +494,17 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">TB% genomsnitt</p>
           <p className="text-3xl font-bold text-card-foreground">{avgTb}%</p>
+          {totalDevCost > 0 && realAvgTb != null && (
+            <p className="text-xs text-muted-foreground">Verklig (efter avvikelser): <span className="font-medium text-card-foreground">{realAvgTb.toFixed(1)}%</span></p>
+          )}
         </div>
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">Reklamationskostnad</p>
           <p className="text-3xl font-bold text-destructive">{formatAmount(totalDevCost)}</p>
-          <p className="text-xs text-muted-foreground">{unresolvedDevs} olösta avvikelser</p>
+          <p className="text-xs text-muted-foreground">
+            {devCostPctOfRevenue > 0 ? `${devCostPctOfRevenue.toFixed(2)}% av omsättning · ` : ''}
+            {unresolvedDevs} olösta avvikelser
+          </p>
         </div>
       </div>
 
@@ -713,10 +813,71 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         )}
       </div>
 
+      {/* Cost per montör / per säljare */}
+      {(costPerMontor.length > 0 || costPerSeller.length > 0) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {costPerMontor.length > 0 && (
+            <div className="rounded-xl border bg-card p-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Reklamationskostnad per montör</h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="pb-2">Montör</th>
+                    <th className="pb-2 text-right">Kostnad</th>
+                    <th className="pb-2 text-right">% av oms.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {costPerMontor.map(m => (
+                    <tr key={m.name} className="border-t">
+                      <td className="py-1.5 text-card-foreground font-medium">{m.name}</td>
+                      <td className="py-1.5 text-right">{formatAmount(m.cost)}</td>
+                      <td className="py-1.5 text-right text-muted-foreground">{m.pct != null ? `${m.pct.toFixed(2)}%` : '–'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {costPerSeller.length > 0 && (
+            <div className="rounded-xl border bg-card p-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Reklamationskostnad per säljare</h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="pb-2">Säljare</th>
+                    <th className="pb-2 text-right">Kostnad</th>
+                    <th className="pb-2 text-right">% av oms.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {costPerSeller.map(s => (
+                    <tr key={s.name} className="border-t">
+                      <td className="py-1.5 text-card-foreground font-medium">{s.name}</td>
+                      <td className="py-1.5 text-right">{formatAmount(s.cost)}</td>
+                      <td className="py-1.5 text-right text-muted-foreground">{s.pct != null ? `${s.pct.toFixed(2)}%` : '–'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Unresolved deviations */}
       {unresolvedList.length > 0 && (
         <div className="rounded-xl border bg-card p-4">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Olösta avvikelser ({unresolvedList.length})</h3>
+          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Olösta avvikelser ({unresolvedList.length})
+            </h3>
+            <div className="text-xs text-muted-foreground">
+              Snittålder: <span className="font-medium text-card-foreground">{avgUnresolvedAge}d</span>
+              {overdueCount > 0 && <> · <span className="font-medium text-destructive">{overdueCount} äldre än 14 dagar</span></>}
+              {avgResolutionDays && <> · Snittid att lösa: <span className="font-medium text-card-foreground">{avgResolutionDays}d</span></>}
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -729,13 +890,72 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
               </thead>
               <tbody>
                 {unresolvedList.map(d => (
-                  <tr key={d.id} className="border-t">
+                  <tr key={d.id} className={`border-t ${d.overdue ? 'bg-destructive/5' : ''}`}>
                     <td className="py-1.5 text-card-foreground font-medium">{d.address}</td>
                     <td className="py-1.5">{d.type}</td>
                     <td className="py-1.5 text-muted-foreground truncate max-w-[200px]">{d.description}</td>
-                    <td className="py-1.5 font-medium text-destructive">{d.daysSince}d</td>
+                    <td className={`py-1.5 font-medium ${d.overdue ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
+                      {d.daysSince}d{d.overdue ? ' ⚠' : ''}
+                    </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Okant cleanup — fix legacy "Okänt" deviations */}
+      {okantList.length > 0 && (
+        <div className="rounded-xl border bg-card p-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4" />
+            DATAKVALITET — Avvikelser utan ansvar ({okantList.length})
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">Sätt rätt ansvar så blir "Kostnad per ansvar" meningsfull.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="pb-2">Adress</th>
+                  <th className="pb-2">Typ</th>
+                  <th className="pb-2">Beskrivning</th>
+                  <th className="pb-2 text-right">Kostnad</th>
+                  <th className="pb-2">Ansvar</th>
+                  <th className="pb-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {okantList.map(o => {
+                  const pick = okantEdits[o.id] || '';
+                  return (
+                    <tr key={o.id} className="border-t">
+                      <td className="py-1.5 text-card-foreground font-medium">{o.address}</td>
+                      <td className="py-1.5">{o.type}</td>
+                      <td className="py-1.5 text-muted-foreground truncate max-w-[240px]">{o.description}</td>
+                      <td className="py-1.5 text-right">{o.cost > 0 ? formatAmount(o.cost) : '–'}</td>
+                      <td className="py-1.5">
+                        <Select value={pick} onValueChange={(v) => setOkantEdits(prev => ({ ...prev, [o.id]: v }))}>
+                          <SelectTrigger className="w-36 h-8"><SelectValue placeholder="Välj…" /></SelectTrigger>
+                          <SelectContent>
+                            {DEVIATION_RESPONSIBLE.filter(r => r.value !== 'okant').map(r => (
+                              <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="py-1.5">
+                        <Button
+                          size="sm"
+                          disabled={!pick || okantMutation.isPending}
+                          onClick={() => okantMutation.mutate({ id: o.id, responsible: pick })}
+                        >
+                          Spara
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

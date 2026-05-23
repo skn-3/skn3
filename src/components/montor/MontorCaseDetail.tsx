@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
@@ -48,6 +48,18 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [probDesc, setProbDesc] = useState('');
   const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
   const [probResponsible, setProbResponsible] = useState('');
+  const [respManuallySet, setRespManuallySet] = useState(false);
+
+  useEffect(() => {
+    if (respManuallySet) return;
+    const suggestion: Record<string, string> = {
+      felmatning: 'montor',
+      fabriksfel: 'fabrik',
+      extra_material: 'fabrik',
+    };
+    const s = suggestion[probType];
+    if (s && probResponsible !== s) setProbResponsible(s);
+  }, [probType, respManuallySet]);
   const [probFiles, setProbFiles] = useState<File[]>([]);
   const [probCost, setProbCost] = useState('');
 
@@ -118,11 +130,14 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       const isReklam = probType === 'reklamation';
       const descWithPriority = isReklam ? `[${probPriority.toUpperCase()}] ${probDesc}` : probDesc;
 
+      if (!probResponsible) {
+        throw new Error('Välj ansvarig innan du sparar');
+      }
       const deviation = await createDeviation({
         case_id: caseData.id,
         type: probType,
         description: descWithPriority,
-        responsible: probResponsible || 'okant',
+        responsible: probResponsible,
         created_by: currentUser,
       });
 
@@ -188,6 +203,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       setProbDesc('');
       setProbPriority('medium');
       setProbResponsible('');
+      setRespManuallySet(false);
       setProbFiles([]);
       setProbCost('');
       invalidate();
@@ -643,13 +659,14 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               </div>
             </div>
             <div>
-              <Label className="mb-1 block">Ansvar</Label>
-              <Select value={probResponsible} onValueChange={setProbResponsible}>
+              <Label className="mb-1 block">Ansvar *</Label>
+              <Select value={probResponsible} onValueChange={(v) => { setRespManuallySet(true); setProbResponsible(v); }}>
                 <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Välj ansvarig" /></SelectTrigger>
                 <SelectContent>
                   {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {!probResponsible && <p className="text-xs text-destructive mt-1">Välj ansvarig för att kunna spara</p>}
             </div>
             <div>
               <Label className="mb-1 block">Kostnad (kr)</Label>
@@ -668,7 +685,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <DrawerFooter>
             <Button
               className="min-h-[48px]"
-              disabled={!probType || !probDesc.trim() || problemMutation.isPending}
+              disabled={!probType || !probDesc.trim() || !probResponsible || problemMutation.isPending}
               onClick={() => problemMutation.mutate()}
             >
               {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}

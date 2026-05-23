@@ -47,6 +47,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [note, setNote] = useState('');
   const [showDeviation, setShowDeviation] = useState(false);
   const [devForm, setDevForm] = useState({ type: '', description: '', responsible: '' });
+  const [respManuallySet, setRespManuallySet] = useState(false);
   const [devCost, setDevCost] = useState('');
   const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
   const [probFiles, setProbFiles] = useState<File[]>([]);
@@ -59,6 +60,20 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   useEffect(() => {
     setSelectedStatus(caseData.status);
   }, [caseData.status]);
+
+  // Smart-suggest responsible based on type (only if user hasn't manually picked)
+  useEffect(() => {
+    if (respManuallySet) return;
+    const suggestion: Record<string, string> = {
+      felmatning: 'montor',
+      fabriksfel: 'fabrik',
+      extra_material: 'fabrik',
+    };
+    const s = suggestion[devForm.type];
+    if (s && devForm.responsible !== s) {
+      setDevForm(f => ({ ...f, responsible: s }));
+    }
+  }, [devForm.type, respManuallySet]);
 
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
   // KM approval form state
@@ -452,11 +467,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const isReklam = devForm.type === 'reklamation';
       const descWithPriority = isReklam ? `[${probPriority.toUpperCase()}] ${devForm.description}` : devForm.description;
 
+      if (!devForm.responsible) {
+        throw new Error('Välj ansvarig innan du sparar');
+      }
       const deviation = await createDeviation({
         case_id: caseData.id,
         type: devForm.type,
         description: descWithPriority,
-        responsible: devForm.responsible || 'okant',
+        responsible: devForm.responsible,
         created_by: currentUser,
       });
 
@@ -515,6 +533,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onSuccess: () => {
       setShowDeviation(false);
       setDevForm({ type: '', description: '', responsible: '' });
+      setRespManuallySet(false);
       setProbPriority('medium');
       setProbFiles([]);
       setDevCost('');
@@ -1142,6 +1161,23 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 </div>
               );
             })()}
+            {(() => {
+              const ov = Number(caseData.order_value) || 0;
+              const tbPct = caseData.tb_percent != null ? Number(caseData.tb_percent) : null;
+              const devCostSum = (deviations || []).reduce((s, d: any) => s + (Number(d.cost) || 0), 0);
+              if (ov <= 0 || tbPct == null || devCostSum <= 0) return null;
+              const realTbKr = (ov * tbPct / 100) - devCostSum;
+              const realTbPct = (realTbKr / ov) * 100;
+              return (
+                <div className="text-sm mt-1">
+                  <span className="text-muted-foreground">Verklig TB efter avvikelser:</span>{' '}
+                  <span className={`font-semibold ${realTbPct >= 0 ? 'text-card-foreground' : 'text-destructive'}`}>
+                    {realTbPct.toFixed(1)}% ({realTbKr.toLocaleString('sv-SE')} kr)
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-1">— avvikelsekostnad {devCostSum.toLocaleString('sv-SE')} kr</span>
+                </div>
+              );
+            })()}
             {caseData.google_drive_link && (
               <a href={caseData.google_drive_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
                 <ExternalLink className="h-3.5 w-3.5" /> Google Drive
@@ -1620,13 +1656,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               </div>
             )}
             <div>
-              <Label>Ansvar</Label>
-              <Select value={devForm.responsible} onValueChange={(v) => setDevForm(f => ({ ...f, responsible: v }))}>
+              <Label>Ansvar *</Label>
+              <Select value={devForm.responsible} onValueChange={(v) => { setRespManuallySet(true); setDevForm(f => ({ ...f, responsible: v })); }}>
                 <SelectTrigger><SelectValue placeholder="Välj ansvarig" /></SelectTrigger>
                 <SelectContent>
                   {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {!devForm.responsible && <p className="text-xs text-destructive mt-1">Välj ansvarig för att kunna spara</p>}
             </div>
             <div>
               <Label>Kostnad (kr)</Label>
@@ -1656,7 +1693,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           </div>
           <DrawerFooter>
             <Button
-              disabled={!devForm.type || !devForm.description || problemMutation.isPending}
+              disabled={!devForm.type || !devForm.description || !devForm.responsible || problemMutation.isPending}
               onClick={() => problemMutation.mutate()}
             >
               {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}

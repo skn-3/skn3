@@ -94,7 +94,7 @@ export async function createDeviation(deviation: DeviationInsert) {
   return data;
 }
 
-export async function updateDeviation(id: string, updates: { image_urls?: string[]; resolved?: boolean; cost?: number }) {
+export async function updateDeviation(id: string, updates: { image_urls?: string[]; resolved?: boolean; cost?: number; responsible?: string }) {
   const { data, error } = await supabase.from('deviations').update(updates).eq('id', id).select().single();
   if (error) throw error;
   return data;
