@@ -325,6 +325,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           norm(o.customer_name).includes(q)
         )
       : unlinkedOrders.slice();
+    if (linkOpen) {
+      console.log('[unlinkedOrders] total:', unlinkedOrders.length, 'filtered:', list.length, 'query:', q);
+    }
     return list.sort((a: any, b: any) => Number(isLikely(b)) - Number(isLikely(a)));
   })();
 
