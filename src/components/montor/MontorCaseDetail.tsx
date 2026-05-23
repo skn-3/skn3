@@ -659,13 +659,14 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               </div>
             </div>
             <div>
-              <Label className="mb-1 block">Ansvar</Label>
-              <Select value={probResponsible} onValueChange={setProbResponsible}>
+              <Label className="mb-1 block">Ansvar *</Label>
+              <Select value={probResponsible} onValueChange={(v) => { setRespManuallySet(true); setProbResponsible(v); }}>
                 <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Välj ansvarig" /></SelectTrigger>
                 <SelectContent>
                   {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {!probResponsible && <p className="text-xs text-destructive mt-1">Välj ansvarig för att kunna spara</p>}
             </div>
             <div>
               <Label className="mb-1 block">Kostnad (kr)</Label>
