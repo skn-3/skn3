@@ -18,6 +18,7 @@ export function SellerNav({ active, onChange, isAdmin }: SellerNavProps) {
     ...(isAdmin ? [
       { value: 'import' as SellerTab, label: 'Importera ärende' },
       { value: 'clean-addresses' as SellerTab, label: 'Städa adresser' },
+      { value: 'validate' as SellerTab, label: 'Validera pipeline' },
     ] : []),
   ];
 
