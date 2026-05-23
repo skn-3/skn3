@@ -280,7 +280,9 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
                 ))}
               </div>
             </div>
-          ))}
+            );
+          })}
+
         </div>
       </div>
     </div>
