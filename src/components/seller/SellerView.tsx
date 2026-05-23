@@ -73,6 +73,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView }: SellerVie
         {tab === 'clean-addresses' && isAdmin && (
           <CleanAddressesView currentUser={role.name} />
         )}
+        {tab === 'validate' && isAdmin && (
+          <ValidatePipelineView currentUser={role.name} />
+        )}
       </main>
 
       {selectedCase && (
