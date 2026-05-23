@@ -203,6 +203,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       setProbDesc('');
       setProbPriority('medium');
       setProbResponsible('');
+      setRespManuallySet(false);
       setProbFiles([]);
       setProbCost('');
       invalidate();
