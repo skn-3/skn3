@@ -37,6 +37,7 @@ function getCaseCity(c: { city?: string | null; address: string }): string {
 }
 
 export function SellerDashboard({ sellerName }: SellerDashboardProps) {
+  const queryClient = useQueryClient();
   const [filterSeller, setFilterSeller] = useState<string>('all');
   const [filterMontor, setFilterMontor] = useState<string>('all');
   const [filterCity, setFilterCity] = useState<string>('all');
@@ -44,6 +45,17 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   const [dateTo, setDateTo] = useState('');
   const [includeImported, setIncludeImported] = useState(true);
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
+  const [okantEdits, setOkantEdits] = useState<Record<string, string>>({});
+
+  const okantMutation = useMutation({
+    mutationFn: ({ id, responsible }: { id: string; responsible: string }) =>
+      updateDeviation(id, { responsible }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deviations_all'] });
+      toast.success('Ansvar uppdaterat');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: allCasesRaw, isLoading: loadingCases } = useQuery({ queryKey: ['cases_all'], queryFn: fetchAllCases });
   const { data: allDeviations } = useQuery({ queryKey: ['deviations_all'], queryFn: fetchAllDeviations });
