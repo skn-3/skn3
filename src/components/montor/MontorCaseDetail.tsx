@@ -685,7 +685,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <DrawerFooter>
             <Button
               className="min-h-[48px]"
-              disabled={!probType || !probDesc.trim() || problemMutation.isPending}
+              disabled={!probType || !probDesc.trim() || !probResponsible || problemMutation.isPending}
               onClick={() => problemMutation.mutate()}
             >
               {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}
