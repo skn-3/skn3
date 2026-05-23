@@ -364,12 +364,17 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
           />
           Behövs bärhjälp?
         </label>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={form.scheduled_delivery}
-            onCheckedChange={(c) => update('scheduled_delivery', c === true)}
-          />
-          Tidsstyrd leverans (tidslossning)
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="flex items-center gap-2">
+            <Checkbox
+              checked={form.scheduled_delivery}
+              onCheckedChange={(c) => update('scheduled_delivery', c === true)}
+            />
+            Tidsstyrd leverans (tidslossning)
+          </span>
+          {form.scheduled_delivery && (
+            <span className="text-xs text-muted-foreground pl-6">Tiden anges senare, veckan innan leverans</span>
+          )}
         </label>
       </div>
 
