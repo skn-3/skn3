@@ -255,6 +255,23 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const startMontageMutation = useMutation({
+    mutationFn: async () => {
+      const check = canEnterStatus('montage_pagar', caseData);
+      if (!check.ok) throw new Error(check.reason || 'Förutsättning saknas');
+      await updateCase(caseData.id, { status: 'montage_pagar' });
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'status_change',
+        description: 'Montage påbörjat',
+        created_by: currentUser,
+      });
+    },
+    onSuccess: () => { invalidate(); toast.success('Montage påbörjat'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
   const kmBookMutation = useMutation({
     mutationFn: async () => {
       await updateCase(caseData.id, { status: 'km_bokad', km_date: kmDate });
@@ -434,6 +451,18 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         {/* Montage klart button */}
         {caseData.status === 'montage_bokat' && (
           <Button
+            onClick={() => startMontageMutation.mutate()}
+            disabled={startMontageMutation.isPending}
+            className="w-full min-h-[56px] text-lg font-semibold mb-3 bg-indigo-600 hover:bg-indigo-700 text-white"
+            size="lg"
+          >
+            <Wrench className="h-6 w-6 mr-2" />
+            Påbörja montage
+          </Button>
+        )}
+
+        {(caseData.status === 'montage_bokat' || caseData.status === 'montage_pagar') && (
+          <Button
             onClick={() => setShowKlar(true)}
             className="w-full min-h-[56px] text-lg font-semibold mb-4 bg-primary hover:bg-primary/90"
             size="lg"
@@ -443,6 +472,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             Montage klart
           </Button>
         )}
+
 
         {/* Status actions */}
         <section className="py-4 space-y-3 border-t">
