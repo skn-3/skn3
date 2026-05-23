@@ -59,6 +59,31 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   useEffect(() => {
     setSelectedStatus(caseData.status);
   }, [caseData.status]);
+
+  // [DIAG] Temporary diagnostics for "Koppla befintlig A-order" issue (Odengatan 31)
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: o15, error: e15 } = await orderDb.from('orders').select('id, order_number, customer_address, case_id, status').eq('order_number', 15);
+        console.log('[DIAG] Order #15:', o15, 'error:', e15);
+
+        const { data: oOden } = await orderDb.from('orders').select('id, order_number, customer_address, case_id, status').ilike('customer_address', '%Odengatan%');
+        console.log('[DIAG] Odengatan-orders:', oOden);
+
+        const { data: unl, error: eUnl } = await orderDb.from('orders').select('id, order_number, customer_address, case_id').is('case_id', null).limit(200);
+        console.log('[DIAG] Okopplade (case_id null):', unl?.length, 'st', 'error:', eUnl);
+
+        const { data: all } = await orderDb.from('orders').select('id, case_id');
+        const nNull = (all || []).filter((o: any) => o.case_id == null).length;
+        const nSet = (all || []).filter((o: any) => o.case_id != null).length;
+        console.log('[DIAG] Totalt orders:', all?.length, '| case_id null:', nNull, '| case_id satt:', nSet);
+
+        console.log('[DIAG] Detta ärende case.id:', caseData.id, '| address:', caseData.address);
+      } catch (err) {
+        console.error('[DIAG] error:', err);
+      }
+    })();
+  }, [caseData.id]);
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
   // KM approval form state
   const [approvalMontor, setApprovalMontor] = useState(caseData.team || '');
