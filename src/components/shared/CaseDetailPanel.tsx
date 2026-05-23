@@ -1252,11 +1252,16 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                                 onSelect={() => setPendingLink(o)}
                                 className="flex-col items-start gap-0.5"
                               >
-                                <div className="flex items-center gap-2 w-full">
+                                <div className="flex items-center gap-2 w-full flex-wrap">
                                   <span className="font-medium">#{label}</span>
                                   {likely && (
                                     <Badge className="bg-green-600 hover:bg-green-600/90 text-white text-[10px] px-1.5 py-0">
                                       Trolig match
+                                    </Badge>
+                                  )}
+                                  {o._orphan && (
+                                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                      Felkopplad — pekar på borttaget ärende
                                     </Badge>
                                   )}
                                   {o.total_amount != null && (
