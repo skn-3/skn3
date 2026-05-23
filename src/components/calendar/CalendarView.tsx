@@ -157,21 +157,52 @@ function CustomToolbar({ label, onNavigate, onView, view }: ToolbarProps) {
   );
 }
 
-const TYPE_OPTIONS: { value: EventType; label: string }[] = [
-  { value: 'km', label: 'KM' },
-  { value: 'montage', label: 'Montage' },
-  { value: 'leverans', label: 'Leverans' },
+type TypeStyle = { value: EventType; label: string; dot: string; chipActive: string };
+const TYPE_OPTIONS: TypeStyle[] = [
+  { value: 'km',       label: 'KM',       dot: 'bg-blue-500',   chipActive: 'bg-blue-500 text-white border-blue-500' },
+  { value: 'montage',  label: 'Montage',  dot: 'bg-green-600',  chipActive: 'bg-green-600 text-white border-green-600' },
+  { value: 'leverans', label: 'Leverans', dot: 'bg-orange-500', chipActive: 'bg-orange-500 text-white border-orange-500' },
 ];
 
+function shortAddress(a: string | null | undefined): string {
+  if (!a) return '';
+  // strip city/postal after comma
+  const base = a.split(',')[0].trim();
+  // also drop trailing postal codes if no comma
+  return base.replace(/\s+\d{3}\s?\d{2}\s.*$/, '').trim();
+}
+
 function MonthEvent({ event }: { event: CalEvent }) {
-  const { type } = event.resource;
-  const short = type === 'km' ? 'KM' : type === 'montage' ? 'Mont' : 'Lev';
-  const time = event.allDay ? '' : ` ${format(event.start, 'HH:mm')}`;
-  return <span className="truncate">{short}{time}</span>;
+  const { type, weekBased, caseData } = event.resource;
+  const anyC = caseData as any;
+  const addr = shortAddress(caseData.address);
+  let label = '';
+  if (type === 'km') {
+    label = `KM · ${addr}`;
+  } else if (type === 'montage') {
+    // Tid kommer endast från montage_time (bokad tid). Saknas tid → ingen tid visas.
+    const mt: string | null = anyC.montage_time ?? null;
+    const t = mt ? ` · ${mt.slice(0, 5)}` : '';
+    label = `Montage · ${addr}${t}`;
+  } else if (type === 'leverans') {
+    label = weekBased
+      ? `Leverans v${anyC.delivery_week} · ${addr}`
+      : `Leverans · ${addr}`;
+  }
+  return (
+    <span className={cn('truncate block', type === 'montage' && 'font-semibold tracking-tight')}>
+      {label}
+    </span>
+  );
 }
 
 function FullEvent({ event }: { event: CalEvent }) {
-  return <span className="truncate">{event.title}</span>;
+  const { type, weekBased, caseData } = event.resource;
+  const anyC = caseData as any;
+  if (type === 'leverans' && weekBased) {
+    return <span className="truncate">Leverans v{anyC.delivery_week} · {caseData.address} (hela veckan)</span>;
+  }
+  return <span className={cn('truncate', type === 'montage' && 'font-semibold')}>{event.title}</span>;
 }
 
 export function CalendarView({ onSelectCase }: CalendarViewProps) {
