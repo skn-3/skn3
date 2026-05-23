@@ -107,6 +107,7 @@ export type Database = {
           id: string
           imported: boolean
           km_date: string | null
+          km_team: string | null
           km_time: string | null
           media_consent: boolean
           montage_date: string | null
@@ -141,6 +142,7 @@ export type Database = {
           id?: string
           imported?: boolean
           km_date?: string | null
+          km_team?: string | null
           km_time?: string | null
           media_consent?: boolean
           montage_date?: string | null
@@ -175,6 +177,7 @@ export type Database = {
           id?: string
           imported?: boolean
           km_date?: string | null
+          km_team?: string | null
           km_time?: string | null
           media_consent?: boolean
           montage_date?: string | null

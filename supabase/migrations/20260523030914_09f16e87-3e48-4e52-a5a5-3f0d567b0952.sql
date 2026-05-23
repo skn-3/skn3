@@ -1,0 +1,1 @@
+ALTER TABLE public.cases ADD COLUMN km_team TEXT;
