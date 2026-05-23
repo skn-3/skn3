@@ -683,6 +683,47 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         </label>
       </div>
 
+
+      {dupCandidates.length > 0 && (
+        <div className={cn(
+          "rounded-lg border p-3 space-y-2",
+          strongMatches.length > 0
+            ? "border-orange-400 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-700"
+            : "border-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-700",
+        )}>
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <AlertTriangle className="h-4 w-4" />
+            Möjlig dubblett — {dupCandidates.length} liknande ärende{dupCandidates.length !== 1 ? 'n' : ''} finns redan
+          </div>
+          <ul className="space-y-1.5">
+            {dupCandidates.slice(0, 5).map((m) => (
+              <li key={m.case.id} className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-medium">{m.case.address}</span>
+                <span className="text-muted-foreground">· {m.case.customer_name}</span>
+                <span className="text-muted-foreground">· {m.case.seller}</span>
+                <span className="text-muted-foreground">· {new Date(m.case.created_at).toLocaleDateString('sv-SE')}</span>
+                {m.reasons.map((r) => (
+                  <Badge
+                    key={r}
+                    variant={m.strength === 'strong' ? 'destructive' : 'secondary'}
+                    className="text-[10px]"
+                  >
+                    {r}
+                  </Badge>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setViewCase(m.case)}
+                  className="ml-auto text-primary underline underline-offset-2 hover:no-underline"
+                >
+                  Visa ärende
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <Button
         onClick={handleSubmit}
         disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
@@ -691,6 +732,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         <Upload className="h-4 w-4 mr-2" />
         {mutation.isPending ? 'Importerar...' : 'Importera ärende'}
       </Button>
+
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
