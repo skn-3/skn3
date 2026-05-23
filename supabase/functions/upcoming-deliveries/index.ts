@@ -13,9 +13,8 @@ const LOGO_URL = `${APP_URL}/logo.png`;
 const TO_EMAIL = 'mirna.malke@mockfjards.se';
 const CC_EMAIL = 'daniel@malke.se';
 
-// n3prenad / orderDb (same credentials as src/integrations/supabase/orderClient.ts)
-const ORDER_DB_URL = 'https://pjurpgqgqvabopoxkzja.supabase.co';
-const ORDER_DB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqdXJwZ3FncXZhYm9wb3hremphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NzI4NjYsImV4cCI6MjA5MTM0ODg2Nn0.pzVo2I34DIDV8hd4Zwd2D_SmMRiQYns3VRH4O_LMlYM';
+// n3prenad orders-gateway (RLS låst — vi måste gå via gatewayen med delad secret)
+const ORDERS_GATEWAY_URL = 'https://pjurpgqgqvabopoxkzja.supabase.co/functions/v1/orders-gateway';
 
 const RELEVANT_STATUSES = new Set(['godkand', 'i_produktion', 'leverans_klar', 'montage_bokat']);
 
