@@ -371,6 +371,35 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const ovNum = ovStr === '' ? 0 : Number(ovStr);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // Debounced duplicate detection
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const hasInput =
+        form.customer_name.trim() ||
+        form.customer_phone.trim() ||
+        form.address.trim() ||
+        form.offer_number.trim();
+      if (!hasInput || existingCases.length === 0) {
+        setDupCandidates([]);
+        return;
+      }
+      setDupCandidates(findPotentialDuplicates(form, existingCases));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [form.customer_name, form.customer_phone, form.address, form.offer_number, existingCases]);
+
+  const strongMatches = useMemo(
+    () => dupCandidates.filter((m) => m.strength === 'strong'),
+    [dupCandidates],
+  );
+
+  const runImport = (acknowledgedDup: boolean) => {
+    const dupReasons = acknowledgedDup
+      ? Array.from(new Set(strongMatches.flatMap((m) => m.reasons)))
+      : undefined;
+    mutation.mutate({ dupReasons });
+  };
+
   const handleSubmit = () => {
     if (!form.seller || !(SELLERS as readonly string[]).includes(form.seller)) {
       toast.error(`Säljare måste vara en av: ${SELLERS.join(', ')}`);
@@ -395,8 +424,13 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       setConfirmOpen(true);
       return;
     }
-    mutation.mutate();
+    if (strongMatches.length > 0) {
+      setDupConfirmOpen(true);
+      return;
+    }
+    runImport(false);
   };
+
 
 
 
