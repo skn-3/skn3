@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-export type SellerTab = 'pipeline' | 'calendar' | 'new' | 'visit' | 'dashboard' | 'import' | 'clean-addresses';
+export type SellerTab = 'pipeline' | 'calendar' | 'new' | 'visit' | 'dashboard' | 'import' | 'clean-addresses' | 'validate';
 
 interface SellerNavProps {
   active: SellerTab;
