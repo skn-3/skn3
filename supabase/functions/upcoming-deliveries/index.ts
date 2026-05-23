@@ -278,7 +278,13 @@ Deno.serve(async (req) => {
               ? badge('⚠ A-order saknas', '#DC2626')
               : badge('A-order okänd', '#9ca3af');
           const extras: string[] = [];
-          if (c.scheduled_delivery) extras.push(badge('🕐 Tidslossning', '#F97316'));
+          if (c.scheduled_delivery) {
+            if (c.delivery_time) {
+              extras.push(badge(`🕐 Tidsstyrd — kl ${String(c.delivery_time).slice(0, 5)}`, '#F97316'));
+            } else {
+              extras.push(badge('🕐 Tidsstyrd — TID MÅSTE ANGES', '#DC2626'));
+            }
+          }
           if (c.carry_help_needed) extras.push(badge('💪 Bärhjälp', '#EAB308'));
           if (c.media_consent) extras.push(badge('📷 Foto OK', '#3B82F6'));
           return `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:8px;">
