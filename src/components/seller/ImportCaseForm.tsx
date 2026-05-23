@@ -110,6 +110,16 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   const [aiSuccessCount, setAiSuccessCount] = useState<number | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  const { data: existingCases = [] } = useQuery({
+    queryKey: ['cases_all_for_dup'],
+    queryFn: fetchAllCases,
+    staleTime: 60_000,
+  });
+
+  const [dupCandidates, setDupCandidates] = useState<DuplicateMatch[]>([]);
+  const [viewCase, setViewCase] = useState<CaseRow | null>(null);
+  const [dupConfirmOpen, setDupConfirmOpen] = useState(false);
+
   const handleAiExtract = async () => {
     if (!pasteText.trim()) return;
     setIsParsing(true);
