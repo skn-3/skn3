@@ -130,11 +130,14 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       const isReklam = probType === 'reklamation';
       const descWithPriority = isReklam ? `[${probPriority.toUpperCase()}] ${probDesc}` : probDesc;
 
+      if (!probResponsible) {
+        throw new Error('Välj ansvarig innan du sparar');
+      }
       const deviation = await createDeviation({
         case_id: caseData.id,
         type: probType,
         description: descWithPriority,
-        responsible: probResponsible || 'okant',
+        responsible: probResponsible,
         created_by: currentUser,
       });
 
