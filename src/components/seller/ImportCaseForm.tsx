@@ -569,10 +569,23 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>Montör</Label>
-          <Select value={form.team} onValueChange={(v) => update('team', v)}>
-            <SelectTrigger className={cn(aiClass('team'))}><SelectValue placeholder="Välj montör..." /></SelectTrigger>
+          <Label>KM-montör (valfritt)</Label>
+          <Select value={form.km_team || '__none__'} onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}>
+            <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="__none__">— Ingen vald —</SelectItem>
+              {MONTORS.map((m) => (
+                <SelectItem key={m} value={m}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Montage-montör (valfritt)</Label>
+          <Select value={form.team || '__none__'} onValueChange={(v) => update('team', v === '__none__' ? '' : v)}>
+            <SelectTrigger className={cn(aiClass('team'))}><SelectValue placeholder="Ingen vald" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">— Ingen vald —</SelectItem>
               {MONTORS.map((m) => (
                 <SelectItem key={m} value={m}>{m}</SelectItem>
               ))}
