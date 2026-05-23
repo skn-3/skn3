@@ -1,13 +1,14 @@
 import type { CaseRow } from '@/lib/supabaseClient';
-import { User, Wrench, UserCircle } from 'lucide-react';
+import { User, Wrench, UserCircle, AlertTriangle } from 'lucide-react';
 
 interface CaseCardProps {
   caseData: CaseRow;
   onClick: () => void;
   showSeller?: boolean;
+  warnings?: string[];
 }
 
-export function CaseCard({ caseData, onClick, showSeller }: CaseCardProps) {
+export function CaseCard({ caseData, onClick, showSeller, warnings }: CaseCardProps) {
   return (
     <button
       onClick={onClick}
@@ -37,7 +38,19 @@ export function CaseCard({ caseData, onClick, showSeller }: CaseCardProps) {
           </div>
         )}
       </div>
+      {warnings && warnings.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-1">
+          {warnings.map((w) => (
+            <span
+              key={w}
+              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800"
+            >
+              <AlertTriangle className="h-3 w-3" />
+              {w}
+            </span>
+          ))}
+        </div>
+      )}
     </button>
   );
 }
-
