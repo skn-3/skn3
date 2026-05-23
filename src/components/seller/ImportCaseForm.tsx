@@ -245,7 +245,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (vars: { dupReasons?: string[] } = {}) => {
       const caseData: any = {
         customer_name: form.customer_name,
         customer_phone: form.customer_phone,
@@ -292,6 +292,15 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         description: 'Ärende importerat manuellt',
         created_by: 'Admin (import)',
       });
+
+      if (vars.dupReasons && vars.dupReasons.length > 0) {
+        await createCaseEvent({
+          case_id: newCase.id,
+          event_type: 'import',
+          description: `Importerat trots möjlig dubblett (matchade: ${vars.dupReasons.join(', ')})`,
+          created_by: 'Admin (import)',
+        });
+      }
 
       return newCase;
     },
