@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchAllCases, fetchAllDeviations, fetchAllVisits, fetchAllCaseEvents } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, SELLERS, MONTORS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, HOUR_RATE, LOST_REASONS, COMPETITORS } from '@/lib/constants';
-import { Loader2, TrendingDown, ShieldAlert } from 'lucide-react';
+import { Loader2, TrendingDown, ShieldAlert, Info } from 'lucide-react';
+import { Tooltip as UiTooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { formatAmount } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -123,6 +124,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   );
 
   // --- Sales per city ---
+  const normalizeCity = (s: string) => (s || '').trim().toLowerCase();
   const cityMap: Record<string, { count: number; value: number }> = {};
   cases.forEach(c => {
     const city = getCaseCity(c as any);
@@ -130,20 +132,28 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
     cityMap[city].count++;
     cityMap[city].value += Number(c.order_value) || 0;
   });
+  // Key visits by normalized city so they match getCaseCity output regardless of case/whitespace
   const cityVisitMap: Record<string, { total: number; signerat: number }> = {};
   visits.forEach(v => {
-    const city = extractCityFromAddress(v.address);
-    if (!cityVisitMap[city]) cityVisitMap[city] = { total: 0, signerat: 0 };
-    cityVisitMap[city].total++;
-    if (v.result === 'signerat') cityVisitMap[city].signerat++;
+    const key = normalizeCity(extractCityFromAddress(v.address));
+    if (!key) return;
+    if (!cityVisitMap[key]) cityVisitMap[key] = { total: 0, signerat: 0 };
+    cityVisitMap[key].total++;
+    if (v.result === 'signerat') cityVisitMap[key].signerat++;
   });
   const cityData = Object.entries(cityMap)
-    .map(([city, d]) => ({
-      city,
-      count: d.count,
-      value: d.value,
-      hitRate: cityVisitMap[city]?.total ? Math.round((cityVisitMap[city].signerat / cityVisitMap[city].total) * 100) : null,
-    }))
+    .map(([city, d]) => {
+      const v = cityVisitMap[normalizeCity(city)];
+      const hasVisits = !!(v && v.total > 0);
+      return {
+        city,
+        count: d.count,
+        value: d.value,
+        hitRate: hasVisits ? Math.round((v!.signerat / v!.total) * 100) : null,
+        visitTotal: v?.total ?? 0,
+        visitSigned: v?.signerat ?? 0,
+      };
+    })
     .sort((a, b) => b.value - a.value);
 
   // --- Data quality outliers ---
@@ -533,7 +543,20 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                   <th className="pb-2">Ort</th>
                   <th className="pb-2">Antal ärenden</th>
                   <th className="pb-2">Ordervärde <span className="text-xs font-normal">ex moms</span></th>
-                  <th className="pb-2">Hit rate</th>
+                  <th className="pb-2">
+                    <TooltipProvider>
+                      <UiTooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex items-center gap-1 cursor-help">
+                            Hit rate <Info className="h-3 w-3 text-muted-foreground" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          Andel registrerade kundbesök som ledde till signerat avtal. Importerade ärenden räknas inte (de saknar besökshistorik).
+                        </TooltipContent>
+                      </UiTooltip>
+                    </TooltipProvider>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -542,7 +565,11 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                     <td className="py-1.5 text-card-foreground font-medium">{c.city}</td>
                     <td className="py-1.5">{c.count}</td>
                     <td className="py-1.5">{formatAmount(c.value)}</td>
-                    <td className="py-1.5 text-primary font-medium">{c.hitRate !== null ? `${c.hitRate}%` : '–'}</td>
+                    <td className="py-1.5 text-primary font-medium">
+                      {c.hitRate !== null ? (
+                        <>{c.hitRate}% <span className="text-xs text-muted-foreground font-normal">({c.visitSigned}/{c.visitTotal})</span></>
+                      ) : '–'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
