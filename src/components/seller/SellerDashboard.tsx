@@ -412,6 +412,50 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         </p>
       </div>
 
+      {/* Datakvalitet — Tidsstyrd leverans utan tid (inom 7 dagar) */}
+      {(() => {
+        const today = new Date();
+        const in7 = new Date(today.getTime() + 7 * 86400000);
+        const flagged = (allCases || []).filter((c: any) => {
+          if (!c.scheduled_delivery) return false;
+          if (c.delivery_time) return false;
+          if (c.delivery_date) {
+            const d = new Date(c.delivery_date + 'T00:00:00');
+            return d >= new Date(today.toDateString()) && d <= in7;
+          }
+          if (c.delivery_week && c.delivery_year) {
+            const jan4 = new Date(c.delivery_year, 0, 4);
+            const dow = jan4.getDay() || 7;
+            const start = new Date(jan4);
+            start.setDate(jan4.getDate() - dow + 1 + (c.delivery_week - 1) * 7);
+            return start >= new Date(today.toDateString()) && start <= in7;
+          }
+          return false;
+        });
+        if (flagged.length === 0) return null;
+        return (
+          <div className="rounded-xl border border-orange-300 bg-orange-50 p-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-orange-900 mb-2">
+              Datakvalitet — Tidsstyrd leverans utan tid (inom 7 dagar)
+            </h3>
+            <div className="space-y-2">
+              {flagged.map((c: any) => (
+                <div key={c.id} className="flex items-center justify-between rounded-md border border-orange-200 bg-card p-2">
+                  <div className="text-sm">
+                    <div className="font-medium text-card-foreground">{c.address}{c.city ? `, ${c.city}` : ''}</div>
+                    <div className="text-xs text-muted-foreground">{c.customer_name} · {c.team || 'ingen montör'}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-orange-500 hover:bg-orange-500/90 text-white">Tidsstyrd leverans — tid ej satt</Badge>
+                    <Button size="sm" variant="outline" onClick={() => setSelectedCase(c)}>Sätt tid</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Visit KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border bg-card p-4">
