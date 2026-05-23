@@ -25,9 +25,17 @@ export function canEnterStatus(newStatus: string, c: CaseLike): StatusCheck {
       return { ok: true };
     }
 
-    case 'montage_klart':
+    case 'montage_pagar':
       if (c.status !== 'montage_bokat') {
         return { ok: false, reason: 'Montage måste vara bokat först' };
+      }
+      if (!c.team) return { ok: false, reason: 'Montör saknas' };
+      if (!c.montage_date) return { ok: false, reason: 'Montagedatum saknas' };
+      return { ok: true };
+
+    case 'montage_klart':
+      if (c.status !== 'montage_bokat' && c.status !== 'montage_pagar') {
+        return { ok: false, reason: 'Montage måste vara bokat eller pågående först' };
       }
       return { ok: true };
 
@@ -36,6 +44,7 @@ export function canEnterStatus(newStatus: string, c: CaseLike): StatusCheck {
         return { ok: false, reason: 'Montage måste vara klart först' };
       }
       return { ok: true };
+
 
     default:
       return { ok: true };
@@ -75,8 +84,9 @@ export type PipelineIssue = {
 
 const STATUS_ORDER = [
   'ny', 'vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande',
-  'godkand', 'leverans_klar', 'montage_bokat', 'montage_klart', 'fakturerad',
+  'godkand', 'leverans_klar', 'montage_bokat', 'montage_pagar', 'montage_klart', 'fakturerad',
 ];
+
 
 function statusIdx(s: string): number {
   return STATUS_ORDER.indexOf(s);

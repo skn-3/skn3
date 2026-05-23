@@ -226,7 +226,8 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     team: '',
     km_team: '',
     seller: sellerName,
-    status: 'ny',
+    status: 'vantar_km',
+
     created_at: '',
     km_date: '',
     km_time: '',
@@ -330,7 +331,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         extra_hours_sold: '0',
         extra_hours_requested: '0',
         extra_hours_approved: '0',
-        status: 'ny',
+        status: 'vantar_km',
         created_at: '',
         km_date: '',
         km_time: '',

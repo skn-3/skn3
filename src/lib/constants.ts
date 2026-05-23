@@ -42,13 +42,13 @@ export const STATUS_LABELS: Record<string, string> = {
   i_produktion: 'I produktion',
   leverans_klar: 'Leverans klar',
   montage_bokat: 'Montage bokat',
+  montage_pagar: 'Montage pågår',
   montage_klart: 'Montage klart',
   fakturerad: 'Fakturerad',
   pausad: 'Pausad',
 };
 
 export const SELLER_PIPELINE_COLUMNS = [
-  'ny',
   'vantar_km',
   'km_bokad',
   'km_klar',
@@ -56,10 +56,12 @@ export const SELLER_PIPELINE_COLUMNS = [
   'godkand',
   'leverans_klar',
   'montage_bokat',
+  'montage_pagar',
   'montage_klart',
   'fakturerad',
   'pausad',
 ] as const;
+
 
 export const DEVIATION_TYPES = [
   { value: 'reklamation', label: 'Reklamation' },
