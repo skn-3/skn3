@@ -754,6 +754,49 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={dupConfirmOpen} onOpenChange={setDupConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Detta ärende finns kanske redan</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>En starkt matchande träff hittades:</p>
+                {strongMatches[0] && (
+                  <div className="rounded-md border bg-muted/40 p-2 text-sm text-foreground">
+                    <div className="font-medium">{strongMatches[0].case.address}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {strongMatches[0].case.customer_name}
+                      {strongMatches[0].case.offer_number ? ` · Offert ${strongMatches[0].case.offer_number}` : ''}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {strongMatches[0].reasons.map((r) => (
+                        <Badge key={r} variant="destructive" className="text-[10px]">{r}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p>Vill du importera ändå?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setDupConfirmOpen(false); runImport(true); }}>
+              Importera ändå
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {viewCase && (
+        <CaseDetailPanel
+          caseData={viewCase}
+          currentUser={sellerName}
+          isSeller={true}
+          onClose={() => setViewCase(null)}
+        />
+      )}
     </div>
   );
 }
