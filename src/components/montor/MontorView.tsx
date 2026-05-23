@@ -41,13 +41,36 @@ function matchesSearch(c: CaseRow, term: string): boolean {
   return fields.some(f => f && String(f).toLowerCase().includes(t));
 }
 
-export function MontorView({ role, onChangeRole, isAdmin, onToggleView }: MontorViewProps) {
+export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialCaseId, onInitialCaseHandled }: MontorViewProps) {
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('alla');
   const [adminFilter, setAdminFilter] = useState<string>('alla');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const [, setSearchParams] = useSearchParams();
+
+  // Deep-link: open case panel when ?case=<id> is provided
+  useEffect(() => {
+    if (!initialCaseId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.from('cases').select('*').eq('id', initialCaseId).maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        toast.info('Kunde inte hitta ärendet — kontrollera att du är inloggad som rätt roll');
+      } else {
+        setSelectedCase(data as CaseRow);
+      }
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('case');
+        return next;
+      }, { replace: true });
+      onInitialCaseHandled?.();
+    })();
+    return () => { cancelled = true; };
+  }, [initialCaseId]);
 
   // Debounce
   useEffect(() => {
