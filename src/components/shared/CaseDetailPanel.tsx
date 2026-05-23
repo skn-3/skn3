@@ -357,10 +357,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const { error } = await orderDb.from('orders').update({ case_id: caseData.id }).eq('id', order.id);
       if (error) throw error;
       const label = order.order_number || order.invoice_number || order.id.slice(0, 8);
+      const desc = order._orphan
+        ? `A-order ${label} omkopplad (tidigare felaktigt case_id: ${order._orphanCaseId})`
+        : `A-order ${label} kopplad manuellt`;
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'order_link',
-        description: `A-order ${label} kopplad manuellt`,
+        description: desc,
         created_by: currentUser,
       });
     },
