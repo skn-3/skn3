@@ -777,10 +777,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <Input type="number" value={editForm.extra_hours_sold} onChange={(e) => setEditForm(f => ({ ...f, extra_hours_sold: e.target.value }))} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Montör</Label>
-                    <Select value={editForm.team} onValueChange={(v) => setEditForm(f => ({ ...f, team: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Välj montör" /></SelectTrigger>
+                    <Label className="text-xs">KM-montör (valfritt)</Label>
+                    <Select value={editForm.km_team || '__none__'} onValueChange={(v) => setEditForm(f => ({ ...f, km_team: v === '__none__' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="__none__">— Ingen vald —</SelectItem>
+                        {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Montage-montör (valfritt)</Label>
+                    <Select value={editForm.team || '__none__'} onValueChange={(v) => setEditForm(f => ({ ...f, team: v === '__none__' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Ingen vald —</SelectItem>
                         {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                       </SelectContent>
                     </Select>
