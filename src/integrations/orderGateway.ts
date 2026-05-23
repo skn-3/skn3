@@ -3,7 +3,10 @@
 // All access går därför via orders-gateway edge function med delad secret.
 
 const GATEWAY_URL = 'https://pjurpgqgqvabopoxkzja.supabase.co/functions/v1/orders-gateway';
-const GATEWAY_SECRET = (import.meta.env.VITE_ORDERS_GATEWAY_SECRET as string | undefined) || '';
+// Delad secret mellan caseflow och n3prenad. VITE-vars bundlas in klient-side ändå
+// (effektivt publika), så fallback här är OK. Env-värdet vinner om satt.
+const GATEWAY_SECRET = (import.meta.env.VITE_ORDERS_GATEWAY_SECRET as string | undefined)
+  || 'k7Hn2pQ9rTfW4mXz8vBcL3dY6sJgN5aErU0iKoP1wMqZxVt';
 
 type Action =
   | 'list_unlinked'
