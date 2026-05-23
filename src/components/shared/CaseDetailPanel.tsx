@@ -132,6 +132,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         tb_percent: editForm.tb_percent === '' ? null : Number(editForm.tb_percent),
         extra_hours_sold: Number(editForm.extra_hours_sold) || 0,
         team: editForm.team || null,
+        km_team: editForm.km_team || null,
         google_drive_link: editForm.google_drive_link || null,
         offer_number: editForm.offer_number || null,
         customer_phone: editForm.customer_phone,
