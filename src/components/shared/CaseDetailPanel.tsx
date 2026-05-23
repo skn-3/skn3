@@ -277,7 +277,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         .is('case_id', null)
         .order('created_at', { ascending: false })
         .limit(200);
-      if (error) throw error;
+      console.log('[unlinkedOrders] fetched:', data?.length ?? 0, 'error:', error);
+      if (error) {
+        console.error('[unlinkedOrders] orderDb error:', error);
+        return [];
+      }
       return data || [];
     },
     enabled: !hasLinked,
