@@ -47,6 +47,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [note, setNote] = useState('');
   const [showDeviation, setShowDeviation] = useState(false);
   const [devForm, setDevForm] = useState({ type: '', description: '', responsible: '' });
+  const [respManuallySet, setRespManuallySet] = useState(false);
   const [devCost, setDevCost] = useState('');
   const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
   const [probFiles, setProbFiles] = useState<File[]>([]);
