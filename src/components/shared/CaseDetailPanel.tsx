@@ -726,9 +726,24 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 {(caseData as any).carry_help_needed && (
                   <Badge className="bg-amber-500 hover:bg-amber-500/90 text-white">⚠ Bärhjälp behövs</Badge>
                 )}
-                {(caseData as any).scheduled_delivery && (
-                  <Badge className="bg-orange-500 hover:bg-orange-500/90 text-white">🕐 Tidsstyrd leverans</Badge>
-                )}
+                {(caseData as any).scheduled_delivery && (() => {
+                  const dt = (caseData as any).delivery_time as string | null;
+                  const dd = (caseData as any).delivery_date as string | null;
+                  const dw = (caseData as any).delivery_week as number | null;
+                  const dy = (caseData as any).delivery_year as number | null;
+                  let daysUntil: number | null = null;
+                  if (dd) daysUntil = Math.ceil((new Date(dd + 'T00:00:00').getTime() - Date.now()) / 86400000);
+                  else if (dw && dy) {
+                    const jan4 = new Date(dy, 0, 4);
+                    const dayOfWeek = jan4.getDay() || 7;
+                    const weekStart = new Date(jan4);
+                    weekStart.setDate(jan4.getDate() - dayOfWeek + 1 + (dw - 1) * 7);
+                    daysUntil = Math.ceil((weekStart.getTime() - Date.now()) / 86400000);
+                  }
+                  if (dt) return <Badge className="bg-orange-500 hover:bg-orange-500/90 text-white">🕐 Tidsstyrd — kl {String(dt).slice(0,5)}</Badge>;
+                  if (daysUntil != null && daysUntil <= 14) return <Badge className="bg-red-600 hover:bg-red-600/90 text-white animate-pulse">🕐 Tidsstyrd — tid saknas!</Badge>;
+                  return <Badge className="bg-orange-500 hover:bg-orange-500/90 text-white">🕐 Tidsstyrd leverans</Badge>;
+                })()}
               </div>
             )}
             <div className="grid grid-cols-2 gap-2 pt-2">
