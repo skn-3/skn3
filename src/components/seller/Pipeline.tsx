@@ -33,7 +33,7 @@ function matchesSearch(c: CaseRow, term: string): boolean {
 }
 
 // Statuses where warnings are relevant (production phase and beyond)
-const FLAGGED_STATUSES = new Set(['godkand', 'i_produktion', 'leverans_klar', 'montage_bokat']);
+const FLAGGED_STATUSES = new Set(['godkand', 'i_produktion', 'leverans_klar', 'montage_bokat', 'montage_pagar']);
 
 function getWarnings(c: CaseRow, ordersByCaseId: Set<string> | null): string[] {
   if (!FLAGGED_STATUSES.has(c.status)) return [];
@@ -147,10 +147,13 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
   const grouped = SELLER_PIPELINE_COLUMNS.reduce((acc, status) => {
     acc[status] = visibleCases.filter((c) => {
       if (status === 'godkand') return c.status === 'godkand' || c.status === 'i_produktion';
+      // Safety net: legacy 'ny' cases show up in 'vantar_km' column
+      if (status === 'vantar_km') return c.status === 'vantar_km' || c.status === 'ny';
       return c.status === status;
     });
     return acc;
   }, {} as Record<string, CaseRow[]>);
+
 
   const totalVisible = visibleCases.length;
   const totalCases = filteredCases.length;
@@ -244,9 +247,19 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
       <div className="overflow-x-auto pb-4">
         <div className="flex gap-3 min-w-max px-3 md:px-0">
 
-          {SELLER_PIPELINE_COLUMNS.map((status) => (
+          {SELLER_PIPELINE_COLUMNS.map((status) => {
+            const accent =
+              status === 'montage_pagar'
+                ? 'bg-indigo-500'
+                : status === 'montage_bokat'
+                ? 'bg-emerald-500'
+                : status === 'montage_klart'
+                ? 'bg-green-600'
+                : 'bg-muted-foreground/40';
+            return (
             <div key={status} className="w-56 shrink-0">
               <div className="mb-2 flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${accent}`} aria-hidden />
                 <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                   {columnLabels[status] || STATUS_LABELS[status]}
                 </h2>
@@ -254,6 +267,7 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
                   {grouped[status]?.length || 0}
                 </span>
               </div>
+
               <div className="space-y-2">
                 {grouped[status]?.map((c) => (
                   <CaseCard
