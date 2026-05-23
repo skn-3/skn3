@@ -215,6 +215,7 @@ export type Database = {
           image_urls: string[] | null
           reminder_count: number | null
           resolved: boolean
+          resolved_at: string | null
           responsible: string
           type: string
         }
@@ -229,6 +230,7 @@ export type Database = {
           image_urls?: string[] | null
           reminder_count?: number | null
           resolved?: boolean
+          resolved_at?: string | null
           responsible: string
           type: string
         }
@@ -243,6 +245,7 @@ export type Database = {
           image_urls?: string[] | null
           reminder_count?: number | null
           resolved?: boolean
+          resolved_at?: string | null
           responsible?: string
           type?: string
         }
