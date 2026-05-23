@@ -34,6 +34,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
     tb_percent: '',
     extra_hours_sold: '0',
     team: '',
+    km_team: '',
     google_drive_link: '',
     notes: '',
     media_consent: false,
