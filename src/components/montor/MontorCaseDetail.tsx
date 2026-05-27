@@ -251,7 +251,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     onSuccess: () => {
       setShowKlar(false);
       invalidate();
-      toast.success('Montage markerat som klart');
+      celebrateMontageDone();
     },
     onError: (e: Error) => toast.error(e.message),
   });
