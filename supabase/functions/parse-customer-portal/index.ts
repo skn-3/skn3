@@ -7,7 +7,7 @@ const SYSTEM_PROMPT = `Du är en dataextraherare. Extrahera kunddata från text 
 
 Regler:
 - address ska vara "gatuadress, ort" (t.ex. "Hattmurklevägen 6, Lidingö")
-- Om du ser "Montör kontrollmätning" eller "Montör installation" med "SK N3prenad" eller liknande, sätt team baserat på det (GVMO, Samy, Alex NBD, eller Jerk)
+- Om du ser "Montör kontrollmätning" eller "Montör installation" med "SK N3prenad" eller liknande, sätt team baserat på det (GVMO, Samy, Alex NBD, Jerk, eller Villaspecialisten)
 - Om du ser leveransstatus "190-Beställd" och montage är bokat, sätt status till "montage_bokat"
 - Om du ser "Handpenning betald" eller "Handpenning fakturerad", sätt status till minst "godkand"
 - TB-procenten finns ofta i prisberäkningen under "TG" eller "TB"
