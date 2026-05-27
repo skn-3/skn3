@@ -45,7 +45,7 @@ function greeting(): string {
   if (h < 10) return 'God morgon';
   if (h < 13) return 'Hej';
   if (h < 17) return 'God eftermiddag';
-  return 'God kväll';
+  return 'God afton';
 }
 
 const SELLER_TAGLINES = [
@@ -401,17 +401,7 @@ function SellerDashboard({ name }: { name: string }) {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {stats.weekStreak > 1 && (
-              <Card>
-                <div className="flex items-center gap-3">
-                  <Flame className="h-6 w-6 text-orange-500" />
-                  <div>
-                    <div className="font-bold">🔥 <CountUp value={stats.weekStreak} /> veckor i rad med försäljning!</div>
-                    <div className="text-xs text-muted-foreground">Håll igång streaken.</div>
-                  </div>
-                </div>
-              </Card>
-            )}
+            {/* Veckostreak visas via InsightsLayer (streak_weeks_signed) för att undvika dubblett. */}
 
             {stats.followUps > 0 && (
               <Card className="border-orange-300 bg-orange-50/50 dark:bg-orange-950/20">
