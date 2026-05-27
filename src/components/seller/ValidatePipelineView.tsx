@@ -138,6 +138,44 @@ export function ValidatePipelineView({ currentUser }: Props) {
         )}
       </div>
 
+      <div className="rounded-lg border p-4 bg-card flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-start gap-3">
+          <CalendarPlus className="h-5 w-5 text-primary mt-0.5" />
+          <div>
+            <div className="font-medium">Skapa saknade besök för signerade ärenden</div>
+            <p className="text-sm text-muted-foreground">
+              {casesMissingVisits.length === 0
+                ? 'Alla ärenden har en kopplad besöksregistrering ✓'
+                : `${casesMissingVisits.length} ärenden saknar en kopplad besöksrad. Skapa dem retroaktivt så hit rate och statistik blir korrekt.`}
+            </p>
+          </div>
+        </div>
+        {casesMissingVisits.length > 0 && (
+          <Button variant="outline" onClick={() => setBackfillOpen(true)} disabled={backfillBusy}>
+            {backfillBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Skapa {casesMissingVisits.length} besök
+          </Button>
+        )}
+      </div>
+
+      <AlertDialog open={backfillOpen} onOpenChange={setBackfillOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Skapa {casesMissingVisits.length} besök?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Detta skapar en visits-rad (result=signerat) för varje ärende som saknar koppling, med datum = ärendets skapandedatum. Åtgärden går inte att ångra automatiskt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={backfillBusy}>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={runBackfill} disabled={backfillBusy}>
+              {backfillBusy ? 'Skapar…' : 'Ja, skapa besök'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
       {issues.length === 0 ? (
         <div className="rounded-lg border p-8 text-center text-muted-foreground">
           ✓ Inga avvikelser hittades — pipelinen är konsekvent.
