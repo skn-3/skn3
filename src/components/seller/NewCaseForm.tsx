@@ -332,6 +332,10 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
           <Input type="number" value={form.extra_hours_sold} onChange={(e) => update('extra_hours_sold', e.target.value)} />
         </div>
         <div className="space-y-1.5">
+          <Label>Besöksdatum <span className="text-muted-foreground text-xs ml-1">för statistik</span></Label>
+          <Input type="date" value={form.visit_date} onChange={(e) => update('visit_date', e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
           <Label>KM-montör (valfritt)</Label>
           <Select value={form.km_team || '__none__'} onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}>
             <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
