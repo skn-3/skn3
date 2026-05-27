@@ -44,6 +44,32 @@ function greeting(): string {
   return 'God kväll';
 }
 
+const SELLER_TAGLINES = [
+  'Nytt fokus, ny vecka — så här ligger du till',
+  'Dags att göra avtryck. Här är läget',
+  'En ny chans varje dag — så här går det',
+  'Bygg vidare på momentumet',
+  'Låt oss göra den här veckan minnesvärd',
+];
+
+function sellerTagline(): string {
+  const day = Math.floor(Date.now() / 86400000);
+  return SELLER_TAGLINES[day % SELLER_TAGLINES.length];
+}
+
+const MONTOR_TAGLINES = [
+  'Här är vad som väntar dig',
+  'Dagens uppdrag, klart och tydligt',
+  'Ett jobb i taget — så här ser dagen ut',
+];
+
+function montorTagline(): string {
+  const day = Math.floor(Date.now() / 86400000);
+  return MONTOR_TAGLINES[day % MONTOR_TAGLINES.length];
+}
+
+const WEEKDAYS_SV = ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'];
+
 function todayStr(): string {
   return new Date().toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' });
 }
