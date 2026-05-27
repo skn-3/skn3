@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { fetchAllCases, updateCase, createCaseEvent } from '@/lib/supabaseClient';
+import { fetchAllCases, updateCase, createCaseEvent, fetchAllVisits, createVisit } from '@/lib/supabaseClient';
 import { findPipelineIssues, type PipelineIssue } from '@/lib/statusRules';
 import { STATUS_LABELS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertTriangle, Check } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Loader2, AlertTriangle, Check, CalendarPlus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -19,9 +20,50 @@ export function ValidatePipelineView({ currentUser }: Props) {
     queryFn: fetchAllCases,
   });
 
+  const { data: allVisits } = useQuery({
+    queryKey: ['visits_all_validate'],
+    queryFn: fetchAllVisits,
+  });
+
   const issues = useMemo<PipelineIssue[]>(() => findPipelineIssues(allCases || []), [allCases]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [busyAll, setBusyAll] = useState(false);
+
+  // Backfill: cases utan kopplad visits-rad
+  const casesMissingVisits = useMemo(() => {
+    if (!allCases || !allVisits) return [];
+    const linked = new Set((allVisits || []).map((v: any) => v.case_id).filter(Boolean));
+    return allCases.filter(c => !linked.has(c.id));
+  }, [allCases, allVisits]);
+  const [backfillOpen, setBackfillOpen] = useState(false);
+  const [backfillBusy, setBackfillBusy] = useState(false);
+
+  const runBackfill = async () => {
+    setBackfillBusy(true);
+    let ok = 0;
+    for (const c of casesMissingVisits) {
+      try {
+        const d = c.created_at ? String(c.created_at).split('T')[0] : new Date().toISOString().split('T')[0];
+        await createVisit({
+          date: d,
+          address: c.address,
+          customer_name: c.customer_name,
+          seller: c.seller,
+          result: 'signerat',
+          order_value: c.order_value ?? null,
+          case_id: c.id,
+        } as any);
+        ok++;
+      } catch (e) {
+        console.warn('backfill failed for', c.id, e);
+      }
+    }
+    setBackfillBusy(false);
+    setBackfillOpen(false);
+    toast.success(`${ok}/${casesMissingVisits.length} besök skapade`);
+    qc.invalidateQueries({ queryKey: ['visits_all_validate'] });
+    qc.invalidateQueries({ queryKey: ['visits'] });
+  };
 
   const applyOne = async (issue: PipelineIssue) => {
     if (!issue.suggestedStatus) return;
