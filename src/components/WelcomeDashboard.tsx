@@ -583,7 +583,7 @@ export function WelcomeDashboard({ role, onContinue }: Props) {
             {greeting()}, {role.name}! 👋
           </h1>
           <p className="text-muted-foreground mt-1">
-            {role.type === 'seller' ? 'Här är din vecka i siffror.' : 'Här är vad som väntar dig.'}
+            {role.type === 'seller' ? sellerTagline() : montorTagline()}
           </p>
         </div>
 
