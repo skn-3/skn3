@@ -279,6 +279,8 @@ function SellerDashboard({ name }: { name: string }) {
 
       {!empty && (
         <>
+          <InsightsLayer kind="seller" name={name} data={{ visits, cases }} />
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card>
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Besök denna vecka</div>
