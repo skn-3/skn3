@@ -17,11 +17,12 @@ const EMAIL_MAP: Record<string, string> = {
   'Samy': 'info@smtmbygg.se',
   'Alex NBD': 'alex@nbdentreprenad.com',
   'Jerk': 'jerk.ryttman@mockfjards.se',
+  'Villaspecialisten': 'Edvin@villaspecialisten.se',
   'Daniel Malke': 'daniel.malke@mockfjards.se',
   'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',
 };
 const SELLERS = ['Daniel Malke', 'Gabriel Hanna'];
-const MONTORS = ['GVMO', 'Samy', 'Alex NBD', 'Jerk'];
+const MONTORS = ['GVMO', 'Samy', 'Alex NBD', 'Jerk', 'Villaspecialisten'];
 const ADMIN_EMAILS = ['mirna.malke@mockfjards.se'];
 const ADMIN_CC = 'mf@malke.se';
 
