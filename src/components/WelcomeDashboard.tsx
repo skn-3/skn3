@@ -108,8 +108,12 @@ function SellerDashboard({ name }: { name: string }) {
 
   const stats = useMemo(() => {
     const now = new Date();
+    const dow = now.getDay(); // 0=sun..6=sat
+    const isEarlyWeek = dow >= 1 && dow <= 3; // mon-wed
     const weekStart = startOfWeek(now);
     const lastWeekStart = new Date(weekStart); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const monthAgo = new Date(now); monthAgo.setDate(monthAgo.getDate() - 30);
+    const twoMonthsAgo = new Date(now); twoMonthsAgo.setDate(twoMonthsAgo.getDate() - 60);
 
     const thisWeek = visits.filter(v => new Date(v.date) >= weekStart);
     const lastWeek = visits.filter(v => {
@@ -122,34 +126,40 @@ function SellerDashboard({ name }: { name: string }) {
     const sumSigned = signed.reduce((s, v) => s + (Number(v.order_value) || 0), 0);
     const lastSum = lastSigned.reduce((s, v) => s + (Number(v.order_value) || 0), 0);
 
-    // Best week ever
-    const byWeek = new Map<string, number>();
+    // Per-week sums for "best week" + counts
+    const byWeekSum = new Map<string, number>();
+    const byWeekCount = new Map<string, number>();
     visits.filter(v => v.result === 'signerat').forEach(v => {
       const ws = isoDate(startOfWeek(new Date(v.date)));
-      byWeek.set(ws, (byWeek.get(ws) || 0) + (Number(v.order_value) || 0));
+      byWeekSum.set(ws, (byWeekSum.get(ws) || 0) + (Number(v.order_value) || 0));
+      byWeekCount.set(ws, (byWeekCount.get(ws) || 0) + 1);
     });
-    const allWeekSums = [...byWeek.values()];
-    const maxOther = allWeekSums.filter(s => s !== sumSigned).reduce((m, s) => Math.max(m, s), 0);
-    const isBestWeek = sumSigned > 0 && sumSigned >= maxOther && sumSigned > 0;
+    const thisWeekKey = isoDate(weekStart);
+    const otherWeekSums = [...byWeekSum.entries()].filter(([k]) => k !== thisWeekKey).map(([, v]) => v);
+    const maxOther = otherWeekSums.reduce((m, s) => Math.max(m, s), 0);
+    const isBestWeek = sumSigned > 0 && sumSigned > maxOther;
 
     const weekDelta = lastSum > 0 ? Math.round(((sumSigned - lastSum) / lastSum) * 100) : null;
 
-    // Streak: consecutive days with at least one signing
-    const signedDays = new Set(visits.filter(v => v.result === 'signerat').map(v => isoDate(v.date)));
-    let streak = 0;
-    const cursor = new Date(); cursor.setHours(0, 0, 0, 0);
-    while (signedDays.has(isoDate(cursor))) {
-      streak++;
-      cursor.setDate(cursor.getDate() - 1);
+    // Streak: consecutive WEEKS (incl current) with at least 1 signing
+    let weekStreak = 0;
+    const wcur = new Date(weekStart);
+    while (true) {
+      const key = isoDate(wcur);
+      if ((byWeekCount.get(key) || 0) > 0) {
+        weekStreak++;
+        wcur.setDate(wcur.getDate() - 7);
+      } else break;
     }
 
-    // Follow-ups due today / overdue
+    // Follow-ups
     const todayISO = isoDate(new Date());
     const followUps = visits.filter(v =>
       v.result === 'aterkoppla' && v.follow_up_date && isoDate(v.follow_up_date) <= todayISO && !v.lost
     ).length;
 
-    // Smart insight: top city
+    // Insights ----
+    // Top city
     const cityCount = new Map<string, number>();
     visits.filter(v => v.result === 'signerat').forEach(v => {
       const city = (v.address || '').split(',').pop()?.replace(/\d/g, '').trim();
@@ -157,7 +167,48 @@ function SellerDashboard({ name }: { name: string }) {
     });
     const topCity = [...cityCount.entries()].sort((a, b) => b[1] - a[1])[0];
 
+    // Most common signing weekday
+    const dayCount = new Array(7).fill(0);
+    visits.filter(v => v.result === 'signerat').forEach(v => {
+      dayCount[new Date(v.date).getDay()]++;
+    });
+    const totalSignedAll = dayCount.reduce((a, b) => a + b, 0);
+    const bestDayIdx = dayCount.indexOf(Math.max(...dayCount));
+    const bestDayShare = totalSignedAll > 0 ? dayCount[bestDayIdx] / totalSignedAll : 0;
+
+    // Avg order value trend (last 30d vs prev 30d)
+    const recent = visits.filter(v => v.result === 'signerat' && new Date(v.date) >= monthAgo && Number(v.order_value) > 0);
+    const prev = visits.filter(v => {
+      const d = new Date(v.date);
+      return v.result === 'signerat' && d >= twoMonthsAgo && d < monthAgo && Number(v.order_value) > 0;
+    });
+    const avgRecent = recent.length ? recent.reduce((s, v) => s + Number(v.order_value), 0) / recent.length : 0;
+    const avgPrev = prev.length ? prev.reduce((s, v) => s + Number(v.order_value), 0) / prev.length : 0;
+    const avgTrend = avgPrev > 0 && avgRecent > 0 ? Math.round(((avgRecent - avgPrev) / avgPrev) * 100) : null;
+
+    // Pick one insight (rotate by day) among those with enough data
+    const insights: { icon: string; text: string }[] = [];
+    if (topCity && topCity[1] >= 2) {
+      insights.push({ icon: '📍', text: `${topCity[0]} är din starkaste ort — ${topCity[1]} affärer` });
+    }
+    if (totalSignedAll >= 5 && bestDayShare >= 0.25) {
+      insights.push({ icon: '📅', text: `Du signerar oftast på ${WEEKDAYS_SV[bestDayIdx]}ar` });
+    }
+    if (avgTrend !== null && avgTrend > 5 && recent.length >= 2) {
+      insights.push({ icon: '📈', text: `Ditt snittordervärde har ökat ${avgTrend}% senaste månaden` });
+    }
+    if (totalSignedAll >= 3) {
+      insights.push({ icon: '✨', text: `Du har ${totalSignedAll} signerade affärer totalt — fortsätt bygga!` });
+    }
+    const dayN = Math.floor(Date.now() / 86400000);
+    const insight = insights.length ? insights[dayN % insights.length] : null;
+
+    // Milestone (round numbers)
+    const milestones = [5, 10, 25, 50, 100, 200, 500];
+    const nextMilestone = milestones.find(m => totalSignedAll > 0 && totalSignedAll < m && m - totalSignedAll <= 3);
+
     // Goal: last week's sum or 3-week avg
+    const allWeekSums = [...byWeekSum.values()];
     const goalRef = lastSum > 0 ? lastSum : (allWeekSums.reduce((s, x) => s + x, 0) / Math.max(allWeekSums.length, 1));
     const goalPct = goalRef > 0 ? Math.min(100, Math.round((sumSigned / goalRef) * 100)) : 0;
 
@@ -167,11 +218,16 @@ function SellerDashboard({ name }: { name: string }) {
       sumSigned,
       isBestWeek,
       weekDelta,
-      streak,
+      weekStreak,
       followUps,
       topCity: topCity ? { name: topCity[0], count: topCity[1] } : null,
       goalRef,
       goalPct,
+      insight,
+      nextMilestone,
+      totalSignedAll,
+      isEarlyWeek,
+      dow,
     };
   }, [visits]);
 
@@ -179,14 +235,24 @@ function SellerDashboard({ name }: { name: string }) {
 
   const empty = visits.length === 0;
 
+  // Zero-state encouragement (no visits this week)
+  let zeroNudge: string | null = null;
+  if (!empty && stats.visitsThisWeek === 0) {
+    zeroNudge = stats.isEarlyWeek
+      ? 'Veckan är ung — dags att boka in besök! 🚀'
+      : 'Inga besök registrerade än denna vecka — det är aldrig för sent att starta. 💪';
+  } else if (!empty && stats.signedThisWeek === 0 && stats.visitsThisWeek > 0) {
+    zeroNudge = `Du har ${stats.visitsThisWeek} ${stats.visitsThisWeek === 1 ? 'besök' : 'besök'} igång — nästa signering är nära! ⚡`;
+  }
+
   return (
     <div className="space-y-4">
       {empty && (
         <Card>
-          <div className="text-center py-6">
-            <div className="text-4xl mb-2">🚀</div>
-            <h3 className="text-lg font-bold">Ny vecka, nya möjligheter!</h3>
-            <p className="text-sm text-muted-foreground mt-1">Registrera ditt första besök för att se din statistik här.</p>
+          <div className="text-center py-8">
+            <div className="text-5xl mb-3">🚀</div>
+            <h3 className="text-xl font-bold">Ny vecka, nya möjligheter!</h3>
+            <p className="text-sm text-muted-foreground mt-2">Registrera ditt första besök för att se din statistik här.</p>
           </div>
         </Card>
       )}
@@ -210,39 +276,63 @@ function SellerDashboard({ name }: { name: string }) {
             </Card>
           </div>
 
-          {(stats.isBestWeek || stats.weekDelta !== null) && (
-            <Card className={stats.isBestWeek ? 'border-primary/50 bg-primary/5' : ''}>
+          {zeroNudge && (
+            <Card className="border-primary/40 bg-primary/5">
               <div className="flex items-center gap-3">
-                {stats.isBestWeek ? (
-                  <>
-                    <Flame className="h-7 w-7 text-orange-500 shrink-0" />
-                    <div>
-                      <div className="font-bold text-lg">🔥 Din bästa vecka hittills!</div>
-                      <div className="text-sm text-muted-foreground">{formatAmount(stats.sumSigned)} sålt denna vecka — rekord.</div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className={`h-7 w-7 shrink-0 ${stats.weekDelta! >= 0 ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <div>
-                      <div className="font-bold text-lg">
-                        {stats.weekDelta! >= 0 ? '+' : ''}{stats.weekDelta}% mot förra veckan
-                      </div>
-                      <div className="text-sm text-muted-foreground">Förra veckan: {formatAmount(stats.goalRef)}</div>
-                    </div>
-                  </>
-                )}
+                <Sparkles className="h-6 w-6 text-primary shrink-0" />
+                <div className="font-semibold">{zeroNudge}</div>
               </div>
             </Card>
           )}
 
+          {/* Höjdpunkter — best week / positive delta / milestone */}
+          {(stats.isBestWeek || (stats.weekDelta !== null && stats.weekDelta > 0) || stats.nextMilestone) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {stats.isBestWeek && (
+                <Card className="border-primary/50 bg-primary/5">
+                  <div className="flex items-center gap-3">
+                    <Flame className="h-7 w-7 text-orange-500 shrink-0" />
+                    <div>
+                      <div className="font-bold text-lg">🏆 Din bästa vecka hittills!</div>
+                      <div className="text-sm text-muted-foreground">{formatAmount(stats.sumSigned)} sålt — nytt rekord.</div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {!stats.isBestWeek && stats.weekDelta !== null && stats.weekDelta > 0 && (
+                <Card>
+                  <div className="flex items-center gap-3">
+                    <TrendingUp className="h-7 w-7 text-primary shrink-0" />
+                    <div>
+                      <div className="font-bold text-lg">+<CountUp value={stats.weekDelta} />% mot förra veckan</div>
+                      <div className="text-sm text-muted-foreground">Förra veckan: {formatAmount(stats.goalRef)}</div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {stats.nextMilestone && (
+                <Card>
+                  <div className="flex items-center gap-3">
+                    <Target className="h-7 w-7 text-primary shrink-0" />
+                    <div>
+                      <div className="font-bold">Du närmar dig {stats.nextMilestone} signerade ärenden totalt!</div>
+                      <div className="text-xs text-muted-foreground">{stats.totalSignedAll} klara — {stats.nextMilestone - stats.totalSignedAll} kvar.</div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {stats.streak > 0 && (
+            {stats.weekStreak > 1 && (
               <Card>
                 <div className="flex items-center gap-3">
                   <Flame className="h-6 w-6 text-orange-500" />
                   <div>
-                    <div className="font-bold">🔥 <CountUp value={stats.streak} /> dagar i rad med signering!</div>
+                    <div className="font-bold">🔥 <CountUp value={stats.weekStreak} /> veckor i rad med försäljning!</div>
                     <div className="text-xs text-muted-foreground">Håll igång streaken.</div>
                   </div>
                 </div>
@@ -279,13 +369,15 @@ function SellerDashboard({ name }: { name: string }) {
               </Card>
             )}
 
-            {stats.topCity && stats.topCity.count >= 2 && (
-              <Card>
-                <div className="flex items-center gap-3">
-                  <Sparkles className="h-6 w-6 text-primary" />
+            {stats.insight && (
+              <Card className="bg-gradient-to-br from-primary/5 to-transparent">
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl shrink-0">💡</div>
                   <div>
-                    <div className="font-bold">Din starkaste ort: {stats.topCity.name}</div>
-                    <div className="text-xs text-muted-foreground">{stats.topCity.count} signeringar totalt</div>
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">Visste du?</div>
+                    <div className="font-semibold">
+                      <span className="mr-1.5">{stats.insight.icon}</span>{stats.insight.text}
+                    </div>
                   </div>
                 </div>
               </Card>
