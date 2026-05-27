@@ -209,6 +209,139 @@ a[href*="lovable.app"][class*="badge"] {
   font-size: 0.75rem;
 }
 
+/* ============ INSIGHT ANIMATIONS ============ */
+
+/* LASER — neon kant som ritar sig runt kortet en gång */
+.insight-laser {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    hsl(var(--primary) / 0.9) 20deg,
+    hsl(142 90% 65% / 0.95) 40deg,
+    transparent 80deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  padding: 2px;
+  filter: drop-shadow(0 0 6px hsl(var(--primary) / 0.7));
+  animation: insight-laser-spin 1.2s linear forwards;
+}
+@keyframes insight-laser-spin {
+  0% { transform: rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: rotate(360deg); opacity: 0; }
+}
+
+/* FIRE — pulserande emoji + andande glow */
+.insight-fire-pulse {
+  display: inline-block;
+  animation: insight-fire-pulse 1.5s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes insight-fire-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+.insight-fire-glow {
+  animation: insight-fire-breath 2.4s ease-in-out infinite;
+}
+@keyframes insight-fire-breath {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(20 90% 55% / 0); }
+  50% { box-shadow: 0 0 24px 2px hsl(20 90% 55% / 0.35); }
+}
+
+/* SHIMMER — diagonal svep + stjärnor */
+.insight-shimmer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    hsl(0 0% 100% / 0.55) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: insight-shimmer-sweep 1.5s ease-out forwards;
+}
+@keyframes insight-shimmer-sweep {
+  to { transform: translateX(100%); }
+}
+.insight-star {
+  position: absolute;
+  font-size: 18px;
+  opacity: 0;
+  animation: insight-star-fly 1.4s ease-out forwards;
+}
+@keyframes insight-star-fly {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translate(0, -50px) scale(1.1); opacity: 0; }
+}
+
+/* LOCKON — grön ring kring nyckeltal */
+.insight-lockon {
+  padding: 0 0.15em;
+  color: hsl(var(--primary));
+}
+.insight-lockon::before {
+  content: '';
+  position: absolute;
+  inset: -6px -10px;
+  border: 2px solid hsl(var(--primary));
+  border-radius: 999px;
+  opacity: 0;
+  animation:
+    insight-lockon-trace 0.8s ease-out 0.1s forwards,
+    insight-lockon-pulse 1.2s ease-in-out 1s 2;
+  clip-path: inset(0 100% 0 0);
+}
+@keyframes insight-lockon-trace {
+  0% { clip-path: inset(0 100% 0 0); opacity: 0; }
+  20% { opacity: 1; }
+  100% { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+@keyframes insight-lockon-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.6; }
+}
+
+/* RISE — SVG pil ritas */
+.insight-rise-path {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: insight-rise-draw 0.6s ease-out 0.1s forwards;
+}
+@keyframes insight-rise-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* ROCKET — flyger uppåt */
+.insight-rocket {
+  position: absolute;
+  left: 50%;
+  bottom: 10%;
+  font-size: 28px;
+  transform: translateX(-50%);
+  animation: insight-rocket-fly 1.2s ease-out forwards;
+  filter: drop-shadow(0 0 6px hsl(45 100% 60% / 0.7));
+}
+@keyframes insight-rocket-fly {
+  0% { bottom: -10%; opacity: 0; transform: translateX(-50%) rotate(-15deg); }
+  20% { opacity: 1; }
+  100% { bottom: 80%; opacity: 0; transform: translateX(-50%) rotate(0deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
@@ -216,4 +349,10 @@ a[href*="lovable.app"][class*="badge"] {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+  .insight-laser, .insight-shimmer, .insight-star, .insight-rocket,
+  .insight-fire-glow, .insight-fire-pulse, .insight-rise-path {
+    display: none !important;
+    animation: none !important;
+  }
+  .insight-lockon::before { display: none !important; }
 }
