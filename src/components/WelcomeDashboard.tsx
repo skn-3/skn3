@@ -494,6 +494,8 @@ function MontorDashboard({ name }: { name: string }) {
 
   return (
     <div className="space-y-4">
+      <InsightsLayer kind="montor" name={name} data={{ cases, deviations: allDeviations, name }} />
+
       <Card className={stats.todayEvents.length > 0 ? 'border-primary/40 bg-primary/5' : ''}>
         <div className="flex items-center gap-3 mb-3">
           <Wrench className="h-6 w-6 text-primary" />
