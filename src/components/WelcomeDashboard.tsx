@@ -106,6 +106,22 @@ function SellerDashboard({ name }: { name: string }) {
     queryFn: () => fetchCases({ seller: name }) as Promise<CaseRow[]>,
   });
 
+  // [DIAG-WELCOME] tillfällig diagnos — ta bort när vi vet roten
+  const { data: allVisits } = useQuery({
+    queryKey: ['diag-all-visits'],
+    queryFn: () => fetchVisits() as Promise<VisitRow[]>,
+  });
+  useEffect(() => {
+    if (!allVisits) return;
+    console.log('[DIAG-WELCOME] name (inloggad säljare):', JSON.stringify(name));
+    console.log('[DIAG-WELCOME] antal visits från fetchVisits({seller:name}):', visits.length);
+    console.log('[DIAG-WELCOME] totalt antal visits i systemet:', allVisits.length);
+    console.log('[DIAG-WELCOME] unika seller-värden:', [...new Set(allVisits.map(v => v.seller))]);
+    console.log('[DIAG-WELCOME] visits som BORDE matcha name:', allVisits.filter(v => v.seller === name).length);
+    console.log('[DIAG-WELCOME] datum på senaste 5 visits:', allVisits.slice(0, 5).map(v => ({ seller: v.seller, date: v.date })));
+  }, [allVisits, visits.length, name]);
+
+
   const stats = useMemo(() => {
     const now = new Date();
     const dow = now.getDay(); // 0=sun..6=sat
