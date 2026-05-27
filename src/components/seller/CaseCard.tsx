@@ -99,7 +99,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings }: CaseCardPr
   return (
     <button
       onClick={onClick}
-      className="w-full text-left rounded-lg border bg-card p-3 shadow-sm hover:shadow-md transition-shadow space-y-1.5"
+      className="w-full text-left rounded-lg border bg-card p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 motion-reduce:hover:translate-y-0 motion-reduce:transition-none animate-fade-in space-y-1.5"
     >
       <h3 className="font-bold text-sm text-card-foreground leading-tight">{caseData.address}</h3>
       <div className="space-y-0.5 text-xs text-muted-foreground">
