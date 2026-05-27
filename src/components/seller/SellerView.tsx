@@ -6,7 +6,6 @@ import type { CaseRow } from '@/lib/supabaseClient';
 import { AppHeader } from '@/components/AppHeader';
 import { SellerNav, type SellerTab } from './SellerNav';
 import { Pipeline } from './Pipeline';
-import { NewCaseForm } from './NewCaseForm';
 import { SellerDashboard } from './SellerDashboard';
 import { VisitForm } from './VisitForm';
 import { ImportCaseForm } from './ImportCaseForm';
@@ -28,7 +27,6 @@ interface SellerViewProps {
 export function SellerView({ role, onChangeRole, onToggleMontorView, initialCaseId, onInitialCaseHandled }: SellerViewProps) {
   const [tab, setTab] = useState<SellerTab>('pipeline');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
-  const [prefill, setPrefill] = useState<{ customer_name?: string; address?: string; order_value?: string; visit_id?: string; visit_date?: string } | null>(null);
   const [, setSearchParams] = useSearchParams();
 
   // Deep-link: open case panel when ?case=<id> is provided
@@ -53,18 +51,6 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, initialCase
     return () => { cancelled = true; };
   }, [initialCaseId]);
 
-
-  const handleCreateFromVisit = (data: { customer_name: string; address: string; order_value?: number; visit_id?: string; date?: string }) => {
-    setPrefill({
-      customer_name: data.customer_name,
-      address: data.address,
-      order_value: data.order_value?.toString() || '',
-      visit_id: data.visit_id,
-      visit_date: data.date,
-    });
-    setTab('new');
-  };
-
   const isAdmin = ADMIN_USERS.includes(role.name);
 
   return (
@@ -85,15 +71,8 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, initialCase
         {tab === 'calendar' && (
           <CalendarView onSelectCase={setSelectedCase} />
         )}
-        {tab === 'new' && (
-          <NewCaseForm
-            sellerName={role.name}
-            onCreated={() => { setTab('pipeline'); setPrefill(null); }}
-            prefill={prefill || undefined}
-          />
-        )}
         {tab === 'visit' && (
-          <VisitForm sellerName={role.name} onCreateCase={handleCreateFromVisit} />
+          <VisitForm sellerName={role.name} />
         )}
         {tab === 'dashboard' && (
           <SellerDashboard sellerName={role.name} />
