@@ -448,7 +448,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         }
       }
     },
-    onSuccess: () => { invalidate(); toast.success('Status uppdaterad'); },
+    onSuccess: (_d, vars) => {
+      invalidate();
+      if (vars.newStatus === 'fakturerad') {
+        celebrateInvoiced();
+      } else {
+        toast.success('Status uppdaterad');
+      }
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
