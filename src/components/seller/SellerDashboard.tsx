@@ -550,13 +550,16 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
             </h3>
             <div className="space-y-2">
               {flagged.map((c: any) => (
-                <div key={c.id} className="flex items-center justify-between rounded-md border border-orange-200 bg-card p-2">
-                  <div className="text-sm">
-                    <div className="font-medium text-card-foreground">{c.address}{c.city ? `, ${c.city}` : ''}</div>
+                <div key={c.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border border-orange-200 bg-card p-2">
+                  <div className="text-sm min-w-0">
+                    <div className="font-medium text-card-foreground break-words">{formatAddressWithCity(c.address, c.city)}</div>
                     <div className="text-xs text-muted-foreground">{c.customer_name} · {c.team || 'ingen montör'}</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-orange-500 hover:bg-orange-500/90 text-white">Tidsstyrd leverans — tid ej satt</Badge>
+                  <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-auto">
+                    <Badge className="bg-orange-500 hover:bg-orange-500/90 text-white whitespace-nowrap">
+                      <span className="sm:hidden">Tid ej satt ⏱</span>
+                      <span className="hidden sm:inline">Tidsstyrd leverans — tid ej satt</span>
+                    </Badge>
                     <Button size="sm" variant="outline" onClick={() => setSelectedCase(c)}>Sätt tid</Button>
                   </div>
                 </div>
