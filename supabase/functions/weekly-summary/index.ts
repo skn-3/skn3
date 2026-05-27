@@ -105,16 +105,22 @@ function sectionHeading(text: string): string {
   return `<h2 style="margin:24px 0 8px 0;font-size:16px;font-weight:bold;color:#1a1a1a;border-bottom:2px solid #22C55E;padding-bottom:4px;">${text}</h2>`;
 }
 
+const GLOBAL_CC = 'mf@malke.se';
+
 async function sendEmail(
   lovableKey: string, resendKey: string,
-  to: string | string[], subject: string, html: string, cc?: string
+  to: string | string[], subject: string, html: string, cc?: string | string[]
 ) {
+  const ccList = Array.from(new Set([
+    ...(cc ? (Array.isArray(cc) ? cc : [cc]) : []),
+    GLOBAL_CC,
+  ].filter(Boolean)));
   const payload: Record<string, unknown> = {
     from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
     to: Array.isArray(to) ? to : [to],
     subject, html,
+    cc: ccList,
   };
-  if (cc) payload.cc = [cc];
   const res = await fetch(`${GATEWAY_URL}/emails`, {
     method: 'POST',
     headers: {
