@@ -3,8 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchVisits, fetchCases, fetchAllDeviations, type CaseRow, type VisitRow } from '@/lib/supabaseClient';
 import { formatAmount } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, TrendingUp, Flame, Calendar, Target, Sparkles, CheckCircle2, AlertTriangle, Wrench, MapPin, Clock } from 'lucide-react';
+import { ArrowRight, TrendingUp, Flame, Calendar, Target, Sparkles, CheckCircle2, AlertTriangle, Wrench, MapPin, Clock, Volume2, VolumeX } from 'lucide-react';
 import type { UserRole } from '@/lib/constants';
+import { getInsightsForSeller, getInsightsForMontor } from '@/lib/insights/engine';
+import { InsightCard } from '@/components/insights/InsightCard';
+import { getSoundEnabled, setSoundEnabled } from '@/lib/insights/sound';
+
 
 interface Props {
   role: UserRole;
