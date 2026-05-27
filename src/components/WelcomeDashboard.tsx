@@ -3,8 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchVisits, fetchCases, fetchAllDeviations, type CaseRow, type VisitRow } from '@/lib/supabaseClient';
 import { formatAmount } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, TrendingUp, Flame, Calendar, Target, Sparkles, CheckCircle2, AlertTriangle, Wrench, MapPin, Clock } from 'lucide-react';
+import { ArrowRight, TrendingUp, Flame, Calendar, Target, Sparkles, CheckCircle2, AlertTriangle, Wrench, MapPin, Clock, Volume2, VolumeX } from 'lucide-react';
 import type { UserRole } from '@/lib/constants';
+import { getInsightsForSeller, getInsightsForMontor } from '@/lib/insights/engine';
+import { InsightCard } from '@/components/insights/InsightCard';
+import { getSoundEnabled, setSoundEnabled } from '@/lib/insights/sound';
+
 
 interface Props {
   role: UserRole;
@@ -94,7 +98,59 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
   );
 }
 
+// ============ INSIGHTS LAYER ============
+
+type SellerInsightData = { visits: VisitRow[]; cases: CaseRow[] };
+type MontorInsightData = { cases: CaseRow[]; deviations: any[]; name: string };
+
+function InsightsLayer({
+  kind, name, data,
+}: { kind: 'seller'; name: string; data: SellerInsightData }
+   | { kind: 'montor'; name: string; data: MontorInsightData }) {
+  const [soundOn, setSoundOn] = useState(() => getSoundEnabled(name));
+  const insights = useMemo(() => {
+    return kind === 'seller'
+      ? getInsightsForSeller(name, data as SellerInsightData)
+      : getInsightsForMontor(name, data as MontorInsightData);
+  }, [kind, name, data]);
+
+  if (!insights.length) return null;
+  const hero = insights[0].tier === 1 ? insights[0] : null;
+  const rest = hero ? insights.slice(1) : insights;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            const next = !soundOn;
+            setSoundOn(next);
+            setSoundEnabled(name, next);
+          }}
+          aria-label={soundOn ? 'Stäng av ljud' : 'Slå på ljud'}
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded"
+        >
+          {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          <span className="hidden sm:inline">{soundOn ? 'Ljud på' : 'Ljud av'}</span>
+        </button>
+      </div>
+
+      {hero && <InsightCard insight={hero} isHero index={0} soundEnabled={soundOn} />}
+
+      {rest.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {rest.map((ins, i) => (
+            <InsightCard key={ins.id} insight={ins} index={i + (hero ? 1 : 0)} soundEnabled={soundOn} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============ SELLER ============
+
 
 function SellerDashboard({ name }: { name: string }) {
   const { data: visits = [], isLoading: vL } = useQuery({
@@ -275,6 +331,8 @@ function SellerDashboard({ name }: { name: string }) {
 
       {!empty && (
         <>
+          <InsightsLayer kind="seller" name={name} data={{ visits, cases }} />
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card>
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Besök denna vecka</div>
@@ -488,6 +546,8 @@ function MontorDashboard({ name }: { name: string }) {
 
   return (
     <div className="space-y-4">
+      <InsightsLayer kind="montor" name={name} data={{ cases, deviations: allDeviations, name }} />
+
       <Card className={stats.todayEvents.length > 0 ? 'border-primary/40 bg-primary/5' : ''}>
         <div className="flex items-center gap-3 mb-3">
           <Wrench className="h-6 w-6 text-primary" />
