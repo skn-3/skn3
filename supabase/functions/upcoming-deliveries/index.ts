@@ -12,6 +12,7 @@ const LOGO_URL = `${APP_URL}/logo.png`;
 // Recipients — HARD-CODED, do NOT change to admin/montor lists
 const TO_EMAIL = 'mirna.malke@mockfjards.se';
 const CC_EMAIL = 'daniel@malke.se';
+const GLOBAL_CC = 'mf@malke.se';
 
 // n3prenad orders-gateway (RLS låst — vi måste gå via gatewayen med delad secret)
 const ORDERS_GATEWAY_URL = 'https://pjurpgqgqvabopoxkzja.supabase.co/functions/v1/orders-gateway';
