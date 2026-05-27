@@ -208,3 +208,12 @@ a[href*="lovable.app"][class*="badge"] {
   padding: 2px 4px;
   font-size: 0.75rem;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
