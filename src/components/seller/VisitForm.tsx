@@ -11,7 +11,7 @@ import { celebrateSignedDeal } from '@/lib/celebrate';
 
 interface VisitFormProps {
   sellerName: string;
-  onCreateCase: (data: { customer_name: string; address: string; order_value?: number }) => void;
+  onCreateCase: (data: { customer_name: string; address: string; order_value?: number; visit_id?: string; date?: string }) => void;
 }
 
 export function VisitForm({ sellerName, onCreateCase }: VisitFormProps) {
@@ -48,6 +48,8 @@ export function VisitForm({ sellerName, onCreateCase }: VisitFormProps) {
           customer_name: form.customer_name,
           address: form.address,
           order_value: ov,
+          visit_id: (visit as any)?.id,
+          date: form.date,
         });
       } else {
         toast.success('Besök registrerat!');
