@@ -40,14 +40,17 @@ export function VisitForm({ sellerName, onCreateCase }: VisitFormProps) {
       }),
     onSuccess: (visit) => {
       queryClient.invalidateQueries({ queryKey: ['visits'] });
-      toast.success('Besök registrerat!');
 
       if (form.result === 'signerat') {
+        const ov = form.order_value ? Number(form.order_value) : undefined;
+        celebrateSignedDeal(ov);
         onCreateCase({
           customer_name: form.customer_name,
           address: form.address,
-          order_value: form.order_value ? Number(form.order_value) : undefined,
+          order_value: ov,
         });
+      } else {
+        toast.success('Besök registrerat!');
       }
 
       setForm({
