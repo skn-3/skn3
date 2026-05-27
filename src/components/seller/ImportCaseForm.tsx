@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createCase, createCaseEvent, fetchAllCases, type CaseRow } from '@/lib/supabaseClient';
+import { createCase, createCaseEvent, fetchAllCases, createVisit, type CaseRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { MONTORS, SELLERS, STATUS_LABELS, SELLER_PIPELINE_COLUMNS, HOUR_RATE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -295,6 +295,24 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         description: 'Ärende importerat manuellt',
         created_by: 'Admin (import)',
       });
+
+      // Auto-skapa en visits-rad så importerade ärenden räknas i besöksstatistiken
+      try {
+        const visitDate = form.created_at
+          ? form.created_at.split('T')[0]
+          : (newCase.created_at ? String(newCase.created_at).split('T')[0] : new Date().toISOString().split('T')[0]);
+        await createVisit({
+          date: visitDate,
+          address: form.address,
+          customer_name: form.customer_name,
+          seller: form.seller,
+          result: 'signerat',
+          order_value: caseData.order_value,
+          case_id: newCase.id,
+        } as any);
+      } catch (visitErr) {
+        console.error('Auto-create visit (import) failed:', visitErr);
+      }
 
       if (vars.dupReasons && vars.dupReasons.length > 0) {
         await createCaseEvent({

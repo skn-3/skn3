@@ -28,7 +28,7 @@ interface SellerViewProps {
 export function SellerView({ role, onChangeRole, onToggleMontorView, initialCaseId, onInitialCaseHandled }: SellerViewProps) {
   const [tab, setTab] = useState<SellerTab>('pipeline');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
-  const [prefill, setPrefill] = useState<{ customer_name?: string; address?: string; order_value?: string } | null>(null);
+  const [prefill, setPrefill] = useState<{ customer_name?: string; address?: string; order_value?: string; visit_id?: string; visit_date?: string } | null>(null);
   const [, setSearchParams] = useSearchParams();
 
   // Deep-link: open case panel when ?case=<id> is provided
@@ -54,11 +54,13 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, initialCase
   }, [initialCaseId]);
 
 
-  const handleCreateFromVisit = (data: { customer_name: string; address: string; order_value?: number }) => {
+  const handleCreateFromVisit = (data: { customer_name: string; address: string; order_value?: number; visit_id?: string; date?: string }) => {
     setPrefill({
       customer_name: data.customer_name,
       address: data.address,
       order_value: data.order_value?.toString() || '',
+      visit_id: data.visit_id,
+      visit_date: data.date,
     });
     setTab('new');
   };

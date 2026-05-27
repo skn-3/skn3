@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createCase, createCaseEvent, sendNotificationEmail } from '@/lib/supabaseClient';
+import { createCase, createCaseEvent, sendNotificationEmail, createVisit, updateVisit } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { searchOrders } from '@/integrations/orderGateway';
 import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
@@ -25,7 +25,7 @@ type AddressSuggestion = {
 interface NewCaseFormProps {
   sellerName: string;
   onCreated: () => void;
-  prefill?: { customer_name?: string; address?: string; order_value?: string };
+  prefill?: { customer_name?: string; address?: string; order_value?: string; visit_id?: string; visit_date?: string };
 }
 
 export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps) {
@@ -47,6 +47,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
     media_consent: false,
     carry_help_needed: false,
     scheduled_delivery: false,
+    visit_date: prefill?.visit_date || new Date().toISOString().split('T')[0],
   });
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         customer_name: prefill.customer_name || f.customer_name,
         address: prefill.address || f.address,
         order_value: prefill.order_value || f.order_value,
+        visit_date: prefill.visit_date || f.visit_date,
       }));
     }
   }, [prefill]);
@@ -165,6 +167,26 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         description: `Ärende skapat, tilldelad montör: ${form.team || 'Ej tilldelad'}`,
         created_by: sellerName,
       });
+
+      // Säkerställ att en visits-rad finns för försäljningsstatistiken
+      try {
+        if (prefill?.visit_id) {
+          // Koppla den befintliga besöksraden (från "Registrera besök → signerat") till ärendet
+          await updateVisit(prefill.visit_id, { case_id: newCase.id });
+        } else {
+          await createVisit({
+            date: form.visit_date || new Date().toISOString().split('T')[0],
+            address: form.address,
+            customer_name: form.customer_name,
+            seller: sellerName,
+            result: 'signerat',
+            order_value: form.order_value ? Number(form.order_value) : null,
+            case_id: newCase.id,
+          } as any);
+        }
+      } catch (visitErr) {
+        console.error('Auto-create/link visit failed:', visitErr);
+      }
 
       // Send email to assigned montör
       if (form.team && EMAIL_MAP[form.team]) {
@@ -308,6 +330,10 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         <div className="space-y-1.5">
           <Label>Extra timmar sålda till kund (á {HOUR_RATE} kr/st)</Label>
           <Input type="number" value={form.extra_hours_sold} onChange={(e) => update('extra_hours_sold', e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Besöksdatum <span className="text-muted-foreground text-xs ml-1">för statistik</span></Label>
+          <Input type="date" value={form.visit_date} onChange={(e) => update('visit_date', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>KM-montör (valfritt)</Label>
