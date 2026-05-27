@@ -1,0 +1,484 @@
+import { useEffect, useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchVisits, fetchCases, fetchAllDeviations, type CaseRow, type VisitRow } from '@/lib/supabaseClient';
+import { formatAmount } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, TrendingUp, Flame, Calendar, Target, Sparkles, CheckCircle2, AlertTriangle, Wrench, MapPin, Clock } from 'lucide-react';
+import type { UserRole } from '@/lib/constants';
+
+interface Props {
+  role: UserRole;
+  onContinue: () => void;
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
+function CountUp({ value, duration = 900, formatter }: { value: number; duration?: number; formatter?: (n: number) => string }) {
+  const [n, setN] = useState(prefersReducedMotion() ? value : 0);
+  useEffect(() => {
+    if (prefersReducedMotion()) { setN(value); return; }
+    const start = performance.now();
+    const from = 0;
+    let raf = 0;
+    const step = (t: number) => {
+      const p = Math.min(1, (t - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setN(Math.round(from + (value - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return <>{formatter ? formatter(n) : n.toLocaleString('sv-SE')}</>;
+}
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 5) return 'God natt';
+  if (h < 10) return 'God morgon';
+  if (h < 13) return 'Hej';
+  if (h < 17) return 'God eftermiddag';
+  return 'God kväll';
+}
+
+function todayStr(): string {
+  return new Date().toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function startOfWeek(d: Date): Date {
+  const x = new Date(d);
+  const day = (x.getDay() + 6) % 7; // mon=0
+  x.setHours(0, 0, 0, 0);
+  x.setDate(x.getDate() - day);
+  return x;
+}
+
+function isoDate(d: Date | string): string {
+  return new Date(d).toISOString().slice(0, 10);
+}
+
+function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-xl border bg-card p-5 shadow-sm animate-fade-in ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+// ============ SELLER ============
+
+function SellerDashboard({ name }: { name: string }) {
+  const { data: visits = [], isLoading: vL } = useQuery({
+    queryKey: ['welcome-visits', name],
+    queryFn: () => fetchVisits({ seller: name }) as Promise<VisitRow[]>,
+  });
+  const { data: cases = [] } = useQuery({
+    queryKey: ['welcome-cases-seller', name],
+    queryFn: () => fetchCases({ seller: name }) as Promise<CaseRow[]>,
+  });
+
+  const stats = useMemo(() => {
+    const now = new Date();
+    const weekStart = startOfWeek(now);
+    const lastWeekStart = new Date(weekStart); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+    const thisWeek = visits.filter(v => new Date(v.date) >= weekStart);
+    const lastWeek = visits.filter(v => {
+      const d = new Date(v.date);
+      return d >= lastWeekStart && d < weekStart;
+    });
+
+    const signed = thisWeek.filter(v => v.result === 'signerat');
+    const lastSigned = lastWeek.filter(v => v.result === 'signerat');
+    const sumSigned = signed.reduce((s, v) => s + (Number(v.order_value) || 0), 0);
+    const lastSum = lastSigned.reduce((s, v) => s + (Number(v.order_value) || 0), 0);
+
+    // Best week ever
+    const byWeek = new Map<string, number>();
+    visits.filter(v => v.result === 'signerat').forEach(v => {
+      const ws = isoDate(startOfWeek(new Date(v.date)));
+      byWeek.set(ws, (byWeek.get(ws) || 0) + (Number(v.order_value) || 0));
+    });
+    const allWeekSums = [...byWeek.values()];
+    const maxOther = allWeekSums.filter(s => s !== sumSigned).reduce((m, s) => Math.max(m, s), 0);
+    const isBestWeek = sumSigned > 0 && sumSigned >= maxOther && sumSigned > 0;
+
+    const weekDelta = lastSum > 0 ? Math.round(((sumSigned - lastSum) / lastSum) * 100) : null;
+
+    // Streak: consecutive days with at least one signing
+    const signedDays = new Set(visits.filter(v => v.result === 'signerat').map(v => isoDate(v.date)));
+    let streak = 0;
+    const cursor = new Date(); cursor.setHours(0, 0, 0, 0);
+    while (signedDays.has(isoDate(cursor))) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    // Follow-ups due today / overdue
+    const todayISO = isoDate(new Date());
+    const followUps = visits.filter(v =>
+      v.result === 'aterkoppla' && v.follow_up_date && isoDate(v.follow_up_date) <= todayISO && !v.lost
+    ).length;
+
+    // Smart insight: top city
+    const cityCount = new Map<string, number>();
+    visits.filter(v => v.result === 'signerat').forEach(v => {
+      const city = (v.address || '').split(',').pop()?.replace(/\d/g, '').trim();
+      if (city) cityCount.set(city, (cityCount.get(city) || 0) + 1);
+    });
+    const topCity = [...cityCount.entries()].sort((a, b) => b[1] - a[1])[0];
+
+    // Goal: last week's sum or 3-week avg
+    const goalRef = lastSum > 0 ? lastSum : (allWeekSums.reduce((s, x) => s + x, 0) / Math.max(allWeekSums.length, 1));
+    const goalPct = goalRef > 0 ? Math.min(100, Math.round((sumSigned / goalRef) * 100)) : 0;
+
+    return {
+      visitsThisWeek: thisWeek.length,
+      signedThisWeek: signed.length,
+      sumSigned,
+      isBestWeek,
+      weekDelta,
+      streak,
+      followUps,
+      topCity: topCity ? { name: topCity[0], count: topCity[1] } : null,
+      goalRef,
+      goalPct,
+    };
+  }, [visits]);
+
+  if (vL) return <div className="text-center text-muted-foreground py-12">Laddar din vecka…</div>;
+
+  const empty = visits.length === 0;
+
+  return (
+    <div className="space-y-4">
+      {empty && (
+        <Card>
+          <div className="text-center py-6">
+            <div className="text-4xl mb-2">🚀</div>
+            <h3 className="text-lg font-bold">Ny vecka, nya möjligheter!</h3>
+            <p className="text-sm text-muted-foreground mt-1">Registrera ditt första besök för att se din statistik här.</p>
+          </div>
+        </Card>
+      )}
+
+      {!empty && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Besök denna vecka</div>
+              <div className="text-4xl font-bold mt-2 text-foreground"><CountUp value={stats.visitsThisWeek} /></div>
+            </Card>
+            <Card>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Signerade</div>
+              <div className="text-4xl font-bold mt-2 text-primary"><CountUp value={stats.signedThisWeek} /></div>
+            </Card>
+            <Card>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Sålt värde</div>
+              <div className="text-3xl font-bold mt-2 text-foreground">
+                <CountUp value={stats.sumSigned} formatter={(n) => formatAmount(n)} />
+              </div>
+            </Card>
+          </div>
+
+          {(stats.isBestWeek || stats.weekDelta !== null) && (
+            <Card className={stats.isBestWeek ? 'border-primary/50 bg-primary/5' : ''}>
+              <div className="flex items-center gap-3">
+                {stats.isBestWeek ? (
+                  <>
+                    <Flame className="h-7 w-7 text-orange-500 shrink-0" />
+                    <div>
+                      <div className="font-bold text-lg">🔥 Din bästa vecka hittills!</div>
+                      <div className="text-sm text-muted-foreground">{formatAmount(stats.sumSigned)} sålt denna vecka — rekord.</div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className={`h-7 w-7 shrink-0 ${stats.weekDelta! >= 0 ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <div>
+                      <div className="font-bold text-lg">
+                        {stats.weekDelta! >= 0 ? '+' : ''}{stats.weekDelta}% mot förra veckan
+                      </div>
+                      <div className="text-sm text-muted-foreground">Förra veckan: {formatAmount(stats.goalRef)}</div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </Card>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {stats.streak > 0 && (
+              <Card>
+                <div className="flex items-center gap-3">
+                  <Flame className="h-6 w-6 text-orange-500" />
+                  <div>
+                    <div className="font-bold">🔥 <CountUp value={stats.streak} /> dagar i rad med signering!</div>
+                    <div className="text-xs text-muted-foreground">Håll igång streaken.</div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {stats.followUps > 0 && (
+              <Card className="border-orange-300 bg-orange-50/50 dark:bg-orange-950/20">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-6 w-6 text-orange-600" />
+                    <div>
+                      <div className="font-bold"><CountUp value={stats.followUps} /> återkopplingar väntar</div>
+                      <div className="text-xs text-muted-foreground">Idag eller försenade</div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {stats.goalRef > 0 && (
+              <Card>
+                <div className="flex items-center gap-3 mb-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  <div className="font-semibold text-sm">Veckans mål (förra veckans nivå)</div>
+                </div>
+                <div className="h-3 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-700 motion-reduce:transition-none"
+                    style={{ width: `${stats.goalPct}%` }}
+                  />
+                </div>
+                <div className="text-xs text-muted-foreground mt-1.5">{stats.goalPct}% av {formatAmount(stats.goalRef)}</div>
+              </Card>
+            )}
+
+            {stats.topCity && stats.topCity.count >= 2 && (
+              <Card>
+                <div className="flex items-center gap-3">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                  <div>
+                    <div className="font-bold">Din starkaste ort: {stats.topCity.name}</div>
+                    <div className="text-xs text-muted-foreground">{stats.topCity.count} signeringar totalt</div>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============ MONTOR ============
+
+function MontorDashboard({ name }: { name: string }) {
+  const { data: cases = [], isLoading: cL } = useQuery({
+    queryKey: ['welcome-cases-montor', name],
+    queryFn: async () => {
+      const [byTeam, byKm] = await Promise.all([
+        fetchCases({ team: name }),
+        fetchCases({}).then((all) => all.filter((c: CaseRow) => c.km_team === name)),
+      ]);
+      const map = new Map<string, CaseRow>();
+      [...byTeam, ...byKm].forEach((c: CaseRow) => map.set(c.id, c));
+      return [...map.values()];
+    },
+  });
+  const { data: allDeviations = [] } = useQuery({ queryKey: ['welcome-devs'], queryFn: fetchAllDeviations });
+
+  const stats = useMemo(() => {
+    const today = isoDate(new Date());
+    const now = new Date();
+    const in7 = new Date(); in7.setDate(in7.getDate() + 7);
+    const weekStart = startOfWeek(now);
+
+    const todayEvents = cases.filter(c =>
+      (c.montage_date === today && c.team === name) ||
+      (c.km_date === today && c.km_team === name)
+    ).map(c => ({
+      caseRow: c,
+      kind: (c.montage_date === today && c.team === name) ? 'Montage' : 'KM',
+      time: c.montage_date === today ? c.montage_time : c.km_time,
+    }));
+
+    const upcoming = cases.flatMap(c => {
+      const items: Array<{ caseRow: CaseRow; kind: string; date: string; time: string | null }> = [];
+      if (c.team === name && c.montage_date && c.montage_date > today && new Date(c.montage_date) <= in7) {
+        items.push({ caseRow: c, kind: 'Montage', date: c.montage_date, time: c.montage_time });
+      }
+      if (c.km_team === name && c.km_date && c.km_date > today && new Date(c.km_date) <= in7) {
+        items.push({ caseRow: c, kind: 'KM', date: c.km_date, time: c.km_time });
+      }
+      if (c.team === name && c.delivery_date && c.delivery_date > today && new Date(c.delivery_date) <= in7) {
+        items.push({ caseRow: c, kind: 'Leverans', date: c.delivery_date, time: c.delivery_time });
+      }
+      return items;
+    }).sort((a, b) => a.date.localeCompare(b.date));
+
+    // Klara denna vecka (montage_klart updated this week)
+    const klaraThisWeek = cases.filter(c =>
+      c.team === name && c.status === 'montage_klart' &&
+      new Date(c.updated_at) >= weekStart
+    ).length;
+
+    // Quality: last 5 cases marked klart/fakturerad, count w/ deviations
+    const finishedCases = cases
+      .filter(c => c.team === name && ['montage_klart', 'fakturerad'].includes(c.status))
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .slice(0, 5);
+    const finishedIds = new Set(finishedCases.map(c => c.id));
+    const cleanCount = finishedCases.filter(c => !allDeviations.some(d => d.case_id === c.id)).length;
+    const allClean = finishedCases.length >= 3 && cleanCount === finishedCases.length;
+
+    const openDeviations = allDeviations.filter(d => !d.resolved && cases.some(c => c.id === d.case_id && c.team === name)).length;
+
+    // Warnings on upcoming
+    const carryWarnings = upcoming.filter(u => u.caseRow.carry_help_needed && u.kind === 'Montage');
+    const scheduledWarnings = upcoming.filter(u => u.caseRow.scheduled_delivery && u.kind === 'Leverans');
+
+    return {
+      todayEvents,
+      upcoming: upcoming.slice(0, 8),
+      klaraThisWeek,
+      finishedCount: finishedCases.length,
+      allClean,
+      openDeviations,
+      carryWarnings,
+      scheduledWarnings,
+    };
+  }, [cases, allDeviations, name]);
+
+  if (cL) return <div className="text-center text-muted-foreground py-12">Laddar din dag…</div>;
+
+  return (
+    <div className="space-y-4">
+      <Card className={stats.todayEvents.length > 0 ? 'border-primary/40 bg-primary/5' : ''}>
+        <div className="flex items-center gap-3 mb-3">
+          <Wrench className="h-6 w-6 text-primary" />
+          <div className="font-bold text-lg">
+            Idag har du <CountUp value={stats.todayEvents.length} /> {stats.todayEvents.length === 1 ? 'jobb' : 'jobb'}
+          </div>
+        </div>
+        {stats.todayEvents.length === 0 && (
+          <div className="text-sm text-muted-foreground">Inga inbokade jobb idag. Njut! ☕</div>
+        )}
+        {stats.todayEvents.length > 0 && (
+          <ul className="space-y-2">
+            {stats.todayEvents.map((e, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm border-l-2 border-primary pl-3 py-1">
+                <span className="font-semibold text-primary">{e.kind}</span>
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="flex-1 truncate">{e.caseRow.address}</span>
+                {e.time && (
+                  <span className="flex items-center gap-1 text-muted-foreground text-xs">
+                    <Clock className="h-3 w-3" />{e.time.slice(0, 5)}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Klara denna vecka</div>
+          <div className="text-4xl font-bold mt-2 text-primary"><CountUp value={stats.klaraThisWeek} /></div>
+          {stats.klaraThisWeek > 0 && (
+            <div className="text-sm text-foreground mt-1">Du har klarat {stats.klaraThisWeek} montage! 💪</div>
+          )}
+        </Card>
+
+        {stats.allClean && (
+          <Card className="border-primary/50 bg-primary/5">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-7 w-7 text-primary shrink-0" />
+              <div>
+                <div className="font-bold">✅ {stats.finishedCount} jobb utan reklamation</div>
+                <div className="text-xs text-muted-foreground">Toppkvalitet — fortsätt så!</div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {stats.openDeviations > 0 && (
+          <Card className="border-orange-300">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-6 w-6 text-orange-600" />
+              <div>
+                <div className="font-bold"><CountUp value={stats.openDeviations} /> öppna avvikelser</div>
+                <div className="text-xs text-muted-foreground">På dina jobb</div>
+              </div>
+            </div>
+          </Card>
+        )}
+      </div>
+
+      {(stats.carryWarnings.length > 0 || stats.scheduledWarnings.length > 0) && (
+        <Card className="border-amber-300 bg-amber-50/50 dark:bg-amber-950/20">
+          <div className="font-semibold mb-2 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-600" /> Förvarningar
+          </div>
+          <ul className="space-y-1 text-sm">
+            {stats.carryWarnings.map((u, i) => (
+              <li key={`c-${i}`}>⚠ Bärhjälp behövs {u.date} — {u.caseRow.address}</li>
+            ))}
+            {stats.scheduledWarnings.map((u, i) => (
+              <li key={`s-${i}`}>⏱ Tidsstyrd leverans {u.date} — {u.caseRow.address}</li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {stats.upcoming.length > 0 && (
+        <Card>
+          <div className="font-semibold mb-3 flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" /> Kommande 7 dagar
+          </div>
+          <ul className="space-y-1.5 text-sm">
+            {stats.upcoming.map((u, i) => (
+              <li key={i} className="flex items-center gap-2 py-1 border-b border-border/50 last:border-0">
+                <span className="text-xs font-mono text-muted-foreground w-20 shrink-0">{u.date}</span>
+                <span className="font-semibold text-primary text-xs w-16 shrink-0">{u.kind}</span>
+                <span className="flex-1 truncate">{u.caseRow.address}</span>
+                {u.time && <span className="text-muted-foreground text-xs">{u.time.slice(0, 5)}</span>}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ============ MAIN ============
+
+export function WelcomeDashboard({ role, onContinue }: Props) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
+        <div className="mb-8 animate-fade-in">
+          <div className="text-sm text-muted-foreground capitalize">{todayStr()}</div>
+          <h1 className="text-3xl sm:text-4xl font-bold mt-1 text-foreground">
+            {greeting()}, {role.name}! 👋
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {role.type === 'seller' ? 'Här är din vecka i siffror.' : 'Här är vad som väntar dig.'}
+          </p>
+        </div>
+
+        {role.type === 'seller'
+          ? <SellerDashboard name={role.name} />
+          : <MontorDashboard name={role.name} />}
+
+        <div className="mt-8 flex justify-center">
+          <Button size="lg" onClick={onContinue} className="gap-2">
+            Till pipeline <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
