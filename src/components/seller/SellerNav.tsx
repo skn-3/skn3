@@ -10,9 +10,9 @@ interface SellerNavProps {
 
 export function SellerNav({ active, onChange, isAdmin }: SellerNavProps) {
   const tabs: { value: SellerTab; label: string }[] = [
+    { value: 'visit', label: 'Registrera besök' },
     { value: 'pipeline', label: 'Pipeline' },
     { value: 'calendar', label: 'Kalender' },
-    { value: 'visit', label: 'Registrera besök' },
     { value: 'dashboard', label: 'Dashboard' },
     ...(isAdmin ? [
       { value: 'import' as SellerTab, label: 'Importera ärende' },
