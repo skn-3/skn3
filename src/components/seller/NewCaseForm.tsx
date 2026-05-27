@@ -168,6 +168,26 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         created_by: sellerName,
       });
 
+      // Säkerställ att en visits-rad finns för försäljningsstatistiken
+      try {
+        if (prefill?.visit_id) {
+          // Koppla den befintliga besöksraden (från "Registrera besök → signerat") till ärendet
+          await updateVisit(prefill.visit_id, { case_id: newCase.id });
+        } else {
+          await createVisit({
+            date: form.visit_date || new Date().toISOString().split('T')[0],
+            address: form.address,
+            customer_name: form.customer_name,
+            seller: sellerName,
+            result: 'signerat',
+            order_value: form.order_value ? Number(form.order_value) : null,
+            case_id: newCase.id,
+          } as any);
+        }
+      } catch (visitErr) {
+        console.error('Auto-create/link visit failed:', visitErr);
+      }
+
       // Send email to assigned montör
       if (form.team && EMAIL_MAP[form.team]) {
         try {
