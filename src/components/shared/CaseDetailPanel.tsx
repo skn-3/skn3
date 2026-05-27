@@ -17,6 +17,7 @@ import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, C
 import { getOrderByCaseId, listUnlinkedOrders, linkCase as gwLinkCase, unlinkCase as gwUnlinkCase, updateOrderDate } from '@/integrations/orderGateway';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { celebrateInvoiced } from '@/lib/celebrate';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -447,7 +448,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         }
       }
     },
-    onSuccess: () => { invalidate(); toast.success('Status uppdaterad'); },
+    onSuccess: (_d, vars) => {
+      invalidate();
+      if (vars.newStatus === 'fakturerad') {
+        celebrateInvoiced();
+      } else {
+        toast.success('Status uppdaterad');
+      }
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 

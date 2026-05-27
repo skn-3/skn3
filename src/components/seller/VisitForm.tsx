@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
+import { celebrateSignedDeal } from '@/lib/celebrate';
 
 interface VisitFormProps {
   sellerName: string;
@@ -39,14 +40,17 @@ export function VisitForm({ sellerName, onCreateCase }: VisitFormProps) {
       }),
     onSuccess: (visit) => {
       queryClient.invalidateQueries({ queryKey: ['visits'] });
-      toast.success('Besök registrerat!');
 
       if (form.result === 'signerat') {
+        const ov = form.order_value ? Number(form.order_value) : undefined;
+        celebrateSignedDeal(ov);
         onCreateCase({
           customer_name: form.customer_name,
           address: form.address,
-          order_value: form.order_value ? Number(form.order_value) : undefined,
+          order_value: ov,
         });
+      } else {
+        toast.success('Besök registrerat!');
       }
 
       setForm({
