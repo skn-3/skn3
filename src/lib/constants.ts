@@ -1,13 +1,14 @@
 export const HOUR_RATE = 469;
 
 export const SELLERS = ['Daniel Malke', 'Gabriel Hanna'] as const;
-export const MONTORS = ['GVMO', 'Samy', 'Alex NBD', 'Jerk'] as const;
+export const MONTORS = ['GVMO', 'Samy', 'Alex NBD', 'Jerk', 'Villaspecialisten'] as const;
 
 export const MONTOR_PHONES: Record<string, string> = {
   'GVMO': '0707654751',
   'Samy': '0733930666',
   'Alex NBD': '0707808026',
   'Jerk': '0705799711',
+  'Villaspecialisten': '',
 };
 
 export const SHEET_METAL_RECIPIENT = 'joakim@byggplatar.se';
@@ -28,6 +29,7 @@ export const PIN_CODES: Record<string, string> = {
   'Samy': '2222',
   'Alex NBD': '3333',
   'Jerk': '4444',
+  'Villaspecialisten': '5555',
 };
 
 export const ADMIN_USERS = ['Daniel Malke'];
@@ -90,6 +92,7 @@ export const EMAIL_MAP: Record<string, string> = {
   'Samy': 'info@smtmbygg.se',
   'Alex NBD': 'alex@nbdentreprenad.com',
   'Jerk': 'jerk.ryttman@mockfjards.se',
+  'Villaspecialisten': 'Edvin@villaspecialisten.se',
   // Säljare
   'Daniel Malke': 'daniel.malke@mockfjards.se',
   'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',

@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const SELLERS = ['Daniel Malke', 'Gabriel Hanna'];
-const MONTORS = ['GVMO', 'Samy', 'Alex NBD', 'Jerk'];
+const MONTORS = ['GVMO', 'Samy', 'Alex NBD', 'Jerk', 'Villaspecialisten'];
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
 

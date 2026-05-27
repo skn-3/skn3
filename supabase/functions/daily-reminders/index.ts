@@ -14,6 +14,7 @@ const EMAIL_MAP: Record<string, string> = {
   'Samy': 'info@smtmbygg.se',
   'Alex NBD': 'alex@nbdentreprenad.com',
   'Jerk': 'jerk.ryttman@mockfjards.se',
+  'Villaspecialisten': 'Edvin@villaspecialisten.se',
   'Daniel Malke': 'daniel.malke@mockfjards.se',
   'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',
 };
