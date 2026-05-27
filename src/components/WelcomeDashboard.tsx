@@ -48,17 +48,15 @@ function greeting(): string {
   return 'God afton';
 }
 
-const SELLER_TAGLINES = [
-  'Nytt fokus, ny vecka — så här ligger du till',
-  'Dags att göra avtryck. Här är läget',
-  'En ny chans varje dag — så här går det',
-  'Bygg vidare på momentumet',
-  'Låt oss göra den här veckan minnesvärd',
-];
-
 function sellerTagline(): string {
-  const day = Math.floor(Date.now() / 86400000);
-  return SELLER_TAGLINES[day % SELLER_TAGLINES.length];
+  const now = new Date();
+  const dow = now.getDay(); // 0=sön ... 6=lör
+  const h = now.getHours();
+  const isMorning = h < 13; // morgon/fm
+  if (dow === 0 || dow === 6) return 'Helgcheck — så här ser veckan ut';
+  if (dow === 1) return isMorning ? 'Nytt fokus, ny vecka — så här ligger du till' : 'Veckan har börjat — här är läget';
+  if (dow === 5) return isMorning ? 'Fredag! Avsluta veckan starkt' : 'Veckan i siffror — bra jobbat';
+  return isMorning ? 'Här är veckan så här långt' : 'Halvvägs in i veckan — så här går det';
 }
 
 const MONTOR_TAGLINES = [
