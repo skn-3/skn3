@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createCase, createCaseEvent, sendNotificationEmail } from '@/lib/supabaseClient';
+import { createCase, createCaseEvent, sendNotificationEmail, createVisit, updateVisit } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { searchOrders } from '@/integrations/orderGateway';
 import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
@@ -25,7 +25,7 @@ type AddressSuggestion = {
 interface NewCaseFormProps {
   sellerName: string;
   onCreated: () => void;
-  prefill?: { customer_name?: string; address?: string; order_value?: string };
+  prefill?: { customer_name?: string; address?: string; order_value?: string; visit_id?: string; visit_date?: string };
 }
 
 export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps) {
@@ -47,6 +47,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
     media_consent: false,
     carry_help_needed: false,
     scheduled_delivery: false,
+    visit_date: prefill?.visit_date || new Date().toISOString().split('T')[0],
   });
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export function NewCaseForm({ sellerName, onCreated, prefill }: NewCaseFormProps
         customer_name: prefill.customer_name || f.customer_name,
         address: prefill.address || f.address,
         order_value: prefill.order_value || f.order_value,
+        visit_date: prefill.visit_date || f.visit_date,
       }));
     }
   }, [prefill]);
