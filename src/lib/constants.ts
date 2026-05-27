@@ -29,6 +29,7 @@ export const PIN_CODES: Record<string, string> = {
   'Samy': '2222',
   'Alex NBD': '3333',
   'Jerk': '4444',
+  'Villaspecialisten': '5555',
 };
 
 export const ADMIN_USERS = ['Daniel Malke'];
