@@ -12,6 +12,7 @@ const LOGO_URL = `${APP_URL}/logo.png`;
 // Recipients — HARD-CODED, do NOT change to admin/montor lists
 const TO_EMAIL = 'mirna.malke@mockfjards.se';
 const CC_EMAIL = 'daniel@malke.se';
+const GLOBAL_CC = 'mf@malke.se';
 
 // n3prenad orders-gateway (RLS låst — vi måste gå via gatewayen med delad secret)
 const ORDERS_GATEWAY_URL = 'https://pjurpgqgqvabopoxkzja.supabase.co/functions/v1/orders-gateway';
@@ -107,10 +108,11 @@ function caseUrl(id: string): string {
 // ---------- Email send ----------
 
 async function sendEmail(lovableKey: string, resendKey: string, subject: string, html: string) {
+  const ccList = Array.from(new Set([CC_EMAIL, GLOBAL_CC].filter(Boolean)));
   const payload = {
     from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
     to: [TO_EMAIL],
-    cc: [CC_EMAIL],
+    cc: ccList,
     subject,
     html,
   };

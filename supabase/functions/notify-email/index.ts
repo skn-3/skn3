@@ -155,16 +155,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    const GLOBAL_CC = 'mf@malke.se';
+    const existingCc = cc ? (Array.isArray(cc) ? cc : [cc]) : [];
+    const ccList = Array.from(new Set([...existingCc, GLOBAL_CC].filter(Boolean)));
+
     const emailPayload: Record<string, unknown> = {
       from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
       to: Array.isArray(to) ? to : [to],
       subject,
       html,
+      cc: ccList,
     };
-
-    if (cc) {
-      emailPayload.cc = Array.isArray(cc) ? cc : [cc];
-    }
 
     const response = await fetch(`${GATEWAY_URL}/emails`, {
       method: 'POST',

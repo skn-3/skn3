@@ -145,13 +145,19 @@ Deno.serve(async (req) => {
       }
     });
 
+    const GLOBAL_CC = 'mf@malke.se';
+    const ccList = Array.from(new Set([
+      ...(body.cc ? [body.cc] : []),
+      GLOBAL_CC,
+    ].filter(Boolean)));
+
     const payload: Record<string, unknown> = {
       from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
       to: [body.to],
       subject: `Beställning L-Profil/Underbleck — ${body.delivery_address}`,
       html,
+      cc: ccList,
     };
-    if (body.cc) payload.cc = [body.cc];
     if (attachments.length > 0) payload.attachments = attachments;
 
     const response = await fetch(`${GATEWAY_URL}/emails`, {

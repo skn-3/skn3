@@ -66,21 +66,27 @@ ${rows.map(row => `<tr>${row.map(c => `<td style="padding:8px 6px;border-bottom:
 </table>`;
 }
 
+const GLOBAL_CC = 'mf@malke.se';
+
 async function sendEmail(
   lovableKey: string,
   resendKey: string,
   to: string | string[],
   subject: string,
   html: string,
-  cc?: string
+  cc?: string | string[]
 ) {
+  const ccList = Array.from(new Set([
+    ...(cc ? (Array.isArray(cc) ? cc : [cc]) : []),
+    GLOBAL_CC,
+  ].filter(Boolean)));
   const payload: Record<string, unknown> = {
     from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
     to: Array.isArray(to) ? to : [to],
     subject,
     html,
+    cc: ccList,
   };
-  if (cc) payload.cc = [cc];
 
   const res = await fetch(`${GATEWAY_URL}/emails`, {
     method: 'POST',
