@@ -304,6 +304,7 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
                     onClick={() => onSelectCase(c)}
                     showSeller={showSellerBadge}
                     warnings={getWarnings(c, ordersByCaseId ?? null)}
+                    hideFinancials={isCoordinator}
                   />
                 ))}
               </div>
