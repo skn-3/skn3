@@ -651,10 +651,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       </div>
 
       {/* Bottom sheet: Rapportera problem */}
-      <Sheet open={showProblem} onOpenChange={setShowProblem}>
+      <Sheet open={showProblem} onOpenChange={(open) => { if (open) setShowProblem(true); }}>
         <SheetContent
           side="bottom"
           className="h-[90vh] overflow-y-auto flex flex-col"
+          disableDefaultClose
+          onCloseClick={() => setShowProblem(false)}
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
           onFocusOutside={(e) => e.preventDefault()}
@@ -730,9 +732,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             >
               {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}
             </Button>
-            <SheetClose asChild>
-              <Button variant="outline" className="min-h-[48px]">Avbryt</Button>
-            </SheetClose>
+            <Button variant="outline" className="min-h-[48px]" onClick={() => setShowProblem(false)}>Avbryt</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
