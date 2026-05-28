@@ -375,7 +375,7 @@ function BookingSheet({
   const [kmDate, setKmDate] = useState<string>(c?.km_date || '');
 
   // Reset on case change
-  useMemo(() => {
+  useEffect(() => {
     setTeam(c?.team || '');
     setKmTeam(c?.km_team || '');
     setMontageDate(c?.montage_date || '');
