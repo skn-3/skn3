@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Loader2, Plus, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -206,6 +206,7 @@ function NewDeviationSheet({
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Ny reklamation</SheetTitle>
+          <SheetDescription>Registrera en ny reklamation eller avvikelse.</SheetDescription>
         </SheetHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">

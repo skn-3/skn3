@@ -13,7 +13,7 @@ import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2, X, Receip
 import { toast } from 'sonner';
 import { celebrateMontageDone } from '@/lib/celebrate';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
@@ -651,25 +651,11 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       </div>
 
       {/* Bottom sheet: Rapportera problem */}
-      <Sheet open={showProblem} onOpenChange={(open) => {
-        console.log('[DIAG-SHEET] onOpenChange called with open=', open, 'activeElement:', document.activeElement?.tagName, (document.activeElement as HTMLElement)?.className, 'stack:', new Error().stack);
-        setShowProblem(open);
-      }}>
-        <SheetContent
-          side="bottom"
-          className="h-[90vh] overflow-y-auto flex flex-col"
-          onInteractOutside={(e) => {
-            console.log('[DIAG-SHEET] onInteractOutside fired, target:', e.target, 'tagName:', (e.target as HTMLElement)?.tagName);
-          }}
-          onPointerDownOutside={(e) => {
-            console.log('[DIAG-SHEET] onPointerDownOutside fired, target:', e.target, 'tagName:', (e.target as HTMLElement)?.tagName);
-          }}
-          onEscapeKeyDown={() => {
-            console.log('[DIAG-SHEET] onEscapeKeyDown fired');
-          }}
-        >
+      <Sheet open={showProblem} onOpenChange={setShowProblem}>
+        <SheetContent side="bottom" className="h-[90vh] overflow-y-auto flex flex-col">
           <SheetHeader>
             <SheetTitle>Rapportera problem</SheetTitle>
+            <SheetDescription>Rapportera ett problem eller en avvikelse för detta ärende.</SheetDescription>
           </SheetHeader>
           <div className="px-4 space-y-4 pb-2 flex-1 overflow-y-auto">
             <div>

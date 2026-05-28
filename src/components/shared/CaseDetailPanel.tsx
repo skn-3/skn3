@@ -25,7 +25,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from '@/components/ui/sheet';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { cn, formatAmount } from '@/lib/utils';
@@ -1673,6 +1673,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         <SheetContent side="bottom" className="h-[90vh] overflow-y-auto flex flex-col">
           <SheetHeader>
             <SheetTitle>Rapportera problem</SheetTitle>
+            <SheetDescription>Rapportera ett problem eller en avvikelse för detta ärende.</SheetDescription>
           </SheetHeader>
           <div className="px-4 space-y-4 pb-4 flex-1 overflow-y-auto">
             <div>

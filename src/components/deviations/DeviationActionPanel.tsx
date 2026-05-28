@@ -32,6 +32,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
   SheetFooter,
 } from '@/components/ui/sheet';
 import {
@@ -511,6 +512,7 @@ function FactoryClaimSheet({
       <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col">
         <SheetHeader>
           <SheetTitle>Skicka reklamation till Mockfjärds</SheetTitle>
+          <SheetDescription>Skicka ett mejl till fabriken om denna avvikelse.</SheetDescription>
         </SheetHeader>
         <div className="space-y-4 py-4 flex-1 overflow-y-auto">
           <div className="space-y-2">
@@ -621,6 +623,7 @@ function Del1OrderSheet({
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
         <SheetHeader>
           <SheetTitle>Skapa DEL1-order</SheetTitle>
+          <SheetDescription>Registrera en intern DEL1-order för denna avvikelse.</SheetDescription>
         </SheetHeader>
         <div className="space-y-4 py-4 flex-1 overflow-y-auto">
           <p className="text-xs text-muted-foreground">
@@ -685,6 +688,7 @@ export function DeviationActionSheet({
           <SheetTitle>
             Reklamation — {caseData?.address || '(ärende saknas)'}
           </SheetTitle>
+          <SheetDescription>Hantera och åtgärda denna avvikelse.</SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto py-4">
           {deviation && (
