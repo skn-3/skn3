@@ -93,7 +93,7 @@ function getScheduledDeliveryBadge(c: any): { label: string; urgent: boolean } |
   return { label: '🕐 Tidsstyrd leverans', urgent: false };
 }
 
-export function CaseCard({ caseData, onClick, showSeller, warnings }: CaseCardProps) {
+export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancials }: CaseCardProps) {
   const tidsBadge = getScheduledDeliveryBadge(caseData as any);
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
 
@@ -114,13 +114,13 @@ export function CaseCard({ caseData, onClick, showSeller, warnings }: CaseCardPr
             {caseData.team}
           </div>
         )}
-        {showSeller && (
+        {showSeller && !hideFinancials && (
           <div className="flex items-center gap-1.5">
             <UserCircle className="h-3 w-3 shrink-0" />
             <span className="italic">{caseData.seller || '(saknas)'}</span>
           </div>
         )}
-        {caseData.order_value && (
+        {caseData.order_value && !hideFinancials && (
           <div className="text-primary font-medium">
             {Number(caseData.order_value).toLocaleString('sv-SE')} kr
           </div>
