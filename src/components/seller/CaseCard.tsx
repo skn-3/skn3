@@ -67,6 +67,7 @@ interface CaseCardProps {
   onClick: () => void;
   showSeller?: boolean;
   warnings?: string[];
+  hideFinancials?: boolean;
 }
 
 function getScheduledDeliveryBadge(c: any): { label: string; urgent: boolean } | null {
