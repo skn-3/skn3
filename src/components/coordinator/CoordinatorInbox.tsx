@@ -56,7 +56,7 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [bookingCase, setBookingCase] = useState<CaseRow | null>(null);
-  const [costDev, setCostDev] = useState<DeviationRow | null>(null);
+  const [openDev, setOpenDev] = useState<DeviationRow | null>(null);
   const [newDevOpen, setNewDevOpen] = useState(false);
 
   const { data: cases, isLoading: casesLoading } = useQuery({
