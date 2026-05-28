@@ -557,7 +557,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const resolveMutation = useMutation({
     mutationFn: async (deviation: any) => {
-      await updateDeviation(deviation.id, { resolved: true });
+      await updateDeviation(deviation.id, { resolved: true, status: 'klar' } as any);
       const typLabel = DEVIATION_TYPES.find(d => d.value === deviation.type)?.label || deviation.type;
       await createCaseEvent({
         case_id: caseData.id,
