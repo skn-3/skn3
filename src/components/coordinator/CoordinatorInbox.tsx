@@ -468,7 +468,7 @@ function CostSheet({
   const [amount, setAmount] = useState<string>(String(dev?.cost || ''));
   const [desc, setDesc] = useState('');
 
-  useMemo(() => {
+  useEffect(() => {
     setAmount(String(dev?.cost || ''));
     setDesc('');
   }, [dev?.id]);
