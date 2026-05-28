@@ -650,7 +650,10 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       </div>
 
       {/* Bottom sheet: Rapportera problem */}
-      <Drawer open={showProblem} onOpenChange={setShowProblem}>
+      <Drawer open={showProblem} onOpenChange={(open) => {
+        console.log('[DIAG-DRAWER] onOpenChange called with open=', open, 'stack:', new Error().stack);
+        setShowProblem(open);
+      }}>
         <DrawerContent>
           <DrawerHeader>
             <DrawerTitle>Rapportera problem</DrawerTitle>
