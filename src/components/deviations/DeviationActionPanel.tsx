@@ -623,6 +623,7 @@ function Del1OrderSheet({
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
         <SheetHeader>
           <SheetTitle>Skapa DEL1-order</SheetTitle>
+          <SheetDescription>Registrera en intern DEL1-order för denna avvikelse.</SheetDescription>
         </SheetHeader>
         <div className="space-y-4 py-4 flex-1 overflow-y-auto">
           <p className="text-xs text-muted-foreground">
