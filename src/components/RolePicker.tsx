@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SELLERS, MONTORS, ADMIN_USERS, PIN_CODES, type RoleType, type UserRole } from '@/lib/constants';
+import { SELLERS, MONTORS, ADMIN_USERS, COORDINATORS, PIN_CODES, type RoleType, type UserRole } from '@/lib/constants';
 
 interface RolePickerProps {
   onRoleSelected: (role: UserRole) => void;
@@ -14,7 +14,10 @@ export function RolePicker({ onRoleSelected }: RolePickerProps) {
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
 
-  const people = roleType === 'seller' ? SELLERS : roleType === 'montor' ? MONTORS : [];
+  const people =
+    roleType === 'seller' ? SELLERS :
+    roleType === 'montor' ? MONTORS :
+    roleType === 'coordinator' ? COORDINATORS : [];
 
   const handleLogin = () => {
     const correctPin = PIN_CODES[name];
