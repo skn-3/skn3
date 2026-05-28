@@ -32,10 +32,11 @@ interface CaseDetailPanelProps {
   caseData: CaseRow;
   currentUser: string;
   isSeller: boolean;
+  isCoordinator?: boolean;
   onClose: () => void;
 }
 
-export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSeller, onClose }: CaseDetailPanelProps) {
+export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSeller, isCoordinator, onClose }: CaseDetailPanelProps) {
   const queryClient = useQueryClient();
 
   // Live case data that updates after mutations
@@ -980,21 +981,25 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             {editingCase ? (
               <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Ordervärde (kr) <span className="text-muted-foreground ml-1">ex moms</span></Label>
-                    <Input type="number" value={editForm.order_value} onChange={(e) => setEditForm(f => ({ ...f, order_value: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">TB (%)</Label>
-                    <Input type="number" min={0} max={100} value={editForm.tb_percent} onChange={(e) => setEditForm(f => ({ ...f, tb_percent: e.target.value }))} />
-                    {editForm.tb_percent !== '' && (Number(editForm.tb_percent) < 0 || Number(editForm.tb_percent) > 100) && (
-                      <p className="text-xs text-destructive">TB% måste vara mellan 0 och 100. Skrev du 160 istället för 16?</p>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Extra timmar sålda</Label>
-                    <Input type="number" value={editForm.extra_hours_sold} onChange={(e) => setEditForm(f => ({ ...f, extra_hours_sold: e.target.value }))} />
-                  </div>
+                  {!isCoordinator && (
+                    <>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Ordervärde (kr) <span className="text-muted-foreground ml-1">ex moms</span></Label>
+                        <Input type="number" value={editForm.order_value} onChange={(e) => setEditForm(f => ({ ...f, order_value: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">TB (%)</Label>
+                        <Input type="number" min={0} max={100} value={editForm.tb_percent} onChange={(e) => setEditForm(f => ({ ...f, tb_percent: e.target.value }))} />
+                        {editForm.tb_percent !== '' && (Number(editForm.tb_percent) < 0 || Number(editForm.tb_percent) > 100) && (
+                          <p className="text-xs text-destructive">TB% måste vara mellan 0 och 100. Skrev du 160 istället för 16?</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Extra timmar sålda</Label>
+                        <Input type="number" value={editForm.extra_hours_sold} onChange={(e) => setEditForm(f => ({ ...f, extra_hours_sold: e.target.value }))} />
+                      </div>
+                    </>
+                  )}
                   <div className="space-y-1">
                     <Label className="text-xs">KM-montör (valfritt)</Label>
                     <Select value={editForm.km_team || '__none__'} onValueChange={(v) => setEditForm(f => ({ ...f, km_team: v === '__none__' ? '' : v }))}>
@@ -1015,10 +1020,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Offertnummer</Label>
-                    <Input value={editForm.offer_number} onChange={(e) => setEditForm(f => ({ ...f, offer_number: e.target.value }))} />
-                  </div>
+                  {!isCoordinator && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Offertnummer</Label>
+                      <Input value={editForm.offer_number} onChange={(e) => setEditForm(f => ({ ...f, offer_number: e.target.value }))} />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <Label className="text-xs">Telefon</Label>
                     <Input value={editForm.customer_phone} onChange={(e) => setEditForm(f => ({ ...f, customer_phone: e.target.value }))} />
@@ -1039,30 +1046,32 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <Label className="text-xs">Anteckning</Label>
                     <Textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
                   </div>
-                  <div className="col-span-2 space-y-2 rounded-md border p-2 bg-background">
-                    <p className="text-xs font-medium text-muted-foreground">Att tänka på vid montage</p>
-                    <label className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={editForm.media_consent}
-                        onCheckedChange={(c) => setEditForm(f => ({ ...f, media_consent: c === true }))}
-                      />
-                      Foto/film överenskommet med kund
-                    </label>
-                    <label className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={editForm.carry_help_needed}
-                        onCheckedChange={(c) => setEditForm(f => ({ ...f, carry_help_needed: c === true }))}
-                      />
-                      Behövs bärhjälp?
-                    </label>
-                    <label className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={editForm.scheduled_delivery}
-                        onCheckedChange={(c) => setEditForm(f => ({ ...f, scheduled_delivery: c === true }))}
-                      />
-                      Tidsstyrd leverans (tidslossning)
-                    </label>
-                  </div>
+                  {!isCoordinator && (
+                    <div className="col-span-2 space-y-2 rounded-md border p-2 bg-background">
+                      <p className="text-xs font-medium text-muted-foreground">Att tänka på vid montage</p>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={editForm.media_consent}
+                          onCheckedChange={(c) => setEditForm(f => ({ ...f, media_consent: c === true }))}
+                        />
+                        Foto/film överenskommet med kund
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={editForm.carry_help_needed}
+                          onCheckedChange={(c) => setEditForm(f => ({ ...f, carry_help_needed: c === true }))}
+                        />
+                        Behövs bärhjälp?
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={editForm.scheduled_delivery}
+                          onCheckedChange={(c) => setEditForm(f => ({ ...f, scheduled_delivery: c === true }))}
+                        />
+                        Tidsstyrd leverans (tidslossning)
+                      </label>
+                    </div>
+                  )}
                   <div className="col-span-2 space-y-3 rounded-md border p-2 bg-background">
                     <p className="text-xs font-medium text-muted-foreground">Datum</p>
                     <div className="space-y-1">
@@ -1593,7 +1602,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           </section>
 
           {/* Delete case - seller only */}
-          {isSeller && (
+          {isSeller && !isCoordinator && (
             <section className="p-4">
               <AlertDialog>
                 <AlertDialogTrigger asChild>

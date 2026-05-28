@@ -14,7 +14,9 @@ export const MONTOR_PHONES: Record<string, string> = {
 export const SHEET_METAL_RECIPIENT = 'joakim@byggplatar.se';
 export const SHEET_METAL_CC = 'mf@malke.se';
 
-export type RoleType = 'seller' | 'montor';
+export type RoleType = 'seller' | 'montor' | 'coordinator';
+
+export const COORDINATORS = ['Mirna Malke'] as const;
 
 export interface UserRole {
   type: RoleType;
@@ -30,6 +32,7 @@ export const PIN_CODES: Record<string, string> = {
   'Alex NBD': '3333',
   'Jerk': '4444',
   'Villaspecialisten': '5555',
+  'Mirna Malke': '6666',
 };
 
 export const ADMIN_USERS = ['Daniel Malke'];
@@ -96,6 +99,8 @@ export const EMAIL_MAP: Record<string, string> = {
   // Säljare
   'Daniel Malke': 'daniel.malke@mockfjards.se',
   'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',
+  // Koordinator
+  'Mirna Malke': 'mirna.malke@mockfjards.se',
 };
 
 export const COORDINATOR_EMAIL = 'mirna.malke@mockfjards.se';

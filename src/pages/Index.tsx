@@ -4,6 +4,7 @@ import { useRole } from '@/hooks/useRole';
 import { RolePicker } from '@/components/RolePicker';
 import { SellerView } from '@/components/seller/SellerView';
 import { MontorView } from '@/components/montor/MontorView';
+import { CoordinatorView } from '@/components/coordinator/CoordinatorView';
 import { WelcomeDashboard } from '@/components/WelcomeDashboard';
 
 const WELCOME_KEY_PREFIX = 'smartklimat_welcome_shown_';
@@ -36,7 +37,7 @@ const Index = () => {
 
   // Show welcome once per day per user (skip if deep-linking to a case)
   useEffect(() => {
-    if (role && !initialCaseId && shouldShowWelcome(role.name)) {
+    if (role && role.type !== 'coordinator' && !initialCaseId && shouldShowWelcome(role.name)) {
       setShowWelcome(true);
     }
   }, [role, initialCaseId]);
@@ -76,6 +77,17 @@ const Index = () => {
         role={role}
         onChangeRole={clearRole}
         onToggleMontorView={role.isAdmin ? () => setShowMontorView(true) : undefined}
+        initialCaseId={initialCaseId}
+        onInitialCaseHandled={() => setInitialCaseId(null)}
+      />
+    );
+  }
+
+  if (role.type === 'coordinator') {
+    return (
+      <CoordinatorView
+        role={role}
+        onChangeRole={clearRole}
         initialCaseId={initialCaseId}
         onInitialCaseHandled={() => setInitialCaseId(null)}
       />

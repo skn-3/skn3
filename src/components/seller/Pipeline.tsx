@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCases, fetchVisits, type CaseRow } from '@/lib/supabaseClient';
 import { listOrdersByCaseIds } from '@/integrations/orderGateway';
-import { SELLER_PIPELINE_COLUMNS, STATUS_LABELS, SELLERS } from '@/lib/constants';
+import { SELLER_PIPELINE_COLUMNS, STATUS_LABELS, SELLERS, MONTORS } from '@/lib/constants';
 import { CaseCard } from './CaseCard';
 import { FollowUpSection } from './FollowUpSection';
 import { Loader2, Search, X, SlidersHorizontal, AlertTriangle } from 'lucide-react';
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 interface PipelineProps {
   sellerName: string;
   isAdmin?: boolean;
+  isCoordinator?: boolean;
   onSelectCase: (c: CaseRow) => void;
 }
 
@@ -47,8 +48,9 @@ function getWarnings(c: CaseRow, ordersByCaseId: Set<string> | null): string[] {
   return warnings;
 }
 
-export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
+export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: PipelineProps) {
   const [adminFilter, setAdminFilter] = useState<string>('alla');
+  const [montorFilter, setMontorFilter] = useState<string>('alla');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [onlyFlagged, setOnlyFlagged] = useState(false);
@@ -76,10 +78,10 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const queryFilter = isAdmin ? {} : { seller: sellerName };
+  const queryFilter = (isAdmin || isCoordinator) ? {} : { seller: sellerName };
 
   const { data: cases, isLoading } = useQuery({
-    queryKey: ['cases', isAdmin ? 'admin' : sellerName],
+    queryKey: ['cases', isCoordinator ? 'coordinator' : isAdmin ? 'admin' : sellerName],
     queryFn: () => fetchCases(queryFilter),
   });
 
@@ -112,10 +114,14 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
   });
 
   const filteredCases = useMemo(() => (cases || []).filter(c => {
+    if (isCoordinator) {
+      if (montorFilter !== 'alla' && c.team !== montorFilter) return false;
+      return true;
+    }
     if (!isAdmin) return true;
     if (adminFilter === 'alla') return true;
     return c.seller === adminFilter;
-  }), [cases, isAdmin, adminFilter]);
+  }), [cases, isAdmin, isCoordinator, adminFilter, montorFilter]);
 
   const searchedCases = useMemo(() => {
     if (!debouncedSearch) return filteredCases;
@@ -189,7 +195,7 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
               </button>
             )}
           </div>
-          {isAdmin && (
+          {isAdmin && !isCoordinator && (
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5">
@@ -211,6 +217,28 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
               </PopoverContent>
             </Popover>
           )}
+          {isCoordinator && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span className="hidden sm:inline truncate max-w-[120px]">
+                    {montorFilter === 'alla' ? 'Alla montörer' : montorFilter}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56">
+                <Label className="text-xs">Visa montör</Label>
+                <Select value={montorFilter} onValueChange={setMontorFilter}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="alla">Alla</SelectItem>
+                    {MONTORS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
         {debouncedSearch && (
           <p className="text-xs text-muted-foreground flex items-center gap-2">
@@ -222,7 +250,7 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
         )}
       </div>
 
-      {flaggedCount > 0 && (
+      {flaggedCount > 0 && !isCoordinator && (
         <button
           type="button"
           onClick={() => setOnlyFlagged(v => !v)}
@@ -240,7 +268,7 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
         </button>
       )}
 
-      {followUps.length > 0 && !onlyFlagged && (
+      {followUps.length > 0 && !onlyFlagged && !isCoordinator && (
         <FollowUpSection visits={followUps} sellerName={sellerName} />
       )}
 
@@ -276,6 +304,7 @@ export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
                     onClick={() => onSelectCase(c)}
                     showSeller={showSellerBadge}
                     warnings={getWarnings(c, ordersByCaseId ?? null)}
+                    hideFinancials={isCoordinator}
                   />
                 ))}
               </div>
