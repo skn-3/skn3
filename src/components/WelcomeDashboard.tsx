@@ -267,9 +267,7 @@ function SellerDashboard({ name }: { name: string }) {
     if (avgTrend !== null && avgTrend > 5 && recent.length >= 2) {
       insights.push({ icon: '📈', text: `Ditt snittordervärde har ökat ${avgTrend}% senaste månaden` });
     }
-    if (totalSignedAll >= 3) {
-      insights.push({ icon: '✨', text: `Du har ${totalSignedAll} signerade affärer totalt — fortsätt bygga!` });
-    }
+    // (borttaget) all-time total — krockar med permanenta "Totalt sålt <år>"-kortet
     const dayN = Math.floor(Date.now() / 86400000);
     const insight = insights.length ? insights[dayN % insights.length] : null;
 
@@ -282,10 +280,18 @@ function SellerDashboard({ name }: { name: string }) {
     const goalRef = lastSum > 0 ? lastSum : (allWeekSums.reduce((s, x) => s + x, 0) / Math.max(allWeekSums.length, 1));
     const goalPct = goalRef > 0 ? Math.min(100, Math.round((sumSigned / goalRef) * 100)) : 0;
 
+    // Totalt sålt år-hittills: summa order_value på cases (seller=user) skapade i innevarande år
+    const yearNow = now.getFullYear();
+    const yearTotalSold = cases
+      .filter(c => c.created_at && new Date(c.created_at).getFullYear() === yearNow)
+      .reduce((s, c) => s + (Number(c.order_value) || 0), 0);
+
     return {
       visitsThisWeek: thisWeek.length,
       signedThisWeek: signed.length,
       sumSigned,
+      yearTotalSold,
+      currentYear: yearNow,
       isBestWeek,
       weekDelta,
       weekStreak,
@@ -299,7 +305,7 @@ function SellerDashboard({ name }: { name: string }) {
       isEarlyWeek,
       dow,
     };
-  }, [visits]);
+  }, [visits, cases]);
 
   if (vL) return <div className="text-center text-muted-foreground py-12">Laddar din vecka…</div>;
 
@@ -331,7 +337,7 @@ function SellerDashboard({ name }: { name: string }) {
         <>
           <InsightsLayer kind="seller" name={name} data={{ visits, cases }} />
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Card>
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Besök denna vecka</div>
               <div className="text-4xl font-bold mt-2 text-foreground"><CountUp value={stats.visitsThisWeek} /></div>
@@ -344,6 +350,12 @@ function SellerDashboard({ name }: { name: string }) {
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Sålt värde</div>
               <div className="text-3xl font-bold mt-2 text-foreground">
                 <CountUp value={stats.sumSigned} formatter={(n) => formatAmount(n)} />
+              </div>
+            </Card>
+            <Card className="bg-gradient-to-br from-primary/5 to-transparent">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Totalt sålt {stats.currentYear}</div>
+              <div className="text-3xl font-bold mt-2 text-primary">
+                <CountUp value={stats.yearTotalSold} formatter={(n) => formatAmount(n)} />
               </div>
             </Card>
           </div>
