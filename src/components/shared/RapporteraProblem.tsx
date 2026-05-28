@@ -179,12 +179,23 @@ export default function RapporteraProblem() {
         console.error('Email notification failed:', emailErr);
       }
     },
-    onSuccess: () => {
+
+      return { deviation, isReklam, typLabel: DEVIATION_TYPES.find((d) => d.value === type)?.label || type };
+    },
+    onSuccess: ({ deviation, isReklam, typLabel }) => {
       queryClient.invalidateQueries({ queryKey: ['case', caseId] });
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['deviations', caseId] });
       queryClient.invalidateQueries({ queryKey: ['deviations_bulk'] });
       queryClient.invalidateQueries({ queryKey: ['case_events', caseId] });
+      logActivity({
+        action: 'deviation_created',
+        category: 'deviation',
+        description: `${isReklam ? 'Reklamation' : 'Avvikelse'} skapad: ${typLabel} — ${description.slice(0, 80)}`,
+        case_id: caseId,
+        deviation_id: deviation?.id,
+        metadata: { type, responsible, priority, cost: cost ? Number(cost) : 0 },
+      });
       toast.success('Problem rapporterat');
       navigate(`/?case=${caseId}`);
     },
