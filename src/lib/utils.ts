@@ -39,3 +39,23 @@ export function formatAddressWithCity(
   if (na.includes(`, ${nc}`) || na.includes(` ${nc} `) || na.includes(` ${nc},`)) return a;
   return `${a}, ${c}`;
 }
+
+/**
+ * Prevents Drawer/Sheet/Dialog from closing when user interacts with content
+ * rendered inside a Radix portal (Select, Popover, DropdownMenu, etc.).
+ * Pass to onInteractOutside and onPointerDownOutside.
+ */
+export function ignorePopperPortal(e: Event) {
+  const target = e.target as HTMLElement | null;
+  if (!target) return;
+  if (
+    target.closest('[data-radix-popper-content-wrapper]') ||
+    target.closest('[data-radix-select-content]') ||
+    target.closest('[data-radix-popover-content]') ||
+    target.closest('[data-radix-dropdown-menu-content]') ||
+    target.closest('[role="listbox"]') ||
+    target.closest('[role="option"]')
+  ) {
+    e.preventDefault();
+  }
+}
