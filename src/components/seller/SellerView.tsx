@@ -11,6 +11,7 @@ import { VisitForm } from './VisitForm';
 import { ImportCaseForm } from './ImportCaseForm';
 import { CleanAddressesView } from './CleanAddressesView';
 import { ValidatePipelineView } from './ValidatePipelineView';
+import { ActivityLogView } from './ActivityLogView';
 import { ADMIN_USERS } from '@/lib/constants';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { CalendarView } from '@/components/calendar/CalendarView';
@@ -85,6 +86,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, initialCase
         )}
         {tab === 'validate' && isAdmin && (
           <ValidatePipelineView currentUser={role.name} />
+        )}
+        {tab === 'activity-log' && isAdmin && (
+          <ActivityLogView />
         )}
       </main>
 
