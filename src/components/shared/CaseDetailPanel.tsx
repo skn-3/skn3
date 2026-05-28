@@ -1376,7 +1376,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <Button disabled={statusMutation.isPending} onClick={() => changeStatus('fakturerad', 'Markerad som fakturerad')} size="sm">{statusMutation.isPending ? 'Sparar...' : 'Markera fakturerad'}</Button>
             )}
 
-            <Button variant="outline" size="sm" className="border-orange-400 text-orange-700 hover:bg-orange-50" onClick={() => setShowDeviation(true)}>
+            <Button variant="outline" size="sm" className="border-orange-400 text-orange-700 hover:bg-orange-50" onClick={() => navigate(`/case/${caseData.id}/rapportera`)}>
               <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera problem
             </Button>
           </section>
