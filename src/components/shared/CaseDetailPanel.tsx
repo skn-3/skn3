@@ -42,6 +42,7 @@ interface CaseDetailPanelProps {
 
 export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSeller, isCoordinator, onClose }: CaseDetailPanelProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Live case data that updates after mutations
   const { data: liveCaseData } = useQuery({
@@ -51,12 +52,6 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   });
   const caseData = liveCaseData ?? initialCaseData;
   const [note, setNote] = useState('');
-  const [showDeviation, setShowDeviation] = useState(false);
-  const [devForm, setDevForm] = useState({ type: '', description: '', responsible: '' });
-  const [respManuallySet, setRespManuallySet] = useState(false);
-  const [devCost, setDevCost] = useState('');
-  const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
-  const [probFiles, setProbFiles] = useState<File[]>([]);
   const [kmDate, setKmDate] = useState('');
   const [extraHoursReq, setExtraHoursReq] = useState('0');
   const [kmNote, setKmNote] = useState('');
