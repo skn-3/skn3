@@ -17,6 +17,7 @@ import {
   COORDINATOR_CC,
 } from '@/lib/constants';
 import { useRole } from '@/hooks/useRole';
+import { logActivity } from '@/lib/activityLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -178,7 +179,6 @@ export default function RapporteraProblem() {
       } catch (emailErr) {
         console.error('Email notification failed:', emailErr);
       }
-    },
 
       return { deviation, isReklam, typLabel: DEVIATION_TYPES.find((d) => d.value === type)?.label || type };
     },
