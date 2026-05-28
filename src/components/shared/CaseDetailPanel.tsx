@@ -1602,7 +1602,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           </section>
 
           {/* Delete case - seller only */}
-          {isSeller && (
+          {isSeller && !isCoordinator && (
             <section className="p-4">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
