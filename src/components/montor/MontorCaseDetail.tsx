@@ -26,6 +26,7 @@ interface Props {
 
 export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBack }: Props) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: liveCaseData } = useQuery({
     queryKey: ['case', initialCaseData.id],
