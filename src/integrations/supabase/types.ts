@@ -205,48 +205,75 @@ export type Database = {
       }
       deviations: {
         Row: {
+          action_log: Json
           action_needed: string | null
+          action_taken_at: string | null
+          action_type: string | null
           case_id: string
           cost: number | null
           created_at: string
           created_by: string
+          del1_delivery_week: number | null
+          del1_delivery_year: number | null
+          del1_order_number: string | null
           description: string
+          factory_email_sent_at: string | null
+          factory_email_to: string | null
           id: string
           image_urls: string[] | null
           reminder_count: number | null
           resolved: boolean
           resolved_at: string | null
           responsible: string
+          status: string
           type: string
         }
         Insert: {
+          action_log?: Json
           action_needed?: string | null
+          action_taken_at?: string | null
+          action_type?: string | null
           case_id: string
           cost?: number | null
           created_at?: string
           created_by: string
+          del1_delivery_week?: number | null
+          del1_delivery_year?: number | null
+          del1_order_number?: string | null
           description: string
+          factory_email_sent_at?: string | null
+          factory_email_to?: string | null
           id?: string
           image_urls?: string[] | null
           reminder_count?: number | null
           resolved?: boolean
           resolved_at?: string | null
           responsible: string
+          status?: string
           type: string
         }
         Update: {
+          action_log?: Json
           action_needed?: string | null
+          action_taken_at?: string | null
+          action_type?: string | null
           case_id?: string
           cost?: number | null
           created_at?: string
           created_by?: string
+          del1_delivery_week?: number | null
+          del1_delivery_year?: number | null
+          del1_order_number?: string | null
           description?: string
+          factory_email_sent_at?: string | null
+          factory_email_to?: string | null
           id?: string
           image_urls?: string[] | null
           reminder_count?: number | null
           resolved?: boolean
           resolved_at?: string | null
           responsible?: string
+          status?: string
           type?: string
         }
         Relationships: [
