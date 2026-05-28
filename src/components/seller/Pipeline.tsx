@@ -114,10 +114,14 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
   });
 
   const filteredCases = useMemo(() => (cases || []).filter(c => {
+    if (isCoordinator) {
+      if (montorFilter !== 'alla' && c.team !== montorFilter) return false;
+      return true;
+    }
     if (!isAdmin) return true;
     if (adminFilter === 'alla') return true;
     return c.seller === adminFilter;
-  }), [cases, isAdmin, adminFilter]);
+  }), [cases, isAdmin, isCoordinator, adminFilter, montorFilter]);
 
   const searchedCases = useMemo(() => {
     if (!debouncedSearch) return filteredCases;
