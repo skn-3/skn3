@@ -1020,10 +1020,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Offertnummer</Label>
-                    <Input value={editForm.offer_number} onChange={(e) => setEditForm(f => ({ ...f, offer_number: e.target.value }))} />
-                  </div>
+                  {!isCoordinator && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Offertnummer</Label>
+                      <Input value={editForm.offer_number} onChange={(e) => setEditForm(f => ({ ...f, offer_number: e.target.value }))} />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <Label className="text-xs">Telefon</Label>
                     <Input value={editForm.customer_phone} onChange={(e) => setEditForm(f => ({ ...f, customer_phone: e.target.value }))} />
