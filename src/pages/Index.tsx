@@ -37,7 +37,7 @@ const Index = () => {
 
   // Show welcome once per day per user (skip if deep-linking to a case)
   useEffect(() => {
-    if (role && !initialCaseId && shouldShowWelcome(role.name)) {
+    if (role && role.type !== 'coordinator' && !initialCaseId && shouldShowWelcome(role.name)) {
       setShowWelcome(true);
     }
   }, [role, initialCaseId]);
