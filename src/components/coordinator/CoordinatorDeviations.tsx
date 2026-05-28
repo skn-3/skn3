@@ -208,6 +208,7 @@ function NewDeviationSheet({
         className="w-full sm:max-w-md overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        onFocusOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <SheetHeader>
