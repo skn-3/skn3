@@ -13,6 +13,7 @@ import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2, X, Receip
 import { toast } from 'sonner';
 import { celebrateMontageDone } from '@/lib/celebrate';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
@@ -650,15 +651,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       </div>
 
       {/* Bottom sheet: Rapportera problem */}
-      <Drawer open={showProblem} onOpenChange={(open) => {
-        console.log('[DIAG-DRAWER] onOpenChange called with open=', open, 'stack:', new Error().stack);
-        setShowProblem(open);
-      }}>
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Rapportera problem</DrawerTitle>
-          </DrawerHeader>
-          <div className="px-4 space-y-4 pb-2 max-h-[60vh] overflow-y-auto">
+      <Sheet open={showProblem} onOpenChange={setShowProblem}>
+        <SheetContent side="bottom" className="h-[90vh] overflow-y-auto flex flex-col">
+          <SheetHeader>
+            <SheetTitle>Rapportera problem</SheetTitle>
+          </SheetHeader>
+          <div className="px-4 space-y-4 pb-2 flex-1 overflow-y-auto">
             <div>
               <Label className="mb-1 block">Typ *</Label>
               <Select value={probType} onValueChange={setProbType}>
@@ -716,7 +714,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               <FileThumbnails files={probFiles} setter={setProbFiles} />
             </div>
           </div>
-          <DrawerFooter>
+          <SheetFooter className="flex-col gap-2 sm:flex-col">
             <Button
               className="min-h-[48px]"
               disabled={!probType || !probDesc.trim() || !probResponsible || problemMutation.isPending}
@@ -724,12 +722,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             >
               {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}
             </Button>
-            <DrawerClose asChild>
+            <SheetClose asChild>
               <Button variant="outline" className="min-h-[48px]">Avbryt</Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+            </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Bottom sheet: Lägg till kostnad */}
       <Drawer open={showCost} onOpenChange={setShowCost}>

@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose } from '@/components/ui/sheet';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { cn, formatAmount } from '@/lib/utils';
@@ -1640,13 +1641,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         </DialogContent>
       </Dialog>
 
-      {/* Rapportera problem drawer */}
-      <Drawer open={showDeviation} onOpenChange={setShowDeviation}>
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Rapportera problem</DrawerTitle>
-          </DrawerHeader>
-          <div className="px-4 space-y-4 pb-4">
+      {/* Rapportera problem sheet */}
+      <Sheet open={showDeviation} onOpenChange={setShowDeviation}>
+        <SheetContent side="bottom" className="h-[90vh] overflow-y-auto flex flex-col">
+          <SheetHeader>
+            <SheetTitle>Rapportera problem</SheetTitle>
+          </SheetHeader>
+          <div className="px-4 space-y-4 pb-4 flex-1 overflow-y-auto">
             <div>
               <Label>Typ</Label>
               <Select value={devForm.type} onValueChange={(v) => setDevForm(f => ({ ...f, type: v }))}>
@@ -1708,19 +1709,19 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               )}
             </div>
           </div>
-          <DrawerFooter>
+          <SheetFooter className="flex-col gap-2 sm:flex-col">
             <Button
               disabled={!devForm.type || !devForm.description || !devForm.responsible || problemMutation.isPending}
               onClick={() => problemMutation.mutate()}
             >
               {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}
             </Button>
-            <DrawerClose asChild>
+            <SheetClose asChild>
               <Button variant="outline">Avbryt</Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+            </SheetClose>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
