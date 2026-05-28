@@ -688,6 +688,7 @@ export function DeviationActionSheet({
           <SheetTitle>
             Reklamation — {caseData?.address || '(ärende saknas)'}
           </SheetTitle>
+          <SheetDescription>Hantera och åtgärda denna avvikelse.</SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto py-4">
           {deviation && (
