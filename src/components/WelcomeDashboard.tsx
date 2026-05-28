@@ -280,10 +280,18 @@ function SellerDashboard({ name }: { name: string }) {
     const goalRef = lastSum > 0 ? lastSum : (allWeekSums.reduce((s, x) => s + x, 0) / Math.max(allWeekSums.length, 1));
     const goalPct = goalRef > 0 ? Math.min(100, Math.round((sumSigned / goalRef) * 100)) : 0;
 
+    // Totalt sålt år-hittills: summa order_value på cases (seller=user) skapade i innevarande år
+    const yearNow = now.getFullYear();
+    const yearTotalSold = cases
+      .filter(c => c.created_at && new Date(c.created_at).getFullYear() === yearNow)
+      .reduce((s, c) => s + (Number(c.order_value) || 0), 0);
+
     return {
       visitsThisWeek: thisWeek.length,
       signedThisWeek: signed.length,
       sumSigned,
+      yearTotalSold,
+      currentYear: yearNow,
       isBestWeek,
       weekDelta,
       weekStreak,
@@ -297,7 +305,7 @@ function SellerDashboard({ name }: { name: string }) {
       isEarlyWeek,
       dow,
     };
-  }, [visits]);
+  }, [visits, cases]);
 
   if (vL) return <div className="text-center text-muted-foreground py-12">Laddar din vecka…</div>;
 
