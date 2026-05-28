@@ -48,6 +48,8 @@ export function formatAddressWithCity(
 export function ignorePopperPortal(e: Event) {
   const target = e.target as HTMLElement | null;
   if (!target) return;
+
+  // Radix portal-rendered floating UI (Select, Popover, Dropdown, etc.)
   if (
     target.closest('[data-radix-popper-content-wrapper]') ||
     target.closest('[data-radix-select-content]') ||
@@ -57,5 +59,15 @@ export function ignorePopperPortal(e: Event) {
     target.closest('[role="option"]')
   ) {
     e.preventDefault();
+    return;
+  }
+
+  // Form controls inside a dialog/sheet/drawer must never close the modal
+  if (
+    target.closest('input, textarea, select, button, label, [contenteditable="true"]') &&
+    (target.closest('[role="dialog"]') || target.closest('[data-vaul-drawer]'))
+  ) {
+    e.preventDefault();
+    return;
   }
 }
