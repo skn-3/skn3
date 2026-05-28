@@ -1519,16 +1519,19 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                 <AlertTriangle className="h-4 w-4" /> Avvikelser ({deviations.length})
               </h3>
-              {deviations.map((d) => (
+              {deviations.map((d) => {
+                const devStatus = ((d as any).status as DeviationStatus) || (d.resolved ? 'klar' : 'ny');
+                const meta = DEVIATION_STATUS_META[devStatus];
+                return (
                 <div key={d.id} className="rounded-lg border p-2 text-sm space-y-1">
-                  <div className="flex justify-between items-center">
-                    <div className="flex gap-1.5 items-center">
-                      <Badge variant={d.resolved ? 'secondary' : 'destructive'}>
+                  <div className="flex justify-between items-center gap-2">
+                    <div className="flex gap-1.5 items-center flex-wrap">
+                      <Badge variant="secondary">
                         {DEVIATION_TYPES.find((dt) => dt.value === d.type)?.label || d.type}
                       </Badge>
-                      <Badge variant={d.resolved ? 'secondary' : 'destructive'} className={d.resolved ? 'bg-green-100 text-green-800 border-green-300' : ''}>
-                        {d.resolved ? 'Löst' : 'Olöst'}
-                      </Badge>
+                      <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold', meta.className)}>
+                        {meta.label}
+                      </span>
                     </div>
                     <span className="text-xs text-muted-foreground">{new Date(d.created_at).toLocaleDateString('sv-SE')}</span>
                   </div>
