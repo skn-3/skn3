@@ -125,16 +125,6 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
     });
   }, [cases, thisIsoWeek, thisIsoYear, nextWeek, nextYear]);
 
-  const isLoading = casesLoading || devsLoading;
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   const resolveDevMutation = useMutation({
     mutationFn: async (dev: DeviationRow) => {
       await updateDeviation(dev.id, { resolved: true } as any);
@@ -151,6 +141,16 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
     },
     onError: (e: any) => toast.error('Kunde inte markera löst: ' + e.message),
   });
+
+  const isLoading = casesLoading || devsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 px-3 md:px-6 pb-12 max-w-screen-xl mx-auto">
