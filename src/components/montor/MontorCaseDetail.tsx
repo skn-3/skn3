@@ -657,6 +657,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           className="h-[90vh] overflow-y-auto flex flex-col"
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
+          onFocusOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <SheetHeader>
