@@ -62,19 +62,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     setSelectedStatus(caseData.status);
   }, [caseData.status]);
 
-  // Smart-suggest responsible based on type (only if user hasn't manually picked)
-  useEffect(() => {
-    if (respManuallySet) return;
-    const suggestion: Record<string, string> = {
-      felmatning: 'montor',
-      fabriksfel: 'fabrik',
-      extra_material: 'fabrik',
-    };
-    const s = suggestion[devForm.type];
-    if (s && devForm.responsible !== s) {
-      setDevForm(f => ({ ...f, responsible: s }));
-    }
-  }, [devForm.type, respManuallySet]);
+
+
 
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
   // KM approval form state
