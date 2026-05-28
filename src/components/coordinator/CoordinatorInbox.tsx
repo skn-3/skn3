@@ -252,7 +252,9 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
               {openDeviations.map(d => {
                 const c = caseById.get(d.case_id);
                 const age = ageDays(d.created_at);
-                const old = age > 14;
+                const status = ((d as any).status as DeviationStatus) || 'ny';
+                const statusMeta = DEVIATION_STATUS_META[status];
+                const old = age > 14 && status === 'ny';
                 return (
                   <div
                     key={d.id}
@@ -270,36 +272,20 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
                           {DEVIATION_RESPONSIBLE.find(r => r.value === d.responsible)?.label || d.responsible}
                         </div>
                       </div>
-                      <div className={cn(
-                        'text-xs font-semibold rounded-full px-2 py-1',
-                        old ? 'bg-red-100 text-red-800' : 'bg-muted text-muted-foreground'
-                      )}>
-                        {age} d gammal
+                      <div className="flex items-center gap-2">
+                        <span className={cn('text-xs font-semibold rounded-full px-2 py-1', statusMeta.className)}>
+                          {statusMeta.label}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{age} d</span>
                       </div>
                     </div>
                     <p className="text-sm line-clamp-2">{d.description}</p>
-                    <div className="text-sm">
-                      Kostnad: <strong>{Number(d.cost || 0).toLocaleString('sv-SE')} kr</strong>
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => setCostDev(d)}
-                        className="gap-1.5 bg-amber-600 hover:bg-amber-700"
-                      >
-                        <Receipt className="h-4 w-4" />
-                        Lägg till / justera kostnad
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => resolveDevMutation.mutate(d)}
-                        disabled={resolveDevMutation.isPending}
-                        className="gap-1.5"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        Markera löst
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm">
+                        Kostnad: <strong>{Number(d.cost || 0).toLocaleString('sv-SE')} kr</strong>
+                      </div>
+                      <Button size="sm" onClick={() => setOpenDev(d)} className="gap-1.5">
+                        <Wrench className="h-4 w-4" /> Åtgärda
                       </Button>
                     </div>
                   </div>
