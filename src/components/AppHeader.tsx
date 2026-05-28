@@ -26,7 +26,7 @@ function getInitials(name: string): string {
 }
 
 export function AppHeader({ role, onChangeRole, toggleView, children }: AppHeaderProps) {
-  const roleLabel = role.type === 'seller' ? 'Säljare' : 'Montör';
+  const roleLabel = role.type === 'seller' ? 'Säljare' : role.type === 'coordinator' ? 'Koordinator' : 'Montör';
   const initials = getInitials(role.name);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
