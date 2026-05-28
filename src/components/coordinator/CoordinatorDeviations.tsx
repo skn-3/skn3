@@ -203,7 +203,13 @@ function NewDeviationSheet({
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-md overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>Ny reklamation</SheetTitle>
           <SheetDescription>Registrera en ny reklamation eller avvikelse.</SheetDescription>

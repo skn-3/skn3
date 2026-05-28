@@ -1670,7 +1670,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
       {/* Rapportera problem sheet */}
       <Sheet open={showDeviation} onOpenChange={setShowDeviation}>
-        <SheetContent side="bottom" className="h-[90vh] overflow-y-auto flex flex-col">
+        <SheetContent
+          side="bottom"
+          className="h-[90vh] overflow-y-auto flex flex-col"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <SheetHeader>
             <SheetTitle>Rapportera problem</SheetTitle>
             <SheetDescription>Rapportera ett problem eller en avvikelse för detta ärende.</SheetDescription>
