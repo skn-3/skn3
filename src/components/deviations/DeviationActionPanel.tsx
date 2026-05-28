@@ -512,6 +512,7 @@ function FactoryClaimSheet({
       <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col">
         <SheetHeader>
           <SheetTitle>Skicka reklamation till Mockfjärds</SheetTitle>
+          <SheetDescription>Skicka ett mejl till fabriken om denna avvikelse.</SheetDescription>
         </SheetHeader>
         <div className="space-y-4 py-4 flex-1 overflow-y-auto">
           <div className="space-y-2">
