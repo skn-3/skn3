@@ -35,13 +35,10 @@ const DrawerContent = React.forwardRef<
         className,
       )}
       onInteractOutside={(e) => {
-        console.log('[DIAG-DRAWER] onInteractOutside fired, target:', e.target, 'defaultPrevented:', e.defaultPrevented);
         ignorePopperPortal(e);
-        console.log('[DIAG-DRAWER] efter ignorePopperPortal, defaultPrevented:', e.defaultPrevented);
         if (!e.defaultPrevented) onInteractOutside?.(e);
       }}
       onPointerDownOutside={(e) => {
-        console.log('[DIAG-DRAWER] onPointerDownOutside fired, target:', e.target);
         ignorePopperPortal(e);
         if (!e.defaultPrevented) onPointerDownOutside?.(e);
       }}
