@@ -53,26 +53,20 @@ export function CoordinatorDeviations({ coordinatorName, onSelectCase }: Props) 
   }, [cases]);
 
   const visible = useMemo(() => {
-    return (deviations || []).filter(d => showArchived ? d.resolved : !d.resolved)
+    const list = (deviations || []).map(d => ({
+      d,
+      status: ((d as any).status as DeviationStatus) || (d.resolved ? 'klar' : 'ny'),
+    }));
+    return list
+      .filter(({ status }) => {
+        const archived = status === 'klar' || status === 'avskriven';
+        return showArchived ? archived : !archived;
+      })
+      .map(x => x.d)
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }, [deviations, showArchived]);
 
-  const resolveMut = useMutation({
-    mutationFn: async (dev: DeviationRow) => {
-      await updateDeviation(dev.id, { resolved: true } as any);
-      await createCaseEvent({
-        case_id: dev.case_id,
-        event_type: 'deviation_resolved',
-        description: `Reklamation markerad löst av ${coordinatorName}`,
-        created_by: coordinatorName,
-      });
-    },
-    onSuccess: () => {
-      toast.success('✓ Markerad som löst');
-      qc.invalidateQueries({ queryKey: ['coordinator-all-deviations'] });
-      qc.invalidateQueries({ queryKey: ['coordinator-deviations'] });
-    },
-  });
+  const [openDev, setOpenDev] = useState<DeviationRow | null>(null);
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
