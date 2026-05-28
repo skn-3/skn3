@@ -21,8 +21,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, Phone, MapPin, CalendarPlus, Hammer, AlertTriangle, Check, CheckCircle2, Receipt } from 'lucide-react';
+import { Loader2, Phone, MapPin, CalendarPlus, Hammer, Check, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  DeviationActionSheet,
+  DEVIATION_STATUS_META,
+  type DeviationStatus,
+} from '@/components/deviations/DeviationActionPanel';
 
 interface Props {
   coordinatorName: string;
