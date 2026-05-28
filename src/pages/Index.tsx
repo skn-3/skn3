@@ -4,6 +4,7 @@ import { useRole } from '@/hooks/useRole';
 import { RolePicker } from '@/components/RolePicker';
 import { SellerView } from '@/components/seller/SellerView';
 import { MontorView } from '@/components/montor/MontorView';
+import { CoordinatorView } from '@/components/coordinator/CoordinatorView';
 import { WelcomeDashboard } from '@/components/WelcomeDashboard';
 
 const WELCOME_KEY_PREFIX = 'smartklimat_welcome_shown_';
