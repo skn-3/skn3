@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_log: {
+        Row: {
+          action: string
+          actor_name: string
+          actor_role: string | null
+          case_id: string | null
+          category: string
+          created_at: string
+          description: string | null
+          deviation_id: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_name: string
+          actor_role?: string | null
+          case_id?: string | null
+          category: string
+          created_at?: string
+          description?: string | null
+          deviation_id?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_name?: string
+          actor_role?: string | null
+          case_id?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          deviation_id?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       case_costs: {
         Row: {
           amount: number
