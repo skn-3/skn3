@@ -48,8 +48,9 @@ function getWarnings(c: CaseRow, ordersByCaseId: Set<string> | null): string[] {
   return warnings;
 }
 
-export function Pipeline({ sellerName, isAdmin, onSelectCase }: PipelineProps) {
+export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: PipelineProps) {
   const [adminFilter, setAdminFilter] = useState<string>('alla');
+  const [montorFilter, setMontorFilter] = useState<string>('alla');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [onlyFlagged, setOnlyFlagged] = useState(false);
