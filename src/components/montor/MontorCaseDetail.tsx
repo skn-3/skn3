@@ -396,7 +396,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <Button
             variant="outline"
             className="w-full min-h-[48px] border-orange-400 text-orange-700 hover:bg-orange-50"
-            onClick={() => setShowProblem(true)}
+            onClick={() => navigate(`/case/${caseData.id}/rapportera`)}
           >
             <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera problem
           </Button>
