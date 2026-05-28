@@ -83,6 +83,17 @@ const Index = () => {
     );
   }
 
+  if (role.type === 'coordinator') {
+    return (
+      <CoordinatorView
+        role={role}
+        onChangeRole={clearRole}
+        initialCaseId={initialCaseId}
+        onInitialCaseHandled={() => setInitialCaseId(null)}
+      />
+    );
+  }
+
   return (
     <MontorView
       role={role}
