@@ -267,9 +267,7 @@ function SellerDashboard({ name }: { name: string }) {
     if (avgTrend !== null && avgTrend > 5 && recent.length >= 2) {
       insights.push({ icon: '📈', text: `Ditt snittordervärde har ökat ${avgTrend}% senaste månaden` });
     }
-    if (totalSignedAll >= 3) {
-      insights.push({ icon: '✨', text: `Du har ${totalSignedAll} signerade affärer totalt — fortsätt bygga!` });
-    }
+    // (borttaget) all-time total — krockar med permanenta "Totalt sålt <år>"-kortet
     const dayN = Math.floor(Date.now() / 86400000);
     const insight = insights.length ? insights[dayN % insights.length] : null;
 
