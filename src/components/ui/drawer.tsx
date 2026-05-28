@@ -34,8 +34,17 @@ const DrawerContent = React.forwardRef<
         "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
         className,
       )}
-      onInteractOutside={(e) => { ignorePopperPortal(e); if (!e.defaultPrevented) onInteractOutside?.(e); }}
-      onPointerDownOutside={(e) => { ignorePopperPortal(e); if (!e.defaultPrevented) onPointerDownOutside?.(e); }}
+      onInteractOutside={(e) => {
+        console.log('[DIAG-DRAWER] onInteractOutside fired, target:', e.target, 'defaultPrevented:', e.defaultPrevented);
+        ignorePopperPortal(e);
+        console.log('[DIAG-DRAWER] efter ignorePopperPortal, defaultPrevented:', e.defaultPrevented);
+        if (!e.defaultPrevented) onInteractOutside?.(e);
+      }}
+      onPointerDownOutside={(e) => {
+        console.log('[DIAG-DRAWER] onPointerDownOutside fired, target:', e.target);
+        ignorePopperPortal(e);
+        if (!e.defaultPrevented) onPointerDownOutside?.(e);
+      }}
       {...props}
     >
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
