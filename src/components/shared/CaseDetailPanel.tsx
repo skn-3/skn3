@@ -1673,6 +1673,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         <SheetContent side="bottom" className="h-[90vh] overflow-y-auto flex flex-col">
           <SheetHeader>
             <SheetTitle>Rapportera problem</SheetTitle>
+            <SheetDescription>Rapportera ett problem eller en avvikelse för detta ärende.</SheetDescription>
           </SheetHeader>
           <div className="px-4 space-y-4 pb-4 flex-1 overflow-y-auto">
             <div>
