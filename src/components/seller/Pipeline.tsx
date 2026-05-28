@@ -78,10 +78,10 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const queryFilter = isAdmin ? {} : { seller: sellerName };
+  const queryFilter = (isAdmin || isCoordinator) ? {} : { seller: sellerName };
 
   const { data: cases, isLoading } = useQuery({
-    queryKey: ['cases', isAdmin ? 'admin' : sellerName],
+    queryKey: ['cases', isCoordinator ? 'coordinator' : isAdmin ? 'admin' : sellerName],
     queryFn: () => fetchCases(queryFilter),
   });
 
