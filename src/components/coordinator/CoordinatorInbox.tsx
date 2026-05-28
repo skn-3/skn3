@@ -328,13 +328,12 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
         }}
       />
 
-      <CostSheet
-        dev={costDev}
-        onClose={() => setCostDev(null)}
-        coordinatorName={coordinatorName}
-        onDone={() => {
-          qc.invalidateQueries({ queryKey: ['coordinator-deviations'] });
-        }}
+      <DeviationActionSheet
+        deviation={openDev}
+        caseData={openDev ? caseById.get(openDev.case_id) : null}
+        currentUser={coordinatorName}
+        open={!!openDev}
+        onClose={() => setOpenDev(null)}
       />
     </div>
   );
