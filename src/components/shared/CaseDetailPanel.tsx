@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS, SELLERS, HOUR_RATE, SELLER_PIPELINE_COLUMNS, ADMIN_USERS } from '@/lib/constants';
 import { canEnterStatus } from '@/lib/statusRules';
@@ -25,7 +26,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
+
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { cn, formatAmount } from '@/lib/utils';
@@ -41,6 +42,7 @@ interface CaseDetailPanelProps {
 
 export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSeller, isCoordinator, onClose }: CaseDetailPanelProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Live case data that updates after mutations
   const { data: liveCaseData } = useQuery({
@@ -50,12 +52,6 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   });
   const caseData = liveCaseData ?? initialCaseData;
   const [note, setNote] = useState('');
-  const [showDeviation, setShowDeviation] = useState(false);
-  const [devForm, setDevForm] = useState({ type: '', description: '', responsible: '' });
-  const [respManuallySet, setRespManuallySet] = useState(false);
-  const [devCost, setDevCost] = useState('');
-  const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
-  const [probFiles, setProbFiles] = useState<File[]>([]);
   const [kmDate, setKmDate] = useState('');
   const [extraHoursReq, setExtraHoursReq] = useState('0');
   const [kmNote, setKmNote] = useState('');
@@ -66,19 +62,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     setSelectedStatus(caseData.status);
   }, [caseData.status]);
 
-  // Smart-suggest responsible based on type (only if user hasn't manually picked)
-  useEffect(() => {
-    if (respManuallySet) return;
-    const suggestion: Record<string, string> = {
-      felmatning: 'montor',
-      fabriksfel: 'fabrik',
-      extra_material: 'fabrik',
-    };
-    const s = suggestion[devForm.type];
-    if (s && devForm.responsible !== s) {
-      setDevForm(f => ({ ...f, responsible: s }));
-    }
-  }, [devForm.type, respManuallySet]);
+
+
 
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
   // KM approval form state
@@ -474,86 +459,6 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onSuccess: () => { setNote(''); invalidate(); toast.success('Anteckning sparad'); },
   });
 
-  const problemMutation = useMutation({
-    mutationFn: async () => {
-      const isReklam = devForm.type === 'reklamation';
-      const descWithPriority = isReklam ? `[${probPriority.toUpperCase()}] ${devForm.description}` : devForm.description;
-
-      if (!devForm.responsible) {
-        throw new Error('Välj ansvarig innan du sparar');
-      }
-      const deviation = await createDeviation({
-        case_id: caseData.id,
-        type: devForm.type,
-        description: descWithPriority,
-        responsible: devForm.responsible,
-        created_by: currentUser,
-      });
-
-      if (devCost && Number(devCost) > 0) {
-        await updateDeviation(deviation.id, { cost: Number(devCost) });
-      }
-
-      let imageUrls: string[] = [];
-      if (probFiles.length > 0) {
-        imageUrls = await uploadDeviationImages(caseData.id, deviation.id, probFiles);
-        await updateDeviation(deviation.id, { image_urls: imageUrls });
-      }
-
-      const typLabel = DEVIATION_TYPES.find(d => d.value === devForm.type)?.label || devForm.type;
-      await createCaseEvent({
-        case_id: caseData.id,
-        event_type: 'deviation',
-        description: isReklam ? `Reklamation skapad: ${devForm.description}` : `Avvikelse skapad: ${typLabel} — ${devForm.description}`,
-        created_by: currentUser,
-      });
-
-      if (isReklam) {
-        await updateCase(caseData.id, { status: 'pausad' });
-        await createCaseEvent({ case_id: caseData.id, event_type: 'status_change', description: 'Status ändrad till Pausad (reklamation)', created_by: currentUser });
-      }
-
-      try {
-        const badgeMap: Record<string, { color: string; bg: string }> = {
-          hog: { color: '#991B1B', bg: '#FEE2E2' },
-          medium: { color: '#92400E', bg: '#FEF3C7' },
-          lag: { color: '#374151', bg: '#F3F4F6' },
-        };
-        const rows: Array<{ label: string; value: string; badge?: { color: string; bg: string } }> = [
-          { label: 'Adress', value: caseData.address },
-          { label: 'Kund', value: caseData.customer_name },
-          { label: 'Rapporterad av', value: currentUser },
-          { label: 'Typ', value: typLabel },
-        ];
-        if (isReklam) {
-          const pLabel = probPriority === 'hog' ? 'Hög' : probPriority === 'medium' ? 'Medium' : 'Låg';
-          rows.push({ label: 'Prioritet', value: pLabel, badge: badgeMap[probPriority] });
-        }
-        rows.push({ label: 'Beskrivning', value: devForm.description });
-        await sendNotificationEmail({
-          to: COORDINATOR_EMAIL,
-          cc: COORDINATOR_CC,
-          subject: `${isReklam ? 'NY REKLAMATION' : 'NY AVVIKELSE'} — ${caseData.address}`,
-          heading: isReklam ? 'Ny reklamation' : 'Ny avvikelse',
-          rows,
-          callToAction: 'Vänligen granska ärendet.',
-        });
-      } catch (emailErr) {
-        console.error('Email notification failed:', emailErr);
-      }
-    },
-    onSuccess: () => {
-      setShowDeviation(false);
-      setDevForm({ type: '', description: '', responsible: '' });
-      setRespManuallySet(false);
-      setProbPriority('medium');
-      setProbFiles([]);
-      setDevCost('');
-      invalidate();
-      toast.success('Problem rapporterat');
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const resolveMutation = useMutation({
     mutationFn: async (deviation: any) => {
@@ -677,12 +582,6 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onError: (e: Error) => toast.error('Kunde inte radera: ' + e.message),
   });
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const allowed = files.filter(f => /\.(jpe?g|png|heic)$/i.test(f.name));
-    setProbFiles(prev => [...prev, ...allowed].slice(0, 5));
-    e.target.value = '';
-  };
 
   const isAdmin = ADMIN_USERS.includes(currentUser);
   const canAct = canActOnDeviations(currentUser, isCoordinator ? 'coordinator' : isSeller ? 'seller' : 'montor');
@@ -1477,7 +1376,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <Button disabled={statusMutation.isPending} onClick={() => changeStatus('fakturerad', 'Markerad som fakturerad')} size="sm">{statusMutation.isPending ? 'Sparar...' : 'Markera fakturerad'}</Button>
             )}
 
-            <Button variant="outline" size="sm" className="border-orange-400 text-orange-700 hover:bg-orange-50" onClick={() => setShowDeviation(true)}>
+            <Button variant="outline" size="sm" className="border-orange-400 text-orange-700 hover:bg-orange-50" onClick={() => navigate(`/case/${caseData.id}/rapportera`)}>
               <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera problem
             </Button>
           </section>
@@ -1668,95 +1567,6 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         </DialogContent>
       </Dialog>
 
-      {/* Rapportera problem sheet */}
-      <Sheet open={showDeviation} onOpenChange={(open) => { if (open) setShowDeviation(true); }}>
-        <SheetContent
-          side="bottom"
-          className="h-[90vh] overflow-y-auto flex flex-col"
-          disableDefaultClose
-          onCloseClick={() => setShowDeviation(false)}
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
-          onFocusOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          <SheetHeader>
-            <SheetTitle>Rapportera problem</SheetTitle>
-            <SheetDescription>Rapportera ett problem eller en avvikelse för detta ärende.</SheetDescription>
-          </SheetHeader>
-          <div className="px-4 space-y-4 pb-4 flex-1 overflow-y-auto">
-            <div>
-              <Label>Typ</Label>
-              <Select value={devForm.type} onValueChange={(v) => setDevForm(f => ({ ...f, type: v }))}>
-                <SelectTrigger><SelectValue placeholder="Välj typ" /></SelectTrigger>
-                <SelectContent>
-                  {DEVIATION_TYPES.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Problembeskrivning *</Label>
-              <Textarea value={devForm.description} onChange={e => setDevForm(f => ({ ...f, description: e.target.value }))} rows={3} placeholder="Beskriv problemet..." />
-            </div>
-            {devForm.type === 'reklamation' && (
-              <div>
-                <Label>Prioritet</Label>
-                <div className="flex gap-2 mt-1">
-                  {(['hog', 'medium', 'lag'] as const).map(p => (
-                    <Button key={p} type="button" size="sm" variant={probPriority === p ? 'default' : 'outline'} onClick={() => setProbPriority(p)}>
-                      {p === 'hog' ? 'Hög' : p === 'medium' ? 'Medium' : 'Låg'}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div>
-              <Label>Ansvar *</Label>
-              <Select value={devForm.responsible} onValueChange={(v) => { setRespManuallySet(true); setDevForm(f => ({ ...f, responsible: v })); }}>
-                <SelectTrigger><SelectValue placeholder="Välj ansvarig" /></SelectTrigger>
-                <SelectContent>
-                  {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {!devForm.responsible && <p className="text-xs text-destructive mt-1">Välj ansvarig för att kunna spara</p>}
-            </div>
-            <div>
-              <Label>Kostnad (kr)</Label>
-              <Input type="number" value={devCost} onChange={e => setDevCost(e.target.value)} placeholder="0" />
-            </div>
-            <div>
-              <Label>Bifoga bilder (max 5)</Label>
-              <div className="mt-1">
-                <label className="inline-flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted">
-                  <Camera className="h-4 w-4" /> Välj bilder
-                  <input type="file" accept="image/jpeg,image/png,image/heic" multiple className="hidden" onChange={handleFileSelect} />
-                </label>
-              </div>
-              {probFiles.length > 0 && (
-                <div className="flex gap-2 flex-wrap mt-2">
-                  {probFiles.map((f, i) => (
-                    <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border">
-                      <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
-                      <button onClick={() => setProbFiles(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-0 right-0 bg-foreground/60 text-background rounded-bl-lg p-0.5">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <SheetFooter className="flex-col gap-2 sm:flex-col">
-            <Button
-              disabled={!devForm.type || !devForm.description || !devForm.responsible || problemMutation.isPending}
-              onClick={() => problemMutation.mutate()}
-            >
-              {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}
-            </Button>
-            <Button variant="outline" onClick={() => setShowDeviation(false)}>Avbryt</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

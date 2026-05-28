@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, createDeviation, uploadDeviationImages, updateDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, COORDINATOR_CC, EMAIL_MAP } from '@/lib/constants';
+import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
 import { canEnterStatus } from '@/lib/statusRules';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +14,6 @@ import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2, X, Receip
 import { toast } from 'sonner';
 import { celebrateMontageDone } from '@/lib/celebrate';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 
@@ -27,6 +26,7 @@ interface Props {
 
 export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBack }: Props) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: liveCaseData } = useQuery({
     queryKey: ['case', initialCaseData.id],
@@ -35,7 +35,6 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   });
   const caseData = liveCaseData ?? initialCaseData;
 
-  const [showProblem, setShowProblem] = useState(false);
   const [showKlar, setShowKlar] = useState(false);
   const [showCost, setShowCost] = useState(false);
   const [klarComment, setKlarComment] = useState('');
@@ -44,26 +43,6 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [kmNote, setKmNote] = useState('');
   const [note, setNote] = useState('');
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
-
-  // Problem form state (unified)
-  const [probType, setProbType] = useState('');
-  const [probDesc, setProbDesc] = useState('');
-  const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
-  const [probResponsible, setProbResponsible] = useState('');
-  const [respManuallySet, setRespManuallySet] = useState(false);
-
-  useEffect(() => {
-    if (respManuallySet) return;
-    const suggestion: Record<string, string> = {
-      felmatning: 'montor',
-      fabriksfel: 'fabrik',
-      extra_material: 'fabrik',
-    };
-    const s = suggestion[probType];
-    if (s && probResponsible !== s) setProbResponsible(s);
-  }, [probType, respManuallySet]);
-  const [probFiles, setProbFiles] = useState<File[]>([]);
-  const [probCost, setProbCost] = useState('');
 
   // Cost form state
   const [costDesc, setCostDesc] = useState('');
@@ -106,113 +85,6 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     setter(current.filter((_, i) => i !== index));
   };
 
-  const buildProblemRows = (type: string, desc: string, priority?: string) => {
-    const rows: Array<{ label: string; value: string; badge?: { color: string; bg: string } }> = [
-      { label: 'Adress', value: caseData.address },
-      { label: 'Kund', value: caseData.customer_name },
-      { label: 'Montör', value: currentUser },
-      { label: 'Typ', value: type },
-    ];
-    if (priority) {
-      const badgeMap: Record<string, { color: string; bg: string }> = {
-        hog: { color: '#991B1B', bg: '#FEE2E2' },
-        medium: { color: '#92400E', bg: '#FEF3C7' },
-        lag: { color: '#374151', bg: '#F3F4F6' },
-      };
-      const label = priority === 'hog' ? 'Hög' : priority === 'medium' ? 'Medium' : 'Låg';
-      rows.push({ label: 'Prioritet', value: label, badge: badgeMap[priority] });
-    }
-    rows.push({ label: 'Beskrivning', value: desc });
-    return rows;
-  };
-
-  // Unified problem mutation (replaces separate reklamation + deviation)
-  const problemMutation = useMutation({
-    mutationFn: async () => {
-      const isReklam = probType === 'reklamation';
-      const descWithPriority = isReklam ? `[${probPriority.toUpperCase()}] ${probDesc}` : probDesc;
-
-      if (!probResponsible) {
-        throw new Error('Välj ansvarig innan du sparar');
-      }
-      const deviation = await createDeviation({
-        case_id: caseData.id,
-        type: probType,
-        description: descWithPriority,
-        responsible: probResponsible,
-        created_by: currentUser,
-      });
-
-      if (probCost && Number(probCost) > 0) {
-        await updateDeviation(deviation.id, { cost: Number(probCost) });
-      }
-
-      let imageUrls: string[] = [];
-      if (probFiles.length > 0) {
-        imageUrls = await uploadDeviationImages(caseData.id, deviation.id, probFiles);
-        await updateDeviation(deviation.id, { image_urls: imageUrls });
-      }
-
-      const typLabel = DEVIATION_TYPES.find(d => d.value === probType)?.label || probType;
-      const eventDesc = isReklam
-        ? `Reklamation skapad: ${probDesc}`
-        : `Avvikelse skapad: ${typLabel} — ${probDesc}`;
-
-      await createCaseEvent({
-        case_id: caseData.id,
-        event_type: 'deviation',
-        description: eventDesc,
-        created_by: currentUser,
-      });
-
-      if (isReklam) {
-        await updateCase(caseData.id, { status: 'pausad' });
-        await createCaseEvent({
-          case_id: caseData.id,
-          event_type: 'status_change',
-          description: 'Status ändrad till Pausad (reklamation)',
-          created_by: currentUser,
-        });
-      }
-
-      // Send notification email
-      try {
-        const rows = buildProblemRows(typLabel, probDesc, isReklam ? probPriority : undefined);
-        if (imageUrls.length > 0) {
-          rows.push({ label: 'Bilder', value: `${imageUrls.length} bild(er) bifogade` });
-        }
-        await sendNotificationEmail({
-          to: COORDINATOR_EMAIL,
-          cc: COORDINATOR_CC,
-          subject: `${isReklam ? 'NY REKLAMATION' : 'NY AVVIKELSE'} — ${caseData.address}`,
-          heading: isReklam ? 'Ny reklamation' : 'Ny avvikelse',
-          rows,
-          callToAction: 'Vänligen granska ärendet.',
-        });
-        await createCaseEvent({
-          case_id: caseData.id,
-          event_type: 'notification',
-          description: `Mail skickat till ${COORDINATOR_EMAIL} (${isReklam ? 'reklamation' : 'avvikelse'})`,
-          created_by: currentUser,
-        });
-      } catch (emailErr) {
-        console.error('Email notification failed:', emailErr);
-      }
-    },
-    onSuccess: () => {
-      setShowProblem(false);
-      setProbType('');
-      setProbDesc('');
-      setProbPriority('medium');
-      setProbResponsible('');
-      setRespManuallySet(false);
-      setProbFiles([]);
-      setProbCost('');
-      invalidate();
-      toast.success('Problem rapporterat');
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const klarMutation = useMutation({
     mutationFn: async () => {
@@ -524,7 +396,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <Button
             variant="outline"
             className="w-full min-h-[48px] border-orange-400 text-orange-700 hover:bg-orange-50"
-            onClick={() => setShowProblem(true)}
+            onClick={() => navigate(`/case/${caseData.id}/rapportera`)}
           >
             <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera problem
           </Button>
@@ -650,92 +522,6 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         </section>
       </div>
 
-      {/* Bottom sheet: Rapportera problem */}
-      <Sheet open={showProblem} onOpenChange={(open) => { if (open) setShowProblem(true); }}>
-        <SheetContent
-          side="bottom"
-          className="h-[90vh] overflow-y-auto flex flex-col"
-          disableDefaultClose
-          onCloseClick={() => setShowProblem(false)}
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
-          onFocusOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          <SheetHeader>
-            <SheetTitle>Rapportera problem</SheetTitle>
-            <SheetDescription>Rapportera ett problem eller en avvikelse för detta ärende.</SheetDescription>
-          </SheetHeader>
-          <div className="px-4 space-y-4 pb-2 flex-1 overflow-y-auto">
-            <div>
-              <Label className="mb-1 block">Typ *</Label>
-              <Select value={probType} onValueChange={setProbType}>
-                <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Välj typ" /></SelectTrigger>
-                <SelectContent>
-                  {DEVIATION_TYPES.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="mb-1 block">Problembeskrivning *</Label>
-              <Textarea value={probDesc} onChange={e => setProbDesc(e.target.value)} rows={3} placeholder="Beskriv problemet..." />
-            </div>
-            <div>
-              <Label className="mb-2 block">Prioritet</Label>
-              <div className="flex gap-2">
-                {(['hog', 'medium', 'lag'] as const).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setProbPriority(p)}
-                    className={`flex-1 py-3 rounded-lg border text-sm font-medium min-h-[48px] transition-colors ${
-                      probPriority === p
-                        ? p === 'hog' ? 'bg-red-100 border-red-400 text-red-800'
-                          : p === 'medium' ? 'bg-yellow-100 border-yellow-400 text-yellow-800'
-                          : 'bg-green-100 border-green-400 text-green-800'
-                        : 'bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    {p === 'hog' ? 'Hög' : p === 'medium' ? 'Medium' : 'Låg'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <Label className="mb-1 block">Ansvar *</Label>
-              <Select value={probResponsible} onValueChange={(v) => { setRespManuallySet(true); setProbResponsible(v); }}>
-                <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Välj ansvarig" /></SelectTrigger>
-                <SelectContent>
-                  {DEVIATION_RESPONSIBLE.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {!probResponsible && <p className="text-xs text-destructive mt-1">Välj ansvarig för att kunna spara</p>}
-            </div>
-            <div>
-              <Label className="mb-1 block">Kostnad (kr)</Label>
-              <Input type="number" value={probCost} onChange={e => setProbCost(e.target.value)} placeholder="0" className="min-h-[48px]" />
-            </div>
-            <div>
-              <Label className="mb-1 block">Bifoga bilder (1–5 st)</Label>
-              <label className="inline-flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer hover:bg-muted min-h-[48px] w-full justify-center">
-                <Camera className="h-5 w-5" />
-                <span>{probFiles.length > 0 ? `${probFiles.length} bild(er) valda` : 'Välj bilder...'}</span>
-                <input type="file" accept="image/jpeg,image/png,image/heic" multiple className="hidden" onChange={(e) => handleFileSelect(e, setProbFiles, probFiles)} />
-              </label>
-              <FileThumbnails files={probFiles} setter={setProbFiles} />
-            </div>
-          </div>
-          <SheetFooter className="flex-col gap-2 sm:flex-col">
-            <Button
-              className="min-h-[48px]"
-              disabled={!probType || !probDesc.trim() || !probResponsible || problemMutation.isPending}
-              onClick={() => problemMutation.mutate()}
-            >
-              {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}
-            </Button>
-            <Button variant="outline" className="min-h-[48px]" onClick={() => setShowProblem(false)}>Avbryt</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
 
       {/* Bottom sheet: Lägg till kostnad */}
       <Drawer open={showCost} onOpenChange={setShowCost}>
