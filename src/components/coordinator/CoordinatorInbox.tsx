@@ -21,8 +21,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, Phone, MapPin, CalendarPlus, Hammer, AlertTriangle, Check, CheckCircle2, Receipt } from 'lucide-react';
+import { Loader2, Phone, MapPin, CalendarPlus, Hammer, Check, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  DeviationActionSheet,
+  DEVIATION_STATUS_META,
+  type DeviationStatus,
+} from '@/components/deviations/DeviationActionPanel';
 
 interface Props {
   coordinatorName: string;
@@ -51,7 +56,7 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [bookingCase, setBookingCase] = useState<CaseRow | null>(null);
-  const [costDev, setCostDev] = useState<DeviationRow | null>(null);
+  const [openDev, setOpenDev] = useState<DeviationRow | null>(null);
   const [newDevOpen, setNewDevOpen] = useState(false);
 
   const { data: cases, isLoading: casesLoading } = useQuery({
@@ -95,11 +100,20 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
     return candidates.filter(c => !sheetMetalCaseIds.has(c.id));
   }, [cases, sheetMetalCaseIds]);
 
-  // SECTION 3 — Reklamationer att följa upp
+  // SECTION 3 — Reklamationer att följa upp (only active statuses)
+  const ACTIVE: DeviationStatus[] = ['ny', 'under_atgard', 'vantar_leverans'];
   const openDeviations = useMemo(() => {
     return (deviations || [])
-      .filter(d => !d.resolved)
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      .map(d => ({ d, status: ((d as any).status as DeviationStatus) || (d.resolved ? 'klar' : 'ny') }))
+      .filter(({ status }) => ACTIVE.includes(status))
+      .sort((a, b) => {
+        // 'ny' first, then by oldest
+        const rank = (s: DeviationStatus) => (s === 'ny' ? 0 : s === 'under_atgard' ? 1 : 2);
+        const r = rank(a.status) - rank(b.status);
+        if (r !== 0) return r;
+        return new Date(a.d.created_at).getTime() - new Date(b.d.created_at).getTime();
+      })
+      .map(x => x.d);
   }, [deviations]);
 
   const caseById = useMemo(() => {
@@ -238,7 +252,9 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
               {openDeviations.map(d => {
                 const c = caseById.get(d.case_id);
                 const age = ageDays(d.created_at);
-                const old = age > 14;
+                const status = ((d as any).status as DeviationStatus) || 'ny';
+                const statusMeta = DEVIATION_STATUS_META[status];
+                const old = age > 14 && status === 'ny';
                 return (
                   <div
                     key={d.id}
@@ -256,36 +272,20 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
                           {DEVIATION_RESPONSIBLE.find(r => r.value === d.responsible)?.label || d.responsible}
                         </div>
                       </div>
-                      <div className={cn(
-                        'text-xs font-semibold rounded-full px-2 py-1',
-                        old ? 'bg-red-100 text-red-800' : 'bg-muted text-muted-foreground'
-                      )}>
-                        {age} d gammal
+                      <div className="flex items-center gap-2">
+                        <span className={cn('text-xs font-semibold rounded-full px-2 py-1', statusMeta.className)}>
+                          {statusMeta.label}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{age} d</span>
                       </div>
                     </div>
                     <p className="text-sm line-clamp-2">{d.description}</p>
-                    <div className="text-sm">
-                      Kostnad: <strong>{Number(d.cost || 0).toLocaleString('sv-SE')} kr</strong>
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => setCostDev(d)}
-                        className="gap-1.5 bg-amber-600 hover:bg-amber-700"
-                      >
-                        <Receipt className="h-4 w-4" />
-                        Lägg till / justera kostnad
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => resolveDevMutation.mutate(d)}
-                        disabled={resolveDevMutation.isPending}
-                        className="gap-1.5"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        Markera löst
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm">
+                        Kostnad: <strong>{Number(d.cost || 0).toLocaleString('sv-SE')} kr</strong>
+                      </div>
+                      <Button size="sm" onClick={() => setOpenDev(d)} className="gap-1.5">
+                        <Wrench className="h-4 w-4" /> Åtgärda
                       </Button>
                     </div>
                   </div>
@@ -328,13 +328,12 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
         }}
       />
 
-      <CostSheet
-        dev={costDev}
-        onClose={() => setCostDev(null)}
-        coordinatorName={coordinatorName}
-        onDone={() => {
-          qc.invalidateQueries({ queryKey: ['coordinator-deviations'] });
-        }}
+      <DeviationActionSheet
+        deviation={openDev}
+        caseData={openDev ? caseById.get(openDev.case_id) : null}
+        currentUser={coordinatorName}
+        open={!!openDev}
+        onClose={() => setOpenDev(null)}
       />
     </div>
   );

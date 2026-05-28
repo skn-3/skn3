@@ -13,7 +13,9 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench } from 'lucide-react';
+import { DeviationActionSheet, DEVIATION_STATUS_META, type DeviationStatus, canActOnDeviations } from '@/components/deviations/DeviationActionPanel';
+import type { DeviationRow } from '@/lib/supabaseClient';
 import { getOrderByCaseId, listUnlinkedOrders, linkCase as gwLinkCase, unlinkCase as gwUnlinkCase, updateOrderDate } from '@/integrations/orderGateway';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -555,7 +557,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const resolveMutation = useMutation({
     mutationFn: async (deviation: any) => {
-      await updateDeviation(deviation.id, { resolved: true });
+      await updateDeviation(deviation.id, { resolved: true, status: 'klar' } as any);
       const typLabel = DEVIATION_TYPES.find(d => d.value === deviation.type)?.label || deviation.type;
       await createCaseEvent({
         case_id: caseData.id,
@@ -683,6 +685,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   };
 
   const isAdmin = ADMIN_USERS.includes(currentUser);
+  const canAct = canActOnDeviations(currentUser, isCoordinator ? 'coordinator' : isSeller ? 'seller' : 'montor');
+  const [actionDev, setActionDev] = useState<DeviationRow | null>(null);
 
   const [blockedStatus, setBlockedStatus] = useState<{ status: string; reason: string; description: string } | null>(null);
 
@@ -1515,16 +1519,19 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                 <AlertTriangle className="h-4 w-4" /> Avvikelser ({deviations.length})
               </h3>
-              {deviations.map((d) => (
+              {deviations.map((d) => {
+                const devStatus = ((d as any).status as DeviationStatus) || (d.resolved ? 'klar' : 'ny');
+                const meta = DEVIATION_STATUS_META[devStatus];
+                return (
                 <div key={d.id} className="rounded-lg border p-2 text-sm space-y-1">
-                  <div className="flex justify-between items-center">
-                    <div className="flex gap-1.5 items-center">
-                      <Badge variant={d.resolved ? 'secondary' : 'destructive'}>
+                  <div className="flex justify-between items-center gap-2">
+                    <div className="flex gap-1.5 items-center flex-wrap">
+                      <Badge variant="secondary">
                         {DEVIATION_TYPES.find((dt) => dt.value === d.type)?.label || d.type}
                       </Badge>
-                      <Badge variant={d.resolved ? 'secondary' : 'destructive'} className={d.resolved ? 'bg-green-100 text-green-800 border-green-300' : ''}>
-                        {d.resolved ? 'Löst' : 'Olöst'}
-                      </Badge>
+                      <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold', meta.className)}>
+                        {meta.label}
+                      </span>
                     </div>
                     <span className="text-xs text-muted-foreground">{new Date(d.created_at).toLocaleDateString('sv-SE')}</span>
                   </div>
@@ -1557,21 +1564,41 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       ))}
                     </div>
                   )}
-                  {!d.resolved && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-1 text-green-700 border-green-400 hover:bg-green-50"
-                      disabled={resolveMutation.isPending}
-                      onClick={() => resolveMutation.mutate(d)}
-                    >
-                      {resolveMutation.isPending ? 'Sparar...' : '✓ Markera löst'}
-                    </Button>
-                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {!d.resolved && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-1 text-green-700 border-green-400 hover:bg-green-50"
+                        disabled={resolveMutation.isPending}
+                        onClick={() => resolveMutation.mutate(d)}
+                      >
+                        {resolveMutation.isPending ? 'Sparar...' : '✓ Markera löst'}
+                      </Button>
+                    )}
+                    {canAct && (
+                      <Button
+                        size="sm"
+                        className="mt-1 gap-1.5"
+                        onClick={() => setActionDev(d as DeviationRow)}
+                      >
+                        <Wrench className="h-4 w-4" /> Åtgärda
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </section>
           )}
+
+          <DeviationActionSheet
+            deviation={actionDev}
+            caseData={caseData}
+            currentUser={currentUser}
+            open={!!actionDev}
+            onClose={() => setActionDev(null)}
+          />
 
           {/* Notes */}
           <section className="p-4 space-y-2">

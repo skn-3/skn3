@@ -18,8 +18,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Loader2, Plus, CheckCircle2 } from 'lucide-react';
+import { Loader2, Plus, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  DeviationActionSheet,
+  DEVIATION_STATUS_META,
+  type DeviationStatus,
+} from '@/components/deviations/DeviationActionPanel';
 
 interface Props {
   coordinatorName: string;
@@ -48,26 +53,20 @@ export function CoordinatorDeviations({ coordinatorName, onSelectCase }: Props) 
   }, [cases]);
 
   const visible = useMemo(() => {
-    return (deviations || []).filter(d => showArchived ? d.resolved : !d.resolved)
+    const list = (deviations || []).map(d => ({
+      d,
+      status: ((d as any).status as DeviationStatus) || (d.resolved ? 'klar' : 'ny'),
+    }));
+    return list
+      .filter(({ status }) => {
+        const archived = status === 'klar' || status === 'avskriven';
+        return showArchived ? archived : !archived;
+      })
+      .map(x => x.d)
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }, [deviations, showArchived]);
 
-  const resolveMut = useMutation({
-    mutationFn: async (dev: DeviationRow) => {
-      await updateDeviation(dev.id, { resolved: true } as any);
-      await createCaseEvent({
-        case_id: dev.case_id,
-        event_type: 'deviation_resolved',
-        description: `Reklamation markerad löst av ${coordinatorName}`,
-        created_by: coordinatorName,
-      });
-    },
-    onSuccess: () => {
-      toast.success('✓ Markerad som löst');
-      qc.invalidateQueries({ queryKey: ['coordinator-all-deviations'] });
-      qc.invalidateQueries({ queryKey: ['coordinator-deviations'] });
-    },
-  });
+  const [openDev, setOpenDev] = useState<DeviationRow | null>(null);
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -99,7 +98,9 @@ export function CoordinatorDeviations({ coordinatorName, onSelectCase }: Props) 
         {visible.map(d => {
           const c = caseById.get(d.case_id);
           const age = Math.max(0, differenceInCalendarDays(new Date(), new Date(d.created_at)));
-          const old = age > 14 && !d.resolved;
+          const status = ((d as any).status as DeviationStatus) || (d.resolved ? 'klar' : 'ny');
+          const statusMeta = DEVIATION_STATUS_META[status];
+          const old = age > 14 && status !== 'klar' && status !== 'avskriven';
           return (
             <div
               key={d.id}
@@ -121,21 +122,32 @@ export function CoordinatorDeviations({ coordinatorName, onSelectCase }: Props) 
                     {DEVIATION_RESPONSIBLE.find(r => r.value === d.responsible)?.label || d.responsible}
                   </div>
                 </button>
-                <div className="text-xs font-semibold rounded-full bg-muted px-2 py-1">
-                  {d.resolved ? '✓ Löst' : `${age} d gammal`}
+                <div className="flex items-center gap-2">
+                  <span className={cn('text-xs font-semibold rounded-full px-2 py-1', statusMeta.className)}>
+                    {statusMeta.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{age} d</span>
                 </div>
               </div>
               <p className="text-sm">{d.description}</p>
-              <div className="text-sm">Kostnad: <strong>{Number(d.cost || 0).toLocaleString('sv-SE')} kr</strong></div>
-              {!d.resolved && (
-                <Button size="sm" variant="outline" onClick={() => resolveMut.mutate(d)} disabled={resolveMut.isPending} className="gap-1.5">
-                  <CheckCircle2 className="h-4 w-4" /> Markera löst
+              <div className="flex items-center justify-between">
+                <div className="text-sm">Kostnad: <strong>{Number(d.cost || 0).toLocaleString('sv-SE')} kr</strong></div>
+                <Button size="sm" onClick={() => setOpenDev(d)} className="gap-1.5">
+                  <Wrench className="h-4 w-4" /> Åtgärda
                 </Button>
-              )}
+              </div>
             </div>
           );
         })}
       </div>
+
+      <DeviationActionSheet
+        deviation={openDev}
+        caseData={openDev ? caseById.get(openDev.case_id) : null}
+        currentUser={coordinatorName}
+        open={!!openDev}
+        onClose={() => setOpenDev(null)}
+      />
 
       <NewDeviationSheet
         open={newOpen}
