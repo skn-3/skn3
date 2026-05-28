@@ -35,7 +35,6 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   });
   const caseData = liveCaseData ?? initialCaseData;
 
-  const [showProblem, setShowProblem] = useState(false);
   const [showKlar, setShowKlar] = useState(false);
   const [showCost, setShowCost] = useState(false);
   const [klarComment, setKlarComment] = useState('');
@@ -44,26 +43,6 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [kmNote, setKmNote] = useState('');
   const [note, setNote] = useState('');
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
-
-  // Problem form state (unified)
-  const [probType, setProbType] = useState('');
-  const [probDesc, setProbDesc] = useState('');
-  const [probPriority, setProbPriority] = useState<'hog' | 'medium' | 'lag'>('medium');
-  const [probResponsible, setProbResponsible] = useState('');
-  const [respManuallySet, setRespManuallySet] = useState(false);
-
-  useEffect(() => {
-    if (respManuallySet) return;
-    const suggestion: Record<string, string> = {
-      felmatning: 'montor',
-      fabriksfel: 'fabrik',
-      extra_material: 'fabrik',
-    };
-    const s = suggestion[probType];
-    if (s && probResponsible !== s) setProbResponsible(s);
-  }, [probType, respManuallySet]);
-  const [probFiles, setProbFiles] = useState<File[]>([]);
-  const [probCost, setProbCost] = useState('');
 
   // Cost form state
   const [costDesc, setCostDesc] = useState('');
