@@ -32,10 +32,11 @@ interface CaseDetailPanelProps {
   caseData: CaseRow;
   currentUser: string;
   isSeller: boolean;
+  isCoordinator?: boolean;
   onClose: () => void;
 }
 
-export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSeller, onClose }: CaseDetailPanelProps) {
+export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSeller, isCoordinator, onClose }: CaseDetailPanelProps) {
   const queryClient = useQueryClient();
 
   // Live case data that updates after mutations
