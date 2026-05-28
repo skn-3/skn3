@@ -100,11 +100,20 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
     return candidates.filter(c => !sheetMetalCaseIds.has(c.id));
   }, [cases, sheetMetalCaseIds]);
 
-  // SECTION 3 — Reklamationer att följa upp
+  // SECTION 3 — Reklamationer att följa upp (only active statuses)
+  const ACTIVE: DeviationStatus[] = ['ny', 'under_atgard', 'vantar_leverans'];
   const openDeviations = useMemo(() => {
     return (deviations || [])
-      .filter(d => !d.resolved)
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      .map(d => ({ d, status: ((d as any).status as DeviationStatus) || (d.resolved ? 'klar' : 'ny') }))
+      .filter(({ status }) => ACTIVE.includes(status))
+      .sort((a, b) => {
+        // 'ny' first, then by oldest
+        const rank = (s: DeviationStatus) => (s === 'ny' ? 0 : s === 'under_atgard' ? 1 : 2);
+        const r = rank(a.status) - rank(b.status);
+        if (r !== 0) return r;
+        return new Date(a.d.created_at).getTime() - new Date(b.d.created_at).getTime();
+      })
+      .map(x => x.d);
   }, [deviations]);
 
   const caseById = useMemo(() => {
