@@ -43,7 +43,7 @@ export function RolePicker({ onRoleSelected }: RolePickerProps) {
         </div>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Button
               variant={roleType === 'seller' ? 'default' : 'outline'}
               className="h-12"
@@ -58,12 +58,19 @@ export function RolePicker({ onRoleSelected }: RolePickerProps) {
             >
               Montör
             </Button>
+            <Button
+              variant={roleType === 'coordinator' ? 'default' : 'outline'}
+              className="h-12"
+              onClick={() => { setRoleType('coordinator'); setName(''); setPin(''); setPinError(false); }}
+            >
+              Koordinator
+            </Button>
           </div>
 
           {roleType && (
             <Select value={name} onValueChange={(v) => { setName(v); setPin(''); setPinError(false); }}>
               <SelectTrigger>
-                <SelectValue placeholder={`Välj ${roleType === 'seller' ? 'säljare' : 'montör'}...`} />
+                <SelectValue placeholder={`Välj ${roleType === 'seller' ? 'säljare' : roleType === 'montor' ? 'montör' : 'koordinator'}...`} />
               </SelectTrigger>
               <SelectContent>
                 {people.map((p) => (
