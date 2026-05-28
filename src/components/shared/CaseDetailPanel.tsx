@@ -582,12 +582,6 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onError: (e: Error) => toast.error('Kunde inte radera: ' + e.message),
   });
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const allowed = files.filter(f => /\.(jpe?g|png|heic)$/i.test(f.name));
-    setProbFiles(prev => [...prev, ...allowed].slice(0, 5));
-    e.target.value = '';
-  };
 
   const isAdmin = ADMIN_USERS.includes(currentUser);
   const canAct = canActOnDeviations(currentUser, isCoordinator ? 'coordinator' : isSeller ? 'seller' : 'montor');
