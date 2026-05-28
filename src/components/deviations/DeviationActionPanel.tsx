@@ -514,6 +514,7 @@ function FactoryClaimSheet({
         className="w-full sm:max-w-xl flex flex-col"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        onFocusOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <SheetHeader>
@@ -631,6 +632,7 @@ function Del1OrderSheet({
         className="w-full sm:max-w-md flex flex-col"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        onFocusOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <SheetHeader>
@@ -700,6 +702,7 @@ export function DeviationActionSheet({
         className="w-full sm:max-w-lg flex flex-col"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        onFocusOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <SheetHeader>
