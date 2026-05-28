@@ -508,10 +508,12 @@ function FactoryClaimSheet({
   });
 
   return (
-    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+    <Sheet open={open} onOpenChange={() => {}}>
       <SheetContent
         side="right"
         className="w-full sm:max-w-xl flex flex-col"
+        disableDefaultClose
+        onCloseClick={onClose}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onFocusOutside={(e) => e.preventDefault()}
@@ -626,10 +628,12 @@ function Del1OrderSheet({
   });
 
   return (
-    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+    <Sheet open={open} onOpenChange={() => {}}>
       <SheetContent
         side="right"
         className="w-full sm:max-w-md flex flex-col"
+        disableDefaultClose
+        onCloseClick={onClose}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onFocusOutside={(e) => e.preventDefault()}
@@ -696,10 +700,12 @@ export function DeviationActionSheet({
   onClose: () => void;
 }) {
   return (
-    <Sheet open={open && !!deviation} onOpenChange={(o) => !o && onClose()}>
+    <Sheet open={open && !!deviation} onOpenChange={() => {}}>
       <SheetContent
         side="right"
         className="w-full sm:max-w-lg flex flex-col"
+        disableDefaultClose
+        onCloseClick={onClose}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onFocusOutside={(e) => e.preventDefault()}

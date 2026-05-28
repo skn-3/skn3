@@ -13,7 +13,7 @@ import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2, X, Receip
 import { toast } from 'sonner';
 import { celebrateMontageDone } from '@/lib/celebrate';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
@@ -651,10 +651,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       </div>
 
       {/* Bottom sheet: Rapportera problem */}
-      <Sheet open={showProblem} onOpenChange={setShowProblem}>
+      <Sheet open={showProblem} onOpenChange={(open) => { if (open) setShowProblem(true); }}>
         <SheetContent
           side="bottom"
           className="h-[90vh] overflow-y-auto flex flex-col"
+          disableDefaultClose
+          onCloseClick={() => setShowProblem(false)}
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
           onFocusOutside={(e) => e.preventDefault()}
@@ -730,9 +732,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             >
               {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}
             </Button>
-            <SheetClose asChild>
-              <Button variant="outline" className="min-h-[48px]">Avbryt</Button>
-            </SheetClose>
+            <Button variant="outline" className="min-h-[48px]" onClick={() => setShowProblem(false)}>Avbryt</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>

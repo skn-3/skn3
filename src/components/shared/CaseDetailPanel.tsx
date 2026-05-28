@@ -25,7 +25,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { cn, formatAmount } from '@/lib/utils';
@@ -1669,10 +1669,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       </Dialog>
 
       {/* Rapportera problem sheet */}
-      <Sheet open={showDeviation} onOpenChange={setShowDeviation}>
+      <Sheet open={showDeviation} onOpenChange={(open) => { if (open) setShowDeviation(true); }}>
         <SheetContent
           side="bottom"
           className="h-[90vh] overflow-y-auto flex flex-col"
+          disableDefaultClose
+          onCloseClick={() => setShowDeviation(false)}
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
           onFocusOutside={(e) => e.preventDefault()}
@@ -1751,9 +1753,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             >
               {problemMutation.isPending ? 'Sparar...' : 'Skapa ärende'}
             </Button>
-            <SheetClose asChild>
-              <Button variant="outline">Avbryt</Button>
-            </SheetClose>
+            <Button variant="outline" onClick={() => setShowDeviation(false)}>Avbryt</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>

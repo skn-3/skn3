@@ -202,10 +202,12 @@ function NewDeviationSheet({
   });
 
   return (
-    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+    <Sheet open={open} onOpenChange={() => {}}>
       <SheetContent
         side="right"
         className="w-full sm:max-w-md overflow-y-auto"
+        disableDefaultClose
+        onCloseClick={onClose}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onFocusOutside={(e) => e.preventDefault()}
