@@ -509,7 +509,13 @@ function FactoryClaimSheet({
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col">
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-xl flex flex-col"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>Skicka reklamation till Mockfjärds</SheetTitle>
           <SheetDescription>Skicka ett mejl till fabriken om denna avvikelse.</SheetDescription>
@@ -620,7 +626,13 @@ function Del1OrderSheet({
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-md flex flex-col"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>Skapa DEL1-order</SheetTitle>
           <SheetDescription>Registrera en intern DEL1-order för denna avvikelse.</SheetDescription>
@@ -683,7 +695,13 @@ export function DeviationActionSheet({
 }) {
   return (
     <Sheet open={open && !!deviation} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col">
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-lg flex flex-col"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>
             Reklamation — {caseData?.address || '(ärende saknas)'}
