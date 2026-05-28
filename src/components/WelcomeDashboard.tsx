@@ -337,7 +337,7 @@ function SellerDashboard({ name }: { name: string }) {
         <>
           <InsightsLayer kind="seller" name={name} data={{ visits, cases }} />
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Card>
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Besök denna vecka</div>
               <div className="text-4xl font-bold mt-2 text-foreground"><CountUp value={stats.visitsThisWeek} /></div>
@@ -350,6 +350,12 @@ function SellerDashboard({ name }: { name: string }) {
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Sålt värde</div>
               <div className="text-3xl font-bold mt-2 text-foreground">
                 <CountUp value={stats.sumSigned} formatter={(n) => formatAmount(n)} />
+              </div>
+            </Card>
+            <Card className="bg-gradient-to-br from-primary/5 to-transparent">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Totalt sålt {stats.currentYear}</div>
+              <div className="text-3xl font-bold mt-2 text-primary">
+                <CountUp value={stats.yearTotalSold} formatter={(n) => formatAmount(n)} />
               </div>
             </Card>
           </div>
