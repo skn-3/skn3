@@ -13,7 +13,9 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench } from 'lucide-react';
+import { DeviationActionSheet, DEVIATION_STATUS_META, type DeviationStatus, canActOnDeviations } from '@/components/deviations/DeviationActionPanel';
+import type { DeviationRow } from '@/lib/supabaseClient';
 import { getOrderByCaseId, listUnlinkedOrders, linkCase as gwLinkCase, unlinkCase as gwUnlinkCase, updateOrderDate } from '@/integrations/orderGateway';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
