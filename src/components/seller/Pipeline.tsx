@@ -195,7 +195,7 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
               </button>
             )}
           </div>
-          {isAdmin && (
+          {isAdmin && !isCoordinator && (
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5">
@@ -212,6 +212,28 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
                   <SelectContent>
                     <SelectItem value="alla">Alla</SelectItem>
                     {SELLERS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </PopoverContent>
+            </Popover>
+          )}
+          {isCoordinator && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span className="hidden sm:inline truncate max-w-[120px]">
+                    {montorFilter === 'alla' ? 'Alla montörer' : montorFilter}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56">
+                <Label className="text-xs">Visa montör</Label>
+                <Select value={montorFilter} onValueChange={setMontorFilter}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="alla">Alla</SelectItem>
+                    {MONTORS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </PopoverContent>
