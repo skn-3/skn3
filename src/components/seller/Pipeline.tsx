@@ -250,7 +250,7 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
         )}
       </div>
 
-      {flaggedCount > 0 && (
+      {flaggedCount > 0 && !isCoordinator && (
         <button
           type="button"
           onClick={() => setOnlyFlagged(v => !v)}
@@ -268,7 +268,7 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
         </button>
       )}
 
-      {followUps.length > 0 && !onlyFlagged && (
+      {followUps.length > 0 && !onlyFlagged && !isCoordinator && (
         <FollowUpSection visits={followUps} sellerName={sellerName} />
       )}
 
