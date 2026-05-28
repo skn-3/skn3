@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCases, fetchVisits, type CaseRow } from '@/lib/supabaseClient';
 import { listOrdersByCaseIds } from '@/integrations/orderGateway';
-import { SELLER_PIPELINE_COLUMNS, STATUS_LABELS, SELLERS } from '@/lib/constants';
+import { SELLER_PIPELINE_COLUMNS, STATUS_LABELS, SELLERS, MONTORS } from '@/lib/constants';
 import { CaseCard } from './CaseCard';
 import { FollowUpSection } from './FollowUpSection';
 import { Loader2, Search, X, SlidersHorizontal, AlertTriangle } from 'lucide-react';
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 interface PipelineProps {
   sellerName: string;
   isAdmin?: boolean;
+  isCoordinator?: boolean;
   onSelectCase: (c: CaseRow) => void;
 }
 
