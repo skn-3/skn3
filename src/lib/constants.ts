@@ -99,6 +99,8 @@ export const EMAIL_MAP: Record<string, string> = {
   // Säljare
   'Daniel Malke': 'daniel.malke@mockfjards.se',
   'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',
+  // Koordinator
+  'Mirna Malke': 'mirna.malke@mockfjards.se',
 };
 
 export const COORDINATOR_EMAIL = 'mirna.malke@mockfjards.se';
