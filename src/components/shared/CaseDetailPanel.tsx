@@ -1564,21 +1564,41 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       ))}
                     </div>
                   )}
-                  {!d.resolved && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-1 text-green-700 border-green-400 hover:bg-green-50"
-                      disabled={resolveMutation.isPending}
-                      onClick={() => resolveMutation.mutate(d)}
-                    >
-                      {resolveMutation.isPending ? 'Sparar...' : '✓ Markera löst'}
-                    </Button>
-                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {!d.resolved && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-1 text-green-700 border-green-400 hover:bg-green-50"
+                        disabled={resolveMutation.isPending}
+                        onClick={() => resolveMutation.mutate(d)}
+                      >
+                        {resolveMutation.isPending ? 'Sparar...' : '✓ Markera löst'}
+                      </Button>
+                    )}
+                    {canAct && (
+                      <Button
+                        size="sm"
+                        className="mt-1 gap-1.5"
+                        onClick={() => setActionDev(d as DeviationRow)}
+                      >
+                        <Wrench className="h-4 w-4" /> Åtgärda
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </section>
           )}
+
+          <DeviationActionSheet
+            deviation={actionDev}
+            caseData={caseData}
+            currentUser={currentUser}
+            open={!!actionDev}
+            onClose={() => setActionDev(null)}
+          />
 
           {/* Notes */}
           <section className="p-4 space-y-2">
