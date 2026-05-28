@@ -20,6 +20,7 @@ import { formatAmount } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Upload, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { logActivity } from '@/lib/activityLog';
 
 interface ImportCaseFormProps {
   sellerName: string;
