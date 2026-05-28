@@ -37,6 +37,7 @@ import { CheckCircle2, RefreshCcw, XCircle } from 'lucide-react';
 import { cn, formatAmount } from '@/lib/utils';
 import { toast } from 'sonner';
 import { celebrateSignedDeal } from '@/lib/celebrate';
+import { logActivity } from '@/lib/activityLog';
 
 type Result = 'signerat' | 'aterkoppla' | 'nej';
 
@@ -274,6 +275,16 @@ export function VisitForm({ sellerName }: VisitFormProps) {
     onSuccess: ({ newCase }) => {
       queryClient.invalidateQueries({ queryKey: ['visits'] });
       queryClient.invalidateQueries({ queryKey: ['cases'] });
+
+      logActivity({
+        action: form.result === 'signerat' ? 'case_created' : 'visit_registered',
+        category: 'case',
+        description: form.result === 'signerat'
+          ? `Nytt ärende skapat via besök — ${form.address}`
+          : `Besök registrerat — ${form.address} (${form.result})`,
+        case_id: (newCase as any)?.id,
+        metadata: { result: form.result, order_value: form.order_value || null },
+      });
 
       if (form.result === 'signerat') {
         const ov = form.order_value ? Number(form.order_value) : undefined;

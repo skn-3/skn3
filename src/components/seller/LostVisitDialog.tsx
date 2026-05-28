@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { logActivity } from '@/lib/activityLog';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { LOST_REASONS, COMPETITORS } from '@/lib/constants';
@@ -52,6 +53,12 @@ export function LostVisitDialog({ visit, onClose }: LostVisitDialogProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visits'] });
+      logActivity({
+        action: 'visit_lost',
+        category: 'case',
+        description: `Besök markerat som tappad — ${visit?.address ?? ''}`,
+        metadata: { reason, competitor, visit_id: visit?.id },
+      });
       toast.success('Besök markerat som tappad');
       reset();
       onClose();

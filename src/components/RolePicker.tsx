@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SELLERS, MONTORS, ADMIN_USERS, COORDINATORS, PIN_CODES, type RoleType, type UserRole } from '@/lib/constants';
+import { logActivity } from '@/lib/activityLog';
 
 interface RolePickerProps {
   onRoleSelected: (role: UserRole) => void;
@@ -23,6 +24,12 @@ export function RolePicker({ onRoleSelected }: RolePickerProps) {
     const correctPin = PIN_CODES[name];
     if (pin !== correctPin) {
       setPinError(true);
+      logActivity({
+        action: 'login_failed',
+        category: 'auth',
+        description: `Misslyckat inloggningsförsök som ${roleType} (${name})`,
+        actor: { name, role: roleType ?? 'unknown' },
+      });
       return;
     }
     setPinError(false);

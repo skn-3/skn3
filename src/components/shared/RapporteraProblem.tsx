@@ -17,6 +17,7 @@ import {
   COORDINATOR_CC,
 } from '@/lib/constants';
 import { useRole } from '@/hooks/useRole';
+import { logActivity } from '@/lib/activityLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -178,13 +179,23 @@ export default function RapporteraProblem() {
       } catch (emailErr) {
         console.error('Email notification failed:', emailErr);
       }
+
+      return { deviation, isReklam, typLabel: DEVIATION_TYPES.find((d) => d.value === type)?.label || type };
     },
-    onSuccess: () => {
+    onSuccess: ({ deviation, isReklam, typLabel }) => {
       queryClient.invalidateQueries({ queryKey: ['case', caseId] });
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['deviations', caseId] });
       queryClient.invalidateQueries({ queryKey: ['deviations_bulk'] });
       queryClient.invalidateQueries({ queryKey: ['case_events', caseId] });
+      logActivity({
+        action: 'deviation_created',
+        category: 'deviation',
+        description: `${isReklam ? 'Reklamation' : 'Avvikelse'} skapad: ${typLabel} — ${description.slice(0, 80)}`,
+        case_id: caseId,
+        deviation_id: deviation?.id,
+        metadata: { type, responsible, priority, cost: cost ? Number(cost) : 0 },
+      });
       toast.success('Problem rapporterat');
       navigate(`/?case=${caseId}`);
     },

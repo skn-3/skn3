@@ -20,6 +20,7 @@ import { formatAmount } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Upload, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { logActivity } from '@/lib/activityLog';
 
 interface ImportCaseFormProps {
   sellerName: string;
@@ -330,6 +331,13 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
       queryClient.invalidateQueries({ queryKey: ['cases_all'] });
       queryClient.invalidateQueries({ queryKey: ['cases_all_for_dup'] });
       setImportCount((c) => c + 1);
+      logActivity({
+        action: 'imported',
+        category: 'case',
+        description: `Importerade ärende — ${form.address}`,
+        case_id: (newCase as any)?.id,
+        metadata: { status: form.status, seller: form.seller, order_value: form.order_value },
+      });
       toast.success(`Ärende importerat — ${form.address} (status: ${STATUS_LABELS[form.status] || form.status})`);
 
       // Keep seller and team prefilled for bulk import

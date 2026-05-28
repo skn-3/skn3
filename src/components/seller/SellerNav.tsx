@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown } from 'lucide-react';
 
-export type SellerTab = 'pipeline' | 'calendar' | 'visit' | 'dashboard' | 'import' | 'clean-addresses' | 'validate';
+export type SellerTab = 'pipeline' | 'calendar' | 'visit' | 'dashboard' | 'import' | 'clean-addresses' | 'validate' | 'activity-log';
 
 interface SellerNavProps {
   active: SellerTab;
@@ -27,6 +27,7 @@ const ADMIN_TABS: { value: SellerTab; label: string }[] = [
   { value: 'import', label: 'Importera ärende' },
   { value: 'clean-addresses', label: 'Städa adresser' },
   { value: 'validate', label: 'Validera pipeline' },
+  { value: 'activity-log', label: 'Aktivitetslogg' },
 ];
 
 export function SellerNav({ active, onChange, isAdmin }: SellerNavProps) {
