@@ -206,6 +206,7 @@ function NewDeviationSheet({
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Ny reklamation</SheetTitle>
+          <SheetDescription>Registrera en ny reklamation eller avvikelse.</SheetDescription>
         </SheetHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
