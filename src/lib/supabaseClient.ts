@@ -94,10 +94,30 @@ export async function createDeviation(deviation: DeviationInsert) {
   return data;
 }
 
-export async function updateDeviation(id: string, updates: { image_urls?: string[]; resolved?: boolean; cost?: number; responsible?: string }) {
+export async function updateDeviation(id: string, updates: Partial<Database['public']['Tables']['deviations']['Update']>) {
   const { data, error } = await supabase.from('deviations').update(updates).eq('id', id).select().single();
   if (error) throw error;
   return data;
+}
+
+export interface DeviationActionLogEntry {
+  at: string;
+  by: string;
+  action: string;
+  note?: string;
+}
+
+export async function appendDeviationLog(devId: string, entry: DeviationActionLogEntry) {
+  const { data: current, error: e1 } = await supabase
+    .from('deviations')
+    .select('action_log')
+    .eq('id', devId)
+    .single();
+  if (e1) throw e1;
+  const log = Array.isArray((current as any)?.action_log) ? (current as any).action_log : [];
+  log.push(entry);
+  const { error: e2 } = await supabase.from('deviations').update({ action_log: log } as any).eq('id', devId);
+  if (e2) throw e2;
 }
 
 // Visits
