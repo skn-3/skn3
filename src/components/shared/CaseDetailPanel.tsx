@@ -1046,30 +1046,32 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <Label className="text-xs">Anteckning</Label>
                     <Textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
                   </div>
-                  <div className="col-span-2 space-y-2 rounded-md border p-2 bg-background">
-                    <p className="text-xs font-medium text-muted-foreground">Att tänka på vid montage</p>
-                    <label className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={editForm.media_consent}
-                        onCheckedChange={(c) => setEditForm(f => ({ ...f, media_consent: c === true }))}
-                      />
-                      Foto/film överenskommet med kund
-                    </label>
-                    <label className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={editForm.carry_help_needed}
-                        onCheckedChange={(c) => setEditForm(f => ({ ...f, carry_help_needed: c === true }))}
-                      />
-                      Behövs bärhjälp?
-                    </label>
-                    <label className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={editForm.scheduled_delivery}
-                        onCheckedChange={(c) => setEditForm(f => ({ ...f, scheduled_delivery: c === true }))}
-                      />
-                      Tidsstyrd leverans (tidslossning)
-                    </label>
-                  </div>
+                  {!isCoordinator && (
+                    <div className="col-span-2 space-y-2 rounded-md border p-2 bg-background">
+                      <p className="text-xs font-medium text-muted-foreground">Att tänka på vid montage</p>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={editForm.media_consent}
+                          onCheckedChange={(c) => setEditForm(f => ({ ...f, media_consent: c === true }))}
+                        />
+                        Foto/film överenskommet med kund
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={editForm.carry_help_needed}
+                          onCheckedChange={(c) => setEditForm(f => ({ ...f, carry_help_needed: c === true }))}
+                        />
+                        Behövs bärhjälp?
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={editForm.scheduled_delivery}
+                          onCheckedChange={(c) => setEditForm(f => ({ ...f, scheduled_delivery: c === true }))}
+                        />
+                        Tidsstyrd leverans (tidslossning)
+                      </label>
+                    </div>
+                  )}
                   <div className="col-span-2 space-y-3 rounded-md border p-2 bg-background">
                     <p className="text-xs font-medium text-muted-foreground">Datum</p>
                     <div className="space-y-1">
