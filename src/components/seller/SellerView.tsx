@@ -60,7 +60,10 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
       <AppHeader
         role={role}
         onChangeRole={onChangeRole}
-        toggleView={onToggleMontorView ? { label: 'Visa montörvy', onClick: onToggleMontorView } : undefined}
+        toggleViews={[
+          ...(onToggleMontorView ? [{ label: 'Visa montörvy', onClick: onToggleMontorView }] : []),
+          ...(onToggleCoordinatorView ? [{ label: 'Visa koordinatorvy', onClick: onToggleCoordinatorView }] : []),
+        ]}
       >
         <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} />
       </AppHeader>
