@@ -12,10 +12,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MyCalendarDialog } from '@/components/calendar/MyCalendarDialog';
 
+interface ToggleView { label: string; onClick: () => void }
 interface AppHeaderProps {
   role: UserRole;
   onChangeRole: () => void;
-  toggleView?: { label: string; onClick: () => void };
+  toggleView?: ToggleView;
+  toggleViews?: ToggleView[];
   children?: React.ReactNode;
 }
 
@@ -25,7 +27,11 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function AppHeader({ role, onChangeRole, toggleView, children }: AppHeaderProps) {
+export function AppHeader({ role, onChangeRole, toggleView, toggleViews, children }: AppHeaderProps) {
+  const toggles: ToggleView[] = [
+    ...(toggleView ? [toggleView] : []),
+    ...(toggleViews || []),
+  ];
   const roleLabel = role.type === 'seller' ? 'Säljare' : role.type === 'coordinator' ? 'Koordinator' : 'Montör';
   const initials = getInitials(role.name);
   const [calendarOpen, setCalendarOpen] = useState(false);
