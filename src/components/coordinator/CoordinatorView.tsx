@@ -48,7 +48,11 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader role={role} onChangeRole={onChangeRole}>
+      <AppHeader
+        role={role}
+        onChangeRole={onChangeRole}
+        toggleView={onToggleSellerView ? { label: 'Tillbaka till säljarvy', onClick: onToggleSellerView } : undefined}
+      >
         <CoordinatorNav active={tab} onChange={setTab} />
       </AppHeader>
 
