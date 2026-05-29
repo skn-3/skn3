@@ -244,16 +244,11 @@ Deno.serve(async (req) => {
       const myWeekDevs = weekDevs.filter(d => montorCaseIds.has(d.case_id));
       const myUnresolved = unresolvedDevs.filter(d => montorCaseIds.has(d.case_id));
 
-      const weekExtraHours = montorCases
-        .filter(c => inRange(c.created_at, wkStart, wkEnd) || weekEvents.some(e => e.case_id === c.id))
-        .reduce((s, c) => s + (c.extra_hours_requested || 0), 0);
-
       const body = kpiTable([
         ['Montage utförda', `${myMontage.length} st`],
         ['KM utförda', `${myKm.length} st`],
         ['Nya reklamationer/avvikelser', `${myWeekDevs.length} st`],
         ['Olösta reklamationer totalt', `${myUnresolved.length} st`],
-        ['Extra timmar begärda denna vecka', `${weekExtraHours} st`],
       ]);
 
       const html = wrapInTemplate(`Din veckorapport — v.${weekNum}`, `<p style="margin:0 0 16px 0;">Hej ${montor}, här är din vecka:</p>${body}`);
