@@ -59,12 +59,12 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
                 <div className="text-sm font-medium truncate">{role.name}</div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {toggleView && (
-                <DropdownMenuItem onClick={toggleView.onClick}>
+              {toggles.map((t) => (
+                <DropdownMenuItem key={t.label} onClick={t.onClick}>
                   <Eye className="h-4 w-4 mr-2" />
-                  {toggleView.label}
+                  {t.label}
                 </DropdownMenuItem>
-              )}
+              ))}
               <DropdownMenuItem onClick={() => setCalendarOpen(true)}>
                 <Calendar className="h-4 w-4 mr-2" />
                 Min kalender
