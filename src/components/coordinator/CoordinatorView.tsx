@@ -15,11 +15,12 @@ import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 interface Props {
   role: UserRole;
   onChangeRole: () => void;
+  onToggleSellerView?: () => void;
   initialCaseId?: string | null;
   onInitialCaseHandled?: () => void;
 }
 
-export function CoordinatorView({ role, onChangeRole, initialCaseId, onInitialCaseHandled }: Props) {
+export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initialCaseId, onInitialCaseHandled }: Props) {
   const [tab, setTab] = useState<CoordinatorTab>('inbox');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [, setSearchParams] = useSearchParams();
@@ -47,7 +48,11 @@ export function CoordinatorView({ role, onChangeRole, initialCaseId, onInitialCa
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader role={role} onChangeRole={onChangeRole}>
+      <AppHeader
+        role={role}
+        onChangeRole={onChangeRole}
+        toggleView={onToggleSellerView ? { label: 'Tillbaka till säljarvy', onClick: onToggleSellerView } : undefined}
+      >
         <CoordinatorNav active={tab} onChange={setTab} />
       </AppHeader>
 

@@ -12,10 +12,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MyCalendarDialog } from '@/components/calendar/MyCalendarDialog';
 
+interface ToggleView { label: string; onClick: () => void }
 interface AppHeaderProps {
   role: UserRole;
   onChangeRole: () => void;
-  toggleView?: { label: string; onClick: () => void };
+  toggleView?: ToggleView;
+  toggleViews?: ToggleView[];
   children?: React.ReactNode;
 }
 
@@ -25,7 +27,11 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function AppHeader({ role, onChangeRole, toggleView, children }: AppHeaderProps) {
+export function AppHeader({ role, onChangeRole, toggleView, toggleViews, children }: AppHeaderProps) {
+  const toggles: ToggleView[] = [
+    ...(toggleView ? [toggleView] : []),
+    ...(toggleViews || []),
+  ];
   const roleLabel = role.type === 'seller' ? 'Säljare' : role.type === 'coordinator' ? 'Koordinator' : 'Montör';
   const initials = getInitials(role.name);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -53,12 +59,12 @@ export function AppHeader({ role, onChangeRole, toggleView, children }: AppHeade
                 <div className="text-sm font-medium truncate">{role.name}</div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {toggleView && (
-                <DropdownMenuItem onClick={toggleView.onClick}>
+              {toggles.map((t) => (
+                <DropdownMenuItem key={t.label} onClick={t.onClick}>
                   <Eye className="h-4 w-4 mr-2" />
-                  {toggleView.label}
+                  {t.label}
                 </DropdownMenuItem>
-              )}
+              ))}
               <DropdownMenuItem onClick={() => setCalendarOpen(true)}>
                 <Calendar className="h-4 w-4 mr-2" />
                 Min kalender
@@ -87,11 +93,11 @@ export function AppHeader({ role, onChangeRole, toggleView, children }: AppHeade
         <div className="flex-1 min-w-0">{children}</div>
 
         <div className="flex items-center gap-3 shrink-0">
-          {toggleView && (
-            <Button variant="outline" size="sm" onClick={toggleView.onClick}>
-              <Eye className="h-4 w-4 mr-1" /> {toggleView.label}
+          {toggles.map((t) => (
+            <Button key={t.label} variant="outline" size="sm" onClick={t.onClick}>
+              <Eye className="h-4 w-4 mr-1" /> {t.label}
             </Button>
-          )}
+          ))}
           <span className="text-sm text-muted-foreground">
             {roleLabel}: <strong className="text-card-foreground">{role.name}</strong>
           </span>

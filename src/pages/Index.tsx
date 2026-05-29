@@ -26,6 +26,7 @@ function markWelcomeShown(name: string) {
 const Index = () => {
   const { role, setRole, clearRole } = useRole();
   const [showMontorView, setShowMontorView] = useState(false);
+  const [showCoordinatorView, setShowCoordinatorView] = useState(false);
   const [searchParams] = useSearchParams();
   const [initialCaseId, setInitialCaseId] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -71,12 +72,25 @@ const Index = () => {
     );
   }
 
+  if (role.isAdmin && showCoordinatorView && role.type === 'seller') {
+    return (
+      <CoordinatorView
+        role={role}
+        onChangeRole={clearRole}
+        onToggleSellerView={() => setShowCoordinatorView(false)}
+        initialCaseId={initialCaseId}
+        onInitialCaseHandled={() => setInitialCaseId(null)}
+      />
+    );
+  }
+
   if (role.type === 'seller') {
     return (
       <SellerView
         role={role}
         onChangeRole={clearRole}
         onToggleMontorView={role.isAdmin ? () => setShowMontorView(true) : undefined}
+        onToggleCoordinatorView={role.isAdmin ? () => setShowCoordinatorView(true) : undefined}
         initialCaseId={initialCaseId}
         onInitialCaseHandled={() => setInitialCaseId(null)}
       />

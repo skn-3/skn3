@@ -21,11 +21,12 @@ interface SellerViewProps {
   role: UserRole;
   onChangeRole: () => void;
   onToggleMontorView?: () => void;
+  onToggleCoordinatorView?: () => void;
   initialCaseId?: string | null;
   onInitialCaseHandled?: () => void;
 }
 
-export function SellerView({ role, onChangeRole, onToggleMontorView, initialCaseId, onInitialCaseHandled }: SellerViewProps) {
+export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoordinatorView, initialCaseId, onInitialCaseHandled }: SellerViewProps) {
   const [tab, setTab] = useState<SellerTab>('pipeline');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [, setSearchParams] = useSearchParams();
@@ -59,7 +60,10 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, initialCase
       <AppHeader
         role={role}
         onChangeRole={onChangeRole}
-        toggleView={onToggleMontorView ? { label: 'Visa montörvy', onClick: onToggleMontorView } : undefined}
+        toggleViews={[
+          ...(onToggleMontorView ? [{ label: 'Visa montörvy', onClick: onToggleMontorView }] : []),
+          ...(onToggleCoordinatorView ? [{ label: 'Visa koordinatorvy', onClick: onToggleCoordinatorView }] : []),
+        ]}
       >
         <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} />
       </AppHeader>
