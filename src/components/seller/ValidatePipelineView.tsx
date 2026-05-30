@@ -41,8 +41,101 @@ export function ValidatePipelineView({ currentUser }: Props) {
   const [backfillOpen, setBackfillOpen] = useState(false);
   const [backfillBusy, setBackfillBusy] = useState(false);
 
-  const runBackfill = async () => {
-    setBackfillBusy(true);
+  // ===== Orphan signed visits: signerat besök utan giltigt case_id =====
+  const orphanVisits = useMemo(() => {
+    if (!allVisits) return [] as any[];
+    const caseIds = new Set((allCases || []).map(c => c.id));
+    return (allVisits as any[]).filter(v =>
+      v.result === 'signerat' && (!v.case_id || !caseIds.has(v.case_id))
+    );
+  }, [allVisits, allCases]);
+  const [orphanBusyId, setOrphanBusyId] = useState<string | null>(null);
+  const [followUpInputs, setFollowUpInputs] = useState<Record<string, string>>({});
+  const [deleteVisitId, setDeleteVisitId] = useState<string | null>(null);
+
+  const orphanCreateCase = async (v: any) => {
+    setOrphanBusyId(v.id);
+    try {
+      const newCase = await createCase({
+        customer_name: v.customer_name,
+        address: v.address,
+        seller: v.seller,
+        order_value: v.order_value ?? null,
+        status: 'vantar_km',
+        customer_phone: '',
+      } as any);
+      await updateVisit(v.id, { case_id: newCase.id } as any);
+      await createCaseEvent({
+        case_id: newCase.id,
+        event_type: 'status_change',
+        description: `Ärende skapat retroaktivt från orphan-besök (${v.id})`,
+        created_by: currentUser,
+      });
+      logActivity({
+        action: 'orphan_visit_case_created',
+        category: 'case',
+        description: `Skapade ärende för orphan-besök — ${v.address}`,
+        case_id: newCase.id,
+        metadata: { visit_id: v.id },
+      });
+      toast.success('Ärende skapat och kopplat');
+      qc.invalidateQueries({ queryKey: ['cases_all_validate'] });
+      qc.invalidateQueries({ queryKey: ['visits_all_validate'] });
+      qc.invalidateQueries({ queryKey: ['cases'] });
+      qc.invalidateQueries({ queryKey: ['visits'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Kunde inte skapa ärende');
+    } finally {
+      setOrphanBusyId(null);
+    }
+  };
+
+  const orphanConvertToFollowUp = async (v: any) => {
+    const fud = followUpInputs[v.id];
+    if (!fud) {
+      toast.error('Ange återkoppla-datum först');
+      return;
+    }
+    setOrphanBusyId(v.id);
+    try {
+      await updateVisit(v.id, { result: 'aterkoppla', follow_up_date: fud, case_id: null } as any);
+      logActivity({
+        action: 'orphan_visit_converted',
+        category: 'case',
+        description: `Orphan-besök ändrat till återkoppla — ${v.address}`,
+        metadata: { visit_id: v.id, follow_up_date: fud },
+      });
+      toast.success('Besök ändrat till återkoppla');
+      qc.invalidateQueries({ queryKey: ['visits_all_validate'] });
+      qc.invalidateQueries({ queryKey: ['visits'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Kunde inte uppdatera');
+    } finally {
+      setOrphanBusyId(null);
+    }
+  };
+
+  const orphanDelete = async (id: string) => {
+    setOrphanBusyId(id);
+    try {
+      await deleteVisit(id);
+      logActivity({
+        action: 'orphan_visit_deleted',
+        category: 'data',
+        description: `Orphan-besök raderat (${id})`,
+        metadata: { visit_id: id },
+      });
+      toast.success('Besök raderat');
+      qc.invalidateQueries({ queryKey: ['visits_all_validate'] });
+      qc.invalidateQueries({ queryKey: ['visits'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Kunde inte radera');
+    } finally {
+      setOrphanBusyId(null);
+      setDeleteVisitId(null);
+    }
+  };
+
     let ok = 0;
     for (const c of casesMissingVisits) {
       try {
