@@ -1,13 +1,16 @@
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { fetchAllCases, updateCase, createCaseEvent, fetchAllVisits, createVisit } from '@/lib/supabaseClient';
+import { fetchAllCases, updateCase, createCase, createCaseEvent, fetchAllVisits, createVisit, updateVisit, deleteVisit } from '@/lib/supabaseClient';
 import { findPipelineIssues, type PipelineIssue } from '@/lib/statusRules';
 import { STATUS_LABELS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Loader2, AlertTriangle, Check, CalendarPlus } from 'lucide-react';
+import { Loader2, AlertTriangle, Check, CalendarPlus, FileWarning } from 'lucide-react';
 import { toast } from 'sonner';
+import { logActivity } from '@/lib/activityLog';
+import { formatAmount } from '@/lib/utils';
 
 interface Props {
   currentUser: string;
@@ -37,6 +40,101 @@ export function ValidatePipelineView({ currentUser }: Props) {
   }, [allCases, allVisits]);
   const [backfillOpen, setBackfillOpen] = useState(false);
   const [backfillBusy, setBackfillBusy] = useState(false);
+
+  // ===== Orphan signed visits: signerat besök utan giltigt case_id =====
+  const orphanVisits = useMemo(() => {
+    if (!allVisits) return [] as any[];
+    const caseIds = new Set((allCases || []).map(c => c.id));
+    return (allVisits as any[]).filter(v =>
+      v.result === 'signerat' && (!v.case_id || !caseIds.has(v.case_id))
+    );
+  }, [allVisits, allCases]);
+  const [orphanBusyId, setOrphanBusyId] = useState<string | null>(null);
+  const [followUpInputs, setFollowUpInputs] = useState<Record<string, string>>({});
+  const [deleteVisitId, setDeleteVisitId] = useState<string | null>(null);
+
+  const orphanCreateCase = async (v: any) => {
+    setOrphanBusyId(v.id);
+    try {
+      const newCase = await createCase({
+        customer_name: v.customer_name,
+        address: v.address,
+        seller: v.seller,
+        order_value: v.order_value ?? null,
+        status: 'vantar_km',
+        customer_phone: '',
+      } as any);
+      await updateVisit(v.id, { case_id: newCase.id } as any);
+      await createCaseEvent({
+        case_id: newCase.id,
+        event_type: 'status_change',
+        description: `Ärende skapat retroaktivt från orphan-besök (${v.id})`,
+        created_by: currentUser,
+      });
+      logActivity({
+        action: 'orphan_visit_case_created',
+        category: 'case',
+        description: `Skapade ärende för orphan-besök — ${v.address}`,
+        case_id: newCase.id,
+        metadata: { visit_id: v.id },
+      });
+      toast.success('Ärende skapat och kopplat');
+      qc.invalidateQueries({ queryKey: ['cases_all_validate'] });
+      qc.invalidateQueries({ queryKey: ['visits_all_validate'] });
+      qc.invalidateQueries({ queryKey: ['cases'] });
+      qc.invalidateQueries({ queryKey: ['visits'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Kunde inte skapa ärende');
+    } finally {
+      setOrphanBusyId(null);
+    }
+  };
+
+  const orphanConvertToFollowUp = async (v: any) => {
+    const fud = followUpInputs[v.id];
+    if (!fud) {
+      toast.error('Ange återkoppla-datum först');
+      return;
+    }
+    setOrphanBusyId(v.id);
+    try {
+      await updateVisit(v.id, { result: 'aterkoppla', follow_up_date: fud, case_id: null } as any);
+      logActivity({
+        action: 'orphan_visit_converted',
+        category: 'case',
+        description: `Orphan-besök ändrat till återkoppla — ${v.address}`,
+        metadata: { visit_id: v.id, follow_up_date: fud },
+      });
+      toast.success('Besök ändrat till återkoppla');
+      qc.invalidateQueries({ queryKey: ['visits_all_validate'] });
+      qc.invalidateQueries({ queryKey: ['visits'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Kunde inte uppdatera');
+    } finally {
+      setOrphanBusyId(null);
+    }
+  };
+
+  const orphanDelete = async (id: string) => {
+    setOrphanBusyId(id);
+    try {
+      await deleteVisit(id);
+      logActivity({
+        action: 'orphan_visit_deleted',
+        category: 'data',
+        description: `Orphan-besök raderat (${id})`,
+        metadata: { visit_id: id },
+      });
+      toast.success('Besök raderat');
+      qc.invalidateQueries({ queryKey: ['visits_all_validate'] });
+      qc.invalidateQueries({ queryKey: ['visits'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Kunde inte radera');
+    } finally {
+      setOrphanBusyId(null);
+      setDeleteVisitId(null);
+    }
+  };
 
   const runBackfill = async () => {
     setBackfillBusy(true);
@@ -174,6 +272,97 @@ export function ValidatePipelineView({ currentUser }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* === Orphan signed visits === */}
+      <div className="rounded-lg border p-4 bg-card space-y-3">
+        <div className="flex items-start gap-3">
+          <FileWarning className="h-5 w-5 text-destructive mt-0.5" />
+          <div className="flex-1">
+            <div className="font-medium">Signerade besök utan ärende</div>
+            <p className="text-sm text-muted-foreground">
+              {orphanVisits.length === 0
+                ? 'Inga orphan-besök — alla signerade besök är kopplade till ett befintligt ärende ✓'
+                : `${orphanVisits.length} signerade besök saknar koppling till ett befintligt ärende. Detta förvrider hit rate.`}
+            </p>
+          </div>
+        </div>
+        {orphanVisits.length > 0 && (
+          <div className="space-y-2">
+            {orphanVisits.map((v: any) => (
+              <div key={v.id} className="rounded-md border p-3 bg-background space-y-2">
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{v.address}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {v.date} · {v.seller}
+                      {v.order_value ? ` · ${formatAmount(Number(v.order_value))} kr` : ''}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono">visit_id: {v.id}</div>
+                    {v.case_id && (
+                      <div className="text-xs text-destructive">case_id pekar på raderat ärende: {v.case_id}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => orphanCreateCase(v)}
+                    disabled={orphanBusyId === v.id}
+                  >
+                    {orphanBusyId === v.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    Skapa ärende
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="date"
+                      value={followUpInputs[v.id] || ''}
+                      onChange={(e) =>
+                        setFollowUpInputs((s) => ({ ...s, [v.id]: e.target.value }))
+                      }
+                      className="h-8 w-[150px]"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => orphanConvertToFollowUp(v)}
+                      disabled={orphanBusyId === v.id || !followUpInputs[v.id]}
+                    >
+                      Ändra till återkoppla
+                    </Button>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setDeleteVisitId(v.id)}
+                    disabled={orphanBusyId === v.id}
+                  >
+                    Radera besöket
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <AlertDialog open={!!deleteVisitId} onOpenChange={(o) => !o && setDeleteVisitId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Radera besöket?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Detta tar permanent bort visits-raden. Åtgärden kan inte ångras.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteVisitId && orphanDelete(deleteVisitId)}>
+              Ja, radera
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
 
 
       {issues.length === 0 ? (

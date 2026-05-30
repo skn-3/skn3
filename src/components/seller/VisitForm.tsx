@@ -185,54 +185,87 @@ export function VisitForm({ sellerName }: VisitFormProps) {
   // ===== Spara =====
   const mutation = useMutation({
     mutationFn: async () => {
-      // 1) Skapa alltid visits-raden först
-      const visit = await createVisit({
-        date: form.date,
-        address: form.address,
-        customer_name: form.customer_name,
-        seller: sellerName,
-        result: form.result || 'signerat',
-        order_value:
-          form.result === 'signerat' && form.order_value ? Number(form.order_value) : null,
-        follow_up_date:
-          form.result === 'aterkoppla' && form.follow_up_date ? form.follow_up_date : null,
-        notes: form.notes || null,
-      } as any);
-
+      // === Återkoppla / Nej: bara skapa visits-raden ===
       if (form.result !== 'signerat') {
+        const visit = await createVisit({
+          date: form.date,
+          address: form.address,
+          customer_name: form.customer_name,
+          seller: sellerName,
+          result: form.result || 'aterkoppla',
+          order_value: null,
+          follow_up_date:
+            form.result === 'aterkoppla' && form.follow_up_date ? form.follow_up_date : null,
+          notes: form.notes || null,
+        } as any);
         return { visit, newCase: null as any };
       }
 
-      // 2) Skapa ärende
-      const newCase = await createCase({
-        customer_name: form.customer_name,
-        customer_phone: form.customer_phone,
-        customer_email: form.customer_email || null,
-        address: form.address,
-        city: form.city,
-        offer_number: form.offer_number || null,
-        order_value: form.order_value ? Number(form.order_value) : null,
-        tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
-        extra_hours_sold: Number(form.extra_hours_sold) || 0,
-        team: form.team || null,
-        km_team: form.km_team || null,
-        google_drive_link: form.google_drive_link || null,
-        notes: form.notes || null,
-        seller: sellerName,
-        status: 'vantar_km',
-        media_consent: form.media_consent,
-        carry_help_needed: form.carry_help_needed,
-        scheduled_delivery: form.scheduled_delivery,
-      } as any);
-
-      // 3) Koppla besöket till ärendet
+      // === SIGNERAT: case-first med rollback. Antingen båda eller ingen. ===
+      // 1) Skapa ÄRENDET först
+      let newCase: any;
       try {
-        await updateVisit((visit as any).id, { case_id: newCase.id });
-      } catch (linkErr) {
-        console.error('Kunde inte koppla besök till ärende:', linkErr);
+        newCase = await createCase({
+          customer_name: form.customer_name,
+          customer_phone: form.customer_phone,
+          customer_email: form.customer_email || null,
+          address: form.address,
+          city: form.city,
+          offer_number: form.offer_number || null,
+          order_value: form.order_value ? Number(form.order_value) : null,
+          tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
+          extra_hours_sold: Number(form.extra_hours_sold) || 0,
+          team: form.team || null,
+          km_team: form.km_team || null,
+          google_drive_link: form.google_drive_link || null,
+          notes: form.notes || null,
+          seller: sellerName,
+          status: 'vantar_km',
+          media_consent: form.media_consent,
+          carry_help_needed: form.carry_help_needed,
+          scheduled_delivery: form.scheduled_delivery,
+        } as any);
+      } catch (caseErr: any) {
+        logActivity({
+          action: 'visit_signed_case_failed',
+          category: 'case',
+          description: `Kunde inte skapa ärende från signerat besök — ${form.address}`,
+          metadata: { stage: 'create_case', error: caseErr?.message || String(caseErr), address: form.address },
+        });
+        throw new Error(`Kunde inte skapa ärende — försök igen. (${caseErr?.message || caseErr})`);
       }
 
-      // 4) Logg
+      // 2) Skapa visits-raden MED case_id direkt
+      let visit: any;
+      try {
+        visit = await createVisit({
+          date: form.date,
+          address: form.address,
+          customer_name: form.customer_name,
+          seller: sellerName,
+          result: 'signerat',
+          order_value: form.order_value ? Number(form.order_value) : null,
+          notes: form.notes || null,
+          case_id: newCase.id,
+        } as any);
+      } catch (visitErr: any) {
+        // Rollback: radera ärendet vi precis skapade
+        try {
+          const { deleteCase } = await import('@/lib/supabaseClient');
+          await deleteCase(newCase.id);
+        } catch (rollbackErr) {
+          console.error('Rollback (deleteCase) failed:', rollbackErr);
+        }
+        logActivity({
+          action: 'visit_signed_case_failed',
+          category: 'case',
+          description: `Kunde inte skapa besök efter ärendeskapande — rollback gjord. ${form.address}`,
+          metadata: { stage: 'create_visit', error: visitErr?.message || String(visitErr), rolled_back_case_id: newCase.id },
+        });
+        throw new Error(`Kunde inte spara besöket — ärendet har rullats tillbaka. Försök igen. (${visitErr?.message || visitErr})`);
+      }
+
+      // 3) Logg-event på ärendet
       await createCaseEvent({
         case_id: newCase.id,
         event_type: 'status_change',
@@ -240,7 +273,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
         created_by: sellerName,
       });
 
-      // 5) Montörmail
+      // 4) Montörmail
       if (form.team && EMAIL_MAP[form.team]) {
         try {
           await sendNotificationEmail({
@@ -272,35 +305,40 @@ export function VisitForm({ sellerName }: VisitFormProps) {
 
       return { visit, newCase };
     },
-    onSuccess: ({ newCase }) => {
+    onSuccess: ({ visit, newCase }) => {
       queryClient.invalidateQueries({ queryKey: ['visits'] });
       queryClient.invalidateQueries({ queryKey: ['cases'] });
 
-      logActivity({
-        action: form.result === 'signerat' ? 'case_created' : 'visit_registered',
-        category: 'case',
-        description: form.result === 'signerat'
-          ? `Nytt ärende skapat via besök — ${form.address}`
-          : `Besök registrerat — ${form.address} (${form.result})`,
-        case_id: (newCase as any)?.id,
-        metadata: { result: form.result, order_value: form.order_value || null },
-      });
-
-      if (form.result === 'signerat') {
+      if (form.result === 'signerat' && newCase) {
+        logActivity({
+          action: 'visit_signed_case_created',
+          category: 'case',
+          description: `Signerat besök + ärende skapat — ${form.address}`,
+          case_id: newCase.id,
+          metadata: { visit_id: (visit as any)?.id, order_value: form.order_value || null },
+        });
         const ov = form.order_value ? Number(form.order_value) : undefined;
         celebrateSignedDeal(ov);
         toast.success('Besök + ärende skapat!');
-      } else if (form.result === 'aterkoppla') {
-        toast.success('Besök registrerat — uppföljning bokad');
       } else {
-        toast.success('Besök registrerat');
+        logActivity({
+          action: 'visit_registered',
+          category: 'case',
+          description: `Besök registrerat — ${form.address} (${form.result})`,
+          metadata: { visit_id: (visit as any)?.id, result: form.result },
+        });
+        if (form.result === 'aterkoppla') {
+          toast.success('Besök registrerat — uppföljning bokad');
+        } else {
+          toast.success('Besök registrerat');
+        }
       }
 
       setForm(emptyForm());
       setExistingCaseWarning(false);
     },
     onError: (err: Error) => {
-      toast.error('Kunde inte spara: ' + err.message);
+      toast.error(err.message || 'Kunde inte spara');
     },
   });
 

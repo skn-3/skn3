@@ -147,6 +147,11 @@ export async function updateVisit(id: string, updates: VisitUpdate) {
   return data;
 }
 
+export async function deleteVisit(id: string) {
+  const { error } = await supabase.from('visits').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // Sanitize filename for storage
 const sanitizeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
