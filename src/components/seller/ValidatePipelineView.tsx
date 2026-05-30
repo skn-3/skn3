@@ -1,13 +1,16 @@
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { fetchAllCases, updateCase, createCaseEvent, fetchAllVisits, createVisit } from '@/lib/supabaseClient';
+import { fetchAllCases, updateCase, createCase, createCaseEvent, fetchAllVisits, createVisit, updateVisit, deleteVisit } from '@/lib/supabaseClient';
 import { findPipelineIssues, type PipelineIssue } from '@/lib/statusRules';
 import { STATUS_LABELS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Loader2, AlertTriangle, Check, CalendarPlus } from 'lucide-react';
+import { Loader2, AlertTriangle, Check, CalendarPlus, FileWarning } from 'lucide-react';
 import { toast } from 'sonner';
+import { logActivity } from '@/lib/activityLog';
+import { formatAmount } from '@/lib/utils';
 
 interface Props {
   currentUser: string;
