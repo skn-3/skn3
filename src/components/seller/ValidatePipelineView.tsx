@@ -136,6 +136,8 @@ export function ValidatePipelineView({ currentUser }: Props) {
     }
   };
 
+  const runBackfill = async () => {
+    setBackfillBusy(true);
     let ok = 0;
     for (const c of casesMissingVisits) {
       try {
