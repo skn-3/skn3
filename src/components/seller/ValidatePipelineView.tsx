@@ -273,6 +273,97 @@ export function ValidatePipelineView({ currentUser }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* === Orphan signed visits === */}
+      <div className="rounded-lg border p-4 bg-card space-y-3">
+        <div className="flex items-start gap-3">
+          <FileWarning className="h-5 w-5 text-destructive mt-0.5" />
+          <div className="flex-1">
+            <div className="font-medium">Signerade besök utan ärende</div>
+            <p className="text-sm text-muted-foreground">
+              {orphanVisits.length === 0
+                ? 'Inga orphan-besök — alla signerade besök är kopplade till ett befintligt ärende ✓'
+                : `${orphanVisits.length} signerade besök saknar koppling till ett befintligt ärende. Detta förvrider hit rate.`}
+            </p>
+          </div>
+        </div>
+        {orphanVisits.length > 0 && (
+          <div className="space-y-2">
+            {orphanVisits.map((v: any) => (
+              <div key={v.id} className="rounded-md border p-3 bg-background space-y-2">
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{v.address}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {v.date} · {v.seller}
+                      {v.order_value ? ` · ${formatAmount(Number(v.order_value))} kr` : ''}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono">visit_id: {v.id}</div>
+                    {v.case_id && (
+                      <div className="text-xs text-destructive">case_id pekar på raderat ärende: {v.case_id}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => orphanCreateCase(v)}
+                    disabled={orphanBusyId === v.id}
+                  >
+                    {orphanBusyId === v.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    Skapa ärende
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="date"
+                      value={followUpInputs[v.id] || ''}
+                      onChange={(e) =>
+                        setFollowUpInputs((s) => ({ ...s, [v.id]: e.target.value }))
+                      }
+                      className="h-8 w-[150px]"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => orphanConvertToFollowUp(v)}
+                      disabled={orphanBusyId === v.id || !followUpInputs[v.id]}
+                    >
+                      Ändra till återkoppla
+                    </Button>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setDeleteVisitId(v.id)}
+                    disabled={orphanBusyId === v.id}
+                  >
+                    Radera besöket
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <AlertDialog open={!!deleteVisitId} onOpenChange={(o) => !o && setDeleteVisitId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Radera besöket?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Detta tar permanent bort visits-raden. Åtgärden kan inte ångras.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteVisitId && orphanDelete(deleteVisitId)}>
+              Ja, radera
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
+
 
       {issues.length === 0 ? (
         <div className="rounded-lg border p-8 text-center text-muted-foreground">
