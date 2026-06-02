@@ -77,6 +77,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   // Edit case fields
   const [editingCase, setEditingCase] = useState(false);
   const [ovConfirmOpen, setOvConfirmOpen] = useState(false);
+  const [hoursEdit, setHoursEdit] = useState<{ field: 'extra_hours_sold' | 'extra_hours_approved'; value: string } | null>(null);
   const [editForm, setEditForm] = useState({
     order_value: caseData.order_value != null ? String(caseData.order_value) : '',
     tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
