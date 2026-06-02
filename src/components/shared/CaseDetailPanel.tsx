@@ -535,6 +535,29 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const adjustHoursMutation = useMutation({
+    mutationFn: async ({ field, newValue }: { field: 'extra_hours_sold' | 'extra_hours_approved'; newValue: number }) => {
+      const oldValue = field === 'extra_hours_sold' ? (caseData.extra_hours_sold ?? 0) : (caseData.extra_hours_approved ?? 0);
+      await updateCase(caseData.id, { [field]: newValue });
+      const label = field === 'extra_hours_sold' ? 'Extra tim sålda' : 'Extra tim godkända';
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'hours_adjusted',
+        description: `${label} ändrade från ${oldValue} till ${newValue} (av ${currentUser})`,
+        created_by: currentUser,
+      });
+      logActivity({
+        action: 'hours_adjusted',
+        category: 'case',
+        description: `${label}: ${oldValue} → ${newValue}`,
+        case_id: caseData.id,
+        metadata: { field, oldValue, newValue, case_id: caseData.id },
+      });
+    },
+    onSuccess: () => { invalidate(); toast.success('Timmar uppdaterade'); setHoursEdit(null); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const approvalMutation = useMutation({
     mutationFn: async () => {
       const dateStr = format(approvalDate!, 'yyyy-MM-dd');
