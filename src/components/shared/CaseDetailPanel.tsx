@@ -1092,9 +1092,69 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               {caseData.offer_number && <div><span className="text-muted-foreground">Offert:</span> {caseData.offer_number}</div>}
               {caseData.order_value && <div><span className="text-muted-foreground">Värde:</span> {Number(caseData.order_value).toLocaleString('sv-SE')} kr <span className="text-muted-foreground text-xs ml-1">ex moms</span></div>}
               {caseData.tb_percent != null && <div><span className="text-muted-foreground">TB:</span> {Number(caseData.tb_percent)}%</div>}
-              <div><span className="text-muted-foreground">Extra tim sålda:</span> {caseData.extra_hours_sold} st → {(caseData.extra_hours_sold * HOUR_RATE).toLocaleString('sv-SE')} kr</div>
+              <div className="flex items-center gap-1 flex-wrap">
+                <span className="text-muted-foreground">Extra tim sålda:</span>
+                {hoursEdit?.field === 'extra_hours_sold' ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      className="h-7 w-20"
+                      value={hoursEdit.value}
+                      onChange={(e) => setHoursEdit({ field: 'extra_hours_sold', value: e.target.value })}
+                      autoFocus
+                    />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={adjustHoursMutation.isPending} onClick={() => {
+                      const n = Number(hoursEdit.value);
+                      if (!Number.isFinite(n) || n < 0) { toast.error('Värdet får inte vara negativt'); return; }
+                      adjustHoursMutation.mutate({ field: 'extra_hours_sold', newValue: Math.floor(n) });
+                    }}><Check className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setHoursEdit(null)}><X className="h-4 w-4" /></Button>
+                  </span>
+                ) : (
+                  <>
+                    <span>{caseData.extra_hours_sold} st → {(caseData.extra_hours_sold * HOUR_RATE).toLocaleString('sv-SE')} kr</span>
+                    {(isSeller || isAdmin) && (
+                      <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setHoursEdit({ field: 'extra_hours_sold', value: String(caseData.extra_hours_sold ?? 0) })} aria-label="Redigera sålda extra timmar">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
               <div><span className="text-muted-foreground">Extra tim begärda:</span> {caseData.extra_hours_requested}</div>
-              <div><span className="text-muted-foreground">Extra tim godkända:</span> {caseData.extra_hours_approved} st → {(caseData.extra_hours_approved * HOUR_RATE).toLocaleString('sv-SE')} kr</div>
+              <div className="flex items-center gap-1 flex-wrap">
+                <span className="text-muted-foreground">Extra tim godkända:</span>
+                {hoursEdit?.field === 'extra_hours_approved' ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={caseData.extra_hours_requested ?? undefined}
+                      className="h-7 w-20"
+                      value={hoursEdit.value}
+                      onChange={(e) => setHoursEdit({ field: 'extra_hours_approved', value: e.target.value })}
+                      autoFocus
+                    />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={adjustHoursMutation.isPending} onClick={() => {
+                      const n = Number(hoursEdit.value);
+                      if (!Number.isFinite(n) || n < 0) { toast.error('Värdet får inte vara negativt'); return; }
+                      if (n > (caseData.extra_hours_requested ?? 0)) { toast.error('Godkända kan inte överstiga begärda timmar'); return; }
+                      adjustHoursMutation.mutate({ field: 'extra_hours_approved', newValue: Math.floor(n) });
+                    }}><Check className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setHoursEdit(null)}><X className="h-4 w-4" /></Button>
+                  </span>
+                ) : (
+                  <>
+                    <span>{caseData.extra_hours_approved} st → {(caseData.extra_hours_approved * HOUR_RATE).toLocaleString('sv-SE')} kr</span>
+                    {(isSeller || isAdmin) && (
+                      <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setHoursEdit({ field: 'extra_hours_approved', value: String(caseData.extra_hours_approved ?? 0) })} aria-label="Redigera godkända extra timmar">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
             )}
             {(caseData.extra_hours_sold > 0 || caseData.extra_hours_approved > 0) && (() => {
