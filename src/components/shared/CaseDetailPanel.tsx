@@ -14,7 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench, Pencil, Check } from 'lucide-react';
+import { logActivity } from '@/lib/activityLog';
 import { DeviationActionSheet, DEVIATION_STATUS_META, type DeviationStatus, canActOnDeviations } from '@/components/deviations/DeviationActionPanel';
 import type { DeviationRow } from '@/lib/supabaseClient';
 import { getOrderByCaseId, listUnlinkedOrders, linkCase as gwLinkCase, unlinkCase as gwUnlinkCase, updateOrderDate } from '@/integrations/orderGateway';
@@ -76,6 +77,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   // Edit case fields
   const [editingCase, setEditingCase] = useState(false);
   const [ovConfirmOpen, setOvConfirmOpen] = useState(false);
+  const [hoursEdit, setHoursEdit] = useState<{ field: 'extra_hours_sold' | 'extra_hours_approved'; value: string } | null>(null);
   const [editForm, setEditForm] = useState({
     order_value: caseData.order_value != null ? String(caseData.order_value) : '',
     tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
@@ -531,6 +533,29 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       await createCaseEvent({ case_id: caseData.id, event_type: 'hours_rejected', description: 'Extra timmar avslagna', created_by: currentUser });
     },
     onSuccess: () => { invalidate(); toast.success('Extra timmar avslagna'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const adjustHoursMutation = useMutation({
+    mutationFn: async ({ field, newValue }: { field: 'extra_hours_sold' | 'extra_hours_approved'; newValue: number }) => {
+      const oldValue = field === 'extra_hours_sold' ? (caseData.extra_hours_sold ?? 0) : (caseData.extra_hours_approved ?? 0);
+      await updateCase(caseData.id, { [field]: newValue });
+      const label = field === 'extra_hours_sold' ? 'Extra tim sålda' : 'Extra tim godkända';
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'hours_adjusted',
+        description: `${label} ändrade från ${oldValue} till ${newValue} (av ${currentUser})`,
+        created_by: currentUser,
+      });
+      logActivity({
+        action: 'hours_adjusted',
+        category: 'case',
+        description: `${label}: ${oldValue} → ${newValue}`,
+        case_id: caseData.id,
+        metadata: { field, oldValue, newValue, case_id: caseData.id },
+      });
+    },
+    onSuccess: () => { invalidate(); toast.success('Timmar uppdaterade'); setHoursEdit(null); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -1067,9 +1092,69 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               {caseData.offer_number && <div><span className="text-muted-foreground">Offert:</span> {caseData.offer_number}</div>}
               {caseData.order_value && <div><span className="text-muted-foreground">Värde:</span> {Number(caseData.order_value).toLocaleString('sv-SE')} kr <span className="text-muted-foreground text-xs ml-1">ex moms</span></div>}
               {caseData.tb_percent != null && <div><span className="text-muted-foreground">TB:</span> {Number(caseData.tb_percent)}%</div>}
-              <div><span className="text-muted-foreground">Extra tim sålda:</span> {caseData.extra_hours_sold} st → {(caseData.extra_hours_sold * HOUR_RATE).toLocaleString('sv-SE')} kr</div>
+              <div className="flex items-center gap-1 flex-wrap">
+                <span className="text-muted-foreground">Extra tim sålda:</span>
+                {hoursEdit?.field === 'extra_hours_sold' ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      className="h-7 w-20"
+                      value={hoursEdit.value}
+                      onChange={(e) => setHoursEdit({ field: 'extra_hours_sold', value: e.target.value })}
+                      autoFocus
+                    />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={adjustHoursMutation.isPending} onClick={() => {
+                      const n = Number(hoursEdit.value);
+                      if (!Number.isFinite(n) || n < 0) { toast.error('Värdet får inte vara negativt'); return; }
+                      adjustHoursMutation.mutate({ field: 'extra_hours_sold', newValue: Math.floor(n) });
+                    }}><Check className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setHoursEdit(null)}><X className="h-4 w-4" /></Button>
+                  </span>
+                ) : (
+                  <>
+                    <span>{caseData.extra_hours_sold} st → {(caseData.extra_hours_sold * HOUR_RATE).toLocaleString('sv-SE')} kr</span>
+                    {(isSeller || isAdmin) && (
+                      <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setHoursEdit({ field: 'extra_hours_sold', value: String(caseData.extra_hours_sold ?? 0) })} aria-label="Redigera sålda extra timmar">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
               <div><span className="text-muted-foreground">Extra tim begärda:</span> {caseData.extra_hours_requested}</div>
-              <div><span className="text-muted-foreground">Extra tim godkända:</span> {caseData.extra_hours_approved} st → {(caseData.extra_hours_approved * HOUR_RATE).toLocaleString('sv-SE')} kr</div>
+              <div className="flex items-center gap-1 flex-wrap">
+                <span className="text-muted-foreground">Extra tim godkända:</span>
+                {hoursEdit?.field === 'extra_hours_approved' ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={caseData.extra_hours_requested ?? undefined}
+                      className="h-7 w-20"
+                      value={hoursEdit.value}
+                      onChange={(e) => setHoursEdit({ field: 'extra_hours_approved', value: e.target.value })}
+                      autoFocus
+                    />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" disabled={adjustHoursMutation.isPending} onClick={() => {
+                      const n = Number(hoursEdit.value);
+                      if (!Number.isFinite(n) || n < 0) { toast.error('Värdet får inte vara negativt'); return; }
+                      if (n > (caseData.extra_hours_requested ?? 0)) { toast.error('Godkända kan inte överstiga begärda timmar'); return; }
+                      adjustHoursMutation.mutate({ field: 'extra_hours_approved', newValue: Math.floor(n) });
+                    }}><Check className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setHoursEdit(null)}><X className="h-4 w-4" /></Button>
+                  </span>
+                ) : (
+                  <>
+                    <span>{caseData.extra_hours_approved} st → {(caseData.extra_hours_approved * HOUR_RATE).toLocaleString('sv-SE')} kr</span>
+                    {(isSeller || isAdmin) && (
+                      <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setHoursEdit({ field: 'extra_hours_approved', value: String(caseData.extra_hours_approved ?? 0) })} aria-label="Redigera godkända extra timmar">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
             )}
             {(caseData.extra_hours_sold > 0 || caseData.extra_hours_approved > 0) && (() => {
