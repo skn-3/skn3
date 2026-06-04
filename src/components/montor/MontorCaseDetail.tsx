@@ -447,6 +447,73 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             </div>
           )}
 
+          {/* Boka montagedatum (samma villkor som koordinatorns "Att boka in") */}
+          {['godkand', 'i_produktion', 'leverans_klar'].includes(caseData.status) && !caseData.montage_date && (
+            <div className="space-y-2 rounded-lg border p-3 bg-muted/30">
+              <Label className="flex items-center gap-1.5"><CalendarIcon className="h-4 w-4" /> Boka montagedatum</Label>
+              <Input type="date" value={montageDate} onChange={(e) => setMontageDate(e.target.value)} className="min-h-[48px]" />
+              <Label>Tid (valfritt)</Label>
+              <Input type="time" value={montageTime} onChange={(e) => setMontageTime(e.target.value)} className="min-h-[48px]" />
+              <Button
+                disabled={!montageDate || bookMontageMutation.isPending}
+                onClick={() => bookMontageMutation.mutate()}
+                className="min-h-[48px] w-full"
+              >
+                {bookMontageMutation.isPending ? 'Sparar...' : 'Boka montage'}
+              </Button>
+            </div>
+          )}
+
+          {/* Visa befintligt montagedatum + ändra-knapp */}
+          {caseData.montage_date && (
+            <div className="rounded-lg border p-3 space-y-2">
+              {!editingMontage ? (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm">
+                    <div className="text-muted-foreground">Montagedatum</div>
+                    <div className="font-medium">
+                      {caseData.montage_date}{(caseData as any).montage_time ? ` kl ${((caseData as any).montage_time as string).slice(0,5)}` : ''}
+                    </div>
+                  </div>
+                  {caseData.status !== 'montage_klart' && caseData.status !== 'fakturerad' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditMontageDate(caseData.montage_date || '');
+                        setEditMontageTime(((caseData as any).montage_time as string) || '');
+                        setEditingMontage(true);
+                      }}
+                      className="min-h-[40px]"
+                    >
+                      <Pencil className="h-4 w-4 mr-1" /> Ändra
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Nytt montagedatum</Label>
+                  <Input type="date" value={editMontageDate} onChange={(e) => setEditMontageDate(e.target.value)} className="min-h-[48px]" />
+                  <Label>Tid (valfritt)</Label>
+                  <Input type="time" value={editMontageTime} onChange={(e) => setEditMontageTime(e.target.value)} className="min-h-[48px]" />
+                  <div className="flex gap-2">
+                    <Button
+                      disabled={!editMontageDate || rescheduleMontageMutation.isPending}
+                      onClick={() => rescheduleMontageMutation.mutate()}
+                      className="min-h-[48px] flex-1"
+                    >
+                      {rescheduleMontageMutation.isPending ? 'Sparar...' : 'Spara'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditingMontage(false)} className="min-h-[48px]">
+                      Avbryt
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+
           {/* Extra hours status for montör */}
           {caseData.extra_hours_requested > 0 && caseData.status !== 'km_bokad' && (
             <div className="rounded-lg border p-3 space-y-1">
