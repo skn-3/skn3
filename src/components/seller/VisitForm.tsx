@@ -107,7 +107,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       const [casesRes, orderRows] = await Promise.all([
         supabase
           .from('cases')
-          .select('id, address, customer_name, customer_phone')
+          .select('id, address, customer_name, customer_phone, status')
           .ilike('address', `%${term}%`)
           .limit(5),
         searchOrders(term),
@@ -119,6 +119,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           address: c.address,
           customer_name: c.customer_name,
           customer_phone: c.customer_phone || '',
+          status: c.status,
         }),
       );
       (orderRows || []).slice(0, 5).forEach((o: any) =>
