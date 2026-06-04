@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
 import { canEnterStatus } from '@/lib/statusRules';
