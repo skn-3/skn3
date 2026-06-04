@@ -422,6 +422,16 @@ function BookingSheet({
             : { montage_date: montageDate, montage_time: montageTime || null, case_id: c.id, team },
         });
       }
+
+      // Tilldelningsmail till montör vid montagebokning (separat från koordinator-mailet)
+      if (becomesBooked && (team || c.team)) {
+        await sendMontorAssignmentEmail(
+          { ...c, team: team || c.team, montage_date: montageDate, montage_time: montageTime || null },
+          'montage',
+          coordinatorName,
+          { montage_date: montageDate, montage_time: montageTime || null },
+        );
+      }
     },
     onSuccess: () => {
       toast.success(`✓ Bokat${team ? ` — ${team}` : ''}${montageDate ? `, ${montageDate}${montageTime ? ' ' + montageTime.slice(0,5) : ''}` : ''}`);
