@@ -44,6 +44,11 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [kmNote, setKmNote] = useState('');
   const [note, setNote] = useState('');
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
+  const [montageDate, setMontageDate] = useState('');
+  const [montageTime, setMontageTime] = useState('');
+  const [editingMontage, setEditingMontage] = useState(false);
+  const [editMontageDate, setEditMontageDate] = useState('');
+  const [editMontageTime, setEditMontageTime] = useState('');
 
   // Cost form state
   const [costDesc, setCostDesc] = useState('');
