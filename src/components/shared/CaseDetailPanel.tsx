@@ -598,6 +598,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         console.error('Email notification failed:', emailErr);
         toast.warning('Status uppdaterad men mailet kunde inte skickas');
       }
+
+      // Tilldelningsmail till montör (separat) — team kan ha bytts via approvalMontor
+      await sendMontorAssignmentEmail(
+        { ...caseData, team: approvalMontor, montage_date: dateStr },
+        'montage',
+        currentUser,
+        { montage_date: dateStr },
+      );
     },
     onSuccess: () => { invalidate(); toast.success('KM godkänd och montage bokat'); },
     onError: (e: Error) => toast.error(e.message),
