@@ -232,7 +232,7 @@ export async function sendNotificationEmail(params: {
  * Loggar ett case_event av typen 'notification' efter lyckat utskick.
  */
 export async function sendMontorAssignmentEmail(
-  caseData: Pick<CaseRow, 'id' | 'address' | 'customer_name' | 'phone' | 'team' | 'seller' | 'km_date' | 'montage_date'> & { montage_time?: string | null },
+  caseData: Pick<CaseRow, 'id' | 'address' | 'customer_name' | 'customer_phone' | 'team' | 'seller' | 'km_date' | 'montage_date'> & { montage_time?: string | null },
   kind: 'km' | 'montage',
   createdBy: string,
   overrides?: { km_date?: string; montage_date?: string; montage_time?: string | null }
