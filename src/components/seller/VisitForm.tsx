@@ -440,7 +440,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                 }
                 return { ...f, address: newAddr, city: nextCity };
               });
-              setExistingCaseWarning(false);
+              setExistingCase(null);
             }}
             onFocus={() => {
               if (suggestions.length > 0) setShowSuggestions(true);
