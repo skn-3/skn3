@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { EMAIL_MAP } from '@/lib/constants';
 
 export type CaseRow = Database['public']['Tables']['cases']['Row'];
 export type CaseInsert = Database['public']['Tables']['cases']['Insert'];
