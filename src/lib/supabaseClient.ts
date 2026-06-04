@@ -247,7 +247,7 @@ export async function sendMontorAssignmentEmail(
     const montageDate = overrides?.montage_date ?? caseData.montage_date ?? '';
     const montageTime = overrides?.montage_time ?? caseData.montage_time ?? '';
 
-    const phone = (caseData as any).phone || 'Ej angivet';
+    const phone = caseData.customer_phone || 'Ej angivet';
 
     let subject: string;
     let heading: string;
