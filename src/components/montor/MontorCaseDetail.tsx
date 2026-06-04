@@ -207,6 +207,72 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     onSuccess: () => { invalidate(); toast.success('KM rapporterad'); },
   });
 
+  const bookMontageMutation = useMutation({
+    mutationFn: async () => {
+      if (!montageDate) throw new Error('Datum krävs');
+      await updateCase(caseData.id, {
+        montage_date: montageDate,
+        montage_time: montageTime || null,
+        status: 'montage_bokat',
+      } as any);
+      const desc = `Montage bokat ${montageDate}${montageTime ? ' ' + montageTime : ''} av ${currentUser}`;
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'montage_booked',
+        description: desc,
+        created_by: currentUser,
+      });
+      logActivity({
+        category: 'case',
+        action: 'montage_booked',
+        description: desc,
+        case_id: caseData.id,
+        metadata: { montage_date: montageDate, montage_time: montageTime || null, case_id: caseData.id },
+      });
+    },
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+      toast.success(`Montage bokat ${montageDate}`);
+      setMontageDate('');
+      setMontageTime('');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const rescheduleMontageMutation = useMutation({
+    mutationFn: async () => {
+      if (!editMontageDate) throw new Error('Datum krävs');
+      const oldDate = caseData.montage_date;
+      const oldTime = (caseData as any).montage_time || null;
+      await updateCase(caseData.id, {
+        montage_date: editMontageDate,
+        montage_time: editMontageTime || null,
+      } as any);
+      const desc = `Montagedatum ändrat från ${oldDate}${oldTime ? ' ' + oldTime : ''} till ${editMontageDate}${editMontageTime ? ' ' + editMontageTime : ''} av ${currentUser}`;
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'montage_rescheduled',
+        description: desc,
+        created_by: currentUser,
+      });
+      logActivity({
+        category: 'case',
+        action: 'montage_rescheduled',
+        description: desc,
+        case_id: caseData.id,
+        metadata: { old_date: oldDate, new_date: editMontageDate, old_time: oldTime, new_time: editMontageTime || null, case_id: caseData.id },
+      });
+    },
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+      toast.success(`Montagedatum ändrat till ${editMontageDate}`);
+      setEditingMontage(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const costMutation = useMutation({
     mutationFn: async () => {
       const cost = await createCaseCost({
