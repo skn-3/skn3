@@ -342,7 +342,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       }
 
       setForm(emptyForm());
-      setExistingCaseWarning(false);
+      setExistingCase(null);
     },
     onError: (err: Error) => {
       toast.error(err.message || 'Kunde inte spara');
