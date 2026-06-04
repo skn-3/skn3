@@ -9,7 +9,7 @@ import {
 } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { searchOrders } from '@/integrations/orderGateway';
-import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
+import { MONTORS, EMAIL_MAP, HOUR_RATE, STATUS_LABELS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
