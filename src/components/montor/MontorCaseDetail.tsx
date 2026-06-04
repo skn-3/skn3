@@ -230,6 +230,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         case_id: caseData.id,
         metadata: { montage_date: montageDate, montage_time: montageTime || null, case_id: caseData.id },
       });
+      await sendMontorAssignmentEmail(
+        { ...caseData, montage_date: montageDate, montage_time: montageTime || null },
+        'montage',
+        currentUser,
+        { montage_date: montageDate, montage_time: montageTime || null },
+      );
     },
     onSuccess: () => {
       invalidate();
