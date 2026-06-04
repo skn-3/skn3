@@ -11,6 +11,7 @@ import {
   updateDeviation,
   createCaseEvent,
   createCaseCost,
+  sendMontorAssignmentEmail,
   type CaseRow,
   type DeviationRow,
 } from '@/lib/supabaseClient';
