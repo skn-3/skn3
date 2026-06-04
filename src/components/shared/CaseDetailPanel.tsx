@@ -438,6 +438,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           toast.warning('Status uppdaterad men mailet kunde inte skickas');
         }
       }
+
+      // Tilldelningsmail till montör (separat från koordinatorns mail)
+      if (newStatus === 'montage_bokat') {
+        await sendMontorAssignmentEmail(caseData, 'montage', currentUser);
+      }
     },
     onSuccess: (_d, vars) => {
       invalidate();
