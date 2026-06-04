@@ -161,6 +161,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: `KM bokad: ${kmDate}`,
         created_by: currentUser,
       });
+      await sendMontorAssignmentEmail(caseData, 'km', currentUser, { km_date: kmDate });
     },
     onSuccess: () => { invalidate(); toast.success('KM bokad'); },
   });
