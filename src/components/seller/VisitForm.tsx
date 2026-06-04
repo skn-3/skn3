@@ -474,8 +474,20 @@ export function VisitForm({ sellerName }: VisitFormProps) {
               ))}
             </div>
           )}
-          {existingCaseWarning && (
-            <p className="text-xs text-destructive">Det finns redan ett ärende på denna adress</p>
+          {existingCase && (
+            <Alert variant="warning" className="mt-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Möjlig dubblett</AlertTitle>
+              <AlertDescription className="space-y-1">
+                <div>
+                  {existingCase.address} · {existingCase.customer_name} ·{' '}
+                  {STATUS_LABELS[existingCase.status] || existingCase.status}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Det går bra att skapa ändå om det är en ny, separat order.
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       </div>
