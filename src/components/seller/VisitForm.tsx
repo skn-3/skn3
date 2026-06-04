@@ -94,7 +94,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
   // ===== Adress-autocomplete + dubblettvarning (samma mönster som NewCaseForm) =====
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [existingCaseWarning, setExistingCaseWarning] = useState(false);
+  const [existingCase, setExistingCase] = useState<{ address: string; customer_name: string; status: string } | null>(null);
   const addressWrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
