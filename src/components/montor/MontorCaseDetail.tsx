@@ -5,12 +5,13 @@ import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, create
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
 import { canEnterStatus } from '@/lib/statusRules';
+import { logActivity } from '@/lib/activityLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2, X, Receipt, Wrench } from 'lucide-react';
+import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2, X, Receipt, Wrench, Pencil, Calendar as CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { celebrateMontageDone } from '@/lib/celebrate';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
@@ -43,6 +44,11 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [kmNote, setKmNote] = useState('');
   const [note, setNote] = useState('');
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
+  const [montageDate, setMontageDate] = useState('');
+  const [montageTime, setMontageTime] = useState('');
+  const [editingMontage, setEditingMontage] = useState(false);
+  const [editMontageDate, setEditMontageDate] = useState('');
+  const [editMontageTime, setEditMontageTime] = useState('');
 
   // Cost form state
   const [costDesc, setCostDesc] = useState('');
@@ -199,6 +205,72 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       }
     },
     onSuccess: () => { invalidate(); toast.success('KM rapporterad'); },
+  });
+
+  const bookMontageMutation = useMutation({
+    mutationFn: async () => {
+      if (!montageDate) throw new Error('Datum krävs');
+      await updateCase(caseData.id, {
+        montage_date: montageDate,
+        montage_time: montageTime || null,
+        status: 'montage_bokat',
+      } as any);
+      const desc = `Montage bokat ${montageDate}${montageTime ? ' ' + montageTime : ''} av ${currentUser}`;
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'montage_booked',
+        description: desc,
+        created_by: currentUser,
+      });
+      logActivity({
+        category: 'case',
+        action: 'montage_booked',
+        description: desc,
+        case_id: caseData.id,
+        metadata: { montage_date: montageDate, montage_time: montageTime || null, case_id: caseData.id },
+      });
+    },
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+      toast.success(`Montage bokat ${montageDate}`);
+      setMontageDate('');
+      setMontageTime('');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const rescheduleMontageMutation = useMutation({
+    mutationFn: async () => {
+      if (!editMontageDate) throw new Error('Datum krävs');
+      const oldDate = caseData.montage_date;
+      const oldTime = (caseData as any).montage_time || null;
+      await updateCase(caseData.id, {
+        montage_date: editMontageDate,
+        montage_time: editMontageTime || null,
+      } as any);
+      const desc = `Montagedatum ändrat från ${oldDate}${oldTime ? ' ' + oldTime : ''} till ${editMontageDate}${editMontageTime ? ' ' + editMontageTime : ''} av ${currentUser}`;
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'montage_rescheduled',
+        description: desc,
+        created_by: currentUser,
+      });
+      logActivity({
+        category: 'case',
+        action: 'montage_rescheduled',
+        description: desc,
+        case_id: caseData.id,
+        metadata: { old_date: oldDate, new_date: editMontageDate, old_time: oldTime, new_time: editMontageTime || null, case_id: caseData.id },
+      });
+    },
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+      toast.success(`Montagedatum ändrat till ${editMontageDate}`);
+      setEditingMontage(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const costMutation = useMutation({
@@ -374,6 +446,73 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               </Button>
             </div>
           )}
+
+          {/* Boka montagedatum (samma villkor som koordinatorns "Att boka in") */}
+          {['godkand', 'i_produktion', 'leverans_klar'].includes(caseData.status) && !caseData.montage_date && (
+            <div className="space-y-2 rounded-lg border p-3 bg-muted/30">
+              <Label className="flex items-center gap-1.5"><CalendarIcon className="h-4 w-4" /> Boka montagedatum</Label>
+              <Input type="date" value={montageDate} onChange={(e) => setMontageDate(e.target.value)} className="min-h-[48px]" />
+              <Label>Tid (valfritt)</Label>
+              <Input type="time" value={montageTime} onChange={(e) => setMontageTime(e.target.value)} className="min-h-[48px]" />
+              <Button
+                disabled={!montageDate || bookMontageMutation.isPending}
+                onClick={() => bookMontageMutation.mutate()}
+                className="min-h-[48px] w-full"
+              >
+                {bookMontageMutation.isPending ? 'Sparar...' : 'Boka montage'}
+              </Button>
+            </div>
+          )}
+
+          {/* Visa befintligt montagedatum + ändra-knapp */}
+          {caseData.montage_date && (
+            <div className="rounded-lg border p-3 space-y-2">
+              {!editingMontage ? (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm">
+                    <div className="text-muted-foreground">Montagedatum</div>
+                    <div className="font-medium">
+                      {caseData.montage_date}{(caseData as any).montage_time ? ` kl ${((caseData as any).montage_time as string).slice(0,5)}` : ''}
+                    </div>
+                  </div>
+                  {caseData.status !== 'montage_klart' && caseData.status !== 'fakturerad' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditMontageDate(caseData.montage_date || '');
+                        setEditMontageTime(((caseData as any).montage_time as string) || '');
+                        setEditingMontage(true);
+                      }}
+                      className="min-h-[40px]"
+                    >
+                      <Pencil className="h-4 w-4 mr-1" /> Ändra
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Nytt montagedatum</Label>
+                  <Input type="date" value={editMontageDate} onChange={(e) => setEditMontageDate(e.target.value)} className="min-h-[48px]" />
+                  <Label>Tid (valfritt)</Label>
+                  <Input type="time" value={editMontageTime} onChange={(e) => setEditMontageTime(e.target.value)} className="min-h-[48px]" />
+                  <div className="flex gap-2">
+                    <Button
+                      disabled={!editMontageDate || rescheduleMontageMutation.isPending}
+                      onClick={() => rescheduleMontageMutation.mutate()}
+                      className="min-h-[48px] flex-1"
+                    >
+                      {rescheduleMontageMutation.isPending ? 'Sparar...' : 'Spara'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditingMontage(false)} className="min-h-[48px]">
+                      Avbryt
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
 
           {/* Extra hours status for montör */}
           {caseData.extra_hours_requested > 0 && caseData.status !== 'km_bokad' && (

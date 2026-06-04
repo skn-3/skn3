@@ -28,6 +28,7 @@ import {
   DEVIATION_STATUS_META,
   type DeviationStatus,
 } from '@/components/deviations/DeviationActionPanel';
+import { logActivity } from '@/lib/activityLog';
 
 interface Props {
   coordinatorName: string;
@@ -385,22 +386,41 @@ function BookingSheet({
   const mutation = useMutation({
     mutationFn: async () => {
       if (!c) return;
+      const oldMontageDate = c.montage_date;
+      const oldMontageTime = (c as any).montage_time || null;
       const updates: any = {};
       if (team) updates.team = team;
       if (kmTeam) updates.km_team = kmTeam;
       if (montageDate) updates.montage_date = montageDate;
       if (montageTime) updates.montage_time = montageTime;
       if (kmDate) updates.km_date = kmDate;
-      if (montageDate && team && c.status !== 'montage_bokat' && c.status !== 'montage_pagar' && c.status !== 'montage_klart') {
+      const becomesBooked = montageDate && team && c.status !== 'montage_bokat' && c.status !== 'montage_pagar' && c.status !== 'montage_klart';
+      if (becomesBooked) {
         updates.status = 'montage_bokat';
       }
       await updateCase(c.id, updates);
+      const desc = `Bokad av ${coordinatorName}${team ? ` — montör: ${team}` : ''}${montageDate ? `, montage ${montageDate}${montageTime ? ' ' + montageTime : ''}` : ''}${kmDate ? `, KM ${kmDate}` : ''}`;
       await createCaseEvent({
         case_id: c.id,
         event_type: 'booking',
-        description: `Bokad av ${coordinatorName}${team ? ` — montör: ${team}` : ''}${montageDate ? `, montage ${montageDate}${montageTime ? ' ' + montageTime : ''}` : ''}${kmDate ? `, KM ${kmDate}` : ''}`,
+        description: desc,
         created_by: coordinatorName,
       });
+      // Logga till activity_log för enhetlig spårning (matchar montörens action-namn)
+      if (montageDate) {
+        const isReschedule = !!oldMontageDate && oldMontageDate !== montageDate;
+        logActivity({
+          category: 'case',
+          action: isReschedule ? 'montage_rescheduled' : 'montage_booked',
+          description: isReschedule
+            ? `Montagedatum ändrat från ${oldMontageDate}${oldMontageTime ? ' ' + oldMontageTime : ''} till ${montageDate}${montageTime ? ' ' + montageTime : ''} av ${coordinatorName}`
+            : `Montage bokat ${montageDate}${montageTime ? ' ' + montageTime : ''} av ${coordinatorName}`,
+          case_id: c.id,
+          metadata: isReschedule
+            ? { old_date: oldMontageDate, new_date: montageDate, old_time: oldMontageTime, new_time: montageTime || null, case_id: c.id, team }
+            : { montage_date: montageDate, montage_time: montageTime || null, case_id: c.id, team },
+        });
+      }
     },
     onSuccess: () => {
       toast.success(`✓ Bokat${team ? ` — ${team}` : ''}${montageDate ? `, ${montageDate}${montageTime ? ' ' + montageTime.slice(0,5) : ''}` : ''}`);
