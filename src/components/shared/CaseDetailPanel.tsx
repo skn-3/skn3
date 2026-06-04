@@ -499,6 +499,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         description: `KM bokad: ${kmDate}`,
         created_by: currentUser,
       });
+      await sendMontorAssignmentEmail(caseData, 'km', currentUser, { km_date: kmDate });
     },
     onSuccess: () => { invalidate(); toast.success('KM bokad'); },
   });
