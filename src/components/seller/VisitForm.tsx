@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CheckCircle2, RefreshCcw, XCircle, AlertTriangle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { cn, formatAmount } from '@/lib/utils';
 import { toast } from 'sonner';
 import { celebrateSignedDeal } from '@/lib/celebrate';
