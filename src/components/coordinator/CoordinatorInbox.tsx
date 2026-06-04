@@ -28,6 +28,7 @@ import {
   DEVIATION_STATUS_META,
   type DeviationStatus,
 } from '@/components/deviations/DeviationActionPanel';
+import { logActivity } from '@/lib/activityLog';
 
 interface Props {
   coordinatorName: string;
