@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { EMAIL_MAP } from '@/lib/constants';
 
 export type CaseRow = Database['public']['Tables']['cases']['Row'];
 export type CaseInsert = Database['public']['Tables']['cases']['Insert'];
@@ -221,4 +222,76 @@ export async function sendNotificationEmail(params: {
   });
   if (error) throw error;
   return data;
+}
+
+/**
+ * Skicka tilldelningsmail till montör (KM eller montage).
+ * Skickas alltid om team finns och EMAIL_MAP har en mappning – även om montören
+ * själv är den som bokar (fungerar då som bekräftelse, och kontoret får alltid
+ * kopian via GLOBAL_CC i notify-email).
+ * Loggar ett case_event av typen 'notification' efter lyckat utskick.
+ */
+export async function sendMontorAssignmentEmail(
+  caseData: Pick<CaseRow, 'id' | 'address' | 'customer_name' | 'customer_phone' | 'team' | 'seller' | 'km_date' | 'montage_date'> & { montage_time?: string | null },
+  kind: 'km' | 'montage',
+  createdBy: string,
+  overrides?: { km_date?: string; montage_date?: string; montage_time?: string | null }
+): Promise<void> {
+  try {
+    const team = caseData.team;
+    if (!team) return;
+    const to = EMAIL_MAP[team];
+    if (!to) return;
+
+    const kmDate = overrides?.km_date ?? caseData.km_date ?? '';
+    const montageDate = overrides?.montage_date ?? caseData.montage_date ?? '';
+    const montageTime = overrides?.montage_time ?? caseData.montage_time ?? '';
+
+    const phone = caseData.customer_phone || 'Ej angivet';
+
+    let subject: string;
+    let heading: string;
+    let rows: Array<{ label: string; value: string }>;
+    if (kind === 'km') {
+      subject = `KONTROLLMÄTNING TILLDELAD — ${caseData.address}`;
+      heading = 'Du har blivit tilldelad en kontrollmätning';
+      rows = [
+        { label: 'Adress', value: caseData.address },
+        { label: 'Kund', value: caseData.customer_name },
+        { label: 'Telefon', value: phone },
+        { label: 'KM-datum', value: kmDate || 'Ej angivet' },
+        { label: 'Säljare', value: caseData.seller || 'Ej angivet' },
+      ];
+    } else {
+      subject = `MONTAGE TILLDELAT — ${caseData.address}`;
+      heading = 'Du har blivit tilldelad ett montage';
+      const datumValue = montageDate
+        ? `${montageDate}${montageTime ? ' ' + String(montageTime).slice(0, 5) : ''}`
+        : 'Ej angivet';
+      rows = [
+        { label: 'Adress', value: caseData.address },
+        { label: 'Kund', value: caseData.customer_name },
+        { label: 'Telefon', value: phone },
+        { label: 'Montagedatum', value: datumValue },
+        { label: 'Montör', value: team },
+      ];
+    }
+
+    await sendNotificationEmail({
+      to,
+      subject,
+      heading,
+      rows,
+      callToAction: 'Öppna appen för detaljer.',
+    });
+
+    await createCaseEvent({
+      case_id: caseData.id,
+      event_type: 'notification',
+      description: `Tilldelningsmail skickat till montör (${to})`,
+      created_by: createdBy,
+    });
+  } catch (err) {
+    console.error('sendMontorAssignmentEmail failed:', err);
+  }
 }

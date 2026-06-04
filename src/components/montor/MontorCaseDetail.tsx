@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
 import { canEnterStatus } from '@/lib/statusRules';
@@ -161,6 +161,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: `KM bokad: ${kmDate}`,
         created_by: currentUser,
       });
+      await sendMontorAssignmentEmail(caseData, 'km', currentUser, { km_date: kmDate });
     },
     onSuccess: () => { invalidate(); toast.success('KM bokad'); },
   });
@@ -229,6 +230,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         case_id: caseData.id,
         metadata: { montage_date: montageDate, montage_time: montageTime || null, case_id: caseData.id },
       });
+      await sendMontorAssignmentEmail(
+        { ...caseData, montage_date: montageDate, montage_time: montageTime || null },
+        'montage',
+        currentUser,
+        { montage_date: montageDate, montage_time: montageTime || null },
+      );
     },
     onSuccess: () => {
       invalidate();

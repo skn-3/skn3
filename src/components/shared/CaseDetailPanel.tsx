@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, deleteCase } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP, COORDINATOR_EMAIL, COORDINATOR_CC, MONTORS, SELLERS, HOUR_RATE, SELLER_PIPELINE_COLUMNS, ADMIN_USERS } from '@/lib/constants';
 import { canEnterStatus } from '@/lib/statusRules';
@@ -438,6 +438,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           toast.warning('Status uppdaterad men mailet kunde inte skickas');
         }
       }
+
+      // Tilldelningsmail till montör (separat från koordinatorns mail)
+      if (newStatus === 'montage_bokat') {
+        await sendMontorAssignmentEmail(caseData, 'montage', currentUser);
+      }
     },
     onSuccess: (_d, vars) => {
       invalidate();
@@ -494,6 +499,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         description: `KM bokad: ${kmDate}`,
         created_by: currentUser,
       });
+      await sendMontorAssignmentEmail(caseData, 'km', currentUser, { km_date: kmDate });
     },
     onSuccess: () => { invalidate(); toast.success('KM bokad'); },
   });
@@ -592,6 +598,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         console.error('Email notification failed:', emailErr);
         toast.warning('Status uppdaterad men mailet kunde inte skickas');
       }
+
+      // Tilldelningsmail till montör (separat) — team kan ha bytts via approvalMontor
+      await sendMontorAssignmentEmail(
+        { ...caseData, team: approvalMontor, montage_date: dateStr },
+        'montage',
+        currentUser,
+        { montage_date: dateStr },
+      );
     },
     onSuccess: () => { invalidate(); toast.success('KM godkänd och montage bokat'); },
     onError: (e: Error) => toast.error(e.message),

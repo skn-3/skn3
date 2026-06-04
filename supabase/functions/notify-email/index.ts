@@ -103,6 +103,8 @@ ${rows.map(r => `<tr>
 // Map heading keywords to CTA button config
 function getCtaForHeading(heading: string): string | null {
   const h = heading.toLowerCase();
+  if (h.includes('tilldelad en kontrollmätning') || h.includes('tilldelad ett montage'))
+    return buildCtaButton('Öppna ärendet i appen', '#22C55E');
   if (h.includes('nytt ärende') || h.includes('tilldelat'))
     return buildCtaButton('Öppna appen och boka KM', '#22C55E');
   if (h.includes('km klar') && h.includes('extra'))

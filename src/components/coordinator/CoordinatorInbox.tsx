@@ -11,6 +11,7 @@ import {
   updateDeviation,
   createCaseEvent,
   createCaseCost,
+  sendMontorAssignmentEmail,
   type CaseRow,
   type DeviationRow,
 } from '@/lib/supabaseClient';
@@ -420,6 +421,16 @@ function BookingSheet({
             ? { old_date: oldMontageDate, new_date: montageDate, old_time: oldMontageTime, new_time: montageTime || null, case_id: c.id, team }
             : { montage_date: montageDate, montage_time: montageTime || null, case_id: c.id, team },
         });
+      }
+
+      // Tilldelningsmail till montör vid montagebokning (separat från koordinator-mailet)
+      if (becomesBooked && (team || c.team)) {
+        await sendMontorAssignmentEmail(
+          { ...c, team: team || c.team, montage_date: montageDate, montage_time: montageTime || null },
+          'montage',
+          coordinatorName,
+          { montage_date: montageDate, montage_time: montageTime || null },
+        );
       }
     },
     onSuccess: () => {
