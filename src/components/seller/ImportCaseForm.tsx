@@ -732,43 +732,50 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
 
       {dupCandidates.length > 0 && (
-        <div className={cn(
-          "rounded-lg border p-3 space-y-2",
-          strongMatches.length > 0
-            ? "border-orange-400 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-700"
-            : "border-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-700",
-        )}>
-          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <AlertTriangle className="h-4 w-4" />
+        <Alert
+          variant={strongMatches.length > 0 ? 'warning' : 'default'}
+          className={cn(
+            strongMatches.length > 0
+              ? ''
+              : 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-700',
+          )}
+        >
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>
             Möjlig dubblett — {dupCandidates.length} liknande ärende{dupCandidates.length !== 1 ? 'n' : ''} finns redan
-          </div>
-          <ul className="space-y-1.5">
-            {dupCandidates.slice(0, 5).map((m) => (
-              <li key={m.case.id} className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="font-medium">{m.case.address}</span>
-                <span className="text-muted-foreground">· {m.case.customer_name}</span>
-                <span className="text-muted-foreground">· {m.case.seller}</span>
-                <span className="text-muted-foreground">· {new Date(m.case.created_at).toLocaleDateString('sv-SE')}</span>
-                {m.reasons.map((r) => (
-                  <Badge
-                    key={r}
-                    variant={m.strength === 'strong' ? 'destructive' : 'secondary'}
-                    className="text-[10px]"
+          </AlertTitle>
+          <AlertDescription className="space-y-2">
+            <ul className="space-y-1.5">
+              {dupCandidates.slice(0, 5).map((m) => (
+                <li key={m.case.id} className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="font-medium">{m.case.address}</span>
+                  <span className="text-muted-foreground">· {m.case.customer_name}</span>
+                  <span className="text-muted-foreground">· {m.case.seller}</span>
+                  <span className="text-muted-foreground">· {new Date(m.case.created_at).toLocaleDateString('sv-SE')}</span>
+                  {m.reasons.map((r) => (
+                    <Badge
+                      key={r}
+                      variant={m.strength === 'strong' ? 'destructive' : 'secondary'}
+                      className="text-[10px]"
+                    >
+                      {r}
+                    </Badge>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setViewCase(m.case)}
+                    className="ml-auto text-primary underline underline-offset-2 hover:no-underline"
                   >
-                    {r}
-                  </Badge>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setViewCase(m.case)}
-                  className="ml-auto text-primary underline underline-offset-2 hover:no-underline"
-                >
-                  Visa ärende
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+                    Visa ärende
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="text-xs text-muted-foreground">
+              Det går bra att importera ändå om det är en ny, separat order.
+            </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       <Button
