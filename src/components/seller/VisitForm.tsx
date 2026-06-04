@@ -168,7 +168,11 @@ export function VisitForm({ sellerName }: VisitFormProps) {
         customer_phone: s.customer_phone || f.customer_phone,
       };
     });
-    setExistingCaseWarning(s.source === 'case');
+    setExistingCase(
+      s.source === 'case' && s.status
+        ? { address: s.address, customer_name: s.customer_name, status: s.status }
+        : null,
+    );
     setShowSuggestions(false);
   };
 
