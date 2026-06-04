@@ -47,6 +47,7 @@ type AddressSuggestion = {
   address: string;
   customer_name: string;
   customer_phone: string;
+  status?: string;
 };
 
 interface VisitFormProps {
