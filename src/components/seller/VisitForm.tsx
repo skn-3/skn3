@@ -9,7 +9,7 @@ import {
 } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { searchOrders } from '@/integrations/orderGateway';
-import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
+import { MONTORS, EMAIL_MAP, HOUR_RATE, STATUS_LABELS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,7 +33,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CheckCircle2, RefreshCcw, XCircle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { CheckCircle2, RefreshCcw, XCircle, AlertTriangle } from 'lucide-react';
 import { cn, formatAmount } from '@/lib/utils';
 import { toast } from 'sonner';
 import { celebrateSignedDeal } from '@/lib/celebrate';
@@ -46,6 +47,7 @@ type AddressSuggestion = {
   address: string;
   customer_name: string;
   customer_phone: string;
+  status?: string;
 };
 
 interface VisitFormProps {
@@ -92,7 +94,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
   // ===== Adress-autocomplete + dubblettvarning (samma mönster som NewCaseForm) =====
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [existingCaseWarning, setExistingCaseWarning] = useState(false);
+  const [existingCase, setExistingCase] = useState<{ address: string; customer_name: string; status: string } | null>(null);
   const addressWrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -105,7 +107,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       const [casesRes, orderRows] = await Promise.all([
         supabase
           .from('cases')
-          .select('id, address, customer_name, customer_phone')
+          .select('id, address, customer_name, customer_phone, status')
           .ilike('address', `%${term}%`)
           .limit(5),
         searchOrders(term),
@@ -117,6 +119,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           address: c.address,
           customer_name: c.customer_name,
           customer_phone: c.customer_phone || '',
+          status: c.status,
         }),
       );
       (orderRows || []).slice(0, 5).forEach((o: any) =>
@@ -165,7 +168,11 @@ export function VisitForm({ sellerName }: VisitFormProps) {
         customer_phone: s.customer_phone || f.customer_phone,
       };
     });
-    setExistingCaseWarning(s.source === 'case');
+    setExistingCase(
+      s.source === 'case' && s.status
+        ? { address: s.address, customer_name: s.customer_name, status: s.status }
+        : null,
+    );
     setShowSuggestions(false);
   };
 
@@ -335,7 +342,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       }
 
       setForm(emptyForm());
-      setExistingCaseWarning(false);
+      setExistingCase(null);
     },
     onError: (err: Error) => {
       toast.error(err.message || 'Kunde inte spara');
@@ -433,7 +440,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                 }
                 return { ...f, address: newAddr, city: nextCity };
               });
-              setExistingCaseWarning(false);
+              setExistingCase(null);
             }}
             onFocus={() => {
               if (suggestions.length > 0) setShowSuggestions(true);
@@ -467,8 +474,20 @@ export function VisitForm({ sellerName }: VisitFormProps) {
               ))}
             </div>
           )}
-          {existingCaseWarning && (
-            <p className="text-xs text-destructive">Det finns redan ett ärende på denna adress</p>
+          {existingCase && (
+            <Alert variant="warning" className="mt-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Möjlig dubblett</AlertTitle>
+              <AlertDescription className="space-y-1">
+                <div>
+                  {existingCase.address} · {existingCase.customer_name} ·{' '}
+                  {STATUS_LABELS[existingCase.status] || existingCase.status}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Det går bra att skapa ändå om det är en ny, separat order.
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       </div>
