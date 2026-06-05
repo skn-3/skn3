@@ -1,25 +1,27 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchAllCases, updateCase, createCaseEvent } from '@/lib/supabaseClient';
+import { logActivity } from '@/lib/activityLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, MapPin } from 'lucide-react';
+import { Loader2, MapPin, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatAmount } from '@/lib/utils';
-
-const KNOWN_CITIES = [
-  'Nykvarn', 'Tullinge', 'Lidingö', 'Stockholm', 'Danderyd', 'Ekerö', 'Vällingby',
-  'Järfälla', 'Spånga', 'Norsborg', 'Rönninge', 'Södertälje', 'Huddinge', 'Täby',
-  'Solna', 'Sundbyberg', 'Bromma', 'Nacka', 'Tyresö', 'Haninge', 'Botkyrka',
-  'Sollentuna', 'Upplands Väsby',
-];
+import {
+  extractCityFromAddress,
+  normalizeCityKey,
+  cityDisplayName,
+  KNOWN_CITIES,
+} from '@/lib/city';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 function suggestCity(address: string): string {
   if (!address) return '';
-  if (address.includes(',')) {
-    const after = address.substring(address.lastIndexOf(',') + 1).trim();
-    if (after) return after;
-  }
+  const last = extractCityFromAddress(address);
+  if (last) return cityDisplayName(last);
   const lower = address.toLowerCase();
   for (const c of KNOWN_CITIES) {
     if (lower.endsWith(c.toLowerCase())) return c;
@@ -47,10 +49,52 @@ export function CleanAddressesView({ currentUser }: Props) {
       .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   }, [allCases]);
 
+  // Hittar ärenden där city är ifyllt men inte kanoniskt
+  const normalizationGroups = useMemo(() => {
+    const groups = new Map<string, {
+      key: string;
+      target: string;
+      variants: Map<string, { count: number; value: number; ids: string[] }>;
+    }>();
+    (allCases || []).forEach(c => {
+      const raw = ((c as any).city || '').trim();
+      if (!raw) return;
+      const target = cityDisplayName(raw);
+      if (!target) return;
+      if (raw === target) return; // redan kanoniskt
+      const key = normalizeCityKey(raw);
+      if (!key) return;
+      let g = groups.get(key);
+      if (!g) {
+        g = { key, target, variants: new Map() };
+        groups.set(key, g);
+      }
+      let v = g.variants.get(raw);
+      if (!v) {
+        v = { count: 0, value: 0, ids: [] };
+        g.variants.set(raw, v);
+      }
+      v.count++;
+      v.value += Number((c as any).order_value) || 0;
+      v.ids.push(c.id);
+    });
+    return [...groups.values()]
+      .map(g => ({
+        ...g,
+        variantList: [...g.variants.entries()]
+          .map(([variant, d]) => ({ variant, ...d }))
+          .sort((a, b) => b.count - a.count),
+        totalCount: [...g.variants.values()].reduce((s, v) => s + v.count, 0),
+      }))
+      .sort((a, b) => b.totalCount - a.totalCount);
+  }, [allCases]);
+
   // Local edits per case id
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savingAll, setSavingAll] = useState(false);
+  const [normalizing, setNormalizing] = useState(false);
+  const [pendingNormalize, setPendingNormalize] = useState<{ key?: string; label: string; cases: { id: string; oldVal: string; address: string }[] } | null>(null);
 
   // Initialize edits with suggestions when data loads/changes
   const initializedKey = useMemo(() => missing.map(c => c.id).join(','), [missing]);
@@ -68,11 +112,12 @@ export function CleanAddressesView({ currentUser }: Props) {
   }, [initializedKey]);
 
   const saveOne = async (id: string, address: string) => {
-    const value = (edits[id] || '').trim();
-    if (!value) {
+    const raw = (edits[id] || '').trim();
+    if (!raw) {
       toast.error('Ort saknas');
       return;
     }
+    const value = cityDisplayName(raw) || raw;
     setSavingId(id);
     try {
       await updateCase(id, { city: value } as any);
@@ -107,7 +152,8 @@ export function CleanAddressesView({ currentUser }: Props) {
     let ok = 0;
     let fail = 0;
     for (const c of toSave) {
-      const value = (edits[c.id] || '').trim();
+      const raw = (edits[c.id] || '').trim();
+      const value = cityDisplayName(raw) || raw;
       try {
         await updateCase(c.id, { city: value } as any);
         await createCaseEvent({
@@ -128,6 +174,68 @@ export function CleanAddressesView({ currentUser }: Props) {
     else toast.warning(`${ok} sparade, ${fail} misslyckades`);
   };
 
+  const openNormalizeGroup = (g: typeof normalizationGroups[number]) => {
+    const cases: { id: string; oldVal: string; address: string }[] = [];
+    g.variantList.forEach(v => {
+      v.ids.forEach(id => {
+        const c = (allCases || []).find(x => x.id === id);
+        if (c) cases.push({ id, oldVal: v.variant, address: c.address });
+      });
+    });
+    setPendingNormalize({ key: g.key, label: g.target, cases });
+  };
+
+  const openNormalizeAll = () => {
+    const cases: { id: string; oldVal: string; address: string }[] = [];
+    normalizationGroups.forEach(g => {
+      g.variantList.forEach(v => {
+        v.ids.forEach(id => {
+          const c = (allCases || []).find(x => x.id === id);
+          if (c) cases.push({ id, oldVal: v.variant, address: c.address });
+        });
+      });
+    });
+    setPendingNormalize({ label: 'alla orter', cases });
+  };
+
+  const applyNormalize = async () => {
+    if (!pendingNormalize) return;
+    setNormalizing(true);
+    let ok = 0;
+    let fail = 0;
+    for (const item of pendingNormalize.cases) {
+      const c = (allCases || []).find(x => x.id === item.id);
+      if (!c) { fail++; continue; }
+      const target = cityDisplayName(((c as any).city || '').trim());
+      if (!target || target === ((c as any).city || '').trim()) continue;
+      try {
+        await updateCase(item.id, { city: target } as any);
+        createCaseEvent({
+          case_id: item.id,
+          event_type: 'update',
+          description: `Ort normaliserad: ${item.oldVal} → ${target}`,
+          created_by: currentUser,
+        }).catch(() => {});
+        logActivity({
+          action: 'city_normalized',
+          category: 'data',
+          case_id: item.id,
+          description: `Normaliserade ort: ${item.oldVal} → ${target} på ${item.address}`,
+          metadata: { old: item.oldVal, new: target },
+        });
+        ok++;
+      } catch {
+        fail++;
+      }
+    }
+    setNormalizing(false);
+    setPendingNormalize(null);
+    queryClient.invalidateQueries({ queryKey: ['cases_all'] });
+    queryClient.invalidateQueries({ queryKey: ['cases'] });
+    if (fail === 0) toast.success(`${ok} ärenden normaliserade`);
+    else toast.warning(`${ok} normaliserade, ${fail} misslyckades`);
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
@@ -137,7 +245,7 @@ export function CleanAddressesView({ currentUser }: Props) {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 px-4 md:px-0">
+    <div className="max-w-5xl mx-auto space-y-6 px-4 md:px-0">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <MapPin className="h-5 w-5 text-primary" />
@@ -212,6 +320,87 @@ export function CleanAddressesView({ currentUser }: Props) {
           </table>
         </div>
       )}
+
+      {/* ---- Normalisera orter ---- */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Wand2 className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-bold text-foreground">Normalisera orter</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium bg-primary/10 text-primary px-3 py-1 rounded-full">
+              {normalizationGroups.reduce((s, g) => s + g.totalCount, 0)} ärenden att rätta
+            </span>
+            <Button
+              size="sm"
+              onClick={openNormalizeAll}
+              disabled={normalizationGroups.length === 0 || normalizing}
+            >
+              Normalisera alla
+            </Button>
+          </div>
+        </div>
+
+        {normalizationGroups.length === 0 ? (
+          <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-4 py-3 text-sm text-green-700 dark:text-green-300">
+            Alla orter är redan kanoniska ✓
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {normalizationGroups.map(g => (
+              <div key={g.key} className="rounded-xl border bg-card p-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Kanoniskt namn</div>
+                    <div className="font-semibold text-card-foreground">{g.target}</div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => openNormalizeGroup(g)} disabled={normalizing}>
+                    Normalisera ({g.totalCount})
+                  </Button>
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b">
+                      <th className="py-1 pr-3">Variant</th>
+                      <th className="py-1 pr-3">Antal</th>
+                      <th className="py-1 pr-3">Ordervärde</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {g.variantList.map(v => (
+                      <tr key={v.variant} className="border-t">
+                        <td className="py-1 pr-3 font-medium">{v.variant}</td>
+                        <td className="py-1 pr-3">{v.count}</td>
+                        <td className="py-1 pr-3">{formatAmount(v.value)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <AlertDialog open={!!pendingNormalize} onOpenChange={(o) => !o && setPendingNormalize(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Normalisera orter</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingNormalize
+                ? `${pendingNormalize.cases.length} ärenden kommer få sitt ort-fält rättat till kanoniskt namn (${pendingNormalize.label}). Adress-strängen rörs inte.`
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={normalizing}>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); applyNormalize(); }} disabled={normalizing}>
+              {normalizing ? 'Normaliserar...' : 'Ja, normalisera'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

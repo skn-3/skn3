@@ -55,10 +55,14 @@ function isoWeekKey(d: Date | string): string {
   return isoDate(startOfWeek(new Date(d)));
 }
 
+import { normalizeCityKey, cityDisplayName } from '@/lib/city';
+
 function extractCity(address: string | null | undefined): string | null {
   if (!address) return null;
   const last = address.split(',').pop()?.replace(/\d/g, '').trim();
-  return last || null;
+  if (!last) return null;
+  const key = normalizeCityKey(last);
+  return key ? cityDisplayName(key) : null;
 }
 
 function fmtKr(n: number): string {

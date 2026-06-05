@@ -19,6 +19,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
+import { extractCityFromAddress, normalizeCityKey, cityDisplayName } from '@/lib/city';
 
 interface SellerDashboardProps {
   sellerName: string;
@@ -27,13 +28,11 @@ interface SellerDashboardProps {
 const BUDGET = 55_000_000;
 const PIE_COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', '#F59E0B', '#6B7280'];
 
-function extractCityFromAddress(address: string): string {
-  const parts = (address || '').split(',').map(s => s.trim());
-  return parts.length > 1 ? parts[parts.length - 1] : parts[0];
-}
-
-function getCaseCity(c: { city?: string | null; address: string }): string {
+function getCaseCityRaw(c: { city?: string | null; address: string }): string {
   return (c.city && c.city.trim()) ? c.city.trim() : extractCityFromAddress(c.address);
+}
+function getCaseCityKeyLocal(c: { city?: string | null; address: string }): string {
+  return normalizeCityKey(getCaseCityRaw(c));
 }
 
 export function SellerDashboard({ sellerName }: SellerDashboardProps) {
@@ -67,13 +66,21 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   // Filter imported cases if toggle is off
   const allCases = (allCasesRaw || []).filter(c => includeImported || !(c as any).imported);
 
-  // Extract all cities for filter
-  const allCities = [...new Set(allCases.map(c => getCaseCity(c as any)))].sort();
+  // Extract all cities for filter (kanoniska nycklar + visningsnamn)
+  const cityOptionMap = new Map<string, string>();
+  allCases.forEach(c => {
+    const key = getCaseCityKeyLocal(c as any);
+    if (!key) return;
+    if (!cityOptionMap.has(key)) cityOptionMap.set(key, cityDisplayName(getCaseCityRaw(c as any)));
+  });
+  const allCities = [...cityOptionMap.entries()]
+    .map(([key, label]) => ({ key, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'sv'));
 
   const cases = allCases.filter((c) => {
     if (filterSeller !== 'all' && c.seller !== filterSeller) return false;
     if (filterMontor !== 'all' && c.team !== filterMontor) return false;
-    if (filterCity !== 'all' && getCaseCity(c as any) !== filterCity) return false;
+    if (filterCity !== 'all' && getCaseCityKeyLocal(c as any) !== filterCity) return false;
     if (dateFrom && c.created_at < dateFrom) return false;
     if (dateTo && c.created_at > dateTo + 'T23:59:59') return false;
     return true;
@@ -143,30 +150,31 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
     (v) => v.result === 'aterkoppla' && !v.case_id && v.follow_up_date && v.follow_up_date <= today
   );
 
-  // --- Sales per city ---
-  const normalizeCity = (s: string) => (s || '').trim().toLowerCase();
-  const cityMap: Record<string, { count: number; value: number }> = {};
+  // --- Sales per city (grupperat på kanonisk nyckel) ---
+  const cityMap: Record<string, { count: number; value: number; label: string }> = {};
   cases.forEach(c => {
-    const city = getCaseCity(c as any);
-    if (!cityMap[city]) cityMap[city] = { count: 0, value: 0 };
-    cityMap[city].count++;
-    cityMap[city].value += Number(c.order_value) || 0;
+    const key = getCaseCityKeyLocal(c as any);
+    if (!key) return;
+    if (!cityMap[key]) cityMap[key] = { count: 0, value: 0, label: cityDisplayName(getCaseCityRaw(c as any)) };
+    cityMap[key].count++;
+    cityMap[key].value += Number(c.order_value) || 0;
   });
-  // Key visits by normalized city so they match getCaseCity output regardless of case/whitespace
+  // Besök gruppas på samma kanoniska nyckel
   const cityVisitMap: Record<string, { total: number; signerat: number }> = {};
   visits.forEach(v => {
-    const key = normalizeCity(extractCityFromAddress(v.address));
+    const key = normalizeCityKey(extractCityFromAddress(v.address));
     if (!key) return;
     if (!cityVisitMap[key]) cityVisitMap[key] = { total: 0, signerat: 0 };
     cityVisitMap[key].total++;
     if (v.result === 'signerat') cityVisitMap[key].signerat++;
   });
   const cityData = Object.entries(cityMap)
-    .map(([city, d]) => {
-      const v = cityVisitMap[normalizeCity(city)];
+    .map(([key, d]) => {
+      const v = cityVisitMap[key];
       const hasVisits = !!(v && v.total > 0);
       return {
-        city,
+        city: d.label,
+        key,
         count: d.count,
         value: d.value,
         hitRate: hasVisits ? Math.round((v!.signerat / v!.total) * 100) : null,
@@ -458,7 +466,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Alla</SelectItem>
-                {allCities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                {allCities.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

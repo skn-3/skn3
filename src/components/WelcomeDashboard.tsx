@@ -8,6 +8,7 @@ import type { UserRole } from '@/lib/constants';
 import { selectFromSellerData, selectFromMontorData } from '@/lib/insights/engine';
 import { InsightCard } from '@/components/insights/InsightCard';
 import { getSoundEnabled, setSoundEnabled } from '@/lib/insights/sound';
+import { normalizeCityKey, cityDisplayName } from '@/lib/city';
 
 
 
@@ -253,10 +254,14 @@ function SellerDashboard({ name }: { name: string }) {
     // Top city
     const cityCount = new Map<string, number>();
     visits.filter(v => v.result === 'signerat').forEach(v => {
-      const city = (v.address || '').split(',').pop()?.replace(/\d/g, '').trim();
-      if (city) cityCount.set(city, (cityCount.get(city) || 0) + 1);
+      const raw = (v.address || '').split(',').pop()?.replace(/\d/g, '').trim();
+      const key = normalizeCityKey(raw);
+      if (key) cityCount.set(key, (cityCount.get(key) || 0) + 1);
     });
-    const topCity = [...cityCount.entries()].sort((a, b) => b[1] - a[1])[0];
+    const topCityEntry = [...cityCount.entries()].sort((a, b) => b[1] - a[1])[0];
+    const topCity: [string, number] | undefined = topCityEntry
+      ? [cityDisplayName(topCityEntry[0]), topCityEntry[1]]
+      : undefined;
 
     // Most common signing weekday
     const dayCount = new Array(7).fill(0);
