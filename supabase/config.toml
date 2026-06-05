@@ -2,3 +2,6 @@ project_id = "gzeovhwoouoxfenaxsss"
 
 [functions.calendar-ics]
 verify_jwt = false
+
+[functions.weekly-backup]
+verify_jwt = false
