@@ -53,7 +53,7 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
     return () => { cancelled = true; };
   }, [initialCaseId]);
 
-  const isAdmin = ADMIN_USERS.includes(role.name);
+  const isAdmin = !!role.isAdmin;
 
   return (
     <div className="min-h-screen bg-background">
