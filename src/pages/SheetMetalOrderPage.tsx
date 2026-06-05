@@ -154,6 +154,17 @@ export default function SheetMetalOrderPage() {
         description: `L-Profil/Underbleck beställd — ${profiles.length} profil${profiles.length === 1 ? '' : 'er'} skickade till plåtslagare`,
         created_by: role.name,
       });
+      logActivity({
+        category: 'order',
+        action: 'sheet_metal_ordered',
+        description: `Beställde plåt/L-Profil till ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: {
+          profiles_count: profiles.length,
+          types: profiles.map(p => p.type),
+          montor,
+        },
+      });
     },
     onSuccess: () => {
       toast.success('Beställning skickad till plåtslagaren');
