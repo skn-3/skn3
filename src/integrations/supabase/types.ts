@@ -331,6 +331,27 @@ export type Database = {
           },
         ]
       }
+      insight_history: {
+        Row: {
+          id: string
+          insight_id: string
+          shown_at: string
+          user_name: string
+        }
+        Insert: {
+          id?: string
+          insight_id: string
+          shown_at?: string
+          user_name: string
+        }
+        Update: {
+          id?: string
+          insight_id?: string
+          shown_at?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       sheet_metal_orders: {
         Row: {
           case_id: string
