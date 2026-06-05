@@ -529,6 +529,23 @@ function CostSheet({
         description: `Kostnad för reklamation uppdaterad till ${num.toLocaleString('sv-SE')} kr av ${coordinatorName}`,
         created_by: coordinatorName,
       });
+      logActivity({
+        category: 'deviation',
+        action: 'deviation_cost',
+        description: `Registrerade kostnad på reklamation (${num.toLocaleString('sv-SE')} kr, case ${dev.case_id})`,
+        case_id: dev.case_id,
+        deviation_id: dev.id,
+        metadata: { amount: num, description: desc || null },
+      });
+      if (desc.trim()) {
+        logActivity({
+          category: 'case',
+          action: 'cost_added',
+          description: `Registrerade kostnad (${num.toLocaleString('sv-SE')} kr) för case ${dev.case_id}`,
+          case_id: dev.case_id,
+          metadata: { amount: num, description: `Reklamation: ${desc.trim()}` },
+        });
+      }
     },
     onSuccess: () => {
       toast.success('✓ Kostnad sparad');
