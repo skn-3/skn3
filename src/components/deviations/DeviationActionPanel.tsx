@@ -10,6 +10,7 @@ import {
   type CaseRow,
   type DeviationActionLogEntry,
 } from '@/lib/supabaseClient';
+import { logActivity } from '@/lib/activityLog';
 import {
   DEVIATION_TYPES,
   DEVIATION_RESPONSIBLE,
