@@ -343,6 +343,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         description: desc,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'system',
+        action: 'order_linked',
+        description: `Kopplade order ${label} till ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { order_id: order.id, order_label: label, was_orphan: !!order._orphan },
+      });
     },
     onSuccess: () => {
       invalidate();
