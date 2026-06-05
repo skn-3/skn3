@@ -207,6 +207,48 @@ export async function createCaseCost(cost: { case_id: string; description: strin
   return data as CaseCost;
 }
 
+// Insight history (rotation memory, device-independent)
+export interface InsightHistoryRow {
+  insight_id: string;
+  shown_at: number; // ms epoch
+}
+
+export async function fetchInsightHistory(userName: string): Promise<InsightHistoryRow[]> {
+  if (!userName) return [];
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await (supabase as any)
+    .from('insight_history')
+    .select('insight_id, shown_at')
+    .eq('user_name', userName)
+    .gte('shown_at', cutoff)
+    .order('shown_at', { ascending: false });
+  if (error) {
+    console.error('fetchInsightHistory failed:', error);
+    return [];
+  }
+  return (data || []).map((r: any) => ({
+    insight_id: r.insight_id,
+    shown_at: new Date(r.shown_at).getTime(),
+  }));
+}
+
+export async function recordInsightsShown(userName: string, insightIds: string[]): Promise<void> {
+  if (!userName || !insightIds.length) return;
+  const now = new Date().toISOString();
+  const rows = insightIds.map(id => ({ user_name: userName, insight_id: id, shown_at: now }));
+  const { error } = await (supabase as any).from('insight_history').insert(rows);
+  if (error) {
+    console.error('recordInsightsShown failed:', error);
+    return;
+  }
+  try {
+    const oldCutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+    await (supabase as any).from('insight_history').delete().eq('user_name', userName).lt('shown_at', oldCutoff);
+  } catch {}
+}
+
+
+
 // Send notification email via edge function
 export async function sendNotificationEmail(params: {
   to: string;

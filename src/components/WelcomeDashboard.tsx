@@ -1,13 +1,14 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchVisits, fetchCases, fetchAllDeviations, type CaseRow, type VisitRow } from '@/lib/supabaseClient';
+import { fetchVisits, fetchCases, fetchAllDeviations, fetchInsightHistory, recordInsightsShown, type CaseRow, type VisitRow } from '@/lib/supabaseClient';
 import { formatAmount } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, TrendingUp, Flame, Calendar, Target, Sparkles, CheckCircle2, AlertTriangle, Wrench, MapPin, Clock, Volume2, VolumeX } from 'lucide-react';
 import type { UserRole } from '@/lib/constants';
-import { getInsightsForSeller, getInsightsForMontor } from '@/lib/insights/engine';
+import { selectFromSellerData, selectFromMontorData } from '@/lib/insights/engine';
 import { InsightCard } from '@/components/insights/InsightCard';
 import { getSoundEnabled, setSoundEnabled } from '@/lib/insights/sound';
+
 
 
 interface Props {
@@ -106,11 +107,30 @@ function InsightsLayer({
 }: { kind: 'seller'; name: string; data: SellerInsightData }
    | { kind: 'montor'; name: string; data: MontorInsightData }) {
   const [soundOn, setSoundOn] = useState(() => getSoundEnabled(name));
-  const insights = useMemo(() => {
+
+  const { data: history = [] } = useQuery({
+    queryKey: ['insight-history', name],
+    queryFn: () => fetchInsightHistory(name),
+    staleTime: 5 * 60_000,
+  });
+
+  const selection = useMemo(() => {
     return kind === 'seller'
-      ? getInsightsForSeller(name, data as SellerInsightData)
-      : getInsightsForMontor(name, data as MontorInsightData);
-  }, [kind, name, data]);
+      ? selectFromSellerData(name, data as SellerInsightData, history)
+      : selectFromMontorData(name, data as MontorInsightData, history);
+  }, [kind, name, data, history]);
+
+  const insights = selection.insights;
+
+  // Logga nytt urval till servern — exakt en gång per ny selection.
+  const loggedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selection.isNewSelection || !insights.length) return;
+    const key = insights.map(i => i.id).sort().join('|');
+    if (loggedKeyRef.current === key) return;
+    loggedKeyRef.current = key;
+    recordInsightsShown(name, insights.map(i => i.id));
+  }, [selection.isNewSelection, insights, name]);
 
   if (!insights.length) return null;
   const hero = insights[0].tier === 1 ? insights[0] : null;
@@ -146,6 +166,7 @@ function InsightsLayer({
     </div>
   );
 }
+
 
 // ============ SELLER ============
 

@@ -467,8 +467,118 @@ const SELLER_GENERATORS: SellerGenerator[] = [
     };
   },
 
+  // ---- MÅNAD / TIDSBASERAT (tier 2-3) ----
+  ({ visits }) => {
+    // Denna månad: X signeringar / Y kr + jmf mot förra månaden
+    const now = new Date();
+    const mStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const signed = visits.filter(v => v.result === 'signerat');
+    const thisM = signed.filter(v => new Date(v.date) >= mStart);
+    const prevM = signed.filter(v => {
+      const d = new Date(v.date); return d >= prevStart && d < mStart;
+    });
+    if (thisM.length < 1) return null;
+    const sumThis = thisM.reduce((s, v) => s + (Number(v.order_value) || 0), 0);
+    const sumPrev = prevM.reduce((s, v) => s + (Number(v.order_value) || 0), 0);
+    const cmp = sumPrev > 0
+      ? ` (förra månaden: ${fmtKr(sumPrev)})`
+      : '';
+    return {
+      id: 'month_summary',
+      tier: 3, category: 'month',
+      score: 45,
+      emoji: '🗓️',
+      title: `${thisM.length} signeringar / ${fmtKr(sumThis)} denna månad`,
+      subtitle: cmp || undefined,
+      animation: 'none',
+    };
+  },
+
+  ({ visits }) => {
+    // År till dato: X kr sålt
+    const year = new Date().getFullYear();
+    const ytd = visits
+      .filter(v => v.result === 'signerat' && new Date(v.date).getFullYear() === year)
+      .reduce((s, v) => s + (Number(v.order_value) || 0), 0);
+    if (ytd <= 0) return null;
+    return {
+      id: `month_ytd_${year}`,
+      tier: 3, category: 'fact',
+      score: 38,
+      emoji: '📊',
+      title: `${fmtKr(ytd)} sålt år till dato`,
+      animation: 'none',
+    };
+  },
+
+  ({ visits }) => {
+    // Dagar sedan senaste signering — peppning om det var ett tag sen
+    const signed = visits.filter(v => v.result === 'signerat');
+    if (signed.length < 3) return null;
+    const latest = signed.reduce((m, v) => Math.max(m, new Date(v.date).getTime()), 0);
+    if (!latest) return null;
+    const days = Math.floor((Date.now() - latest) / DAY);
+    if (days < 7) return null;
+    return {
+      id: 'pep_days_since_signed',
+      tier: 4, category: 'pep',
+      score: 25 + Math.min(15, days - 7),
+      emoji: '🎯',
+      title: `${days} dagar sedan din senaste signering`,
+      subtitle: 'Nästa kan vara idag — kör hårt!',
+      animation: 'none',
+    };
+  },
+
+  ({ visits }) => {
+    // Din bästa månad hittills
+    const signed = visits.filter(v => v.result === 'signerat' && Number(v.order_value) > 0);
+    if (signed.length < 6) return null;
+    const byMonth = new Map<string, number>();
+    signed.forEach(v => {
+      const d = new Date(v.date);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      byMonth.set(k, (byMonth.get(k) || 0) + (Number(v.order_value) || 0));
+    });
+    if (byMonth.size < 3) return null;
+    const best = [...byMonth.entries()].sort((a, b) => b[1] - a[1])[0];
+    const [y, m] = best[0].split('-').map(Number);
+    const monthName = new Date(y, m - 1, 1).toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' });
+    return {
+      id: `fact_best_month_${best[0]}`,
+      tier: 3, category: 'fact',
+      score: 36,
+      emoji: '🏅',
+      title: `Din bästa månad hittills: ${monthName}`,
+      subtitle: fmtKr(best[1]),
+      animation: 'none',
+    };
+  },
+
+  ({ visits }) => {
+    // Flest besök på en dag
+    if (visits.length < 10) return null;
+    const byDay = new Map<string, number>();
+    visits.forEach(v => {
+      const k = isoDate(v.date);
+      byDay.set(k, (byDay.get(k) || 0) + 1);
+    });
+    const best = [...byDay.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (!best || best[1] < 3) return null;
+    return {
+      id: `fact_max_visits_day_${best[0]}`,
+      tier: 3, category: 'fact',
+      score: 34,
+      emoji: '⚡',
+      title: `Flest besök på en dag: ${best[1]} (${best[0]})`,
+      animation: 'none',
+    };
+  },
+
   // ---- PEPP (tier 4) ----
   ({ visits }) => {
+
     const followUps = visits.filter(v =>
       v.result === 'aterkoppla' && v.follow_up_date &&
       isoDate(v.follow_up_date) <= isoDate(new Date()) && !v.lost
@@ -637,13 +747,40 @@ const MONTOR_GENERATORS: MontorGenerator[] = [
 
 // ============ SELECTION + ROTATION ============
 
-const COOLDOWN_DAYS = 3;
-const HISTORY_LIMIT = 20;
 const SESSION_REFRESH_HOURS = 3;
 
+// Cooldown per kategori (dagar)
+const COOLDOWN_BY_CATEGORY: Record<string, number> = {
+  record: 3,
+  streak: 3,
+  trend: 3,
+  hitrate: 14,
+  milestone: 14,
+  geo: 30,
+  fun: 30,
+  fact: 30,
+  month: 14,
+  pep: 7,
+  nudge: 1,
+  quality: 7,
+  volume: 7,
+};
+function cooldownDaysFor(category: string): number {
+  return COOLDOWN_BY_CATEGORY[category] ?? 7;
+}
+
+// Dynamiska kategorier får full vikt, stabila viktas ned något
+const DYNAMIC_CATEGORIES = new Set(['record', 'streak', 'trend', 'milestone', 'quality', 'volume']);
+const STABLE_CATEGORIES = new Set(['geo', 'fun', 'fact', 'month']);
+function categoryWeight(category: string): number {
+  if (STABLE_CATEGORIES.has(category)) return 0.85;
+  if (DYNAMIC_CATEGORIES.has(category)) return 1.0;
+  return 0.95;
+}
+
 export interface HistoryEntry {
-  id: string;
-  shownAt: number;
+  insight_id: string;
+  shown_at: number; // ms epoch
 }
 
 function loadJSON<T>(key: string, fallback: T): T {
@@ -659,30 +796,37 @@ function saveJSON<T>(key: string, value: T) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
-export function getInsightsForSeller(name: string, data: SellerData): InsightCandidate[] {
+export interface SelectionResult {
+  insights: InsightCandidate[];
+  /** true om nytt urval gjordes (ska loggas server-sidigt). false vid samma-session-återanvändning. */
+  isNewSelection: boolean;
+}
+
+export function getInsightsForSeller(name: string, data: SellerData, history: HistoryEntry[] = []): InsightCandidate[] {
+  return selectFromSellerData(name, data, history).insights;
+}
+export function selectFromSellerData(name: string, data: SellerData, history: HistoryEntry[]): SelectionResult {
   const all = SELLER_GENERATORS.map(g => {
     try { return g(data); } catch { return null; }
   }).filter((x): x is InsightCandidate => !!x);
-  return select(name, all);
+  return selectWithMeta(name, all, history);
 }
 
-export function getInsightsForMontor(name: string, data: MontorData): InsightCandidate[] {
+export function getInsightsForMontor(name: string, data: MontorData, history: HistoryEntry[] = []): InsightCandidate[] {
+  return selectFromMontorData(name, data, history).insights;
+}
+export function selectFromMontorData(name: string, data: MontorData, history: HistoryEntry[]): SelectionResult {
   const all = MONTOR_GENERATORS.map(g => {
     try { return g(data); } catch { return null; }
   }).filter((x): x is InsightCandidate => !!x);
-  return select(name, all);
+  return selectWithMeta(name, all, history);
 }
 
-function select(name: string, candidates: InsightCandidate[]): InsightCandidate[] {
-  const histKey = `sk_insights_history_${name}`;
+export function selectWithMeta(name: string, candidates: InsightCandidate[], history: HistoryEntry[]): SelectionResult {
   const lastKey = `sk_last_login_${name}`;
   const sessionKey = `sk_insights_session_${name}`;
-
   const now = Date.now();
-  const history: HistoryEntry[] = loadJSON(histKey, []);
   const lastLogin: number = loadJSON(lastKey, 0);
-
-  // Same session? Reuse last selection so kort inte rullar vid navigering.
   const sessionAge = now - lastLogin;
   const isSameSession = sessionAge >= 0 && sessionAge < SESSION_REFRESH_HOURS * 3600_000;
 
@@ -691,41 +835,58 @@ function select(name: string, candidates: InsightCandidate[]): InsightCandidate[
     if (stored.length) {
       const map = new Map(candidates.map(c => [c.id, c]));
       const resolved = stored.map(id => map.get(id)).filter((x): x is InsightCandidate => !!x);
-      if (resolved.length) return resolved;
+      if (resolved.length) return { insights: resolved, isNewSelection: false };
     }
   }
 
-  // New session: pick fresh
-  const cooldownMs = COOLDOWN_DAYS * DAY;
+  // Bygg map: id -> senaste shown_at
   const recentlyShown = new Map<string, number>();
-  history.forEach(h => recentlyShown.set(h.id, h.shownAt));
-
-  const eligible = candidates.filter(c => {
-    const seen = recentlyShown.get(c.id);
-    if (!seen) return true;
-    // tier-1 RECORDS bypass cooldown if very fresh (we can't know "new" but selection scoring handles it)
-    if (c.tier === 1 && c.category === 'record') return true;
-    return now - seen > cooldownMs;
+  history.forEach(h => {
+    const prev = recentlyShown.get(h.insight_id) || 0;
+    if (h.shown_at > prev) recentlyShown.set(h.insight_id, h.shown_at);
   });
 
-  // Adjust score: penalize recently shown
+  // Hitta "senaste sessionens" ids (allt visat inom 1h från senaste raden)
+  const lastShownAt = history.reduce((m, h) => Math.max(m, h.shown_at), 0);
+  const lastSessionIds = new Set(
+    lastShownAt
+      ? history.filter(h => (lastShownAt - h.shown_at) < 60 * 60_000).map(h => h.insight_id)
+      : []
+  );
+
+  // Cooldown-filter per kategori (rekord-tier1 får alltid komma in)
+  const eligibleAll = candidates.filter(c => {
+    const seen = recentlyShown.get(c.id);
+    if (!seen) return true;
+    if (c.tier === 1 && c.category === 'record') return true;
+    const cdMs = cooldownDaysFor(c.category) * DAY;
+    return (now - seen) > cdMs;
+  });
+
+  // Hård spärr: uteslut det som visades senast — om det finns annat kvar
+  const withoutLast = eligibleAll.filter(c => !lastSessionIds.has(c.id));
+  const eligible = withoutLast.length > 0 ? withoutLast : eligibleAll;
+
+  // Poäng: penalty som dör ut när cooldown gått ut + kategorivikt
   const scored = eligible.map(c => {
     const seen = recentlyShown.get(c.id);
-    const penalty = seen ? Math.max(0, 30 - (now - seen) / DAY * 5) : 0;
-    return { ...c, score: c.score - penalty };
+    const cdDays = cooldownDaysFor(c.category);
+    const daysSince = seen ? (now - seen) / DAY : Infinity;
+    const penalty = seen ? Math.max(0, 30 * (1 - daysSince / cdDays)) : 0;
+    return { ...c, score: (c.score - penalty) * categoryWeight(c.category) };
   }).sort((a, b) => b.score - a.score);
 
   const picked: InsightCandidate[] = [];
   const usedCategories = new Set<string>();
 
-  // 1 hero from tier 1
+  // Hero från tier 1
   const tier1 = scored.filter(c => c.tier === 1);
   if (tier1.length) {
     picked.push(tier1[0]);
     usedCategories.add(tier1[0].category);
   }
 
-  // Fill 1-2 from tier 2 then 3 with category variation
+  // Fyll med tier 2 sen 3 med kategori-variation
   for (const tier of [2, 3] as Tier[]) {
     if (picked.length >= 3) break;
     const pool = scored.filter(c => c.tier === tier && !picked.includes(c));
@@ -737,20 +898,27 @@ function select(name: string, candidates: InsightCandidate[]): InsightCandidate[
     }
   }
 
-  // Tier 4 only if nothing else
+  // Daglig rotation: garantera ett tier 3–4 kort som roterar via dagsnummer
+  const lowTierPool = scored.filter(c =>
+    (c.tier === 3 || c.tier === 4) && !picked.includes(c) && !usedCategories.has(c.category)
+  );
+  if (lowTierPool.length && picked.length < 3) {
+    const dayN = Math.floor(now / DAY);
+    const rotated = lowTierPool[dayN % lowTierPool.length];
+    picked.push(rotated);
+    usedCategories.add(rotated.category);
+  }
+
+  // Tier 4 fallback om vi har 0
   if (picked.length === 0) {
     const t4 = scored.filter(c => c.tier === 4)[0];
     if (t4) picked.push(t4);
   }
 
-  // Persist
-  const newHistory: HistoryEntry[] = [
-    ...picked.map(p => ({ id: p.id, shownAt: now })),
-    ...history,
-  ].slice(0, HISTORY_LIMIT);
-  saveJSON(histKey, newHistory);
+  // Spara sessionsmetadata (lokal 3h-återanvändning). Historik sparas server-sidigt av anroparen.
   saveJSON(lastKey, now);
   saveJSON(sessionKey, picked.map(p => p.id));
 
-  return picked;
+  return { insights: picked, isNewSelection: true };
 }
+
