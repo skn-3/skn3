@@ -15,8 +15,8 @@ import {
   DEVIATION_TYPES,
   DEVIATION_RESPONSIBLE,
   COORDINATOR_CC,
-  ADMIN_USERS,
 } from '@/lib/constants';
+import { isCurrentUserAdmin } from '@/lib/authState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -78,7 +78,7 @@ const STATUS_OPTIONS: DeviationStatus[] = [
 
 export function canActOnDeviations(user: string, role: 'seller' | 'montor' | 'coordinator'): boolean {
   if (role === 'coordinator') return true;
-  if (role === 'seller' && ADMIN_USERS.includes(user)) return true;
+  if (role === 'seller' && isCurrentUserAdmin(user)) return true;
   return false;
 }
 

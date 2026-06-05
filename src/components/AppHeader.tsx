@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/lib/constants';
-import { LogOut, Eye, Calendar } from 'lucide-react';
+import { LogOut, Eye, Calendar, KeyRound } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MyCalendarDialog } from '@/components/calendar/MyCalendarDialog';
+import { ChangePinDialog } from '@/components/ChangePinDialog';
 
 interface ToggleView { label: string; onClick: () => void }
 interface AppHeaderProps {
@@ -35,6 +36,7 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
   const roleLabel = role.type === 'seller' ? 'Säljare' : role.type === 'coordinator' ? 'Koordinator' : 'Montör';
   const initials = getInitials(role.name);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b bg-card shadow-sm">
@@ -69,9 +71,13 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
                 <Calendar className="h-4 w-4 mr-2" />
                 Min kalender
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setPinOpen(true)}>
+                <KeyRound className="h-4 w-4 mr-2" />
+                Byt PIN
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onChangeRole}>
                 <LogOut className="h-4 w-4 mr-2" />
-                Byt roll
+                Logga ut
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -105,13 +111,18 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
             <Calendar className="h-4 w-4 mr-1" />
             Min kalender
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => setPinOpen(true)}>
+            <KeyRound className="h-4 w-4 mr-1" />
+            Byt PIN
+          </Button>
           <Button variant="ghost" size="sm" onClick={onChangeRole}>
             <LogOut className="h-4 w-4 mr-1" />
-            Byt roll
+            Logga ut
           </Button>
         </div>
       </div>
       <MyCalendarDialog open={calendarOpen} onOpenChange={setCalendarOpen} userName={role.name} />
+      <ChangePinDialog open={pinOpen} onOpenChange={setPinOpen} userName={role.name} />
     </header>
   );
 }
