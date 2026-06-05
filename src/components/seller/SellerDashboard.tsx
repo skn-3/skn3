@@ -466,7 +466,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Alla</SelectItem>
-                {allCities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                {allCities.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
