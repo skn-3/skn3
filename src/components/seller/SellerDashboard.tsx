@@ -19,6 +19,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
+import { extractCityFromAddress, normalizeCityKey, cityDisplayName } from '@/lib/city';
 
 interface SellerDashboardProps {
   sellerName: string;
@@ -27,13 +28,11 @@ interface SellerDashboardProps {
 const BUDGET = 55_000_000;
 const PIE_COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', '#F59E0B', '#6B7280'];
 
-function extractCityFromAddress(address: string): string {
-  const parts = (address || '').split(',').map(s => s.trim());
-  return parts.length > 1 ? parts[parts.length - 1] : parts[0];
-}
-
-function getCaseCity(c: { city?: string | null; address: string }): string {
+function getCaseCityRaw(c: { city?: string | null; address: string }): string {
   return (c.city && c.city.trim()) ? c.city.trim() : extractCityFromAddress(c.address);
+}
+function getCaseCityKeyLocal(c: { city?: string | null; address: string }): string {
+  return normalizeCityKey(getCaseCityRaw(c));
 }
 
 export function SellerDashboard({ sellerName }: SellerDashboardProps) {
