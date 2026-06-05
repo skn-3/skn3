@@ -175,6 +175,13 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: `KM bokad: ${kmDate}`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'case',
+        action: 'km_booked',
+        description: `Bokade kontrollmätning (${kmDate}) för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { km_date: kmDate },
+      });
       await sendMontorAssignmentEmail(caseData, 'km', currentUser, { km_date: kmDate });
     },
     onSuccess: () => { invalidate(); toast.success('KM bokad'); },
@@ -190,6 +197,13 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         event_type: hrs > 0 ? 'hours_request' : 'km_report',
         description: hrs > 0 ? `KM klar. Extra timmar begärda: ${hrs}` : `KM klar. Inga extra timmar.${kmNote ? ' ' + kmNote : ''}`,
         created_by: currentUser,
+      });
+      logActivity({
+        category: 'case',
+        action: 'km_reported_done',
+        description: `Rapporterade KM klar för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { extra_hours_requested: hrs, note: kmNote || null },
       });
       try {
         const sellerEmail = EMAIL_MAP[caseData.seller];
