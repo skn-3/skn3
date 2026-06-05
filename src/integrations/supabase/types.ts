@@ -352,6 +352,36 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          is_admin: boolean
+          login_email: string
+          must_change_pin: boolean
+          name: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          is_admin?: boolean
+          login_email: string
+          must_change_pin?: boolean
+          name: string
+          role: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_admin?: boolean
+          login_email?: string
+          must_change_pin?: boolean
+          name?: string
+          role?: string
+        }
+        Relationships: []
+      }
       sheet_metal_orders: {
         Row: {
           case_id: string
