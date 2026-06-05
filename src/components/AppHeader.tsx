@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/lib/constants';
-import { LogOut, Eye, Calendar } from 'lucide-react';
+import { LogOut, Eye, Calendar, KeyRound } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MyCalendarDialog } from '@/components/calendar/MyCalendarDialog';
+import { ChangePinDialog } from '@/components/ChangePinDialog';
 
 interface ToggleView { label: string; onClick: () => void }
 interface AppHeaderProps {
