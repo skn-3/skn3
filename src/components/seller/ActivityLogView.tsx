@@ -216,9 +216,14 @@ export function ActivityLogView() {
           <h1 className="text-2xl font-bold">Aktivitetslogg</h1>
           <p className="text-sm text-muted-foreground">Systemövergripande historik. Default: senaste 7 dagar.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={exportCsv} disabled={rows.length === 0}>
-          <Download className="h-4 w-4 mr-2" /> Exportera CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="default" size="sm" onClick={triggerBackup}>
+            <ShieldCheck className="h-4 w-4 mr-2" /> Säkerhetskopiera nu
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={rows.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> Exportera CSV
+          </Button>
+        </div>
       </div>
 
       <Card>
