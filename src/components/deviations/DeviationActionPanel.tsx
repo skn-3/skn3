@@ -657,6 +657,14 @@ function Del1OrderSheet({
         description: `DEL1-order skapad (${orderNr.trim()}) av ${currentUser}, leverans v${w} ${y}`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'order',
+        action: 'deviation_del1_order',
+        description: `Skapade DEL1-order för reklamation (${caseData?.address || 'okänd adress'})`,
+        case_id: deviation.case_id,
+        deviation_id: deviation.id,
+        metadata: { order_number: orderNr.trim(), delivery_week: w, delivery_year: y, cost: c },
+      });
     },
     onSuccess: () => {
       toast.success(`✓ DEL1 skapad — leverans v${week} ${year}`);
