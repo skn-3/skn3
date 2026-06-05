@@ -111,13 +111,18 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
             <Calendar className="h-4 w-4 mr-1" />
             Min kalender
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => setPinOpen(true)}>
+            <KeyRound className="h-4 w-4 mr-1" />
+            Byt PIN
+          </Button>
           <Button variant="ghost" size="sm" onClick={onChangeRole}>
             <LogOut className="h-4 w-4 mr-1" />
-            Byt roll
+            Logga ut
           </Button>
         </div>
       </div>
       <MyCalendarDialog open={calendarOpen} onOpenChange={setCalendarOpen} userName={role.name} />
+      <ChangePinDialog open={pinOpen} onOpenChange={setPinOpen} userName={role.name} />
     </header>
   );
 }
