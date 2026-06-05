@@ -1,39 +1,88 @@
-import { useState, useCallback } from 'react';
-import type { UserRole } from '@/lib/constants';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { UserRole, RoleType } from '@/lib/constants';
 import { logActivity } from '@/lib/activityLog';
+import { supabase } from '@/integrations/supabase/client';
+import { setCurrentUserAuth } from '@/lib/authState';
 
-const STORAGE_KEY = 'smartklimat_role';
+interface ProfileRow {
+  id: string;
+  name: string;
+  role: RoleType;
+  is_admin: boolean;
+}
 
 export function useRole() {
-  const [role, setRoleState] = useState<UserRole | null>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [role, setRoleState] = useState<UserRole | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const lastUserId = useRef<string | null>(null);
 
-  const setRole = useCallback((newRole: UserRole) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newRole));
-    setRoleState(newRole);
-    // Logga inloggning (fire-and-forget)
-    logActivity({
-      action: 'login',
-      category: 'auth',
-      description: `Loggade in som ${newRole.type} (${newRole.name})`,
-      actor: { name: newRole.name, role: newRole.type },
-      metadata: { isAdmin: !!newRole.isAdmin },
-    });
+  const loadProfile = useCallback(async (userId: string, isFreshLogin: boolean) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, name, role, is_admin')
+      .eq('id', userId)
+      .maybeSingle<ProfileRow>();
+
+    if (error || !data) {
+      console.error('Failed to load profile:', error);
+      setRoleState(null);
+      setCurrentUserAuth(null, false);
+      return;
+    }
+
+    const next: UserRole = {
+      type: data.role,
+      name: data.name,
+      isAdmin: data.is_admin,
+    };
+    setRoleState(next);
+    setCurrentUserAuth(next.name, !!next.isAdmin);
+
+    if (isFreshLogin) {
+      logActivity({
+        action: 'login',
+        category: 'auth',
+        description: `Loggade in som ${next.type} (${next.name})`,
+        actor: { name: next.name, role: next.type },
+        metadata: { isAdmin: !!next.isAdmin },
+      });
+    }
   }, []);
 
-  const clearRole = useCallback(() => {
-    const prev = (() => {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        return stored ? (JSON.parse(stored) as UserRole) : null;
-      } catch { return null; }
-    })();
+  useEffect(() => {
+    // Listen first, then check current session.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      const uid = session?.user?.id ?? null;
+      if (!uid) {
+        setRoleState(null);
+        setCurrentUserAuth(null, false);
+        lastUserId.current = null;
+        setLoaded(true);
+        return;
+      }
+      const isFresh = event === 'SIGNED_IN' && lastUserId.current !== uid;
+      lastUserId.current = uid;
+      // Defer to avoid deadlock with auth callback.
+      setTimeout(() => {
+        loadProfile(uid, isFresh).finally(() => setLoaded(true));
+      }, 0);
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user?.id ?? null;
+      if (!uid) {
+        setLoaded(true);
+        return;
+      }
+      lastUserId.current = uid;
+      loadProfile(uid, false).finally(() => setLoaded(true));
+    });
+
+    return () => { sub.subscription.unsubscribe(); };
+  }, [loadProfile]);
+
+  const clearRole = useCallback(async () => {
+    const prev = role;
     if (prev) {
       logActivity({
         action: 'logout',
@@ -42,9 +91,10 @@ export function useRole() {
         actor: { name: prev.name, role: prev.type },
       });
     }
-    localStorage.removeItem(STORAGE_KEY);
+    await supabase.auth.signOut();
     setRoleState(null);
-  }, []);
+    setCurrentUserAuth(null, false);
+  }, [role]);
 
-  return { role, setRole, clearRole };
+  return { role, clearRole, loaded };
 }
