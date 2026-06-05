@@ -71,9 +71,13 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
                 <Calendar className="h-4 w-4 mr-2" />
                 Min kalender
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setPinOpen(true)}>
+                <KeyRound className="h-4 w-4 mr-2" />
+                Byt PIN
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onChangeRole}>
                 <LogOut className="h-4 w-4 mr-2" />
-                Byt roll
+                Logga ut
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
