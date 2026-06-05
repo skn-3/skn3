@@ -10,6 +10,7 @@ import {
   type CaseRow,
   type DeviationActionLogEntry,
 } from '@/lib/supabaseClient';
+import { logActivity } from '@/lib/activityLog';
 import {
   DEVIATION_TYPES,
   DEVIATION_RESPONSIBLE,
@@ -126,6 +127,18 @@ export function DeviationActionPanel({ deviation, caseData, currentUser, onDone 
         description: `Reklamationsstatus ändrad till "${DEVIATION_STATUS_META[newStatus].label}" av ${currentUser}`,
         created_by: currentUser,
       });
+      const addr = caseData?.address || '(adress saknas)';
+      const isResolved = newStatus === 'klar';
+      logActivity({
+        category: 'deviation',
+        action: isResolved ? 'deviation_resolved' : 'deviation_status_changed',
+        description: isResolved
+          ? `Löste reklamation (${addr})`
+          : `Ändrade status på reklamation till ${DEVIATION_STATUS_META[newStatus].label} (${addr})`,
+        case_id: deviation.case_id,
+        deviation_id: deviation.id,
+        metadata: { status: newStatus },
+      });
     },
     onSuccess: () => {
       toast.success('✓ Status uppdaterad');
@@ -142,6 +155,15 @@ export function DeviationActionPanel({ deviation, caseData, currentUser, onDone 
         by: currentUser,
         action: 'Anteckning',
         note: noteText.trim(),
+      });
+      const addr = caseData?.address || '(adress saknas)';
+      logActivity({
+        category: 'deviation',
+        action: 'deviation_note',
+        description: `La till anteckning på reklamation (${addr})`,
+        case_id: deviation.case_id,
+        deviation_id: deviation.id,
+        metadata: { note: noteText.trim() },
       });
     },
     onSuccess: () => {
@@ -161,6 +183,15 @@ export function DeviationActionPanel({ deviation, caseData, currentUser, onDone 
         by: currentUser,
         action: 'Kostnad uppdaterad',
         note: `${num.toLocaleString('sv-SE')} kr`,
+      });
+      const addr = caseData?.address || '(adress saknas)';
+      logActivity({
+        category: 'deviation',
+        action: 'deviation_cost',
+        description: `Registrerade kostnad på reklamation (${num.toLocaleString('sv-SE')} kr, ${addr})`,
+        case_id: deviation.case_id,
+        deviation_id: deviation.id,
+        metadata: { amount: num },
       });
     },
     onSuccess: () => {
@@ -498,6 +529,14 @@ function FactoryClaimSheet({
         description: `Reklamation mailad till ${to.trim()} av ${currentUser}`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'order',
+        action: 'deviation_factory_mail',
+        description: `Skickade mail till fabrik för reklamation (${caseData?.address || 'okänd adress'})`,
+        case_id: deviation.case_id,
+        deviation_id: deviation.id,
+        metadata: { to: to.trim() },
+      });
     },
     onSuccess: () => {
       toast.success(`✓ Mail skickat till ${to.trim()}`);
@@ -617,6 +656,14 @@ function Del1OrderSheet({
         event_type: 'deviation_del1',
         description: `DEL1-order skapad (${orderNr.trim()}) av ${currentUser}, leverans v${w} ${y}`,
         created_by: currentUser,
+      });
+      logActivity({
+        category: 'order',
+        action: 'deviation_del1_order',
+        description: `Skapade DEL1-order för reklamation (${caseData?.address || 'okänd adress'})`,
+        case_id: deviation.case_id,
+        deviation_id: deviation.id,
+        metadata: { order_number: orderNr.trim(), delivery_week: w, delivery_year: y, cost: c },
       });
     },
     onSuccess: () => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseById, createCaseEvent } from '@/lib/supabaseClient';
+import { logActivity } from '@/lib/activityLog';
 import { supabase } from '@/integrations/supabase/client';
 import { useRole } from '@/hooks/useRole';
 import { MONTOR_PHONES, SHEET_METAL_RECIPIENT, SHEET_METAL_CC } from '@/lib/constants';
@@ -152,6 +153,17 @@ export default function SheetMetalOrderPage() {
         event_type: 'sheet_metal_order',
         description: `L-Profil/Underbleck beställd — ${profiles.length} profil${profiles.length === 1 ? '' : 'er'} skickade till plåtslagare`,
         created_by: role.name,
+      });
+      logActivity({
+        category: 'order',
+        action: 'sheet_metal_ordered',
+        description: `Beställde plåt/L-Profil till ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: {
+          profiles_count: profiles.length,
+          types: profiles.map(p => p.type),
+          montor,
+        },
       });
     },
     onSuccess: () => {

@@ -103,6 +103,13 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: klarComment ? `Montage klart. ${klarComment}` : 'Montage klart.',
         created_by: currentUser,
       });
+      logActivity({
+        category: 'case',
+        action: 'montage_completed',
+        description: `Markerade montage klart för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { comment: klarComment || null },
+      });
       try {
         await sendNotificationEmail({
           to: COORDINATOR_EMAIL,
@@ -146,10 +153,17 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: 'Montage påbörjat',
         created_by: currentUser,
       });
+      logActivity({
+        category: 'case',
+        action: 'montage_started',
+        description: `Påbörjade montage för ${caseData.address}`,
+        case_id: caseData.id,
+      });
     },
     onSuccess: () => { invalidate(); toast.success('Montage påbörjat'); },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
 
   const kmBookMutation = useMutation({
@@ -160,6 +174,13 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         event_type: 'status_change',
         description: `KM bokad: ${kmDate}`,
         created_by: currentUser,
+      });
+      logActivity({
+        category: 'case',
+        action: 'km_booked',
+        description: `Bokade kontrollmätning (${kmDate}) för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { km_date: kmDate },
       });
       await sendMontorAssignmentEmail(caseData, 'km', currentUser, { km_date: kmDate });
     },
@@ -176,6 +197,13 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         event_type: hrs > 0 ? 'hours_request' : 'km_report',
         description: hrs > 0 ? `KM klar. Extra timmar begärda: ${hrs}` : `KM klar. Inga extra timmar.${kmNote ? ' ' + kmNote : ''}`,
         created_by: currentUser,
+      });
+      logActivity({
+        category: 'case',
+        action: 'km_reported_done',
+        description: `Rapporterade KM klar för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { extra_hours_requested: hrs, note: kmNote || null },
       });
       try {
         const sellerEmail = EMAIL_MAP[caseData.seller];
@@ -300,6 +328,13 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: `Kostnad tillagd: ${costDesc} — ${Number(costAmount).toLocaleString('sv-SE')} kr`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'case',
+        action: 'cost_added',
+        description: `Registrerade kostnad (${Number(costAmount).toLocaleString('sv-SE')} kr) för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile },
+      });
     },
     onSuccess: () => {
       setShowCost(false);
@@ -322,21 +357,38 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: `Avvikelse löst: ${typLabel} — ${deviation.description.substring(0, 60)}`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'deviation',
+        action: 'deviation_resolved',
+        description: `Löste reklamation (${caseData.address})`,
+        case_id: caseData.id,
+        deviation_id: deviation.id,
+        metadata: { type: deviation.type },
+      });
     },
     onSuccess: () => { invalidate(); toast.success('Avvikelse markerad som löst'); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const noteMutation = useMutation({
-    mutationFn: () =>
-      createCaseEvent({
+    mutationFn: async () => {
+      await createCaseEvent({
         case_id: caseData.id,
         event_type: 'note',
         description: `Anteckning: ${note}`,
         created_by: currentUser,
-      }),
+      });
+      logActivity({
+        category: 'case',
+        action: 'note_added',
+        description: `La till anteckning på ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { note },
+      });
+    },
     onSuccess: () => { setNote(''); invalidate(); toast.success('Anteckning sparad'); },
   });
+
 
   const FileThumbnails = ({ files, setter }: { files: File[]; setter: (f: File[]) => void }) => (
     files.length > 0 ? (

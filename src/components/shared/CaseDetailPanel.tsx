@@ -343,6 +343,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         description: desc,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'system',
+        action: 'order_linked',
+        description: `Kopplade order ${label} till ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { order_id: order.id, order_label: label, was_orphan: !!order._orphan },
+      });
     },
     onSuccess: () => {
       invalidate();
@@ -384,12 +391,22 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const assignmentMutation = useMutation({
     mutationFn: async ({ field, value, label }: { field: 'team' | 'seller' | 'km_team'; value: string; label: string }) => {
       const newValue = value ? value : null;
+      const oldValue = (caseData as any)[field] ?? null;
       await updateCase(caseData.id, { [field]: newValue } as any);
       await createCaseEvent({
         case_id: caseData.id,
         event_type: field === 'seller' ? 'seller_change' : 'team_change',
         description: `${label} ändrad till ${newValue || '—'}`,
         created_by: currentUser,
+      });
+      logActivity({
+        category: 'case',
+        action: field === 'seller' ? 'seller_changed' : 'team_changed',
+        description: field === 'seller'
+          ? `Bytte säljare (${oldValue || '—'} → ${newValue || '—'}) på ${caseData.address}`
+          : `Bytte montör (${oldValue || '—'} → ${newValue || '—'}) på ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { field, old: oldValue, new: newValue },
       });
     },
     onSuccess: (_d, vars) => {
@@ -401,6 +418,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const statusMutation = useMutation({
     mutationFn: async ({ newStatus, description }: { newStatus: string; description: string }) => {
+      const oldStatus = caseData.status;
       await updateCase(caseData.id, { status: newStatus });
       await createCaseEvent({
         case_id: caseData.id,
@@ -408,6 +426,33 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         description,
         created_by: currentUser,
       });
+      // Generisk logg — hoppa över transitioner med egen action (km_bokad/montage_pagar loggas i sina egna flöden)
+      const skip = ['km_bokad', 'montage_pagar'];
+      if (newStatus === 'montage_bokat') {
+        logActivity({
+          category: 'case',
+          action: 'montage_booked',
+          description: `Bokade montage för ${caseData.address}`,
+          case_id: caseData.id,
+          metadata: { from: oldStatus, to: newStatus, montage_date: caseData.montage_date },
+        });
+      } else if (newStatus === 'montage_klart') {
+        logActivity({
+          category: 'case',
+          action: 'montage_completed',
+          description: `Markerade montage klart för ${caseData.address}`,
+          case_id: caseData.id,
+          metadata: { from: oldStatus, to: newStatus },
+        });
+      } else if (!skip.includes(newStatus)) {
+        logActivity({
+          category: 'case',
+          action: 'status_changed',
+          description: `Ändrade status till ${STATUS_LABELS[newStatus] || newStatus} för ${caseData.address}`,
+          case_id: caseData.id,
+          metadata: { from: oldStatus, to: newStatus },
+        });
+      }
 
       // Send MONTAGE BOKAT email
       if (newStatus === 'montage_bokat') {
@@ -456,13 +501,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   });
 
   const noteMutation = useMutation({
-    mutationFn: () =>
-      createCaseEvent({
+    mutationFn: async () => {
+      await createCaseEvent({
         case_id: caseData.id,
         event_type: 'note',
         description: `Anteckning: ${note}`,
         created_by: currentUser,
-      }),
+      });
+      logActivity({
+        category: 'case',
+        action: 'note_added',
+        description: `La till anteckning på ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { note },
+      });
+    },
     onSuccess: () => { setNote(''); invalidate(); toast.success('Anteckning sparad'); },
   });
 
@@ -476,6 +529,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         event_type: 'deviation_resolved',
         description: `Avvikelse löst: ${typLabel} — ${deviation.description.substring(0, 60)}`,
         created_by: currentUser,
+      });
+      logActivity({
+        category: 'deviation',
+        action: 'deviation_resolved',
+        description: `Löste reklamation (${caseData.address})`,
+        case_id: caseData.id,
+        deviation_id: deviation.id,
+        metadata: { type: deviation.type },
       });
     },
     onSuccess: () => { invalidate(); toast.success('Avvikelse markerad som löst'); },
@@ -499,6 +560,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         description: `KM bokad: ${kmDate}`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'case',
+        action: 'km_booked',
+        description: `Bokade kontrollmätning (${kmDate}) för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { km_date: kmDate },
+      });
       await sendMontorAssignmentEmail(caseData, 'km', currentUser, { km_date: kmDate });
     },
     onSuccess: () => { invalidate(); toast.success('KM bokad'); },
@@ -520,14 +588,29 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           : `KM klar. Inga extra timmar.${kmNote ? ' ' + kmNote : ''}`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'case',
+        action: 'km_reported_done',
+        description: `Rapporterade KM klar för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { extra_hours_requested: hrs, note: kmNote || null },
+      });
     },
     onSuccess: () => { invalidate(); toast.success('KM rapporterad'); },
   });
 
   const approveHoursMutation = useMutation({
     mutationFn: async () => {
-      await updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested, status: 'km_klar' });
-      await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${caseData.extra_hours_requested}`, created_by: currentUser });
+      const requested = caseData.extra_hours_requested ?? 0;
+      await updateCase(caseData.id, { extra_hours_approved: requested, status: 'km_klar' });
+      await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${requested}`, created_by: currentUser });
+      logActivity({
+        category: 'case',
+        action: 'hours_approved',
+        description: `Godkände timmar för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { requested, approved: requested },
+      });
     },
     onSuccess: () => { invalidate(); toast.success('Extra timmar godkända'); },
     onError: (e: Error) => toast.error(e.message),
@@ -535,12 +618,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const rejectHoursMutation = useMutation({
     mutationFn: async () => {
+      const requested = caseData.extra_hours_requested ?? 0;
       await updateCase(caseData.id, { extra_hours_approved: 0, status: 'km_klar' });
       await createCaseEvent({ case_id: caseData.id, event_type: 'hours_rejected', description: 'Extra timmar avslagna', created_by: currentUser });
+      logActivity({
+        category: 'case',
+        action: 'hours_rejected',
+        description: `Nekade timmar för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { requested, approved: 0 },
+      });
     },
     onSuccess: () => { invalidate(); toast.success('Extra timmar avslagna'); },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const adjustHoursMutation = useMutation({
     mutationFn: async ({ field, newValue }: { field: 'extra_hours_sold' | 'extra_hours_approved'; newValue: number }) => {
@@ -576,7 +668,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
       if (teamChanged && oldTeam) {
         await createCaseEvent({ case_id: caseData.id, event_type: 'team_change', description: `Montör bytt från ${oldTeam} till ${approvalMontor}`, created_by: currentUser });
+        logActivity({
+          category: 'case',
+          action: 'team_changed',
+          description: `Bytte montör (${oldTeam} → ${approvalMontor}) på ${caseData.address}`,
+          case_id: caseData.id,
+          metadata: { old: oldTeam, new: approvalMontor },
+        });
       }
+      logActivity({
+        category: 'case',
+        action: 'montage_booked',
+        description: `Bokade montage för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { montage_date: dateStr, team: approvalMontor },
+      });
 
       try {
         await sendNotificationEmail({
@@ -886,6 +992,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                         description: `Status tvingad till ${STATUS_LABELS[b.status] || b.status} trots saknad förutsättning: ${b.reason}`,
                         created_by: currentUser,
                       }).catch((e) => console.warn('Could not log force', e));
+                      logActivity({
+                        category: 'system',
+                        action: 'status_forced',
+                        description: `Tvingade status till ${STATUS_LABELS[b.status] || b.status} för ${caseData.address}`,
+                        case_id: caseData.id,
+                        metadata: { from: caseData.status, to: b.status, reason: b.reason },
+                      });
                       performStatusChange(b.status, b.description);
                     }}
                   >
