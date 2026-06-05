@@ -9,9 +9,47 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { ChevronDown, ChevronRight, Download, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Search, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
+const BACKUP_SECRET_KEY = 'smartklimat_backup_secret';
+
+async function triggerBackup(): Promise<void> {
+  let secret = localStorage.getItem(BACKUP_SECRET_KEY) || '';
+  if (!secret) {
+    const entered = window.prompt('Ange backup-hemlighet (BACKUP_TRIGGER_SECRET). Sparas lokalt för framtida körningar.');
+    if (!entered) return;
+    secret = entered.trim();
+    localStorage.setItem(BACKUP_SECRET_KEY, secret);
+  }
+  const t = toast.loading('Skapar och mejlar backup...');
+  try {
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/weekly-backup`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-backup-secret': secret,
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify({ source: 'manual' }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 401) {
+        localStorage.removeItem(BACKUP_SECRET_KEY);
+        toast.error('Fel hemlighet — försök igen', { id: t });
+      } else {
+        toast.error(`Backup misslyckades: ${data?.error || res.status}`, { id: t });
+      }
+      return;
+    }
+    toast.success(`Backup skickad till mf@malke.se (${data?.tables ?? '?'} tabeller, ${data?.rows ?? '?'} rader)`, { id: t });
+  } catch (e: any) {
+    toast.error(`Backup misslyckades: ${e?.message || 'okänt fel'}`, { id: t });
+  }
+}
 
 type Category = 'auth' | 'case' | 'deviation' | 'order' | 'system' | 'data';
 
