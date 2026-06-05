@@ -150,6 +150,13 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
         description: `Reklamation markerad löst av ${coordinatorName}`,
         created_by: coordinatorName,
       });
+      logActivity({
+        category: 'deviation',
+        action: 'deviation_resolved',
+        description: `Löste reklamation (case ${dev.case_id})`,
+        case_id: dev.case_id,
+        deviation_id: dev.id,
+      });
     },
     onSuccess: () => {
       toast.success('✓ Markerad som löst');
