@@ -36,6 +36,7 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
   const roleLabel = role.type === 'seller' ? 'Säljare' : role.type === 'coordinator' ? 'Koordinator' : 'Montör';
   const initials = getInitials(role.name);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b bg-card shadow-sm">
