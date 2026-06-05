@@ -328,6 +328,13 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: `Kostnad tillagd: ${costDesc} — ${Number(costAmount).toLocaleString('sv-SE')} kr`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'case',
+        action: 'cost_added',
+        description: `Registrerade kostnad (${Number(costAmount).toLocaleString('sv-SE')} kr) för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile },
+      });
     },
     onSuccess: () => {
       setShowCost(false);
@@ -350,21 +357,38 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: `Avvikelse löst: ${typLabel} — ${deviation.description.substring(0, 60)}`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'deviation',
+        action: 'deviation_resolved',
+        description: `Löste reklamation (${caseData.address})`,
+        case_id: caseData.id,
+        deviation_id: deviation.id,
+        metadata: { type: deviation.type },
+      });
     },
     onSuccess: () => { invalidate(); toast.success('Avvikelse markerad som löst'); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const noteMutation = useMutation({
-    mutationFn: () =>
-      createCaseEvent({
+    mutationFn: async () => {
+      await createCaseEvent({
         case_id: caseData.id,
         event_type: 'note',
         description: `Anteckning: ${note}`,
         created_by: currentUser,
-      }),
+      });
+      logActivity({
+        category: 'case',
+        action: 'note_added',
+        description: `La till anteckning på ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { note },
+      });
+    },
     onSuccess: () => { setNote(''); invalidate(); toast.success('Anteckning sparad'); },
   });
+
 
   const FileThumbnails = ({ files, setter }: { files: File[]; setter: (f: File[]) => void }) => (
     files.length > 0 ? (
