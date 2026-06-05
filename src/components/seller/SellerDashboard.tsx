@@ -150,30 +150,31 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
     (v) => v.result === 'aterkoppla' && !v.case_id && v.follow_up_date && v.follow_up_date <= today
   );
 
-  // --- Sales per city ---
-  const normalizeCity = (s: string) => (s || '').trim().toLowerCase();
-  const cityMap: Record<string, { count: number; value: number }> = {};
+  // --- Sales per city (grupperat på kanonisk nyckel) ---
+  const cityMap: Record<string, { count: number; value: number; label: string }> = {};
   cases.forEach(c => {
-    const city = getCaseCity(c as any);
-    if (!cityMap[city]) cityMap[city] = { count: 0, value: 0 };
-    cityMap[city].count++;
-    cityMap[city].value += Number(c.order_value) || 0;
+    const key = getCaseCityKeyLocal(c as any);
+    if (!key) return;
+    if (!cityMap[key]) cityMap[key] = { count: 0, value: 0, label: cityDisplayName(getCaseCityRaw(c as any)) };
+    cityMap[key].count++;
+    cityMap[key].value += Number(c.order_value) || 0;
   });
-  // Key visits by normalized city so they match getCaseCity output regardless of case/whitespace
+  // Besök gruppas på samma kanoniska nyckel
   const cityVisitMap: Record<string, { total: number; signerat: number }> = {};
   visits.forEach(v => {
-    const key = normalizeCity(extractCityFromAddress(v.address));
+    const key = normalizeCityKey(extractCityFromAddress(v.address));
     if (!key) return;
     if (!cityVisitMap[key]) cityVisitMap[key] = { total: 0, signerat: 0 };
     cityVisitMap[key].total++;
     if (v.result === 'signerat') cityVisitMap[key].signerat++;
   });
   const cityData = Object.entries(cityMap)
-    .map(([city, d]) => {
-      const v = cityVisitMap[normalizeCity(city)];
+    .map(([key, d]) => {
+      const v = cityVisitMap[key];
       const hasVisits = !!(v && v.total > 0);
       return {
-        city,
+        city: d.label,
+        key,
         count: d.count,
         value: d.value,
         hitRate: hasVisits ? Math.round((v!.signerat / v!.total) * 100) : null,
