@@ -992,6 +992,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                         description: `Status tvingad till ${STATUS_LABELS[b.status] || b.status} trots saknad förutsättning: ${b.reason}`,
                         created_by: currentUser,
                       }).catch((e) => console.warn('Could not log force', e));
+                      logActivity({
+                        category: 'system',
+                        action: 'status_forced',
+                        description: `Tvingade status till ${STATUS_LABELS[b.status] || b.status} för ${caseData.address}`,
+                        case_id: caseData.id,
+                        metadata: { from: caseData.status, to: b.status, reason: b.reason },
+                      });
                       performStatusChange(b.status, b.description);
                     }}
                   >
