@@ -467,8 +467,118 @@ const SELLER_GENERATORS: SellerGenerator[] = [
     };
   },
 
+  // ---- MÅNAD / TIDSBASERAT (tier 2-3) ----
+  ({ visits }) => {
+    // Denna månad: X signeringar / Y kr + jmf mot förra månaden
+    const now = new Date();
+    const mStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const signed = visits.filter(v => v.result === 'signerat');
+    const thisM = signed.filter(v => new Date(v.date) >= mStart);
+    const prevM = signed.filter(v => {
+      const d = new Date(v.date); return d >= prevStart && d < mStart;
+    });
+    if (thisM.length < 1) return null;
+    const sumThis = thisM.reduce((s, v) => s + (Number(v.order_value) || 0), 0);
+    const sumPrev = prevM.reduce((s, v) => s + (Number(v.order_value) || 0), 0);
+    const cmp = sumPrev > 0
+      ? ` (förra månaden: ${fmtKr(sumPrev)})`
+      : '';
+    return {
+      id: 'month_summary',
+      tier: 3, category: 'month',
+      score: 45,
+      emoji: '🗓️',
+      title: `${thisM.length} signeringar / ${fmtKr(sumThis)} denna månad`,
+      subtitle: cmp || undefined,
+      animation: 'none',
+    };
+  },
+
+  ({ visits }) => {
+    // År till dato: X kr sålt
+    const year = new Date().getFullYear();
+    const ytd = visits
+      .filter(v => v.result === 'signerat' && new Date(v.date).getFullYear() === year)
+      .reduce((s, v) => s + (Number(v.order_value) || 0), 0);
+    if (ytd <= 0) return null;
+    return {
+      id: `month_ytd_${year}`,
+      tier: 3, category: 'fact',
+      score: 38,
+      emoji: '📊',
+      title: `${fmtKr(ytd)} sålt år till dato`,
+      animation: 'none',
+    };
+  },
+
+  ({ visits }) => {
+    // Dagar sedan senaste signering — peppning om det var ett tag sen
+    const signed = visits.filter(v => v.result === 'signerat');
+    if (signed.length < 3) return null;
+    const latest = signed.reduce((m, v) => Math.max(m, new Date(v.date).getTime()), 0);
+    if (!latest) return null;
+    const days = Math.floor((Date.now() - latest) / DAY);
+    if (days < 7) return null;
+    return {
+      id: 'pep_days_since_signed',
+      tier: 4, category: 'pep',
+      score: 25 + Math.min(15, days - 7),
+      emoji: '🎯',
+      title: `${days} dagar sedan din senaste signering`,
+      subtitle: 'Nästa kan vara idag — kör hårt!',
+      animation: 'none',
+    };
+  },
+
+  ({ visits }) => {
+    // Din bästa månad hittills
+    const signed = visits.filter(v => v.result === 'signerat' && Number(v.order_value) > 0);
+    if (signed.length < 6) return null;
+    const byMonth = new Map<string, number>();
+    signed.forEach(v => {
+      const d = new Date(v.date);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      byMonth.set(k, (byMonth.get(k) || 0) + (Number(v.order_value) || 0));
+    });
+    if (byMonth.size < 3) return null;
+    const best = [...byMonth.entries()].sort((a, b) => b[1] - a[1])[0];
+    const [y, m] = best[0].split('-').map(Number);
+    const monthName = new Date(y, m - 1, 1).toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' });
+    return {
+      id: `fact_best_month_${best[0]}`,
+      tier: 3, category: 'fact',
+      score: 36,
+      emoji: '🏅',
+      title: `Din bästa månad hittills: ${monthName}`,
+      subtitle: fmtKr(best[1]),
+      animation: 'none',
+    };
+  },
+
+  ({ visits }) => {
+    // Flest besök på en dag
+    if (visits.length < 10) return null;
+    const byDay = new Map<string, number>();
+    visits.forEach(v => {
+      const k = isoDate(v.date);
+      byDay.set(k, (byDay.get(k) || 0) + 1);
+    });
+    const best = [...byDay.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (!best || best[1] < 3) return null;
+    return {
+      id: `fact_max_visits_day_${best[0]}`,
+      tier: 3, category: 'fact',
+      score: 34,
+      emoji: '⚡',
+      title: `Flest besök på en dag: ${best[1]} (${best[0]})`,
+      animation: 'none',
+    };
+  },
+
   // ---- PEPP (tier 4) ----
   ({ visits }) => {
+
     const followUps = visits.filter(v =>
       v.result === 'aterkoppla' && v.follow_up_date &&
       isoDate(v.follow_up_date) <= isoDate(new Date()) && !v.lost
