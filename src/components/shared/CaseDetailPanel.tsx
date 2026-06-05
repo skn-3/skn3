@@ -384,12 +384,22 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const assignmentMutation = useMutation({
     mutationFn: async ({ field, value, label }: { field: 'team' | 'seller' | 'km_team'; value: string; label: string }) => {
       const newValue = value ? value : null;
+      const oldValue = (caseData as any)[field] ?? null;
       await updateCase(caseData.id, { [field]: newValue } as any);
       await createCaseEvent({
         case_id: caseData.id,
         event_type: field === 'seller' ? 'seller_change' : 'team_change',
         description: `${label} ändrad till ${newValue || '—'}`,
         created_by: currentUser,
+      });
+      logActivity({
+        category: 'case',
+        action: field === 'seller' ? 'seller_changed' : 'team_changed',
+        description: field === 'seller'
+          ? `Bytte säljare (${oldValue || '—'} → ${newValue || '—'}) på ${caseData.address}`
+          : `Bytte montör (${oldValue || '—'} → ${newValue || '—'}) på ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { field, old: oldValue, new: newValue },
       });
     },
     onSuccess: (_d, vars) => {
@@ -401,6 +411,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const statusMutation = useMutation({
     mutationFn: async ({ newStatus, description }: { newStatus: string; description: string }) => {
+      const oldStatus = caseData.status;
       await updateCase(caseData.id, { status: newStatus });
       await createCaseEvent({
         case_id: caseData.id,
@@ -408,6 +419,33 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         description,
         created_by: currentUser,
       });
+      // Generisk logg — hoppa över transitioner med egen action (km_bokad/montage_pagar loggas i sina egna flöden)
+      const skip = ['km_bokad', 'montage_pagar'];
+      if (newStatus === 'montage_bokat') {
+        logActivity({
+          category: 'case',
+          action: 'montage_booked',
+          description: `Bokade montage för ${caseData.address}`,
+          case_id: caseData.id,
+          metadata: { from: oldStatus, to: newStatus, montage_date: caseData.montage_date },
+        });
+      } else if (newStatus === 'montage_klart') {
+        logActivity({
+          category: 'case',
+          action: 'montage_completed',
+          description: `Markerade montage klart för ${caseData.address}`,
+          case_id: caseData.id,
+          metadata: { from: oldStatus, to: newStatus },
+        });
+      } else if (!skip.includes(newStatus)) {
+        logActivity({
+          category: 'case',
+          action: 'status_changed',
+          description: `Ändrade status till ${STATUS_LABELS[newStatus] || newStatus} för ${caseData.address}`,
+          case_id: caseData.id,
+          metadata: { from: oldStatus, to: newStatus },
+        });
+      }
 
       // Send MONTAGE BOKAT email
       if (newStatus === 'montage_bokat') {
