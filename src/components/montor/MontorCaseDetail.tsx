@@ -103,6 +103,13 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: klarComment ? `Montage klart. ${klarComment}` : 'Montage klart.',
         created_by: currentUser,
       });
+      logActivity({
+        category: 'case',
+        action: 'montage_completed',
+        description: `Markerade montage klart för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { comment: klarComment || null },
+      });
       try {
         await sendNotificationEmail({
           to: COORDINATOR_EMAIL,
@@ -146,10 +153,17 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: 'Montage påbörjat',
         created_by: currentUser,
       });
+      logActivity({
+        category: 'case',
+        action: 'montage_started',
+        description: `Påbörjade montage för ${caseData.address}`,
+        case_id: caseData.id,
+      });
     },
     onSuccess: () => { invalidate(); toast.success('Montage påbörjat'); },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
 
   const kmBookMutation = useMutation({
