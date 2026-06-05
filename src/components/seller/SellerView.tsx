@@ -12,7 +12,7 @@ import { ImportCaseForm } from './ImportCaseForm';
 import { CleanAddressesView } from './CleanAddressesView';
 import { ValidatePipelineView } from './ValidatePipelineView';
 import { ActivityLogView } from './ActivityLogView';
-import { ADMIN_USERS } from '@/lib/constants';
+
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { CalendarView } from '@/components/calendar/CalendarView';
 import { supabase } from '@/integrations/supabase/client';
