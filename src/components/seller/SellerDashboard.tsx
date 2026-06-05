@@ -66,13 +66,21 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   // Filter imported cases if toggle is off
   const allCases = (allCasesRaw || []).filter(c => includeImported || !(c as any).imported);
 
-  // Extract all cities for filter
-  const allCities = [...new Set(allCases.map(c => getCaseCity(c as any)))].sort();
+  // Extract all cities for filter (kanoniska nycklar + visningsnamn)
+  const cityOptionMap = new Map<string, string>();
+  allCases.forEach(c => {
+    const key = getCaseCityKeyLocal(c as any);
+    if (!key) return;
+    if (!cityOptionMap.has(key)) cityOptionMap.set(key, cityDisplayName(getCaseCityRaw(c as any)));
+  });
+  const allCities = [...cityOptionMap.entries()]
+    .map(([key, label]) => ({ key, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'sv'));
 
   const cases = allCases.filter((c) => {
     if (filterSeller !== 'all' && c.seller !== filterSeller) return false;
     if (filterMontor !== 'all' && c.team !== filterMontor) return false;
-    if (filterCity !== 'all' && getCaseCity(c as any) !== filterCity) return false;
+    if (filterCity !== 'all' && getCaseCityKeyLocal(c as any) !== filterCity) return false;
     if (dateFrom && c.created_at < dateFrom) return false;
     if (dateTo && c.created_at > dateTo + 'T23:59:59') return false;
     return true;
