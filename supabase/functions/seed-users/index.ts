@@ -40,17 +40,27 @@ function padPin(pin: string): string {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const expected = Deno.env.get("BACKUP_TRIGGER_SECRET");
-  const got = req.headers.get("x-backup-secret");
-  if (!expected || got !== expected) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+  // Allow unauthenticated calls only if the profiles table is empty (bootstrap),
+  // otherwise require BACKUP_TRIGGER_SECRET.
+  const { count: profileCount } = await admin
+    .from("profiles")
+    .select("id", { count: "exact", head: true });
+  const isBootstrap = (profileCount ?? 0) === 0;
+
+  if (!isBootstrap) {
+    const expected = Deno.env.get("BACKUP_TRIGGER_SECRET");
+    const got = req.headers.get("x-backup-secret");
+    if (!expected || got !== expected) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
 
   const result: Array<{ name: string; status: string }> = [];
 
