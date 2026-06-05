@@ -48,6 +48,8 @@ function applyFilters(q: any, filters?: Record<string, unknown>) {
       q = q.is(k, null);
     } else if (typeof v === 'object' && v !== null && 'in' in (v as any)) {
       q = q.in(k, (v as any).in);
+    } else if (typeof v === 'object' && v !== null && 'ilike' in (v as any)) {
+      q = q.ilike(k, (v as any).ilike);
     } else if (typeof v === 'object' && v !== null && 'eq' in (v as any)) {
       q = q.eq(k, (v as any).eq);
     } else {
