@@ -127,6 +127,18 @@ export function DeviationActionPanel({ deviation, caseData, currentUser, onDone 
         description: `Reklamationsstatus ändrad till "${DEVIATION_STATUS_META[newStatus].label}" av ${currentUser}`,
         created_by: currentUser,
       });
+      const addr = caseData?.address || '(adress saknas)';
+      const isResolved = newStatus === 'klar';
+      logActivity({
+        category: 'deviation',
+        action: isResolved ? 'deviation_resolved' : 'deviation_status_changed',
+        description: isResolved
+          ? `Löste reklamation (${addr})`
+          : `Ändrade status på reklamation till ${DEVIATION_STATUS_META[newStatus].label} (${addr})`,
+        case_id: deviation.case_id,
+        deviation_id: deviation.id,
+        metadata: { status: newStatus },
+      });
     },
     onSuccess: () => {
       toast.success('✓ Status uppdaterad');
