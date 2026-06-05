@@ -529,6 +529,14 @@ function FactoryClaimSheet({
         description: `Reklamation mailad till ${to.trim()} av ${currentUser}`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'order',
+        action: 'deviation_factory_mail',
+        description: `Skickade mail till fabrik för reklamation (${caseData?.address || 'okänd adress'})`,
+        case_id: deviation.case_id,
+        deviation_id: deviation.id,
+        metadata: { to: to.trim() },
+      });
     },
     onSuccess: () => {
       toast.success(`✓ Mail skickat till ${to.trim()}`);
