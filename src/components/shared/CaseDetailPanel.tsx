@@ -729,7 +729,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   });
 
 
-  const isAdmin = ADMIN_USERS.includes(currentUser);
+  const isAdmin = isCurrentUserAdmin(currentUser);
   const canAct = canActOnDeviations(currentUser, isCoordinator ? 'coordinator' : isSeller ? 'seller' : 'montor');
   const [actionDev, setActionDev] = useState<DeviationRow | null>(null);
 
