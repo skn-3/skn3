@@ -156,6 +156,15 @@ export function DeviationActionPanel({ deviation, caseData, currentUser, onDone 
         action: 'Anteckning',
         note: noteText.trim(),
       });
+      const addr = caseData?.address || '(adress saknas)';
+      logActivity({
+        category: 'deviation',
+        action: 'deviation_note',
+        description: `La till anteckning på reklamation (${addr})`,
+        case_id: deviation.case_id,
+        deviation_id: deviation.id,
+        metadata: { note: noteText.trim() },
+      });
     },
     onSuccess: () => {
       toast.success('✓ Anteckning sparad');
@@ -174,6 +183,15 @@ export function DeviationActionPanel({ deviation, caseData, currentUser, onDone 
         by: currentUser,
         action: 'Kostnad uppdaterad',
         note: `${num.toLocaleString('sv-SE')} kr`,
+      });
+      const addr = caseData?.address || '(adress saknas)';
+      logActivity({
+        category: 'deviation',
+        action: 'deviation_cost',
+        description: `Registrerade kostnad på reklamation (${num.toLocaleString('sv-SE')} kr, ${addr})`,
+        case_id: deviation.case_id,
+        deviation_id: deviation.id,
+        metadata: { amount: num },
       });
     },
     onSuccess: () => {
