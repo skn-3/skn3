@@ -494,13 +494,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   });
 
   const noteMutation = useMutation({
-    mutationFn: () =>
-      createCaseEvent({
+    mutationFn: async () => {
+      await createCaseEvent({
         case_id: caseData.id,
         event_type: 'note',
         description: `Anteckning: ${note}`,
         created_by: currentUser,
-      }),
+      });
+      logActivity({
+        category: 'case',
+        action: 'note_added',
+        description: `La till anteckning på ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { note },
+      });
+    },
     onSuccess: () => { setNote(''); invalidate(); toast.success('Anteckning sparad'); },
   });
 
@@ -514,6 +522,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         event_type: 'deviation_resolved',
         description: `Avvikelse löst: ${typLabel} — ${deviation.description.substring(0, 60)}`,
         created_by: currentUser,
+      });
+      logActivity({
+        category: 'deviation',
+        action: 'deviation_resolved',
+        description: `Löste reklamation (${caseData.address})`,
+        case_id: caseData.id,
+        deviation_id: deviation.id,
+        metadata: { type: deviation.type },
       });
     },
     onSuccess: () => { invalidate(); toast.success('Avvikelse markerad som löst'); },
@@ -537,6 +553,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         description: `KM bokad: ${kmDate}`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'case',
+        action: 'km_booked',
+        description: `Bokade kontrollmätning (${kmDate}) för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { km_date: kmDate },
+      });
       await sendMontorAssignmentEmail(caseData, 'km', currentUser, { km_date: kmDate });
     },
     onSuccess: () => { invalidate(); toast.success('KM bokad'); },
@@ -558,14 +581,29 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           : `KM klar. Inga extra timmar.${kmNote ? ' ' + kmNote : ''}`,
         created_by: currentUser,
       });
+      logActivity({
+        category: 'case',
+        action: 'km_reported_done',
+        description: `Rapporterade KM klar för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { extra_hours_requested: hrs, note: kmNote || null },
+      });
     },
     onSuccess: () => { invalidate(); toast.success('KM rapporterad'); },
   });
 
   const approveHoursMutation = useMutation({
     mutationFn: async () => {
-      await updateCase(caseData.id, { extra_hours_approved: caseData.extra_hours_requested, status: 'km_klar' });
-      await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${caseData.extra_hours_requested}`, created_by: currentUser });
+      const requested = caseData.extra_hours_requested ?? 0;
+      await updateCase(caseData.id, { extra_hours_approved: requested, status: 'km_klar' });
+      await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${requested}`, created_by: currentUser });
+      logActivity({
+        category: 'case',
+        action: 'hours_approved',
+        description: `Godkände timmar för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { requested, approved: requested },
+      });
     },
     onSuccess: () => { invalidate(); toast.success('Extra timmar godkända'); },
     onError: (e: Error) => toast.error(e.message),
@@ -573,12 +611,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const rejectHoursMutation = useMutation({
     mutationFn: async () => {
+      const requested = caseData.extra_hours_requested ?? 0;
       await updateCase(caseData.id, { extra_hours_approved: 0, status: 'km_klar' });
       await createCaseEvent({ case_id: caseData.id, event_type: 'hours_rejected', description: 'Extra timmar avslagna', created_by: currentUser });
+      logActivity({
+        category: 'case',
+        action: 'hours_rejected',
+        description: `Nekade timmar för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { requested, approved: 0 },
+      });
     },
     onSuccess: () => { invalidate(); toast.success('Extra timmar avslagna'); },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const adjustHoursMutation = useMutation({
     mutationFn: async ({ field, newValue }: { field: 'extra_hours_sold' | 'extra_hours_approved'; newValue: number }) => {
