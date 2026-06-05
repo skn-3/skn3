@@ -24,7 +24,7 @@ function markWelcomeShown(name: string) {
 }
 
 const Index = () => {
-  const { role, setRole, clearRole } = useRole();
+  const { role, clearRole } = useRole();
   const [showMontorView, setShowMontorView] = useState(false);
   const [showCoordinatorView, setShowCoordinatorView] = useState(false);
   const [searchParams] = useSearchParams();
@@ -44,7 +44,7 @@ const Index = () => {
   }, [role, initialCaseId]);
 
   if (!role) {
-    return <RolePicker onRoleSelected={setRole} />;
+    return <RolePicker />;
   }
 
   if (showWelcome) {
