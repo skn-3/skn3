@@ -107,11 +107,30 @@ function InsightsLayer({
 }: { kind: 'seller'; name: string; data: SellerInsightData }
    | { kind: 'montor'; name: string; data: MontorInsightData }) {
   const [soundOn, setSoundOn] = useState(() => getSoundEnabled(name));
-  const insights = useMemo(() => {
+
+  const { data: history = [] } = useQuery({
+    queryKey: ['insight-history', name],
+    queryFn: () => fetchInsightHistory(name),
+    staleTime: 5 * 60_000,
+  });
+
+  const selection = useMemo(() => {
     return kind === 'seller'
-      ? getInsightsForSeller(name, data as SellerInsightData)
-      : getInsightsForMontor(name, data as MontorInsightData);
-  }, [kind, name, data]);
+      ? selectFromSellerData(name, data as SellerInsightData, history)
+      : selectFromMontorData(name, data as MontorInsightData, history);
+  }, [kind, name, data, history]);
+
+  const insights = selection.insights;
+
+  // Logga nytt urval till servern — exakt en gång per ny selection.
+  const loggedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selection.isNewSelection || !insights.length) return;
+    const key = insights.map(i => i.id).sort().join('|');
+    if (loggedKeyRef.current === key) return;
+    loggedKeyRef.current = key;
+    recordInsightsShown(name, insights.map(i => i.id));
+  }, [selection.isNewSelection, insights, name]);
 
   if (!insights.length) return null;
   const hero = insights[0].tier === 1 ? insights[0] : null;
@@ -147,6 +166,7 @@ function InsightsLayer({
     </div>
   );
 }
+
 
 // ============ SELLER ============
 
