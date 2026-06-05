@@ -78,7 +78,7 @@ const STATUS_OPTIONS: DeviationStatus[] = [
 
 export function canActOnDeviations(user: string, role: 'seller' | 'montor' | 'coordinator'): boolean {
   if (role === 'coordinator') return true;
-  if (role === 'seller' && ADMIN_USERS.includes(user)) return true;
+  if (role === 'seller' && isCurrentUserAdmin(user)) return true;
   return false;
 }
 
