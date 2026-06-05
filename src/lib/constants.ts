@@ -24,18 +24,22 @@ export interface UserRole {
   isAdmin?: boolean;
 }
 
-export const PIN_CODES: Record<string, string> = {
-  'Daniel Malke': '1234',
-  'Gabriel Hanna': '5678',
-  'GVMO': '1111',
-  'Samy': '2222',
-  'Alex NBD': '3333',
-  'Jerk': '4444',
-  'Villaspecialisten': '5555',
-  'Mirna Malke': '6666',
-};
+/**
+ * Härled intern login-email från användarens visningsnamn.
+ * Måste hållas synk med edge-funktionen seed-users.
+ */
+export function loginEmailFor(name: string): string {
+  const local = name.trim().toLowerCase().replace(/\s+/g, '.');
+  return `${local}@caseflow.local`;
+}
 
-export const ADMIN_USERS = ['Daniel Malke'];
+/**
+ * Övergångsutfyllnad: Supabase kräver minst 6 tecken på lösenord under övergången
+ * från 4-siffriga PIN. Vid det slutliga 6-siffriga bytet tas detta bort.
+ */
+export function padPinForAuth(pin: string): string {
+  return (pin + '00').slice(0, 6);
+}
 
 export const STATUS_LABELS: Record<string, string> = {
   ny: 'Ny',
