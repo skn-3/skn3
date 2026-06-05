@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseById, createCaseEvent } from '@/lib/supabaseClient';
+import { logActivity } from '@/lib/activityLog';
 import { supabase } from '@/integrations/supabase/client';
 import { useRole } from '@/hooks/useRole';
 import { MONTOR_PHONES, SHEET_METAL_RECIPIENT, SHEET_METAL_CC } from '@/lib/constants';
