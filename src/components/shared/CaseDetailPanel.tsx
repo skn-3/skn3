@@ -668,7 +668,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
       if (teamChanged && oldTeam) {
         await createCaseEvent({ case_id: caseData.id, event_type: 'team_change', description: `Montör bytt från ${oldTeam} till ${approvalMontor}`, created_by: currentUser });
+        logActivity({
+          category: 'case',
+          action: 'team_changed',
+          description: `Bytte montör (${oldTeam} → ${approvalMontor}) på ${caseData.address}`,
+          case_id: caseData.id,
+          metadata: { old: oldTeam, new: approvalMontor },
+        });
       }
+      logActivity({
+        category: 'case',
+        action: 'montage_booked',
+        description: `Bokade montage för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { montage_date: dateStr, team: approvalMontor },
+      });
 
       try {
         await sendNotificationEmail({
