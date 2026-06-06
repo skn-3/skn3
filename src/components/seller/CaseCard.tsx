@@ -119,11 +119,10 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancia
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
   const units = (caseData as any).units as number | null | undefined;
   const intensity = unitsIntensity(units);
-  const cardStyle: CSSProperties | undefined = intensity
+  const cardStyle: CSSProperties | undefined = intensity != null
     ? {
         borderLeftWidth: 3,
-        borderLeftColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity.edge})`,
-        backgroundColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity.bg})`,
+        borderLeftColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity})`,
       }
     : undefined;
 
