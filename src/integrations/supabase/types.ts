@@ -165,6 +165,7 @@ export type Database = {
           status: string
           tb_percent: number | null
           team: string | null
+          units: number | null
           updated_at: string
           visit_id: string | null
         }
@@ -200,6 +201,7 @@ export type Database = {
           status?: string
           tb_percent?: number | null
           team?: string | null
+          units?: number | null
           updated_at?: string
           visit_id?: string | null
         }
@@ -235,6 +237,7 @@ export type Database = {
           status?: string
           tb_percent?: number | null
           team?: string | null
+          units?: number | null
           updated_at?: string
           visit_id?: string | null
         }

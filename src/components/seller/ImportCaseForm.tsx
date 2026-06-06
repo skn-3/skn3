@@ -225,6 +225,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     extra_hours_sold: '0',
     extra_hours_requested: '0',
     extra_hours_approved: '0',
+    units: '',
     team: '',
     km_team: '',
     seller: sellerName,
@@ -262,6 +263,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         extra_hours_sold: Number(form.extra_hours_sold) || 0,
         extra_hours_requested: Number(form.extra_hours_requested) || 0,
         extra_hours_approved: Number(form.extra_hours_approved) || 0,
+        units: form.units !== '' ? Math.max(0, Math.floor(Number(form.units))) : null,
         team: form.team || null,
         km_team: form.km_team || null,
         seller: form.seller,
@@ -358,6 +360,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         extra_hours_sold: '0',
         extra_hours_requested: '0',
         extra_hours_approved: '0',
+        units: '',
         status: 'vantar_km',
         created_at: '',
         km_date: '',
@@ -697,6 +700,10 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         <div className="space-y-1.5">
           <Label>Extra timmar godkända</Label>
           <Input type="number" value={form.extra_hours_approved} onChange={(e) => update('extra_hours_approved', e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Antal enheter</Label>
+          <Input type="number" min={0} step={1} placeholder="Valfritt" value={form.units} onChange={(e) => update('units', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Google Drive-länk</Label>

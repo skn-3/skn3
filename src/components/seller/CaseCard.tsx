@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { User, Wrench, UserCircle, AlertTriangle, Clock } from 'lucide-react';
 import { differenceInCalendarDays, startOfISOWeek } from 'date-fns';
@@ -61,6 +62,20 @@ const DELIVERY_TONE_CLASSES: Record<DeliveryBadge['tone'], string> = {
   gray: 'border-gray-300 bg-gray-100 text-gray-700',
 };
 
+// Storleksgradient för antal enheter — lätt att justera.
+// Skala 1..UNITS_SCALE_CAP mappas linjärt till alpha MIN..MAX.
+const UNITS_SCALE_CAP = 25;
+const UNITS_ALPHA_MIN = 0.18;
+const UNITS_ALPHA_MAX = 0.85;
+const UNITS_BG_ALPHA_MAX = 0.06; // mycket svag bakgrundston
+function unitsIntensity(units: number | null | undefined) {
+  if (!units || units <= 0) return null;
+  const t = Math.min(1, units / UNITS_SCALE_CAP);
+  const edge = UNITS_ALPHA_MIN + (UNITS_ALPHA_MAX - UNITS_ALPHA_MIN) * t;
+  const bg = UNITS_BG_ALPHA_MAX * t;
+  return { edge, bg };
+}
+
 
 interface CaseCardProps {
   caseData: CaseRow;
@@ -96,10 +111,20 @@ function getScheduledDeliveryBadge(c: any): { label: string; urgent: boolean } |
 export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancials }: CaseCardProps) {
   const tidsBadge = getScheduledDeliveryBadge(caseData as any);
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
+  const units = (caseData as any).units as number | null | undefined;
+  const intensity = unitsIntensity(units);
+  const cardStyle: CSSProperties | undefined = intensity
+    ? {
+        borderLeftWidth: 3,
+        borderLeftColor: `hsl(var(--primary) / ${intensity.edge})`,
+        backgroundColor: `hsl(var(--primary) / ${intensity.bg})`,
+      }
+    : undefined;
 
   return (
     <button
       onClick={onClick}
+      style={cardStyle}
       className="w-full text-left rounded-lg border bg-card p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 motion-reduce:hover:translate-y-0 motion-reduce:transition-none animate-fade-in space-y-1.5"
     >
       <h3 className="font-bold text-sm text-card-foreground leading-tight">{caseData.address}</h3>
@@ -120,11 +145,20 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancia
             <span className="italic">{caseData.seller || '(saknas)'}</span>
           </div>
         )}
-        {caseData.order_value && !hideFinancials && (
-          <div className="text-primary font-medium">
-            {Number(caseData.order_value).toLocaleString('sv-SE')} kr
-          </div>
-        )}
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          {caseData.order_value && !hideFinancials ? (
+            <span className="text-primary font-medium">
+              {Number(caseData.order_value).toLocaleString('sv-SE')} kr
+            </span>
+          ) : <span />}
+          {units != null && units > 0 ? (
+            <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+              {units} st
+            </span>
+          ) : (
+            <span className="text-[10px] text-muted-foreground/60">–</span>
+          )}
+        </div>
       </div>
       {(deliveryBadge || tidsBadge || (warnings && warnings.length > 0)) && (
         <div className="flex flex-wrap gap-1 pt-1">

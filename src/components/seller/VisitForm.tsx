@@ -76,6 +76,7 @@ const emptyForm = () => ({
   order_value: '',
   tb_percent: '',
   extra_hours_sold: '0',
+  units: '',
   team: '',
   km_team: '',
   google_drive_link: '',
@@ -222,6 +223,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           order_value: form.order_value ? Number(form.order_value) : null,
           tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
           extra_hours_sold: Number(form.extra_hours_sold) || 0,
+          units: form.units !== '' ? Math.max(0, Math.floor(Number(form.units))) : null,
           team: form.team || null,
           km_team: form.km_team || null,
           google_drive_link: form.google_drive_link || null,
@@ -618,6 +620,17 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                     type="number"
                     value={form.extra_hours_sold}
                     onChange={(e) => update('extra_hours_sold', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Antal enheter</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    placeholder="Valfritt"
+                    value={form.units}
+                    onChange={(e) => update('units', e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">
