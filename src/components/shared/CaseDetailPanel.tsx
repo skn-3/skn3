@@ -15,7 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench, Pencil, Check } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench, Pencil, Check, Wallet, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { logActivity } from '@/lib/activityLog';
 import { DeviationActionSheet, DEVIATION_STATUS_META, type DeviationStatus, canActOnDeviations } from '@/components/deviations/DeviationActionPanel';
 import type { DeviationRow } from '@/lib/supabaseClient';
