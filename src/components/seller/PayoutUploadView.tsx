@@ -826,11 +826,55 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             orderMatch ? (
               <Alert>
                 <Check className="h-4 w-4" />
-                <AlertTitle>Matchat ärende</AlertTitle>
+                <AlertTitle>Matchat ärende (ordernummer)</AlertTitle>
                 <AlertDescription>
                   <div className="text-sm">
                     <div><b>{orderMatch.address}</b></div>
                     <div className="text-muted-foreground">{orderMatch.customer_name}</div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ) : strongNameMatch ? (
+              <Alert>
+                <Check className="h-4 w-4" />
+                <AlertTitle className="flex items-center gap-2">
+                  Föreslaget ärende <Badge variant="outline">namn</Badge>
+                </AlertTitle>
+                <AlertDescription>
+                  <div className="text-sm">
+                    <div><b>{strongNameMatch.address}</b></div>
+                    <div className="text-muted-foreground">
+                      {strongNameMatch.customer_name}
+                      {nameCandidates[0]?.reason ? ` · ${nameCandidates[0].reason}` : ''}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ordernumret {orderNumber} hittades inte. Bekräfta att detta är rätt ärende, eller välj ett annat nedan.
+                  </p>
+                </AlertDescription>
+              </Alert>
+            ) : nameCandidates.length > 0 ? (
+              <Alert>
+                <Search className="h-4 w-4" />
+                <AlertTitle>Förslag baserat på kundnamn</AlertTitle>
+                <AlertDescription>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Ordernumret {orderNumber} hittades inte. Möjliga ärenden för "{customerName || '—'}":
+                  </p>
+                  <div className="border rounded-md divide-y">
+                    {nameCandidates.map(cand => (
+                      <button
+                        key={cand.case.id}
+                        type="button"
+                        onClick={() => setChosenCase(cand.case)}
+                        className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                      >
+                        <div className="font-medium">{cand.case.address}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {cand.case.customer_name} · {cand.reason}
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </AlertDescription>
               </Alert>
