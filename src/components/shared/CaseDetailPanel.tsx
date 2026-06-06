@@ -84,6 +84,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     order_value: caseData.order_value != null ? String(caseData.order_value) : '',
     tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
     extra_hours_sold: String(caseData.extra_hours_sold ?? 0),
+    units: (caseData as any).units != null ? String((caseData as any).units) : '',
     team: caseData.team || '',
     km_team: (caseData as any).km_team || '',
     google_drive_link: caseData.google_drive_link || '',
@@ -112,6 +113,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       order_value: caseData.order_value != null ? String(caseData.order_value) : '',
       tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
       extra_hours_sold: String(caseData.extra_hours_sold ?? 0),
+      units: (caseData as any).units != null ? String((caseData as any).units) : '',
       team: caseData.team || '',
       km_team: (caseData as any).km_team || '',
       google_drive_link: caseData.google_drive_link || '',
@@ -144,6 +146,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         order_value: editForm.order_value === '' ? null : Number(editForm.order_value),
         tb_percent: editForm.tb_percent === '' ? null : Number(editForm.tb_percent),
         extra_hours_sold: Number(editForm.extra_hours_sold) || 0,
+        units: editForm.units !== '' ? Math.max(0, Math.floor(Number(editForm.units))) : null,
         team: editForm.team || null,
         km_team: editForm.km_team || null,
         google_drive_link: editForm.google_drive_link || null,
@@ -175,6 +178,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const newTB = updates.tb_percent as number | null;
       if (oldTB !== newTB) changes.push(`TB ändrat till ${newTB != null ? newTB + '%' : '—'}`);
       if ((caseData.extra_hours_sold ?? 0) !== (updates.extra_hours_sold as number)) changes.push(`Extra timmar sålda ändrade till ${updates.extra_hours_sold}`);
+      const oldUnits = (caseData as any).units ?? null;
+      const newUnits = updates.units as number | null;
+      if (oldUnits !== newUnits) changes.push(`Antal enheter satt till ${newUnits != null ? newUnits : '—'}`);
       if ((caseData.team || '') !== (editForm.team || '')) changes.push(`Montage-montör ändrad till ${editForm.team || '—'}`);
       if (((caseData as any).km_team || '') !== (editForm.km_team || '')) changes.push(`KM-montör ändrad till ${editForm.km_team || '—'}`);
       if ((caseData.google_drive_link || '') !== editForm.google_drive_link) changes.push('Google Drive-länk uppdaterad');
@@ -1058,6 +1064,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       </div>
                     </>
                   )}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Antal enheter</Label>
+                    <Input type="number" min={0} step={1} placeholder="Valfritt" value={editForm.units} onChange={(e) => setEditForm(f => ({ ...f, units: e.target.value }))} />
+                  </div>
                   <div className="space-y-1">
                     <Label className="text-xs">KM-montör (valfritt)</Label>
                     <Select value={editForm.km_team || '__none__'} onValueChange={(v) => setEditForm(f => ({ ...f, km_team: v === '__none__' ? '' : v }))}>
