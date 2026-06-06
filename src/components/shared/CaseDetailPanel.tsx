@@ -154,6 +154,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         km_team: editForm.km_team || null,
         google_drive_link: editForm.google_drive_link || null,
         offer_number: editForm.offer_number || null,
+        order_number: editForm.order_number?.trim() ? editForm.order_number.trim() : null,
         customer_phone: editForm.customer_phone,
         customer_email: editForm.customer_email || null,
         city: editForm.city || null,
