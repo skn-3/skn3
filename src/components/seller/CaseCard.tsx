@@ -62,28 +62,24 @@ const DELIVERY_TONE_CLASSES: Record<DeliveryBadge['tone'], string> = {
   gray: 'border-gray-300 bg-gray-100 text-gray-700',
 };
 
-// Storleksindikator för antal enheter — blå/skiffer-ramp, ljus → djupare.
-// Grönt är reserverat för värde/status, gult för varningar.
-// Mappa antal enheter → intensitet 0..1 via mjuk interpolation mellan ankare:
-//   1 → 0  ·  ~8 → 0.5  ·  20+ → 1.0 (capad).
-// Saknas värde (null/0) → ingen ton.
-const UNITS_HUE = 215;        // blå/skiffer
-const UNITS_SAT = 30;         // %
-const UNITS_LIGHT = 48;       // %
-const UNITS_EDGE_ALPHA_MIN = 0.18;
-const UNITS_EDGE_ALPHA_MAX = 0.85;
-const UNITS_BG_ALPHA_MAX = 0.07;
+// Storleksindikator för antal enheter — vivid azurblå, enbart vänsterkant.
+// Intensiteten skalar opacitet (aldrig en grå ton): ljus/låg vid 1 enhet → mättad/full vid 20+.
+// Ankarvärden: 1 → ~0  ·  ~8 → 0.5  ·  20+ → 1.0 (capad).
+// Saknas värde (null/0) → ingen stapel.
+const UNITS_HUE = 210;        // azurblå
+const UNITS_SAT = 90;         // % — hög mättnad, aldrig grå
+const UNITS_LIGHT = 45;       // %
+const UNITS_ALPHA_MIN = 0.08;
+const UNITS_ALPHA_MAX = 1.0;
 
-function unitsIntensity(units: number | null | undefined) {
+function unitsIntensity(units: number | null | undefined): number | null {
   if (units == null || units <= 0) return null;
   let t: number;
   if (units <= 1) t = 0;
   else if (units <= 8) t = ((units - 1) / 7) * 0.5;          // 1→0, 8→0.5
   else if (units <= 20) t = 0.5 + ((units - 8) / 12) * 0.5;  // 8→0.5, 20→1
   else t = 1;
-  const edge = UNITS_EDGE_ALPHA_MIN + (UNITS_EDGE_ALPHA_MAX - UNITS_EDGE_ALPHA_MIN) * t;
-  const bg = UNITS_BG_ALPHA_MAX * t;
-  return { edge, bg };
+  return UNITS_ALPHA_MIN + (UNITS_ALPHA_MAX - UNITS_ALPHA_MIN) * t;
 }
 
 
@@ -123,11 +119,10 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancia
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
   const units = (caseData as any).units as number | null | undefined;
   const intensity = unitsIntensity(units);
-  const cardStyle: CSSProperties | undefined = intensity
+  const cardStyle: CSSProperties | undefined = intensity != null
     ? {
         borderLeftWidth: 3,
-        borderLeftColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity.edge})`,
-        backgroundColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity.bg})`,
+        borderLeftColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity})`,
       }
     : undefined;
 
