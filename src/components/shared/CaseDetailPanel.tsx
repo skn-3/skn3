@@ -189,6 +189,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       if (((caseData as any).km_team || '') !== (editForm.km_team || '')) changes.push(`KM-montör ändrad till ${editForm.km_team || '—'}`);
       if ((caseData.google_drive_link || '') !== editForm.google_drive_link) changes.push('Google Drive-länk uppdaterad');
       if ((caseData.offer_number || '') !== editForm.offer_number) changes.push(`Offertnummer ändrat till ${editForm.offer_number || '—'}`);
+      const oldOrderNum = ((caseData as any).order_number || '') as string;
+      const newOrderNum = (editForm.order_number || '').trim();
+      if (oldOrderNum !== newOrderNum) changes.push(`Ordernummer ändrat till ${newOrderNum || '—'}`);
       if ((caseData.customer_phone || '') !== editForm.customer_phone) changes.push('Telefon uppdaterad');
       if ((caseData.customer_email || '') !== editForm.customer_email) changes.push('E-post uppdaterad');
       const oldCity = ((caseData as any).city || '') as string;
