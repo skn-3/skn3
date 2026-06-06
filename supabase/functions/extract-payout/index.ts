@@ -23,6 +23,7 @@ Returnera ENBART ett JSON-objekt — ingen text, ingen markdown, inga kodblock �
   "line_items": [
     {
       "order_number": string|null,
+      "customer_name": string|null,
       "name": string|null,
       "note": string|null,
       "qty": number|null,
@@ -32,12 +33,19 @@ Returnera ENBART ett JSON-objekt — ingen text, ingen markdown, inga kodblock �
   ]
 }
 
-Regler:
+VIKTIGT om namn:
+- Fakturans mottagare/"Kund" högst upp är ALLTID "Mockfjärds Fönster AB" eller liknande — det är INTE slutkunden och ska INTE användas som customer_name.
+- Slutkundens namn står i radernas "Namn"-kolumn (t.ex. "Sirkka Mäkitalo", "Anders Andersson"). Det är det enda korrekta customer_name.
+- För varje rad: sätt line_items[].customer_name från radens "Namn"-kolumn.
+- För top-level customer_name: använd första radens "Namn", eller null om det saknas. Skriv ALDRIG in "Mockfjärds Fönster AB" här.
+
+Övriga regler:
+- "Fsg. order" / "Order"-kolumnen → line_items[].order_number (Mockfjärds eget ordernummer per rad).
+- line_items[].name = produkt-/tjänstebenämning (t.ex. "Fönster", "Montage").
 - Belopp ska vara tal (ej strängar), använd punkt som decimaltecken.
 - Tolka svenska tusentalsavgränsare (mellanslag) korrekt.
 - invoice_date i ISO-format YYYY-MM-DD.
 - currency default "SEK".
-- En line_item per rad/post på utbetalningen. order_number = ordernumret som raden avser.
 - Om något fält saknas, returnera null.`;
 
 interface ExtractRequest {
