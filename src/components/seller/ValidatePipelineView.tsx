@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Loader2, AlertTriangle, Check, CalendarPlus, FileWarning } from 'lucide-react';
+import { Loader2, AlertTriangle, Check, CalendarPlus, FileWarning, Boxes } from 'lucide-react';
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/activityLog';
 import { formatAmount } from '@/lib/utils';
+import { listOrdersByCaseIds } from '@/integrations/orderGateway';
 
 interface Props {
   currentUser: string;
