@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { Upload, FileText, Search, Check, Loader2, AlertTriangle, Sparkles, Trash2, Plus } from 'lucide-react';
+import { Upload, FileText, Search, Check, Loader2, AlertTriangle, Sparkles, Trash2, Plus, ChevronDown, Layers } from 'lucide-react';
 import { logActivity } from '@/lib/activityLog';
 
 interface PayoutUploadViewProps {
@@ -38,6 +39,8 @@ async function fileToBase64(file: File): Promise<string> {
   return btoa(binary);
 }
 
+const norm = (s: string | null | undefined) => (s ?? '').trim();
+
 export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const qc = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
@@ -49,6 +52,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [search, setSearch] = useState('');
   const [chosenCase, setChosenCase] = useState<CaseRow | null>(null);
+  // Multi-mode: per-order-number manually chosen case override
+  const [groupChoices, setGroupChoices] = useState<Record<string, CaseRow | null>>({});
+  const [groupSearch, setGroupSearch] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
@@ -56,14 +62,54 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   const { data: cases = [] } = useQuery({ queryKey: ['cases-all'], queryFn: fetchAllCases });
 
-  // Auto-match by order_number
+  // Distinct order numbers from line items
+  const distinctOrderNumbers = useMemo(() => {
+    const set = new Set<string>();
+    for (const li of lineItems) {
+      const o = norm(li.order_number);
+      if (o) set.add(o);
+    }
+    return Array.from(set);
+  }, [lineItems]);
+
+  const isMulti = distinctOrderNumbers.length > 1;
+
+  // Single-mode auto-match by order_number
   const orderMatch = useMemo(() => {
     const q = orderNumber.trim();
     if (!q) return null;
-    return (cases as any[]).find(c => (c.order_number || '').trim() === q) || null;
+    return (cases as any[]).find(c => norm(c.order_number) === q) || null;
   }, [orderNumber, cases]);
 
   const effectiveCase = chosenCase || orderMatch;
+
+  // Multi-mode groups
+  type Group = {
+    order_number: string;
+    lines: LineItem[];
+    subtotal: number;
+    autoCase: CaseRow | null;
+    effectiveCase: CaseRow | null;
+  };
+  const groups: Group[] = useMemo(() => {
+    return distinctOrderNumbers.map(on => {
+      const lines = lineItems.filter(li => norm(li.order_number) === on);
+      const subtotal = lines.reduce((s, li) => s + (Number(li.amount) || 0), 0);
+      const autoCase = (cases as any[]).find(c => norm(c.order_number) === on) || null;
+      const override = groupChoices[on] ?? null;
+      return { order_number: on, lines, subtotal, autoCase, effectiveCase: override || autoCase };
+    });
+  }, [distinctOrderNumbers, lineItems, cases, groupChoices]);
+
+  const unassignedLines = useMemo(
+    () => lineItems.filter(li => !norm(li.order_number)),
+    [lineItems],
+  );
+
+  const groupedSubtotalSum = useMemo(
+    () => groups.reduce((s, g) => s + g.subtotal, 0),
+    [groups],
+  );
 
   const filteredCases = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -78,12 +124,26 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       .slice(0, 10);
   }, [search, cases]);
 
+  const filteredCasesForGroup = (on: string) => {
+    const q = (groupSearch[on] ?? '').trim().toLowerCase();
+    if (!q) return [];
+    return (cases as CaseRow[])
+      .filter(c =>
+        (c.customer_name || '').toLowerCase().includes(q) ||
+        (c.address || '').toLowerCase().includes(q) ||
+        (c.offer_number || '').toLowerCase().includes(q) ||
+        ((c as any).order_number || '').toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+  };
+
   const lineSum = useMemo(
     () => lineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0),
     [lineItems],
   );
   const totalNum = Number(totalAmount) || 0;
   const sumMismatch = lineItems.length > 0 && totalNum > 0 && Math.abs(lineSum - totalNum) > 0.5;
+  const multiSumMismatch = isMulti && totalNum > 0 && Math.abs(groupedSubtotalSum - totalNum) > 0.5;
 
   const reset = () => {
     setFile(null);
@@ -95,6 +155,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setLineItems([]);
     setSearch('');
     setChosenCase(null);
+    setGroupChoices({});
+    setGroupSearch({});
     setExtracted(false);
     setExtractError(null);
   };
@@ -111,7 +173,6 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Prefill — never silently overwrite if user already entered values; replace if empty.
       const items: LineItem[] = Array.isArray(data.line_items) ? data.line_items : [];
       const orderNumbers: string[] = Array.isArray(data.order_numbers) ? data.order_numbers : [];
       const firstOrder = orderNumbers[0] || (items[0]?.order_number ?? '');
@@ -138,9 +199,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setFile(f);
     setExtracted(false);
     setExtractError(null);
-    if (f) {
-      runExtract(f);
-    }
+    if (f) runExtract(f);
   };
 
   const updateLine = (idx: number, patch: Partial<LineItem>) => {
@@ -152,7 +211,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     { order_number: orderNumber || null, name: '', note: null, qty: null, unit_price: null, amount: null },
   ]);
 
-  const handleSubmit = async () => {
+  // Assign an unassigned line (by its index in lineItems) to a given order_number
+  const assignLineToOrder = (lineIdx: number, on: string) => {
+    setLineItems(items => items.map((li, i) => (i === lineIdx ? { ...li, order_number: on || null } : li)));
+  };
+
+  const handleSubmitSingle = async () => {
     if (!file) { toast.error('Välj en PDF'); return; }
     if (!orderNumber.trim()) { toast.error('Ange ordernummer'); return; }
     if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
@@ -186,13 +250,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       });
       if (insErr) throw insErr;
 
-      // Fyll ärendets order_number om saknas
-      if (!((effectiveCase as any).order_number || '').trim()) {
-        try {
-          await updateCase(caseId, { order_number: orderNumber.trim() } as any);
-        } catch (e) {
-          console.warn('Could not set case.order_number:', e);
-        }
+      if (!norm((effectiveCase as any).order_number)) {
+        try { await updateCase(caseId, { order_number: orderNumber.trim() } as any); } catch (e) { console.warn(e); }
       }
 
       await createCaseEvent({
@@ -221,6 +280,92 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       setSubmitting(false);
     }
   };
+
+  const handleSubmitMulti = async () => {
+    if (!file) { toast.error('Välj en PDF'); return; }
+    if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
+    if (unassignedLines.length > 0) {
+      toast.error('Tilldela alla rader till ett ordernummer först'); return;
+    }
+    const missing = groups.filter(g => !g.effectiveCase);
+    if (missing.length > 0) {
+      toast.error(`Koppla ärende för ordernummer: ${missing.map(g => g.order_number).join(', ')}`);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Upload file ONCE; reuse same path for all rows
+      const safe = sanitizeFileName(file.name);
+      const path = `shared-payouts/${Date.now()}_${safe}`;
+      const { error: upErr } = await supabase.storage
+        .from('case-documents')
+        .upload(path, file, { upsert: false, contentType: file.type || 'application/pdf' });
+      if (upErr) throw upErr;
+
+      const inv = invoiceNumber.trim();
+
+      for (const g of groups) {
+        const c = g.effectiveCase!;
+        const caseId = c.id;
+        const { error: insErr } = await (supabase as any).from('case_documents').insert({
+          case_id: caseId,
+          doc_type: 'mockfjards_payout',
+          file_path: path,
+          file_name: file.name,
+          order_number: g.order_number,
+          invoice_number: inv,
+          customer_name: customerName.trim() || null,
+          invoice_date: invoiceDate || null,
+          total_amount: g.subtotal,
+          currency: 'SEK',
+          line_items: g.lines,
+          uploaded_by: currentUser,
+        });
+        if (insErr) throw insErr;
+
+        if (!norm((c as any).order_number)) {
+          try { await updateCase(caseId, { order_number: g.order_number } as any); } catch (e) { console.warn(e); }
+        }
+
+        await createCaseEvent({
+          case_id: caseId,
+          event_type: 'note',
+          description: `Mockfjärds-utbetalning kopplad (del av faktura ${inv}): belopp ${g.subtotal.toLocaleString('sv-SE')} kr`,
+          created_by: currentUser,
+        });
+
+        logActivity({
+          action: 'payout_uploaded',
+          category: 'case',
+          description: `Laddade upp utbetalning (del av faktura ${inv}) för ${c.address}`,
+          case_id: caseId,
+          metadata: { invoice_number: inv, total_amount: g.subtotal, order_number: g.order_number, multi: true, groups: groups.length },
+        });
+
+        qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
+      }
+
+      qc.invalidateQueries({ queryKey: ['cases-all'] });
+      toast.success(`Faktura kopplad till ${groups.length} ärenden`);
+      reset();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Misslyckades: ${e?.message ?? 'okänt fel'}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = () => (isMulti ? handleSubmitMulti() : handleSubmitSingle());
+
+  const submitDisabled =
+    submitting ||
+    !file ||
+    extracting ||
+    (isMulti
+      ? unassignedLines.length > 0 || groups.some(g => !g.effectiveCase)
+      : !effectiveCase);
 
   return (
     <div className="px-3 md:px-0 max-w-4xl mx-auto space-y-4">
@@ -270,11 +415,14 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             )}
           </div>
 
+          {/* Faktura-fält (ordernummer döljs i multi-läge) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <Label>Ordernummer *</Label>
-              <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="t.ex. 12345" />
-            </div>
+            {!isMulti && (
+              <div>
+                <Label>Ordernummer *</Label>
+                <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="t.ex. 12345" />
+              </div>
+            )}
             <div>
               <Label>Fakturanummer *</Label>
               <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
@@ -288,13 +436,201 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
             </div>
             <div>
-              <Label>Totalbelopp (SEK) *</Label>
+              <Label>Totalbelopp (SEK) {isMulti ? '' : '*'}</Label>
               <Input type="number" inputMode="decimal" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} />
             </div>
           </div>
 
-          {/* Line items */}
-          {(lineItems.length > 0 || extracted) && (
+          {/* MULTI-LÄGE */}
+          {isMulti && (
+            <div className="space-y-3">
+              <Alert>
+                <Layers className="h-4 w-4" />
+                <AlertTitle>Den här fakturan täcker {groups.length} ärenden</AlertTitle>
+                <AlertDescription>
+                  Kontrollera kopplingarna nedan. Varje grupp sparas som en egen utbetalning per ärende, med samma faktura ({invoiceNumber || '—'}).
+                </AlertDescription>
+              </Alert>
+
+              {multiSumMismatch && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Delsummorna stämmer inte med fakturans total</AlertTitle>
+                  <AlertDescription>
+                    Summan av delsummorna är {groupedSubtotalSum.toLocaleString('sv-SE')} kr men totalbelopp är {totalNum.toLocaleString('sv-SE')} kr. Kontrollera.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {groups.map(g => {
+                const override = groupChoices[g.order_number] ?? null;
+                const showSearch = !g.autoCase || !!override;
+                const results = filteredCasesForGroup(g.order_number);
+                return (
+                  <Card key={g.order_number} className="border-l-4 border-l-primary/40">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="text-base">
+                          Order {g.order_number}
+                          <span className="ml-2 text-sm font-normal text-muted-foreground">
+                            ({g.lines.length} rad{g.lines.length === 1 ? '' : 'er'} · {g.subtotal.toLocaleString('sv-SE')} kr)
+                          </span>
+                        </CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {g.effectiveCase ? (
+                        <Alert>
+                          <Check className="h-4 w-4" />
+                          <AlertTitle className="flex items-center gap-2">
+                            {override ? 'Valt ärende' : 'Matchat ärende'}
+                            {override && <Badge variant="outline">manuellt</Badge>}
+                          </AlertTitle>
+                          <AlertDescription>
+                            <div className="text-sm">
+                              <div><b>{g.effectiveCase.address}</b></div>
+                              <div className="text-muted-foreground">{g.effectiveCase.customer_name}</div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="mt-2"
+                              onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: null }))}
+                            >
+                              Ändra val
+                            </Button>
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertTitle>Inget ärende med ordernummer {g.order_number}</AlertTitle>
+                          <AlertDescription>Sök och välj ärende manuellt nedan.</AlertDescription>
+                        </Alert>
+                      )}
+
+                      {showSearch && (
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-1 text-xs">
+                            <Search className="h-3 w-3" /> Sök ärende manuellt
+                          </Label>
+                          <Input
+                            placeholder="Sök adress, kund, offert- eller ordernummer…"
+                            value={groupSearch[g.order_number] ?? ''}
+                            onChange={(e) => setGroupSearch(prev => ({ ...prev, [g.order_number]: e.target.value }))}
+                          />
+                          {results.length > 0 && (
+                            <div className="border rounded-md max-h-48 overflow-y-auto divide-y">
+                              {results.map(c => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setGroupChoices(prev => ({ ...prev, [g.order_number]: c }));
+                                    setGroupSearch(prev => ({ ...prev, [g.order_number]: '' }));
+                                  }}
+                                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                                >
+                                  <div className="font-medium">{c.address}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {c.customer_name}
+                                    {(c as any).order_number ? ` · order ${(c as any).order_number}` : ''}
+                                    {c.offer_number ? ` · offert ${c.offer_number}` : ''}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <Collapsible>
+                        <CollapsibleTrigger className="text-xs text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
+                          <ChevronDown className="h-3 w-3" /> Visa rader ({g.lines.length})
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="border rounded-md divide-y mt-2">
+                            {g.lines.map((li, i) => (
+                              <div key={i} className="p-2 text-xs flex justify-between gap-2">
+                                <div className="flex-1">
+                                  <div className="font-medium">{li.name || '—'}</div>
+                                  {li.note && <div className="text-muted-foreground">{li.note}</div>}
+                                </div>
+                                <div className="text-right whitespace-nowrap">
+                                  {li.qty != null && <span className="text-muted-foreground">{li.qty} st · </span>}
+                                  {(Number(li.amount) || 0).toLocaleString('sv-SE')} kr
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
+              {unassignedLines.length > 0 && (
+                <Card className="border-l-4 border-l-destructive/60">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base text-destructive">
+                      Rader utan ordernummer ({unassignedLines.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Tilldela varje rad ett ordernummer (eller skriv ett nytt) för att inkludera den.
+                    </p>
+                    <div className="border rounded-md divide-y">
+                      {unassignedLines.map(li => {
+                        const idx = lineItems.indexOf(li);
+                        return (
+                          <div key={idx} className="p-2 flex flex-wrap items-center gap-2 text-sm">
+                            <div className="flex-1 min-w-[180px]">
+                              <div className="font-medium">{li.name || '—'}</div>
+                              {li.note && <div className="text-xs text-muted-foreground">{li.note}</div>}
+                            </div>
+                            <div className="text-right text-xs text-muted-foreground whitespace-nowrap">
+                              {(Number(li.amount) || 0).toLocaleString('sv-SE')} kr
+                            </div>
+                            <Input
+                              className="w-32"
+                              placeholder="Ordernr"
+                              value={li.order_number ?? ''}
+                              onChange={(e) => assignLineToOrder(idx, e.target.value)}
+                            />
+                            {distinctOrderNumbers.length > 0 && (
+                              <select
+                                className="h-9 rounded-md border bg-background px-2 text-xs"
+                                value=""
+                                onChange={(e) => { if (e.target.value) assignLineToOrder(idx, e.target.value); }}
+                              >
+                                <option value="">Tilldela grupp…</option>
+                                {distinctOrderNumbers.map(on => (
+                                  <option key={on} value={on}>{on}</option>
+                                ))}
+                              </select>
+                            )}
+                            <Button variant="ghost" size="icon" onClick={() => removeLine(idx)}>
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="text-xs text-muted-foreground text-right">
+                Summa delsummor: <span className="font-medium text-foreground">{groupedSubtotalSum.toLocaleString('sv-SE')} kr</span>
+                {totalNum > 0 && <> av {totalNum.toLocaleString('sv-SE')} kr</>}
+              </div>
+            </div>
+          )}
+
+          {/* SINGLE-LÄGE: rader + match */}
+          {!isMulti && (lineItems.length > 0 || extracted) && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Rader ({lineItems.length})</Label>
@@ -370,8 +706,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             </div>
           )}
 
-          {/* Match */}
-          {orderNumber.trim() && !chosenCase && (
+          {!isMulti && orderNumber.trim() && !chosenCase && (
             orderMatch ? (
               <Alert>
                 <Check className="h-4 w-4" />
@@ -392,7 +727,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             )
           )}
 
-          {(!orderMatch || chosenCase) && (
+          {!isMulti && (!orderMatch || chosenCase) && (
             <div className="space-y-2">
               <Label className="flex items-center gap-1"><Search className="h-3.5 w-3.5" /> Sök ärende manuellt</Label>
               <Input
@@ -422,7 +757,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             </div>
           )}
 
-          {chosenCase && (
+          {!isMulti && chosenCase && (
             <Alert>
               <Check className="h-4 w-4" />
               <AlertTitle className="flex items-center gap-2">
@@ -443,9 +778,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={reset} disabled={submitting}>Rensa</Button>
-            <Button onClick={handleSubmit} disabled={submitting || !file || !effectiveCase || extracting}>
+            <Button onClick={handleSubmit} disabled={submitDisabled}>
               {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-              Bekräfta & koppla
+              {isMulti ? `Bekräfta & koppla till ${groups.length} ärenden` : 'Bekräfta & koppla'}
             </Button>
           </div>
         </CardContent>
