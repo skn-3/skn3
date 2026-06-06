@@ -279,6 +279,34 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   });
 
   const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
+  const linkedOrder = (linkedOrders && linkedOrders[0]) || null;
+  const [economyOpsOpen, setEconomyOpsOpen] = useState(false);
+
+  // Auto-fyll order_number från n3prenad-ordern om ärendet saknar det
+  useEffect(() => {
+    const existing = ((caseData as any).order_number || '').toString().trim();
+    const fromOrder = linkedOrder?.order_number != null ? String(linkedOrder.order_number).trim() : '';
+    if (!existing && fromOrder) {
+      (async () => {
+        try {
+          await updateCase(caseData.id, { order_number: fromOrder } as any);
+          await createCaseEvent({
+            case_id: caseData.id,
+            event_type: 'update',
+            description: `Ordernummer auto-fyllt från n3prenad: ${fromOrder}`,
+            created_by: currentUser,
+          });
+          queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
+          queryClient.invalidateQueries({ queryKey: ['case_events', caseData.id] });
+          queryClient.invalidateQueries({ queryKey: ['cases'] });
+        } catch (e) {
+          console.warn('auto-fill order_number failed', e);
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedOrder?.order_number, (caseData as any).order_number, caseData.id]);
+
 
   // --- Link / unlink A-order state (lyft hit för att kunna styra unlinkedOrders-query) ---
   const [linkOpen, setLinkOpen] = useState(false);
