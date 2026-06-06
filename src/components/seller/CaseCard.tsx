@@ -162,7 +162,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancia
             </span>
           ) : <span />}
           {units != null && units > 0 ? (
-            <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+            <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
               {units} st
             </span>
           ) : (
