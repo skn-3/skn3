@@ -34,6 +34,17 @@ async function callGateway<T = any>(action: Action, params: Record<string, unkno
   }
 }
 
+export type OrderLineItem = {
+  id?: string | number;
+  name?: string | null;
+  description?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  unit_price?: number | null;
+  amount?: number | null;
+  [key: string]: unknown;
+};
+
 export type OrderRow = {
   id: string;
   order_number?: number | string | null;
@@ -46,6 +57,7 @@ export type OrderRow = {
   date?: string | null;
   created_at?: string | null;
   case_id?: string | null;
+  line_items?: OrderLineItem[] | null;
   // klient-flaggor:
   _orphan?: boolean;
   _orphanCaseId?: string | null;
