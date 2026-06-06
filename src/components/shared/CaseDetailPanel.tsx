@@ -1613,7 +1613,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <span className="font-semibold">{Number(c.amount).toLocaleString('sv-SE')} kr</span>
                     {c.receipt_url && (
                       <button onClick={() => setFullscreenImg(c.receipt_url)} className="w-10 h-10 rounded border overflow-hidden hover:ring-2 ring-primary">
-                        <img src={c.receipt_url} alt="Kvitto" className="w-full h-full object-cover" />
+                        <SignedImage value={c.receipt_url} alt="Kvitto" className="w-full h-full object-cover" />
                       </button>
                     )}
                   </div>
