@@ -8,11 +8,7 @@ import { SellerNav, type SellerTab } from './SellerNav';
 import { Pipeline } from './Pipeline';
 import { SellerDashboard } from './SellerDashboard';
 import { VisitForm } from './VisitForm';
-import { ImportCaseForm } from './ImportCaseForm';
-import { CleanAddressesView } from './CleanAddressesView';
-import { ValidatePipelineView } from './ValidatePipelineView';
-import { ActivityLogView } from './ActivityLogView';
-import { PayoutUploadView } from './PayoutUploadView';
+import { AdminView } from './AdminView';
 
 
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
