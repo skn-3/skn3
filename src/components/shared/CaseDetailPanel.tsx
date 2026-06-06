@@ -278,9 +278,40 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
   });
 
+  const { data: payouts } = useQuery({
+    queryKey: ['case-documents', caseData.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('case_documents')
+        .select('*')
+        .eq('case_id', caseData.id)
+        .eq('doc_type', 'mockfjards_payout')
+        .order('invoice_date', { ascending: false });
+      if (error) throw error;
+      return (data || []) as Array<{
+        id: string; file_path: string; file_name: string | null;
+        invoice_number: string | null; invoice_date: string | null;
+        total_amount: number | null;
+      }>;
+    },
+    enabled: !isCoordinator,
+  });
+
   const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
   const linkedOrder = (linkedOrders && linkedOrders[0]) || null;
   const [economyOpsOpen, setEconomyOpsOpen] = useState(false);
+
+  const openPayoutPdf = async (path: string) => {
+    const { data, error } = await supabase.storage
+      .from('case-documents')
+      .createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) {
+      toast.error('Kunde inte öppna PDF');
+      return;
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  };
+
 
   // Auto-fyll order_number från n3prenad-ordern om ärendet saknar det
   useEffect(() => {
@@ -1484,8 +1515,79 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 <Info className="h-4 w-4" /> Ingen kopplad order i n3prenad ännu
               </div>
             )}
+
+            {/* Intäkt / Vinst */}
+            {(() => {
+              const revenue = (payouts || []).reduce((s, p) => s + (Number(p.total_amount) || 0), 0);
+              const cost = linkedOrder?.total_amount != null ? Number(linkedOrder.total_amount) : null;
+              const hasRevenue = (payouts || []).length > 0;
+              const profit = hasRevenue && cost != null ? revenue - cost : null;
+              const margin = profit != null && cost != null && cost > 0 ? (profit / revenue) * 100 : null;
+              return (
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t">
+                  <div className="rounded-md border p-2">
+                    <div className="text-[11px] uppercase text-muted-foreground tracking-wider">Intäkt</div>
+                    <div className="text-sm font-semibold">
+                      {hasRevenue ? `${revenue.toLocaleString('sv-SE')} kr` : '–'}
+                    </div>
+                  </div>
+                  <div className="rounded-md border p-2">
+                    <div className="text-[11px] uppercase text-muted-foreground tracking-wider">Kostnad</div>
+                    <div className="text-sm font-semibold">
+                      {cost != null ? `${cost.toLocaleString('sv-SE')} kr` : '–'}
+                    </div>
+                  </div>
+                  <div className="rounded-md border p-2">
+                    <div className="text-[11px] uppercase text-muted-foreground tracking-wider">Vinst</div>
+                    <div className={`text-sm font-semibold ${profit != null ? (profit >= 0 ? 'text-green-600' : 'text-destructive') : ''}`}>
+                      {profit != null ? `${profit.toLocaleString('sv-SE')} kr` : '–'}
+                      {margin != null && (
+                        <span className="text-xs text-muted-foreground ml-1">({margin.toFixed(1)}%)</span>
+                      )}
+                    </div>
+                  </div>
+                  {!hasRevenue && (
+                    <div className="col-span-3 text-xs text-muted-foreground">
+                      Ingen utbetalning kopplad än
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Kopplade utbetalningar */}
+            {payouts && payouts.length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t">
+                <div className="text-xs font-medium text-muted-foreground">Utbetalningar</div>
+                <ul className="divide-y rounded-md border">
+                  {payouts.map(p => (
+                    <li key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <div className="truncate">
+                          {p.invoice_number ? `Faktura ${p.invoice_number}` : (p.file_name || 'Utbetalning')}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {p.invoice_date || '—'}
+                          {p.total_amount != null && (
+                            <> · {Number(p.total_amount).toLocaleString('sv-SE')} kr</>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openPayoutPdf(p.file_path)}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 whitespace-nowrap"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Visa PDF
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
           )}
+
 
 
 
