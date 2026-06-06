@@ -1,12 +1,9 @@
 // Gateway-wrapper för n3prenad's orders-tabell.
 // n3prenad har RLS aktiverat på orders → direkt anon-access ger 0 rader.
-// All access går därför via orders-gateway edge function med delad secret.
+// All access går via CaseFlow edge function 'orders-proxy' som håller den delade
+// secreten server-side och vidarebefordrar till n3prenads orders-gateway.
 
-const GATEWAY_URL = 'https://pjurpgqgqvabopoxkzja.supabase.co/functions/v1/orders-gateway';
-// Delad secret mellan caseflow och n3prenad. VITE-vars bundlas in klient-side ändå
-// (effektivt publika), så fallback här är OK. Env-värdet vinner om satt.
-const GATEWAY_SECRET = (import.meta.env.VITE_ORDERS_GATEWAY_SECRET as string | undefined)
-  || 'k7Hn2pQ9rTfW4mXz8vBcL3dY6sJgN5aErU0iKoP1wMqZxVt';
+import { supabase } from '@/integrations/supabase/client';
 
 type Action =
   | 'list_unlinked'
@@ -22,26 +19,15 @@ type Action =
   | 'check_duplicate';
 
 async function callGateway<T = any>(action: Action, params: Record<string, unknown> = {}): Promise<T | null> {
-  if (!GATEWAY_SECRET) {
-    console.error('[orderGateway] VITE_ORDERS_GATEWAY_SECRET saknas');
-    return null;
-  }
   try {
-    const res = await fetch(GATEWAY_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-gateway-secret': GATEWAY_SECRET,
-      },
-      body: JSON.stringify({ action, ...params }),
+    const { data, error } = await supabase.functions.invoke('orders-proxy', {
+      body: { action, ...params },
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      console.error(`[orderGateway] ${action} failed [${res.status}]:`, text);
+    if (error) {
+      console.error(`[orderGateway] ${action} failed:`, error);
       return null;
     }
-    const json = await res.json();
-    return json as T;
+    return data as T;
   } catch (err) {
     console.error(`[orderGateway] ${action} threw:`, err);
     return null;
