@@ -881,7 +881,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             ) : (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Inget ärende med ordernummer {orderNumber}</AlertTitle>
+                <AlertTitle>
+                  {orderNumber.trim()
+                    ? `Inget ärende med ordernummer ${orderNumber}`
+                    : 'Inget ärende kunde matchas automatiskt'}
+                </AlertTitle>
                 <AlertDescription>Sök och välj ärende manuellt nedan.</AlertDescription>
               </Alert>
             )
