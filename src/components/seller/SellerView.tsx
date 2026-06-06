@@ -80,20 +80,8 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         {tab === 'dashboard' && (
           <SellerDashboard sellerName={role.name} />
         )}
-        {tab === 'import' && isAdmin && (
-          <ImportCaseForm sellerName={role.name} />
-        )}
-        {tab === 'clean-addresses' && isAdmin && (
-          <CleanAddressesView currentUser={role.name} />
-        )}
-        {tab === 'validate' && isAdmin && (
-          <ValidatePipelineView currentUser={role.name} />
-        )}
-        {tab === 'activity-log' && isAdmin && (
-          <ActivityLogView />
-        )}
-        {tab === 'payouts' && isAdmin && (
-          <PayoutUploadView currentUser={role.name} />
+        {tab === 'admin' && isAdmin && (
+          <AdminView currentUser={role.name} />
         )}
 
       </main>
