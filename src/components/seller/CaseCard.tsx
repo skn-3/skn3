@@ -113,7 +113,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancia
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
   const units = (caseData as any).units as number | null | undefined;
   const intensity = unitsIntensity(units);
-  const cardStyle: React.CSSProperties | undefined = intensity
+  const cardStyle: CSSProperties | undefined = intensity
     ? {
         borderLeftWidth: 3,
         borderLeftColor: `hsl(var(--primary) / ${intensity.edge})`,
