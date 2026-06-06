@@ -1246,6 +1246,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             ) : (
             <div className="grid grid-cols-2 gap-2 text-sm">
               {caseData.offer_number && <div><span className="text-muted-foreground">Offert:</span> {caseData.offer_number}</div>}
+              {(caseData as any).order_number && <div><span className="text-muted-foreground">Order:</span> {(caseData as any).order_number}</div>}
               {caseData.order_value && <div><span className="text-muted-foreground">Värde:</span> {Number(caseData.order_value).toLocaleString('sv-SE')} kr <span className="text-muted-foreground text-xs ml-1">ex moms</span></div>}
               {caseData.tb_percent != null && <div><span className="text-muted-foreground">TB:</span> {Number(caseData.tb_percent)}%</div>}
               <div className="flex items-center gap-1 flex-wrap">
