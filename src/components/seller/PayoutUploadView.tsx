@@ -595,18 +595,36 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
+                      {g.groupCustomerName && (
+                        <div className="text-xs text-muted-foreground">
+                          Slutkund: <span className="text-foreground font-medium">{g.groupCustomerName}</span>
+                        </div>
+                      )}
                       {g.effectiveCase ? (
                         <Alert>
                           <Check className="h-4 w-4" />
                           <AlertTitle className="flex items-center gap-2">
-                            {override ? 'Valt ärende' : 'Matchat ärende'}
-                            {override && <Badge variant="outline">manuellt</Badge>}
+                            {g.matchSource === 'manual' && 'Valt ärende'}
+                            {g.matchSource === 'order' && 'Matchat ärende (ordernummer)'}
+                            {g.matchSource === 'name' && 'Föreslaget ärende'}
+                            {g.matchSource === 'manual' && <Badge variant="outline">manuellt</Badge>}
+                            {g.matchSource === 'name' && <Badge variant="outline">namn</Badge>}
                           </AlertTitle>
                           <AlertDescription>
                             <div className="text-sm">
                               <div><b>{g.effectiveCase.address}</b></div>
-                              <div className="text-muted-foreground">{g.effectiveCase.customer_name}</div>
+                              <div className="text-muted-foreground">
+                                {g.effectiveCase.customer_name}
+                                {g.matchSource === 'name' && g.nameCandidates[0]?.reason
+                                  ? ` · ${g.nameCandidates[0].reason}`
+                                  : ''}
+                              </div>
                             </div>
+                            {g.matchSource === 'name' && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Ordernumret {g.order_number} hittades inte i systemet. Bekräfta att detta är rätt ärende.
+                              </p>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -617,11 +635,38 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             </Button>
                           </AlertDescription>
                         </Alert>
+                      ) : g.nameCandidates.length > 0 ? (
+                        <Alert>
+                          <Search className="h-4 w-4" />
+                          <AlertTitle>Förslag baserat på kundnamn</AlertTitle>
+                          <AlertDescription>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Ordernumret {g.order_number} hittades inte. Möjliga ärenden för "{g.groupCustomerName || '—'}":
+                            </p>
+                            <div className="border rounded-md divide-y">
+                              {g.nameCandidates.map(cand => (
+                                <button
+                                  key={cand.case.id}
+                                  type="button"
+                                  onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: cand.case }))}
+                                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                                >
+                                  <div className="font-medium">{cand.case.address}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {cand.case.customer_name} · {cand.reason}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </AlertDescription>
+                        </Alert>
                       ) : (
                         <Alert variant="destructive">
                           <AlertTriangle className="h-4 w-4" />
-                          <AlertTitle>Inget ärende med ordernummer {g.order_number}</AlertTitle>
-                          <AlertDescription>Sök och välj ärende manuellt nedan.</AlertDescription>
+                          <AlertTitle>Inget ärende kunde matchas</AlertTitle>
+                          <AlertDescription>
+                            Varken ordernummer {g.order_number} eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade. Sök manuellt nedan.
+                          </AlertDescription>
                         </Alert>
                       )}
 
