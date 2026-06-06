@@ -169,23 +169,51 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     return (cases as any[]).find(c => norm(c.order_number) === q) || null;
   }, [orderNumber, cases]);
 
-  const effectiveCase = chosenCase || orderMatch;
+  // Namnkandidater (fallback i single-läge)
+  const nameCandidates = useMemo<Candidate[]>(() => {
+    if (orderMatch) return [];
+    return findNameMatches(cases as CaseRow[], customerName, null, 5);
+  }, [orderMatch, cases, customerName]);
+
+  // Auto-välj toppkandidat om den är tydlig (exakt namn / omvänd ordning)
+  const strongNameMatch = nameCandidates[0] && nameCandidates[0].score >= 90 ? nameCandidates[0].case : null;
+
+  const effectiveCase = chosenCase || orderMatch || strongNameMatch;
 
   // Multi-mode groups
   type Group = {
     order_number: string;
     lines: LineItem[];
     subtotal: number;
+    groupCustomerName: string | null;
     autoCase: CaseRow | null;
+    nameCandidates: Candidate[];
     effectiveCase: CaseRow | null;
+    matchSource: 'order' | 'name' | 'manual' | null;
   };
   const groups: Group[] = useMemo(() => {
     return distinctOrderNumbers.map(on => {
       const lines = lineItems.filter(li => norm(li.order_number) === on);
       const subtotal = lines.reduce((s, li) => s + (Number(li.amount) || 0), 0);
-      const autoCase = (cases as any[]).find(c => norm(c.order_number) === on) || null;
+      const groupCustomerName = lines.find(l => norm(l.customer_name))?.customer_name ?? null;
+      const orderC = (cases as any[]).find(c => norm(c.order_number) === on) || null;
+      const candidates = orderC ? [] : findNameMatches(cases as CaseRow[], groupCustomerName, null, 5);
+      const strong = candidates[0] && candidates[0].score >= 90 ? candidates[0].case : null;
+      const autoCase = orderC || strong;
       const override = groupChoices[on] ?? null;
-      return { order_number: on, lines, subtotal, autoCase, effectiveCase: override || autoCase };
+      const effective = override || autoCase;
+      const matchSource: Group['matchSource'] =
+        override ? 'manual' : orderC ? 'order' : strong ? 'name' : null;
+      return {
+        order_number: on,
+        lines,
+        subtotal,
+        groupCustomerName,
+        autoCase,
+        nameCandidates: candidates,
+        effectiveCase: effective,
+        matchSource,
+      };
     });
   }, [distinctOrderNumbers, lineItems, cases, groupChoices]);
 
