@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { User, Wrench, UserCircle, AlertTriangle, Clock } from 'lucide-react';
 import { differenceInCalendarDays, startOfISOWeek } from 'date-fns';
