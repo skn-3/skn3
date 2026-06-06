@@ -23,6 +23,7 @@ Returnera ENBART ett JSON-objekt — ingen text, ingen markdown, inga kodblock �
   "line_items": [
     {
       "order_number": string|null,
+      "customer_name": string|null,
       "name": string|null,
       "note": string|null,
       "qty": number|null,
@@ -32,12 +33,19 @@ Returnera ENBART ett JSON-objekt — ingen text, ingen markdown, inga kodblock �
   ]
 }
 
-Regler:
+VIKTIGT om namn:
+- Fakturans mottagare/"Kund" högst upp är ALLTID "Mockfjärds Fönster AB" eller liknande — det är INTE slutkunden och ska INTE användas som customer_name.
+- Slutkundens namn står i radernas "Namn"-kolumn (t.ex. "Sirkka Mäkitalo", "Anders Andersson"). Det är det enda korrekta customer_name.
+- För varje rad: sätt line_items[].customer_name från radens "Namn"-kolumn.
+- För top-level customer_name: använd första radens "Namn", eller null om det saknas. Skriv ALDRIG in "Mockfjärds Fönster AB" här.
+
+Övriga regler:
+- "Fsg. order" / "Order"-kolumnen → line_items[].order_number (Mockfjärds eget ordernummer per rad).
+- line_items[].name = produkt-/tjänstebenämning (t.ex. "Fönster", "Montage").
 - Belopp ska vara tal (ej strängar), använd punkt som decimaltecken.
 - Tolka svenska tusentalsavgränsare (mellanslag) korrekt.
 - invoice_date i ISO-format YYYY-MM-DD.
 - currency default "SEK".
-- En line_item per rad/post på utbetalningen. order_number = ordernumret som raden avser.
 - Om något fält saknas, returnera null.`;
 
 interface ExtractRequest {
@@ -125,20 +133,33 @@ Deno.serve(async (req) => {
       ),
     );
 
+    const normalizedLines = line_items.map((li: any) => ({
+      order_number: li?.order_number ?? null,
+      customer_name: li?.customer_name ?? null,
+      name: li?.name ?? null,
+      note: li?.note ?? null,
+      qty: li?.qty != null ? Number(li.qty) : null,
+      unit_price: li?.unit_price != null ? Number(li.unit_price) : null,
+      amount: li?.amount != null ? Number(li.amount) : null,
+    }));
+
+    // Safety: if top-level customer_name looks like Mockfjärds itself, override
+    // with first line's customer_name (slutkunden).
+    let topCustomer: string | null = parsed.customer_name ?? null;
+    const looksLikeMockfjards = (s: string | null) =>
+      !!s && /mockfj[aä]rds/i.test(s);
+    if (!topCustomer || looksLikeMockfjards(topCustomer)) {
+      const firstLineCustomer = normalizedLines.find((l: any) => l.customer_name)?.customer_name ?? null;
+      topCustomer = firstLineCustomer;
+    }
+
     return json({
       invoice_number: parsed.invoice_number ?? null,
       invoice_date: parsed.invoice_date ?? null,
-      customer_name: parsed.customer_name ?? null,
+      customer_name: topCustomer,
       currency: parsed.currency ?? 'SEK',
       total_amount: parsed.total_amount != null ? Number(parsed.total_amount) : null,
-      line_items: line_items.map((li: any) => ({
-        order_number: li?.order_number ?? null,
-        name: li?.name ?? null,
-        note: li?.note ?? null,
-        qty: li?.qty != null ? Number(li.qty) : null,
-        unit_price: li?.unit_price != null ? Number(li.unit_price) : null,
-        amount: li?.amount != null ? Number(li.amount) : null,
-      })),
+      line_items: normalizedLines,
       order_numbers,
     }, 200);
   } catch (e) {
