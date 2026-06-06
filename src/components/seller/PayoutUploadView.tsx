@@ -21,6 +21,7 @@ const sanitizeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_')
 
 type LineItem = {
   order_number: string | null;
+  customer_name?: string | null;
   name: string | null;
   note: string | null;
   qty: number | null;
@@ -40,6 +41,93 @@ async function fileToBase64(file: File): Promise<string> {
 }
 
 const norm = (s: string | null | undefined) => (s ?? '').trim();
+
+// ---- Namnmatchning ----------------------------------------------------------
+const normalizeName = (s: string | null | undefined) =>
+  (s ?? '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '') // strip diacritics
+    .replace(/[^\p{L}\p{N}\s@.\-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const tokens = (s: string) =>
+  normalizeName(s).split(' ').filter(t => t.length >= 2);
+
+const emailLocal = (e: string | null | undefined) =>
+  (e ?? '').split('@')[0]?.toLowerCase() ?? '';
+
+const phoneDigits = (p: string | null | undefined) =>
+  (p ?? '').replace(/\D+/g, '');
+
+type Candidate = { case: CaseRow; score: number; reason: string };
+
+function scoreCaseAgainst(
+  c: CaseRow,
+  payoutName: string | null,
+  payoutPhone?: string | null,
+): Candidate | null {
+  const caseName = (c.customer_name ?? '') as string;
+  const caseEmail = (c as any).customer_email as string | null | undefined;
+  const casePhone = (c as any).customer_phone as string | null | undefined;
+
+  const pTokens = tokens(payoutName ?? '');
+  if (pTokens.length === 0 && !payoutPhone) return null;
+
+  const cTokens = tokens(caseName);
+  const cEmailLocalTokens = tokens(emailLocal(caseEmail));
+  const allCaseTokens = new Set([...cTokens, ...cEmailLocalTokens]);
+
+  let overlap = 0;
+  for (const t of pTokens) if (allCaseTokens.has(t)) overlap++;
+
+  const nNorm = normalizeName(payoutName ?? '');
+  const cNorm = normalizeName(caseName);
+  const exact = nNorm && cNorm && nNorm === cNorm;
+  const reversed = nNorm && cNorm &&
+    nNorm.split(' ').slice().reverse().join(' ') === cNorm;
+  const containsFull = nNorm && cNorm && (nNorm.includes(cNorm) || cNorm.includes(nNorm));
+
+  let score = 0;
+  const reasons: string[] = [];
+  if (exact) { score += 100; reasons.push('exakt namn'); }
+  else if (reversed) { score += 90; reasons.push('omvänd ordning'); }
+  else if (containsFull && cNorm.length >= 3) { score += 70; reasons.push('delsträng'); }
+
+  if (overlap > 0) {
+    score += overlap * 25;
+    reasons.push(`${overlap} ord matchar`);
+  }
+
+  // Phone signal
+  const pPhone = phoneDigits(payoutPhone);
+  const cPhone = phoneDigits(casePhone);
+  if (pPhone && cPhone && (pPhone.endsWith(cPhone.slice(-7)) || cPhone.endsWith(pPhone.slice(-7)))) {
+    score += 50;
+    reasons.push('telefon');
+  }
+
+  if (score <= 0) return null;
+  return { case: c, score, reason: reasons.join(' · ') };
+}
+
+function findNameMatches(
+  allCases: CaseRow[],
+  payoutName: string | null,
+  payoutPhone?: string | null,
+  limit = 5,
+): Candidate[] {
+  if (!payoutName && !payoutPhone) return [];
+  const out: Candidate[] = [];
+  for (const c of allCases) {
+    const cand = scoreCaseAgainst(c, payoutName ?? null, payoutPhone ?? null);
+    if (cand) out.push(cand);
+  }
+  out.sort((a, b) => b.score - a.score);
+  return out.slice(0, limit);
+}
+
 
 export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const qc = useQueryClient();
