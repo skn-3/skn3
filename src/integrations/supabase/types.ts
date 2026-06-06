@@ -159,6 +159,7 @@ export type Database = {
           montage_time: string | null
           notes: string | null
           offer_number: string | null
+          order_number: string | null
           order_value: number | null
           scheduled_delivery: boolean
           seller: string
@@ -195,6 +196,7 @@ export type Database = {
           montage_time?: string | null
           notes?: string | null
           offer_number?: string | null
+          order_number?: string | null
           order_value?: number | null
           scheduled_delivery?: boolean
           seller: string
@@ -231,6 +233,7 @@ export type Database = {
           montage_time?: string | null
           notes?: string | null
           offer_number?: string | null
+          order_number?: string | null
           order_value?: number | null
           scheduled_delivery?: boolean
           seller?: string

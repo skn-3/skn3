@@ -15,7 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench, Pencil, Check } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench, Pencil, Check, Wallet, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { logActivity } from '@/lib/activityLog';
 import { DeviationActionSheet, DEVIATION_STATUS_META, type DeviationStatus, canActOnDeviations } from '@/components/deviations/DeviationActionPanel';
 import type { DeviationRow } from '@/lib/supabaseClient';
@@ -89,6 +90,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     km_team: (caseData as any).km_team || '',
     google_drive_link: caseData.google_drive_link || '',
     offer_number: caseData.offer_number || '',
+    order_number: (caseData as any).order_number || '',
     customer_phone: caseData.customer_phone || '',
     customer_email: caseData.customer_email || '',
     city: (caseData as any).city || '',
@@ -118,6 +120,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       km_team: (caseData as any).km_team || '',
       google_drive_link: caseData.google_drive_link || '',
       offer_number: caseData.offer_number || '',
+      order_number: (caseData as any).order_number || '',
       customer_phone: caseData.customer_phone || '',
       customer_email: caseData.customer_email || '',
       city: (caseData as any).city || '',
@@ -151,6 +154,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         km_team: editForm.km_team || null,
         google_drive_link: editForm.google_drive_link || null,
         offer_number: editForm.offer_number || null,
+        order_number: editForm.order_number?.trim() ? editForm.order_number.trim() : null,
         customer_phone: editForm.customer_phone,
         customer_email: editForm.customer_email || null,
         city: editForm.city || null,
@@ -185,6 +189,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       if (((caseData as any).km_team || '') !== (editForm.km_team || '')) changes.push(`KM-montör ändrad till ${editForm.km_team || '—'}`);
       if ((caseData.google_drive_link || '') !== editForm.google_drive_link) changes.push('Google Drive-länk uppdaterad');
       if ((caseData.offer_number || '') !== editForm.offer_number) changes.push(`Offertnummer ändrat till ${editForm.offer_number || '—'}`);
+      const oldOrderNum = ((caseData as any).order_number || '') as string;
+      const newOrderNum = (editForm.order_number || '').trim();
+      if (oldOrderNum !== newOrderNum) changes.push(`Ordernummer ändrat till ${newOrderNum || '—'}`);
       if ((caseData.customer_phone || '') !== editForm.customer_phone) changes.push('Telefon uppdaterad');
       if ((caseData.customer_email || '') !== editForm.customer_email) changes.push('E-post uppdaterad');
       const oldCity = ((caseData as any).city || '') as string;
@@ -272,6 +279,34 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   });
 
   const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
+  const linkedOrder = (linkedOrders && linkedOrders[0]) || null;
+  const [economyOpsOpen, setEconomyOpsOpen] = useState(false);
+
+  // Auto-fyll order_number från n3prenad-ordern om ärendet saknar det
+  useEffect(() => {
+    const existing = ((caseData as any).order_number || '').toString().trim();
+    const fromOrder = linkedOrder?.order_number != null ? String(linkedOrder.order_number).trim() : '';
+    if (!existing && fromOrder) {
+      (async () => {
+        try {
+          await updateCase(caseData.id, { order_number: fromOrder } as any);
+          await createCaseEvent({
+            case_id: caseData.id,
+            event_type: 'update',
+            description: `Ordernummer auto-fyllt från n3prenad: ${fromOrder}`,
+            created_by: currentUser,
+          });
+          queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
+          queryClient.invalidateQueries({ queryKey: ['case_events', caseData.id] });
+          queryClient.invalidateQueries({ queryKey: ['cases'] });
+        } catch (e) {
+          console.warn('auto-fill order_number failed', e);
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedOrder?.order_number, (caseData as any).order_number, caseData.id]);
+
 
   // --- Link / unlink A-order state (lyft hit för att kunna styra unlinkedOrders-query) ---
   const [linkOpen, setLinkOpen] = useState(false);
@@ -1094,6 +1129,16 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       <Input value={editForm.offer_number} onChange={(e) => setEditForm(f => ({ ...f, offer_number: e.target.value }))} />
                     </div>
                   )}
+                  {!isCoordinator && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Ordernummer</Label>
+                      <Input
+                        value={editForm.order_number}
+                        onChange={(e) => setEditForm(f => ({ ...f, order_number: e.target.value }))}
+                        placeholder="Fås efter KM"
+                      />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <Label className="text-xs">Telefon</Label>
                     <Input value={editForm.customer_phone} onChange={(e) => setEditForm(f => ({ ...f, customer_phone: e.target.value }))} />
@@ -1229,6 +1274,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             ) : (
             <div className="grid grid-cols-2 gap-2 text-sm">
               {caseData.offer_number && <div><span className="text-muted-foreground">Offert:</span> {caseData.offer_number}</div>}
+              {(caseData as any).order_number && <div><span className="text-muted-foreground">Order:</span> {(caseData as any).order_number}</div>}
               {caseData.order_value && <div><span className="text-muted-foreground">Värde:</span> {Number(caseData.order_value).toLocaleString('sv-SE')} kr <span className="text-muted-foreground text-xs ml-1">ex moms</span></div>}
               {caseData.tb_percent != null && <div><span className="text-muted-foreground">TB:</span> {Number(caseData.tb_percent)}%</div>}
               <div className="flex items-center gap-1 flex-wrap">
@@ -1329,6 +1375,89 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               </a>
             )}
           </section>
+
+          {/* EKONOMI (från n3prenad) */}
+          {!isCoordinator && (
+          <section className="p-4 space-y-3 border-t">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <Wallet className="h-4 w-4" /> Ekonomi
+            </h3>
+            {linkedOrder ? (
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Ordernummer</span>
+                  <span className="font-medium">
+                    {linkedOrder.order_number != null && String(linkedOrder.order_number).trim() !== ''
+                      ? `#${linkedOrder.order_number}`
+                      : '—'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Montörskostnad</span>
+                  <span className="font-semibold">
+                    {linkedOrder.total_amount != null
+                      ? `${Number(linkedOrder.total_amount).toLocaleString('sv-SE')} kr`
+                      : '—'}
+                  </span>
+                </div>
+                {Array.isArray(linkedOrder.line_items) && linkedOrder.line_items.length > 0 && (
+                  <Collapsible open={economyOpsOpen} onOpenChange={setEconomyOpsOpen}>
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-muted/40 transition-colors"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <Wrench className="h-3.5 w-3.5" />
+                          Operationer ({linkedOrder.line_items.length})
+                        </span>
+                        <ChevronDown className={`h-4 w-4 transition-transform ${economyOpsOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-2">
+                      <ul className="divide-y rounded-md border">
+                        {linkedOrder.line_items.map((li: any, i: number) => {
+                          const title = li.name || li.description || `Rad ${i + 1}`;
+                          const qty = li.quantity != null ? Number(li.quantity) : null;
+                          const unit = li.unit || 'st';
+                          const amount = li.amount != null
+                            ? Number(li.amount)
+                            : (li.unit_price != null && qty != null ? Number(li.unit_price) * qty : null);
+                          return (
+                            <li key={li.id ?? i} className="flex items-start justify-between gap-3 px-3 py-2 text-sm">
+                              <div className="min-w-0">
+                                <div className="truncate">{title}</div>
+                                {qty != null && (
+                                  <div className="text-xs text-muted-foreground">
+                                    {qty} {unit}
+                                    {li.unit_price != null && (
+                                      <> · {Number(li.unit_price).toLocaleString('sv-SE')} kr/{unit}</>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              {amount != null && (
+                                <div className="text-right font-medium whitespace-nowrap">
+                                  {amount.toLocaleString('sv-SE')} kr
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Info className="h-4 w-4" /> Ingen kopplad order i n3prenad ännu
+              </div>
+            )}
+          </section>
+          )}
+
+
 
           {/* A-ORDER & Faktura */}
           <section className="p-4 space-y-3 border-t">
