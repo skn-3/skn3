@@ -133,20 +133,33 @@ Deno.serve(async (req) => {
       ),
     );
 
+    const normalizedLines = line_items.map((li: any) => ({
+      order_number: li?.order_number ?? null,
+      customer_name: li?.customer_name ?? null,
+      name: li?.name ?? null,
+      note: li?.note ?? null,
+      qty: li?.qty != null ? Number(li.qty) : null,
+      unit_price: li?.unit_price != null ? Number(li.unit_price) : null,
+      amount: li?.amount != null ? Number(li.amount) : null,
+    }));
+
+    // Safety: if top-level customer_name looks like Mockfjärds itself, override
+    // with first line's customer_name (slutkunden).
+    let topCustomer: string | null = parsed.customer_name ?? null;
+    const looksLikeMockfjards = (s: string | null) =>
+      !!s && /mockfj[aä]rds/i.test(s);
+    if (!topCustomer || looksLikeMockfjards(topCustomer)) {
+      const firstLineCustomer = normalizedLines.find((l: any) => l.customer_name)?.customer_name ?? null;
+      topCustomer = firstLineCustomer;
+    }
+
     return json({
       invoice_number: parsed.invoice_number ?? null,
       invoice_date: parsed.invoice_date ?? null,
-      customer_name: parsed.customer_name ?? null,
+      customer_name: topCustomer,
       currency: parsed.currency ?? 'SEK',
       total_amount: parsed.total_amount != null ? Number(parsed.total_amount) : null,
-      line_items: line_items.map((li: any) => ({
-        order_number: li?.order_number ?? null,
-        name: li?.name ?? null,
-        note: li?.note ?? null,
-        qty: li?.qty != null ? Number(li.qty) : null,
-        unit_price: li?.unit_price != null ? Number(li.unit_price) : null,
-        amount: li?.amount != null ? Number(li.amount) : null,
-      })),
+      line_items: normalizedLines,
       order_numbers,
     }, 200);
   } catch (e) {
