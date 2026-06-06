@@ -96,6 +96,10 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         {tab === 'activity-log' && isAdmin && (
           <ActivityLogView />
         )}
+        {tab === 'payouts' && isAdmin && (
+          <PayoutUploadView currentUser={role.name} />
+        )}
+
       </main>
 
       {selectedCase && (
