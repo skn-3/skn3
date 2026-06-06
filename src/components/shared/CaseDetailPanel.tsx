@@ -278,9 +278,40 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
   });
 
+  const { data: payouts } = useQuery({
+    queryKey: ['case-documents', caseData.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('case_documents')
+        .select('*')
+        .eq('case_id', caseData.id)
+        .eq('doc_type', 'mockfjards_payout')
+        .order('invoice_date', { ascending: false });
+      if (error) throw error;
+      return (data || []) as Array<{
+        id: string; file_path: string; file_name: string | null;
+        invoice_number: string | null; invoice_date: string | null;
+        total_amount: number | null;
+      }>;
+    },
+    enabled: !isCoordinator,
+  });
+
   const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
   const linkedOrder = (linkedOrders && linkedOrders[0]) || null;
   const [economyOpsOpen, setEconomyOpsOpen] = useState(false);
+
+  const openPayoutPdf = async (path: string) => {
+    const { data, error } = await supabase.storage
+      .from('case-documents')
+      .createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) {
+      toast.error('Kunde inte öppna PDF');
+      return;
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  };
+
 
   // Auto-fyll order_number från n3prenad-ordern om ärendet saknar det
   useEffect(() => {
