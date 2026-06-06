@@ -320,6 +320,26 @@ export function ValidatePipelineView({ currentUser }: Props) {
         )}
       </div>
 
+      <div className="rounded-lg border p-4 bg-card flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-start gap-3">
+          <Boxes className="h-5 w-5 text-primary mt-0.5" />
+          <div>
+            <div className="font-medium">Fyll i antal enheter från n3prenad</div>
+            <p className="text-sm text-muted-foreground">
+              {casesMissingUnits.length === 0
+                ? 'Alla ärenden har antal enheter ifyllt ✓'
+                : `${casesMissingUnits.length} ärenden saknar antal enheter. Hämtar fönster + dörrar från kopplad n3prenad-order. Manuellt ifyllda värden rörs aldrig.`}
+            </p>
+          </div>
+        </div>
+        {casesMissingUnits.length > 0 && (
+          <Button variant="outline" onClick={runUnitsBackfill} disabled={unitsBackfillBusy}>
+            {unitsBackfillBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Fyll i {casesMissingUnits.length} ärenden
+          </Button>
+        )}
+      </div>
+
       <AlertDialog open={backfillOpen} onOpenChange={setBackfillOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
