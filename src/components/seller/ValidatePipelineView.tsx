@@ -42,6 +42,69 @@ export function ValidatePipelineView({ currentUser }: Props) {
   const [backfillOpen, setBackfillOpen] = useState(false);
   const [backfillBusy, setBackfillBusy] = useState(false);
 
+  // Backfill: cases utan units — hämta från n3prenad (windows_count + doors_count)
+  const casesMissingUnits = useMemo(() => {
+    if (!allCases) return [];
+    return allCases.filter((c: any) => c.units == null);
+  }, [allCases]);
+  const [unitsBackfillBusy, setUnitsBackfillBusy] = useState(false);
+
+  const runUnitsBackfill = async () => {
+    if (casesMissingUnits.length === 0) return;
+    setUnitsBackfillBusy(true);
+    try {
+      const ids = casesMissingUnits.map((c: any) => c.id);
+      // Batcha i klumpar om 100 för att undvika alltför stora payloads
+      const chunks: string[][] = [];
+      for (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));
+      const orders: any[] = [];
+      for (const chunk of chunks) {
+        const part = await listOrdersByCaseIds(chunk);
+        orders.push(...part);
+      }
+      const byCase = new Map<string, any>();
+      for (const o of orders) {
+        if (o.case_id) byCase.set(o.case_id, o);
+      }
+      let updated = 0;
+      let skipped = 0;
+      for (const c of casesMissingUnits) {
+        const o = byCase.get(c.id);
+        if (!o) { skipped++; continue; }
+        const w = Number(o.windows_count ?? 0) || 0;
+        const d = Number(o.doors_count ?? 0) || 0;
+        const sum = w + d;
+        if (sum <= 0) { skipped++; continue; }
+        try {
+          await updateCase(c.id, { units: sum } as any);
+          await createCaseEvent({
+            case_id: c.id,
+            event_type: 'update',
+            description: `Antal enheter auto-fyllt från n3prenad (backfill): ${sum} (fönster ${w} + dörrar ${d})`,
+            created_by: currentUser,
+          });
+          updated++;
+        } catch (e) {
+          console.warn('units backfill update failed', c.id, e);
+          skipped++;
+        }
+      }
+      logActivity({
+        action: 'units_backfill',
+        category: 'system',
+        description: `Backfill av antal enheter: ${updated} uppdaterade, ${skipped} hoppades över`,
+        metadata: { updated, skipped, candidates: casesMissingUnits.length },
+      });
+      toast.success(`${updated} ärenden uppdaterade · ${skipped} utan order/data`);
+      qc.invalidateQueries({ queryKey: ['cases_all_validate'] });
+      qc.invalidateQueries({ queryKey: ['cases'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Backfill misslyckades');
+    } finally {
+      setUnitsBackfillBusy(false);
+    }
+  };
+
   // ===== Orphan signed visits: signerat besök utan giltigt case_id =====
   const orphanVisits = useMemo(() => {
     if (!allVisits) return [] as any[];
