@@ -120,6 +120,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       km_team: (caseData as any).km_team || '',
       google_drive_link: caseData.google_drive_link || '',
       offer_number: caseData.offer_number || '',
+      order_number: (caseData as any).order_number || '',
       customer_phone: caseData.customer_phone || '',
       customer_email: caseData.customer_email || '',
       city: (caseData as any).city || '',
