@@ -58,6 +58,8 @@ export type OrderRow = {
   created_at?: string | null;
   case_id?: string | null;
   line_items?: OrderLineItem[] | null;
+  windows_count?: number | null;
+  doors_count?: number | null;
   // klient-flaggor:
   _orphan?: boolean;
   _orphanCaseId?: string | null;
