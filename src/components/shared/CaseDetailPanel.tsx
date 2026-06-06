@@ -307,6 +307,36 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedOrder?.order_number, (caseData as any).order_number, caseData.id]);
 
+  // Auto-fyll antal enheter (units) från n3prenad: windows_count + doors_count.
+  // Skriver ALDRIG över ett manuellt ifyllt värde — fyller bara där units saknas.
+  useEffect(() => {
+    const existingUnits = (caseData as any).units;
+    if (existingUnits != null) return;
+    if (!linkedOrder) return;
+    const w = Number(linkedOrder.windows_count ?? 0) || 0;
+    const d = Number(linkedOrder.doors_count ?? 0) || 0;
+    const sum = w + d;
+    if (sum <= 0) return;
+    (async () => {
+      try {
+        await updateCase(caseData.id, { units: sum } as any);
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'update',
+          description: `Antal enheter auto-fyllt från n3prenad: ${sum} (fönster ${w} + dörrar ${d})`,
+          created_by: currentUser,
+        });
+        queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
+        queryClient.invalidateQueries({ queryKey: ['case_events', caseData.id] });
+        queryClient.invalidateQueries({ queryKey: ['cases'] });
+      } catch (e) {
+        console.warn('auto-fill units failed', e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedOrder?.windows_count, linkedOrder?.doors_count, (caseData as any).units, caseData.id]);
+
+
 
   // --- Link / unlink A-order state (lyft hit för att kunna styra unlinkedOrders-query) ---
   const [linkOpen, setLinkOpen] = useState(false);

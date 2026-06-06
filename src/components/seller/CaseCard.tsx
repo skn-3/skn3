@@ -62,16 +62,26 @@ const DELIVERY_TONE_CLASSES: Record<DeliveryBadge['tone'], string> = {
   gray: 'border-gray-300 bg-gray-100 text-gray-700',
 };
 
-// Storleksgradient för antal enheter — lätt att justera.
-// Skala 1..UNITS_SCALE_CAP mappas linjärt till alpha MIN..MAX.
-const UNITS_SCALE_CAP = 25;
-const UNITS_ALPHA_MIN = 0.18;
-const UNITS_ALPHA_MAX = 0.85;
-const UNITS_BG_ALPHA_MAX = 0.06; // mycket svag bakgrundston
+// Storleksindikator för antal enheter — blå/skiffer-ramp, ljus → djupare.
+// Grönt är reserverat för värde/status, gult för varningar.
+// Mappa antal enheter → intensitet 0..1 via mjuk interpolation mellan ankare:
+//   1 → 0  ·  ~8 → 0.5  ·  20+ → 1.0 (capad).
+// Saknas värde (null/0) → ingen ton.
+const UNITS_HUE = 215;        // blå/skiffer
+const UNITS_SAT = 30;         // %
+const UNITS_LIGHT = 48;       // %
+const UNITS_EDGE_ALPHA_MIN = 0.18;
+const UNITS_EDGE_ALPHA_MAX = 0.85;
+const UNITS_BG_ALPHA_MAX = 0.07;
+
 function unitsIntensity(units: number | null | undefined) {
-  if (!units || units <= 0) return null;
-  const t = Math.min(1, units / UNITS_SCALE_CAP);
-  const edge = UNITS_ALPHA_MIN + (UNITS_ALPHA_MAX - UNITS_ALPHA_MIN) * t;
+  if (units == null || units <= 0) return null;
+  let t: number;
+  if (units <= 1) t = 0;
+  else if (units <= 8) t = ((units - 1) / 7) * 0.5;          // 1→0, 8→0.5
+  else if (units <= 20) t = 0.5 + ((units - 8) / 12) * 0.5;  // 8→0.5, 20→1
+  else t = 1;
+  const edge = UNITS_EDGE_ALPHA_MIN + (UNITS_EDGE_ALPHA_MAX - UNITS_EDGE_ALPHA_MIN) * t;
   const bg = UNITS_BG_ALPHA_MAX * t;
   return { edge, bg };
 }
@@ -116,8 +126,8 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancia
   const cardStyle: CSSProperties | undefined = intensity
     ? {
         borderLeftWidth: 3,
-        borderLeftColor: `hsl(var(--primary) / ${intensity.edge})`,
-        backgroundColor: `hsl(var(--primary) / ${intensity.bg})`,
+        borderLeftColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity.edge})`,
+        backgroundColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity.bg})`,
       }
     : undefined;
 
@@ -152,7 +162,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancia
             </span>
           ) : <span />}
           {units != null && units > 0 ? (
-            <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+            <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
               {units} st
             </span>
           ) : (
