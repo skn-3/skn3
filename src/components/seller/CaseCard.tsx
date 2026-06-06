@@ -126,8 +126,8 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancia
   const cardStyle: CSSProperties | undefined = intensity
     ? {
         borderLeftWidth: 3,
-        borderLeftColor: `hsl(var(--primary) / ${intensity.edge})`,
-        backgroundColor: `hsl(var(--primary) / ${intensity.bg})`,
+        borderLeftColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity.edge})`,
+        backgroundColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity.bg})`,
       }
     : undefined;
 
