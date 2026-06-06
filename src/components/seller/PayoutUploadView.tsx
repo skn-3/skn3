@@ -822,7 +822,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             </div>
           )}
 
-          {!isMulti && orderNumber.trim() && !chosenCase && (
+          {!isMulti && (orderNumber.trim() || extracted) && !chosenCase && (
             orderMatch ? (
               <Alert>
                 <Check className="h-4 w-4" />
