@@ -156,28 +156,26 @@ export async function deleteVisit(id: string) {
 // Sanitize filename for storage
 const sanitizeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
-// Upload images to case-images bucket
+// Upload images to case-images bucket — returns object paths (not public URLs)
 export async function uploadDeviationImages(caseId: string, deviationId: string, files: File[]): Promise<string[]> {
-  const urls: string[] = [];
+  const paths: string[] = [];
   for (const file of files) {
     const safeName = sanitizeFileName(file.name);
     const path = `${caseId}/${deviationId}/${safeName}`;
     const { error } = await supabase.storage.from('case-images').upload(path, file, { upsert: true });
     if (error) throw error;
-    const { data: urlData } = supabase.storage.from('case-images').getPublicUrl(path);
-    urls.push(urlData.publicUrl);
+    paths.push(path);
   }
-  return urls;
+  return paths;
 }
 
-// Upload receipt image
+// Upload receipt image — returns object path (not public URL)
 export async function uploadReceiptImage(caseId: string, costId: string, file: File): Promise<string> {
   const safeName = sanitizeFileName(file.name);
   const path = `${caseId}/receipts/${costId}_${safeName}`;
   const { error } = await supabase.storage.from('case-images').upload(path, file, { upsert: true });
   if (error) throw error;
-  const { data: urlData } = supabase.storage.from('case-images').getPublicUrl(path);
-  return urlData.publicUrl;
+  return path;
 }
 
 // Case costs
