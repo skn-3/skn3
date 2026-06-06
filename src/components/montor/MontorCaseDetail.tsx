@@ -17,6 +17,7 @@ import { celebrateMontageDone } from '@/lib/celebrate';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
+import { SignedImage } from '@/components/shared/SignedImage';
 
 interface Props {
   caseData: CaseRow;
@@ -636,7 +637,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   <span className="font-semibold">{Number(c.amount).toLocaleString('sv-SE')} kr</span>
                   {c.receipt_url && (
                     <button onClick={() => setFullscreenImg(c.receipt_url)} className="w-10 h-10 rounded border overflow-hidden hover:ring-2 ring-primary">
-                      <img src={c.receipt_url} alt="Kvitto" className="w-full h-full object-cover" />
+                      <SignedImage value={c.receipt_url} alt="Kvitto" className="w-full h-full object-cover" />
                     </button>
                   )}
                 </div>
@@ -678,7 +679,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   <div className="flex gap-2 flex-wrap mt-2">
                     {(d.image_urls as string[]).map((url, i) => (
                       <button key={i} onClick={() => setFullscreenImg(url)} className="w-16 h-16 rounded-lg overflow-hidden border hover:ring-2 ring-primary">
-                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <SignedImage value={url} alt="" className="w-full h-full object-cover" />
                       </button>
                     ))}
                   </div>
@@ -796,7 +797,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       {/* Fullscreen image dialog */}
       <Dialog open={!!fullscreenImg} onOpenChange={() => setFullscreenImg(null)}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-2">
-          {fullscreenImg && <img src={fullscreenImg} alt="" className="w-full h-full object-contain" />}
+          {fullscreenImg && <SignedImage value={fullscreenImg} alt="" className="w-full h-full object-contain" />}
         </DialogContent>
       </Dialog>
     </div>
