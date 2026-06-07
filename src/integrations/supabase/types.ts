@@ -97,6 +97,68 @@ export type Database = {
           },
         ]
       }
+      case_documents: {
+        Row: {
+          case_id: string
+          created_at: string
+          currency: string | null
+          customer_name: string | null
+          doc_type: string
+          file_name: string | null
+          file_path: string
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          line_items: Json | null
+          order_number: string | null
+          total_amount: number | null
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          currency?: string | null
+          customer_name?: string | null
+          doc_type: string
+          file_name?: string | null
+          file_path: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          line_items?: Json | null
+          order_number?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          currency?: string | null
+          customer_name?: string | null
+          doc_type?: string
+          file_name?: string | null
+          file_path?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          line_items?: Json | null
+          order_number?: string | null
+          total_amount?: number | null
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_events: {
         Row: {
           case_id: string
@@ -528,6 +590,7 @@ export type Database = {
     Functions: {
       auth_is_admin: { Args: never; Returns: boolean }
       auth_user_name: { Args: never; Returns: string }
+      auth_user_role: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
