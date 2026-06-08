@@ -18,6 +18,15 @@ const SYSTEM_PROMPT = `Du extraherar fakturadata från en svensk PDF. Det kan va
     där fältet "Ert ordernummer" innehåller jobbets LEVERANSADRESS (gata + nummer),
     INTE ett ordernummer. Mottagaradressen är vårt eget bolag (Segeltorp) och ska
     INTE användas. Plocka "Ert ordernummer" till job_address.
+(D) en MONTÖRS-/ENTREPRENÖRSFAKTURA ställd TILL oss (Smartklimat / n3prenad),
+    omvänd betalningsskyldighet (omvänd moms). Här är fakturan en SAMLINGSFAKTURA
+    där VARJE RAD vanligtvis innehåller en svensk gatuadress (gata + nummer) någonstans
+    i benämningen — ibland först ("Månbergsvägen 26 Material"), ibland sist
+    ("Konsoller Svampstigen 105"). Vissa rader saknar adress (t.ex. "Servicebil")
+    eller saknar husnummer ("Elsbyvägen vällingby"). För VARJE rad: plocka ut radens
+    jobbadress (gata + nummer om båda finns, annars bara gatan, annars null) till
+    line_items[].job_address. Lägg själva beskrivningstexten (helst utan adressen)
+    i name/note som vanligt. För typ D är "att betala" = ex moms (omvänd moms).
 
 Returnera ENBART ett JSON-objekt — ingen text, ingen markdown, inga kodblock — med EXAKT denna struktur:
 
@@ -34,6 +43,7 @@ Returnera ENBART ett JSON-objekt — ingen text, ingen markdown, inga kodblock �
     {
       "order_number": string|null,
       "customer_name": string|null,
+      "job_address": string|null,
       "name": string|null,
       "note": string|null,
       "qty": number|null,
@@ -50,22 +60,23 @@ VIKTIGT om namn:
 - I Mockfjärds-utbetalningar: slutkundens namn står i radernas "Namn"-kolumn. Använd det.
 - I våra egna fakturor/A-ordrar: slutkunden står vanligen som "Avser"/"Objekt"/"Kund" på raderna
   eller i radbeskrivningen (adress/efternamn). Plocka ut det bästa namnet du kan.
-- I plåtfakturor finns ofta inget slutkundsnamn — låt customer_name vara null då.
+- I plåtfakturor och montörsfakturor finns ofta inget slutkundsnamn — låt customer_name vara null då.
 - För top-level customer_name: använd första radens customer_name, eller null om det saknas.
   Skriv ALDRIG in vårt eller Mockfjärds/Byggplåtars bolagsnamn här.
 
-job_address: ENDAST för plåtfakturor — kopiera värdet i "Ert ordernummer" exakt (gata + nummer, ev. ort).
-Övriga typer: null.
+job_address (top-level): ENDAST för plåtfakturor (C) — kopiera "Ert ordernummer" exakt.
+Övriga typer top-level: null. För typ D ligger adressen istället per rad i line_items[].job_address.
 
 Belopp:
 - total_amount_excl_vat = raden "Exkl. moms" (inkluderar frakt).
 - total_amount_incl_vat = totalen att betala (inkl. moms).
-- För plåtfakturor: total_amount = total_amount_excl_vat (kostnaden ex moms).
+- För plåtfakturor (C): total_amount = total_amount_excl_vat (kostnaden ex moms).
+- För montörsfakturor (D, omvänd moms): total_amount = total_amount_excl_vat (att betala = ex moms).
 - För andra typer: total_amount = den naturliga totalen på fakturan.
 
 Övriga regler:
 - "Fsg. order" / "Order"-kolumnen (eller motsvarande ordernummer per rad) → line_items[].order_number.
-- line_items[].name = produkt-/tjänstebenämning (t.ex. "Fönster", "Montage", "A-order").
+- line_items[].name = produkt-/tjänstebenämning (t.ex. "Fönster", "Montage", "A-order", "Material").
 - Belopp ska vara tal (ej strängar), använd punkt som decimaltecken.
 - Tolka svenska tusentalsavgränsare (mellanslag) korrekt.
 - invoice_date i ISO-format YYYY-MM-DD.
@@ -160,6 +171,7 @@ Deno.serve(async (req) => {
     const normalizedLines = line_items.map((li: any) => ({
       order_number: li?.order_number ?? null,
       customer_name: li?.customer_name ?? null,
+      job_address: li?.job_address ?? null,
       name: li?.name ?? null,
       note: li?.note ?? null,
       qty: li?.qty != null ? Number(li.qty) : null,

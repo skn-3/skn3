@@ -19,7 +19,7 @@ import type { CaseRow } from '@/lib/supabaseClient';
 type DocRow = {
   id: string;
   case_id: string;
-  doc_type: 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice';
+  doc_type: 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
   total_amount: number | null;
   invoice_number: string | null;
   created_at: string;
@@ -59,7 +59,7 @@ interface CaseEconomy {
   cost: number;
   profit: number;
   margin: number | null;
-  costBreakdown: { montor: number; caseCosts: number; sheet: number };
+  costBreakdown: { montor: number; caseCosts: number; sheet: number; montorInvoice: number };
   hasRevenue: boolean;
   hasCost: boolean;
   complete: boolean;
@@ -127,15 +127,17 @@ export function EconomyView() {
       const hasMontor = order?.total_amount != null || aOrderSum > 0;
       const sheetCost = cd.filter(d => d.doc_type === 'sheet_metal_invoice')
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
+      const montorInvoiceCost = cd.filter(d => d.doc_type === 'montor_invoice')
+        .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
       const cc = costsByCase.get(c.id) || 0;
-      const cost = montorCost + cc + sheetCost;
+      const cost = montorCost + cc + sheetCost + montorInvoiceCost;
       const profit = revenue - cost;
       const hasRevenue = revenue > 0;
       const complete = hasRevenue && hasMontor;
       return {
         c, revenue, cost, profit,
         margin: revenue > 0 ? profit / revenue : null,
-        costBreakdown: { montor: montorCost, caseCosts: cc, sheet: sheetCost },
+        costBreakdown: { montor: montorCost, caseCosts: cc, sheet: sheetCost, montorInvoice: montorInvoiceCost },
         hasRevenue,
         hasCost: hasMontor,
         complete,
@@ -406,6 +408,7 @@ export function EconomyView() {
                             <div>Montörsbetalning: {fmtKr(e.costBreakdown.montor)}</div>
                             <div>Egna kostnader (case_costs): {fmtKr(e.costBreakdown.caseCosts)}</div>
                             <div>Plåtfakturor: {fmtKr(e.costBreakdown.sheet)}</div>
+                            <div>Montörsfaktura (extra): {fmtKr(e.costBreakdown.montorInvoice)}</div>
                           </div>
                         </TableCell>
                       </TableRow>

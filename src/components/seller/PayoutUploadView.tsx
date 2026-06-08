@@ -22,6 +22,7 @@ const sanitizeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_')
 type LineItem = {
   order_number: string | null;
   customer_name?: string | null;
+  job_address?: string | null;
   name: string | null;
   note: string | null;
   qty: number | null;
@@ -129,7 +130,7 @@ function findNameMatches(
 }
 
 
-type DocType = 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice';
+type DocType = 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
 
 // ---- Adressmatchning (för plåtfakturor) -----------------------------------
 const stripDiacritics = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -201,18 +202,25 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   // Multi-mode: per-order-number manually chosen case override
   const [groupChoices, setGroupChoices] = useState<Record<string, CaseRow | null>>({});
   const [groupSearch, setGroupSearch] = useState<Record<string, string>>({});
+  // For montor_invoice: per-line manual case assignment (when address can't auto-match)
+  const [lineCaseChoices, setLineCaseChoices] = useState<Record<number, CaseRow | null>>({});
+  const [lineSearch, setLineSearch] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState(false);
 
   const isSheet = docType === 'sheet_metal_invoice';
-  const isCost = docType === 'a_order' || isSheet;
+  const isMontorInvoice = docType === 'montor_invoice';
+  const isCost = docType === 'a_order' || isSheet || isMontorInvoice;
   const typeLabel =
-    docType === 'sheet_metal_invoice' ? 'Plåtfaktura (utgift)'
+    isMontorInvoice ? 'Montörsfaktura (utgift, extra)'
+    : docType === 'sheet_metal_invoice' ? 'Plåtfaktura (utgift)'
     : docType === 'a_order' ? 'Egen faktura / A-order (utgift)'
     : 'Mockfjärds-utbetalning (intäkt)';
-  const shortLabel = isSheet ? 'Plåtfaktura' : (docType === 'a_order' ? 'Faktura/A-order' : 'Utbetalning');
+  const shortLabel = isMontorInvoice ? 'Montörsfaktura'
+    : isSheet ? 'Plåtfaktura'
+    : (docType === 'a_order' ? 'Faktura/A-order' : 'Utbetalning');
 
   const { data: cases = [] } = useQuery({ queryKey: ['cases-all'], queryFn: fetchAllCases });
 
@@ -226,7 +234,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     return Array.from(set);
   }, [lineItems]);
 
-  const isMulti = !isSheet && distinctOrderNumbers.length > 1;
+  const isMulti = isMontorInvoice || (!isSheet && distinctOrderNumbers.length > 1);
 
   // Single-mode auto-match by order_number (not used for sheet metal)
   const orderMatch = useMemo(() => {
@@ -255,18 +263,96 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   // Multi-mode groups
   type Group = {
-    order_number: string;
+    order_number: string; // for montor_invoice: display address; for others: order number
+    keyKind: 'order' | 'address' | 'manual';
     lines: LineItem[];
+    lineIndices: number[]; // indices into lineItems (used in montor_invoice unassigned flow)
     subtotal: number;
     groupCustomerName: string | null;
+    groupAddress: string | null; // displayed address (montor_invoice)
     autoCase: CaseRow | null;
     nameCandidates: Candidate[];
+    addrCandidates: AddrCandidate[];
     effectiveCase: CaseRow | null;
-    matchSource: 'order' | 'name' | 'manual' | null;
+    matchSource: 'order' | 'name' | 'address' | 'manual' | null;
   };
+
+  // Helper: address key for a montor_invoice line (empty => unassigned)
+  const lineAddrKey = (li: LineItem): string => {
+    const p = parseAddress(li.job_address);
+    if (!p.street || !p.number) return '';
+    return `${p.street}#${p.number}`;
+  };
+
   const groups: Group[] = useMemo(() => {
+    if (isMontorInvoice) {
+      // Address-keyed groups
+      const keyMap = new Map<string, { addr: string; indices: number[]; lines: LineItem[] }>();
+      lineItems.forEach((li, idx) => {
+        const key = lineAddrKey(li);
+        if (!key) return; // unassigned -> handled separately
+        const existing = keyMap.get(key);
+        if (existing) {
+          existing.indices.push(idx);
+          existing.lines.push(li);
+        } else {
+          keyMap.set(key, { addr: (li.job_address || '').trim(), indices: [idx], lines: [li] });
+        }
+      });
+      const addrGroups: Group[] = Array.from(keyMap.entries()).map(([key, v]) => {
+        const subtotal = v.lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+        const candidates = addressCandidates(cases as CaseRow[], v.addr);
+        const auto = candidates[0]?.case || null;
+        const override = groupChoices[key] ?? null;
+        const effective = override || auto;
+        const matchSource: Group['matchSource'] = override ? 'manual' : (auto ? 'address' : null);
+        return {
+          order_number: v.addr || key,
+          keyKind: 'address',
+          lines: v.lines,
+          lineIndices: v.indices,
+          subtotal,
+          groupCustomerName: null,
+          groupAddress: v.addr || null,
+          autoCase: auto,
+          nameCandidates: [],
+          addrCandidates: candidates,
+          effectiveCase: effective,
+          matchSource,
+        };
+      });
+
+      // Synthetic manual groups from unassigned lines that user mapped to a case
+      const manualMap = new Map<string, { case: CaseRow; indices: number[]; lines: LineItem[] }>();
+      lineItems.forEach((li, idx) => {
+        if (lineAddrKey(li)) return; // not unassigned
+        const c = lineCaseChoices[idx];
+        if (!c) return;
+        const k = `manual:${c.id}`;
+        const ex = manualMap.get(k);
+        if (ex) { ex.indices.push(idx); ex.lines.push(li); }
+        else manualMap.set(k, { case: c, indices: [idx], lines: [li] });
+      });
+      const manualGroups: Group[] = Array.from(manualMap.entries()).map(([k, v]) => ({
+        order_number: v.case.address || k,
+        keyKind: 'manual',
+        lines: v.lines,
+        lineIndices: v.indices,
+        subtotal: v.lines.reduce((s, l) => s + (Number(l.amount) || 0), 0),
+        groupCustomerName: v.case.customer_name || null,
+        groupAddress: v.case.address || null,
+        autoCase: v.case,
+        nameCandidates: [],
+        addrCandidates: [],
+        effectiveCase: v.case,
+        matchSource: 'manual',
+      }));
+      return [...addrGroups, ...manualGroups];
+    }
+
     return distinctOrderNumbers.map(on => {
       const lines = lineItems.filter(li => norm(li.order_number) === on);
+      const lineIndices = lineItems.map((li, i) => norm(li.order_number) === on ? i : -1).filter(i => i >= 0);
       const subtotal = lines.reduce((s, li) => s + (Number(li.amount) || 0), 0);
       const groupCustomerName = lines.find(l => norm(l.customer_name))?.customer_name ?? null;
       const orderC = (cases as any[]).find(c => norm(c.order_number) === on) || null;
@@ -279,20 +365,29 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         override ? 'manual' : orderC ? 'order' : strong ? 'name' : null;
       return {
         order_number: on,
+        keyKind: 'order',
         lines,
+        lineIndices,
         subtotal,
         groupCustomerName,
+        groupAddress: null,
         autoCase,
         nameCandidates: candidates,
+        addrCandidates: [],
         effectiveCase: effective,
         matchSource,
       };
     });
-  }, [distinctOrderNumbers, lineItems, cases, groupChoices]);
+  }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, lineCaseChoices]);
 
   const unassignedLines = useMemo(
-    () => lineItems.filter(li => !norm(li.order_number)),
-    [lineItems],
+    () => {
+      if (isMontorInvoice) {
+        return lineItems.filter((li, idx) => !lineAddrKey(li) && !lineCaseChoices[idx]);
+      }
+      return lineItems.filter(li => !norm(li.order_number));
+    },
+    [lineItems, isMontorInvoice, lineCaseChoices],
   );
 
   const groupedSubtotalSum = useMemo(
@@ -348,6 +443,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setChosenCase(null);
     setGroupChoices({});
     setGroupSearch({});
+    setLineCaseChoices({});
+    setLineSearch({});
     setExtracted(false);
     setExtractError(null);
   };
@@ -494,11 +591,14 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     if (!file) { toast.error('Välj en PDF'); return; }
     if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
     if (unassignedLines.length > 0) {
-      toast.error('Tilldela alla rader till ett ordernummer först'); return;
+      toast.error(isMontorInvoice
+        ? 'Koppla alla rader utan automatisk adressmatch till ett ärende'
+        : 'Tilldela alla rader till ett ordernummer först');
+      return;
     }
     const missing = groups.filter(g => !g.effectiveCase);
     if (missing.length > 0) {
-      toast.error(`Koppla ärende för ordernummer: ${missing.map(g => g.order_number).join(', ')}`);
+      toast.error(`Koppla ärende för: ${missing.map(g => g.order_number).join(', ')}`);
       return;
     }
 
@@ -506,7 +606,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     try {
       // Upload file ONCE; reuse same path for all rows
       const safe = sanitizeFileName(file.name);
-      const path = `shared-payouts/${Date.now()}_${safe}`;
+      const folder = isMontorInvoice ? 'montor-invoices' : 'shared-payouts';
+      const path = `${folder}/${Date.now()}_${safe}`;
       const { error: upErr } = await supabase.storage
         .from('case-documents')
         .upload(path, file, { upsert: false, contentType: file.type || 'application/pdf' });
@@ -524,7 +625,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           file_name: file.name,
           order_number: g.order_number,
           invoice_number: inv,
-          customer_name: customerName.trim() || null,
+          customer_name: isMontorInvoice ? null : (customerName.trim() || null),
           invoice_date: invoiceDate || null,
           total_amount: g.subtotal,
           currency: 'SEK',
@@ -533,11 +634,14 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         });
         if (insErr) throw insErr;
 
-        if (!norm((c as any).order_number)) {
+        // Only update case.order_number for n3prenad-orders (not montor_invoice/sheet — those are addresses)
+        if (!isMontorInvoice && !norm((c as any).order_number)) {
           try { await updateCase(caseId, { order_number: g.order_number } as any); } catch (e) { console.warn(e); }
         }
 
-        const eventDesc = isCost
+        const eventDesc = isMontorInvoice
+          ? `Laddade upp montörsfaktura (del av faktura ${inv}) för ${g.order_number}, kostnad ${g.subtotal.toLocaleString('sv-SE')} kr ex moms`
+          : isCost
           ? `Egen faktura/A-order kopplad (del av faktura ${inv}): kostnad ${g.subtotal.toLocaleString('sv-SE')} kr`
           : `Mockfjärds-utbetalning kopplad (del av faktura ${inv}): belopp ${g.subtotal.toLocaleString('sv-SE')} kr`;
         await createCaseEvent({
@@ -548,11 +652,13 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         });
 
         logActivity({
-          action: isCost ? 'cost_doc_uploaded' : 'payout_uploaded',
+          action: isMontorInvoice ? 'montor_invoice_uploaded' : (isCost ? 'cost_doc_uploaded' : 'payout_uploaded'),
           category: 'case',
-          description: `Laddade upp ${shortLabel.toLowerCase()} (del av faktura ${inv}) för ${c.address}`,
+          description: isMontorInvoice
+            ? `Laddade upp montörsfaktura (del av faktura ${inv}) för ${g.order_number}, kostnad ${g.subtotal.toLocaleString('sv-SE')} kr ex moms`
+            : `Laddade upp ${shortLabel.toLowerCase()} (del av faktura ${inv}) för ${c.address}`,
           case_id: caseId,
-          metadata: { doc_type: docType, invoice_number: inv, total_amount: g.subtotal, order_number: g.order_number, multi: true, groups: groups.length },
+          metadata: { doc_type: docType, invoice_number: inv, total_amount: g.subtotal, address: g.order_number, multi: true, groups: groups.length },
         });
 
         qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
@@ -576,7 +682,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     !file ||
     extracting ||
     (isMulti
-      ? unassignedLines.length > 0 || groups.some(g => !g.effectiveCase)
+      ? groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase)
       : !effectiveCase);
 
   return (
@@ -590,11 +696,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         <CardContent className="space-y-4">
           <div>
             <Label>Dokumenttyp</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-1">
               {([
                 { v: 'mockfjards_payout' as DocType, label: 'Mockfjärds-utbetalning', sub: 'intäkt' },
                 { v: 'a_order' as DocType, label: 'Egen faktura / A-order', sub: 'utgift' },
                 { v: 'sheet_metal_invoice' as DocType, label: 'Plåtfaktura', sub: 'utgift (matchas på adress)' },
+                { v: 'montor_invoice' as DocType, label: 'Montörsfaktura', sub: 'utgift, extra — matchas på adress per rad' },
               ]).map(opt => (
                 <button
                   key={opt.v}
@@ -676,7 +783,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
             </div>
             <div>
-              <Label>{isSheet ? 'Belopp ex moms (kostnad) *' : `Totalbelopp (SEK) ${isMulti ? '' : '*'}`}</Label>
+              <Label>{isSheet ? 'Belopp ex moms (kostnad) *' : isMontorInvoice ? 'Totalbelopp ex moms (referens)' : `Totalbelopp (SEK) ${isMulti ? '' : '*'}`}</Label>
               <Input type="number" inputMode="decimal" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} />
             </div>
             {isSheet && (
@@ -717,7 +824,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between gap-2">
                         <CardTitle className="text-base">
-                          Order {g.order_number}
+                          {g.keyKind === 'address' ? 'Adress' : g.keyKind === 'manual' ? 'Manuellt vald' : 'Order'} {g.order_number}
                           <span className="ml-2 text-sm font-normal text-muted-foreground">
                             ({g.lines.length} rad{g.lines.length === 1 ? '' : 'er'} · {g.subtotal.toLocaleString('sv-SE')} kr)
                           </span>
@@ -737,8 +844,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             {g.matchSource === 'manual' && 'Valt ärende'}
                             {g.matchSource === 'order' && 'Matchat ärende (ordernummer)'}
                             {g.matchSource === 'name' && 'Föreslaget ärende'}
+                            {g.matchSource === 'address' && 'Matchat ärende (adress)'}
                             {g.matchSource === 'manual' && <Badge variant="outline">manuellt</Badge>}
                             {g.matchSource === 'name' && <Badge variant="outline">namn</Badge>}
+                            {g.matchSource === 'address' && <Badge variant="outline">{g.addrCandidates[0]?.reason || 'adress'}</Badge>}
                           </AlertTitle>
                           <AlertDescription>
                             <div className="text-sm">
@@ -795,7 +904,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                           <AlertTriangle className="h-4 w-4" />
                           <AlertTitle>Inget ärende kunde matchas</AlertTitle>
                           <AlertDescription>
-                            Varken ordernummer {g.order_number} eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade. Sök manuellt nedan.
+                            {g.keyKind === 'address'
+                              ? <>Adress "{g.order_number}" matchade inget ärende. Sök manuellt nedan.</>
+                              : <>Varken ordernummer {g.order_number} eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade. Sök manuellt nedan.</>}
                           </AlertDescription>
                         </Alert>
                       )}
@@ -865,16 +976,75 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 <Card className="border-l-4 border-l-destructive/60">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base text-destructive">
-                      Rader utan ordernummer ({unassignedLines.length})
+                      {isMontorInvoice
+                        ? `Rader utan matchat ärende (${unassignedLines.length})`
+                        : `Rader utan ordernummer (${unassignedLines.length})`}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs text-muted-foreground mb-2">
-                      Tilldela varje rad ett ordernummer (eller skriv ett nytt) för att inkludera den.
+                      {isMontorInvoice
+                        ? 'Adressen kunde inte matchas automatiskt (saknar husnummer eller adress). Sök och välj ärende för varje rad.'
+                        : 'Tilldela varje rad ett ordernummer (eller skriv ett nytt) för att inkludera den.'}
                     </p>
                     <div className="border rounded-md divide-y">
                       {unassignedLines.map(li => {
                         const idx = lineItems.indexOf(li);
+                        if (isMontorInvoice) {
+                          const q = (lineSearch[idx] ?? '').trim().toLowerCase();
+                          const results = q
+                            ? (cases as CaseRow[]).filter(c =>
+                                (c.customer_name || '').toLowerCase().includes(q) ||
+                                (c.address || '').toLowerCase().includes(q) ||
+                                (c.offer_number || '').toLowerCase().includes(q) ||
+                                ((c as any).order_number || '').toLowerCase().includes(q)
+                              ).slice(0, 8)
+                            : [];
+                          return (
+                            <div key={idx} className="p-2 space-y-2 text-sm">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium">{li.name || '—'}</div>
+                                  {(li.job_address || li.note) && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {li.job_address && <>adress: {li.job_address} · </>}
+                                      {li.note}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-right text-xs text-muted-foreground whitespace-nowrap">
+                                  {(Number(li.amount) || 0).toLocaleString('sv-SE')} kr
+                                </div>
+                                <Button variant="ghost" size="icon" onClick={() => removeLine(idx)}>
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </div>
+                              <Input
+                                placeholder="Sök adress, kund eller offert/ordernr…"
+                                value={lineSearch[idx] ?? ''}
+                                onChange={(e) => setLineSearch(prev => ({ ...prev, [idx]: e.target.value }))}
+                              />
+                              {results.length > 0 && (
+                                <div className="border rounded-md max-h-40 overflow-y-auto divide-y">
+                                  {results.map(c => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setLineCaseChoices(prev => ({ ...prev, [idx]: c }));
+                                        setLineSearch(prev => ({ ...prev, [idx]: '' }));
+                                      }}
+                                      className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                                    >
+                                      <div className="font-medium">{c.address}</div>
+                                      <div className="text-xs text-muted-foreground">{c.customer_name}</div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
                         return (
                           <div key={idx} className="p-2 flex flex-wrap items-center gap-2 text-sm">
                             <div className="flex-1 min-w-[180px]">

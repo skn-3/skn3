@@ -285,14 +285,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         .from('case_documents')
         .select('*')
         .eq('case_id', caseData.id)
-        .in('doc_type', ['mockfjards_payout', 'a_order', 'sheet_metal_invoice'])
+        .in('doc_type', ['mockfjards_payout', 'a_order', 'sheet_metal_invoice', 'montor_invoice'])
         .order('invoice_date', { ascending: false });
       if (error) throw error;
       return (data || []) as Array<{
         id: string; file_path: string; file_name: string | null;
-        doc_type: 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice';
+        doc_type: 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
         invoice_number: string | null; invoice_date: string | null;
         total_amount: number | null;
+        order_number?: string | null;
       }>;
     },
     enabled: !isCoordinator,
@@ -300,6 +301,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const payouts = useMemo(() => (caseDocs || []).filter(d => d.doc_type === 'mockfjards_payout'), [caseDocs]);
   const costDocs = useMemo(() => (caseDocs || []).filter(d => d.doc_type === 'a_order'), [caseDocs]);
   const sheetInvoices = useMemo(() => (caseDocs || []).filter(d => d.doc_type === 'sheet_metal_invoice'), [caseDocs]);
+  const montorInvoices = useMemo(() => (caseDocs || []).filter(d => d.doc_type === 'montor_invoice'), [caseDocs]);
 
   const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
   const linkedOrder = (linkedOrders && linkedOrders[0]) || null;
@@ -1528,13 +1530,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               const hasCostDocs = (costDocs || []).length > 0;
               const sheetCost = (sheetInvoices || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
               const hasSheet = (sheetInvoices || []).length > 0;
+              const montorInvoiceCost = (montorInvoices || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
+              const hasMontorInvoice = (montorInvoices || []).length > 0;
               const orderCost = linkedOrder?.total_amount != null ? Number(linkedOrder.total_amount) : null;
               const baseCost = orderCost != null ? orderCost : (hasCostDocs ? costFromDocs : null);
-              const cost = baseCost != null || hasSheet
-                ? (baseCost ?? 0) + sheetCost
+              const cost = (baseCost != null || hasSheet || hasMontorInvoice)
+                ? (baseCost ?? 0) + sheetCost + montorInvoiceCost
                 : null;
-              const costSource: 'order' | 'docs' | 'sheet' | null =
-                orderCost != null ? 'order' : (hasCostDocs ? 'docs' : (hasSheet ? 'sheet' : null));
+              const costSource: 'order' | 'docs' | 'sheet' | 'montor_invoice' | null =
+                orderCost != null ? 'order' : (hasCostDocs ? 'docs' : (hasSheet ? 'sheet' : (hasMontorInvoice ? 'montor_invoice' : null)));
               const possibleDuplicate = orderCost != null && hasCostDocs;
               const profit = hasRevenue && cost != null ? revenue - cost : null;
               const margin = profit != null && revenue > 0 ? (profit / revenue) * 100 : null;
@@ -1553,9 +1557,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     </div>
                     {costSource && (
                       <div className="text-[10px] text-muted-foreground mt-0.5">
-                        {costSource === 'order' && (hasSheet ? 'n3prenad + plåt' : 'från n3prenad-order')}
-                        {costSource === 'docs' && (hasSheet ? 'egna A-ordrar + plåt' : 'från egna A-ordrar')}
-                        {costSource === 'sheet' && 'endast plåtfakturor'}
+                        {costSource === 'order' && `n3prenad${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
+                        {costSource === 'docs' && `egna A-ordrar${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
+                        {costSource === 'sheet' && `endast plåtfakturor${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
+                        {costSource === 'montor_invoice' && 'endast montörsfaktura'}
                       </div>
                     )}
                   </div>
@@ -1660,6 +1665,40 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       <div className="min-w-0">
                         <div className="truncate">
                           {p.invoice_number ? `Plåtfaktura ${p.invoice_number}` : (p.file_name || 'Plåtfaktura')}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {p.invoice_date || '—'}
+                          {p.total_amount != null && (
+                            <> · {Number(p.total_amount).toLocaleString('sv-SE')} kr ex moms</>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openPayoutPdf(p.file_path)}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 whitespace-nowrap"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Visa PDF
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Montörsfakturor (extra utgift) */}
+            {montorInvoices && montorInvoices.length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t">
+                <div className="text-xs font-medium text-muted-foreground">Montörsfakturor (extra, ex moms)</div>
+                <ul className="divide-y rounded-md border">
+                  {montorInvoices.map(p => (
+                    <li key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <div className="truncate">
+                          {p.invoice_number ? `Faktura ${p.invoice_number}` : (p.file_name || 'Montörsfaktura')}
+                          {(p as any).order_number && (
+                            <span className="text-xs text-muted-foreground"> · {(p as any).order_number}</span>
+                          )}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {p.invoice_date || '—'}
