@@ -339,8 +339,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setOrderNumber('');
     setInvoiceNumber('');
     setCustomerName('');
+    setJobAddress('');
     setInvoiceDate('');
     setTotalAmount('');
+    setTotalAmountIncl('');
     setLineItems([]);
     setSearch('');
     setChosenCase(null);
@@ -366,11 +368,19 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const orderNumbers: string[] = Array.isArray(data.order_numbers) ? data.order_numbers : [];
       const firstOrder = orderNumbers[0] || (items[0]?.order_number ?? '');
 
+      const excl = data.total_amount_excl_vat;
+      const incl = data.total_amount_incl_vat;
+      const preferred = isSheet
+        ? (excl ?? data.total_amount ?? null)
+        : (data.total_amount ?? excl ?? null);
+
       setOrderNumber(prev => prev || (firstOrder ?? ''));
       setInvoiceNumber(prev => prev || (data.invoice_number ?? ''));
       setCustomerName(prev => prev || (data.customer_name ?? ''));
+      setJobAddress(prev => prev || (data.job_address ?? ''));
       setInvoiceDate(prev => prev || (data.invoice_date ?? ''));
-      setTotalAmount(prev => prev || (data.total_amount != null ? String(data.total_amount) : ''));
+      setTotalAmount(prev => prev || (preferred != null ? String(preferred) : ''));
+      setTotalAmountIncl(prev => prev || (incl != null ? String(incl) : ''));
       setLineItems(items);
       setExtracted(true);
       toast.success('AI förfyllde fälten — granska och bekräfta');
