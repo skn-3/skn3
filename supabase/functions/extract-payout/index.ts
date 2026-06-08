@@ -171,6 +171,7 @@ Deno.serve(async (req) => {
     const normalizedLines = line_items.map((li: any) => ({
       order_number: li?.order_number ?? null,
       customer_name: li?.customer_name ?? null,
+      job_address: li?.job_address ?? null,
       name: li?.name ?? null,
       note: li?.note ?? null,
       qty: li?.qty != null ? Number(li.qty) : null,
