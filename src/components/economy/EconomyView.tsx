@@ -349,10 +349,10 @@ export function EconomyView() {
         )}
       </Card>
 
-      {/* Per-case profitability */}
+      {/* Per-case profitability — kompletta */}
       <Card className="p-0 overflow-hidden">
         <div className="p-4 border-b">
-          <div className="text-sm font-medium">Lönsamhet per ärende</div>
+          <div className="text-sm font-medium">Lönsamhet per ärende (kompletta)</div>
           <div className="text-xs text-muted-foreground mt-1">Klicka på en kolumn för att sortera. Klicka raden för kostnadsmix.</div>
         </div>
         <Table>
@@ -364,16 +364,16 @@ export function EconomyView() {
               <TableHead className="cursor-pointer" onClick={() => toggleSort('cost')}>Kostnad</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort('profit')}>Vinst</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort('margin')}>Marginal</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Team</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedTable.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Inga ärenden</TableCell></TableRow>
+            {sortedComplete.length === 0 && (
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Inga kompletta ärenden</TableCell></TableRow>
             )}
-            {sortedTable.map(e => {
+            {sortedComplete.map(e => {
               const isOpen = !!expanded[e.c.id];
-              const loss = e.complete && e.profit < 0;
+              const loss = e.profit < 0;
               return (
                 <Collapsible
                   key={e.c.id}
@@ -395,11 +395,7 @@ export function EconomyView() {
                         <TableCell>{fmtKr(e.cost)}</TableCell>
                         <TableCell className={loss ? 'text-destructive font-medium' : ''}>{fmtKr(e.profit)}</TableCell>
                         <TableCell>{e.margin == null ? '—' : fmtPct(e.margin)}</TableCell>
-                        <TableCell>
-                          {e.complete
-                            ? <Badge variant="secondary">Komplett</Badge>
-                            : <Badge variant="outline">Ofullständig</Badge>}
-                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{e.c.team || '—'}</TableCell>
                       </TableRow>
                     </CollapsibleTrigger>
                     <CollapsibleContent asChild>
@@ -421,6 +417,115 @@ export function EconomyView() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Ofullständiga ärenden */}
+      <Card className="p-0 overflow-hidden opacity-90">
+        <Collapsible defaultOpen={false}>
+          <CollapsibleTrigger asChild>
+            <button type="button" className="w-full p-4 border-b flex items-center justify-between hover:bg-muted/30 text-left">
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">Ofullständiga ärenden</div>
+                <div className="text-xs text-muted-foreground mt-1">Påverkar inte totalen — saknar intäkt eller kostnad.</div>
+              </div>
+              <Badge variant="outline">{incompleteList.length}</Badge>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Ärende</TableHead>
+                  <TableHead>Team</TableHead>
+                  <TableHead>Intäkt</TableHead>
+                  <TableHead>Kostnad</TableHead>
+                  <TableHead>Saknar</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {incompleteList.length === 0 && (
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Inga ofullständiga ärenden</TableCell></TableRow>
+                )}
+                {incompleteList.map(e => {
+                  const missing: string[] = [];
+                  if (!e.hasRevenue) missing.push('utbetalning');
+                  if (!e.hasCost) missing.push('montörskostnad');
+                  return (
+                    <TableRow key={e.c.id} className="bg-muted/20">
+                      <TableCell>
+                        <div className="font-medium">{e.c.address}</div>
+                        <div className="text-xs text-muted-foreground">{e.c.customer_name}</div>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{e.c.team || '—'}</TableCell>
+                      <TableCell>{e.hasRevenue ? fmtKr(e.revenue) : '—'}</TableCell>
+                      <TableCell>{e.hasCost ? fmtKr(e.cost) : '—'}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <Badge variant="outline" className="text-xs">Ofullständig</Badge>
+                          {missing.map(m => (
+                            <span key={m} className="text-xs text-muted-foreground">saknar {m}</span>
+                          ))}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
+
+      {/* Statistik per montageteam */}
+      <Card className="p-0 overflow-hidden">
+        <div className="p-4 border-b">
+          <div className="text-sm font-medium">Statistik per montageteam</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Baserat på kompletta ärenden. Klicka kolumn för att sortera.
+          </div>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Team</TableHead>
+              <TableHead>Jobb</TableHead>
+              <TableHead>Intäkt</TableHead>
+              <TableHead>Kostnad</TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleTeamSort('profit')}>Vinst</TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleTeamSort('margin')}>Marginal</TableHead>
+              <TableHead>Snittvinst/jobb</TableHead>
+              <TableHead>Kostnad/enhet</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {teamStats.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Ingen data</TableCell></TableRow>
+            )}
+            {teamStats.map(t => {
+              const isBest = t.team === bestTeam;
+              const isWorst = t.team === worstTeam;
+              return (
+                <TableRow key={t.team} className={isBest ? 'bg-primary/5' : isWorst ? 'bg-destructive/5' : ''}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{t.team}</span>
+                      {isBest && <Badge variant="default" className="text-xs">Bäst</Badge>}
+                      {isWorst && <Badge variant="destructive" className="text-xs">Sämst</Badge>}
+                    </div>
+                  </TableCell>
+                  <TableCell>{t.count}</TableCell>
+                  <TableCell>{fmtKr(t.revenue)}</TableCell>
+                  <TableCell>{fmtKr(t.cost)}</TableCell>
+                  <TableCell className={t.profit < 0 ? 'text-destructive font-medium' : ''}>{fmtKr(t.profit)}</TableCell>
+                  <TableCell>{t.margin == null ? '—' : fmtPct(t.margin)}</TableCell>
+                  <TableCell>{fmtKr(t.avgProfit)}</TableCell>
+                  <TableCell>{t.costPerUnit == null ? '—' : fmtKr(t.costPerUnit)}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
+
 
       {/* Datakvalitet */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
