@@ -682,7 +682,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     !file ||
     extracting ||
     (isMulti
-      ? unassignedLines.length > 0 || groups.some(g => !g.effectiveCase)
+      ? groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase)
       : !effectiveCase);
 
   return (
