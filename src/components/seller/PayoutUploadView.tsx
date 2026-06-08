@@ -263,18 +263,96 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   // Multi-mode groups
   type Group = {
-    order_number: string;
+    order_number: string; // for montor_invoice: display address; for others: order number
+    keyKind: 'order' | 'address' | 'manual';
     lines: LineItem[];
+    lineIndices: number[]; // indices into lineItems (used in montor_invoice unassigned flow)
     subtotal: number;
     groupCustomerName: string | null;
+    groupAddress: string | null; // displayed address (montor_invoice)
     autoCase: CaseRow | null;
     nameCandidates: Candidate[];
+    addrCandidates: AddrCandidate[];
     effectiveCase: CaseRow | null;
-    matchSource: 'order' | 'name' | 'manual' | null;
+    matchSource: 'order' | 'name' | 'address' | 'manual' | null;
   };
+
+  // Helper: address key for a montor_invoice line (empty => unassigned)
+  const lineAddrKey = (li: LineItem): string => {
+    const p = parseAddress(li.job_address);
+    if (!p.street || !p.number) return '';
+    return `${p.street}#${p.number}`;
+  };
+
   const groups: Group[] = useMemo(() => {
+    if (isMontorInvoice) {
+      // Address-keyed groups
+      const keyMap = new Map<string, { addr: string; indices: number[]; lines: LineItem[] }>();
+      lineItems.forEach((li, idx) => {
+        const key = lineAddrKey(li);
+        if (!key) return; // unassigned -> handled separately
+        const existing = keyMap.get(key);
+        if (existing) {
+          existing.indices.push(idx);
+          existing.lines.push(li);
+        } else {
+          keyMap.set(key, { addr: (li.job_address || '').trim(), indices: [idx], lines: [li] });
+        }
+      });
+      const addrGroups: Group[] = Array.from(keyMap.entries()).map(([key, v]) => {
+        const subtotal = v.lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+        const candidates = addressCandidates(cases as CaseRow[], v.addr);
+        const auto = candidates[0]?.case || null;
+        const override = groupChoices[key] ?? null;
+        const effective = override || auto;
+        const matchSource: Group['matchSource'] = override ? 'manual' : (auto ? 'address' : null);
+        return {
+          order_number: v.addr || key,
+          keyKind: 'address',
+          lines: v.lines,
+          lineIndices: v.indices,
+          subtotal,
+          groupCustomerName: null,
+          groupAddress: v.addr || null,
+          autoCase: auto,
+          nameCandidates: [],
+          addrCandidates: candidates,
+          effectiveCase: effective,
+          matchSource,
+        };
+      });
+
+      // Synthetic manual groups from unassigned lines that user mapped to a case
+      const manualMap = new Map<string, { case: CaseRow; indices: number[]; lines: LineItem[] }>();
+      lineItems.forEach((li, idx) => {
+        if (lineAddrKey(li)) return; // not unassigned
+        const c = lineCaseChoices[idx];
+        if (!c) return;
+        const k = `manual:${c.id}`;
+        const ex = manualMap.get(k);
+        if (ex) { ex.indices.push(idx); ex.lines.push(li); }
+        else manualMap.set(k, { case: c, indices: [idx], lines: [li] });
+      });
+      const manualGroups: Group[] = Array.from(manualMap.entries()).map(([k, v]) => ({
+        order_number: v.case.address || k,
+        keyKind: 'manual',
+        lines: v.lines,
+        lineIndices: v.indices,
+        subtotal: v.lines.reduce((s, l) => s + (Number(l.amount) || 0), 0),
+        groupCustomerName: v.case.customer_name || null,
+        groupAddress: v.case.address || null,
+        autoCase: v.case,
+        nameCandidates: [],
+        addrCandidates: [],
+        effectiveCase: v.case,
+        matchSource: 'manual',
+      }));
+      return [...addrGroups, ...manualGroups];
+    }
+
     return distinctOrderNumbers.map(on => {
       const lines = lineItems.filter(li => norm(li.order_number) === on);
+      const lineIndices = lineItems.map((li, i) => norm(li.order_number) === on ? i : -1).filter(i => i >= 0);
       const subtotal = lines.reduce((s, li) => s + (Number(li.amount) || 0), 0);
       const groupCustomerName = lines.find(l => norm(l.customer_name))?.customer_name ?? null;
       const orderC = (cases as any[]).find(c => norm(c.order_number) === on) || null;
@@ -287,20 +365,29 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         override ? 'manual' : orderC ? 'order' : strong ? 'name' : null;
       return {
         order_number: on,
+        keyKind: 'order',
         lines,
+        lineIndices,
         subtotal,
         groupCustomerName,
+        groupAddress: null,
         autoCase,
         nameCandidates: candidates,
+        addrCandidates: [],
         effectiveCase: effective,
         matchSource,
       };
     });
-  }, [distinctOrderNumbers, lineItems, cases, groupChoices]);
+  }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, lineCaseChoices]);
 
   const unassignedLines = useMemo(
-    () => lineItems.filter(li => !norm(li.order_number)),
-    [lineItems],
+    () => {
+      if (isMontorInvoice) {
+        return lineItems.filter((li, idx) => !lineAddrKey(li) && !lineCaseChoices[idx]);
+      }
+      return lineItems.filter(li => !norm(li.order_number));
+    },
+    [lineItems, isMontorInvoice, lineCaseChoices],
   );
 
   const groupedSubtotalSum = useMemo(
