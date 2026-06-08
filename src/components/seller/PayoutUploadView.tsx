@@ -22,6 +22,7 @@ const sanitizeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_')
 type LineItem = {
   order_number: string | null;
   customer_name?: string | null;
+  job_address?: string | null;
   name: string | null;
   note: string | null;
   qty: number | null;
