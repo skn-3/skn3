@@ -973,9 +973,16 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             {g.keyKind === 'address'
                               ? <>Adress "{g.order_number}" matchade inget ärende. Sök manuellt nedan.</>
                               : <>Varken ordernummer {g.order_number} eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade. Sök manuellt nedan.</>}
+                            {isMontorInvoice && (
+                              <div className="mt-2">
+                                <Button variant="outline" size="sm" onClick={() => toggleSkip(g.order_number, true)}>
+                                  Hoppa över denna adress
+                                </Button>
+                              </div>
+                            )}
                           </AlertDescription>
                         </Alert>
-                      )}
+                      ))}
 
                       {showSearch && (
                         <div className="space-y-2">
