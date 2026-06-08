@@ -976,16 +976,75 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 <Card className="border-l-4 border-l-destructive/60">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base text-destructive">
-                      Rader utan ordernummer ({unassignedLines.length})
+                      {isMontorInvoice
+                        ? `Rader utan matchat ärende (${unassignedLines.length})`
+                        : `Rader utan ordernummer (${unassignedLines.length})`}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-xs text-muted-foreground mb-2">
-                      Tilldela varje rad ett ordernummer (eller skriv ett nytt) för att inkludera den.
+                      {isMontorInvoice
+                        ? 'Adressen kunde inte matchas automatiskt (saknar husnummer eller adress). Sök och välj ärende för varje rad.'
+                        : 'Tilldela varje rad ett ordernummer (eller skriv ett nytt) för att inkludera den.'}
                     </p>
                     <div className="border rounded-md divide-y">
                       {unassignedLines.map(li => {
                         const idx = lineItems.indexOf(li);
+                        if (isMontorInvoice) {
+                          const q = (lineSearch[idx] ?? '').trim().toLowerCase();
+                          const results = q
+                            ? (cases as CaseRow[]).filter(c =>
+                                (c.customer_name || '').toLowerCase().includes(q) ||
+                                (c.address || '').toLowerCase().includes(q) ||
+                                (c.offer_number || '').toLowerCase().includes(q) ||
+                                ((c as any).order_number || '').toLowerCase().includes(q)
+                              ).slice(0, 8)
+                            : [];
+                          return (
+                            <div key={idx} className="p-2 space-y-2 text-sm">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium">{li.name || '—'}</div>
+                                  {(li.job_address || li.note) && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {li.job_address && <>adress: {li.job_address} · </>}
+                                      {li.note}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-right text-xs text-muted-foreground whitespace-nowrap">
+                                  {(Number(li.amount) || 0).toLocaleString('sv-SE')} kr
+                                </div>
+                                <Button variant="ghost" size="icon" onClick={() => removeLine(idx)}>
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </div>
+                              <Input
+                                placeholder="Sök adress, kund eller offert/ordernr…"
+                                value={lineSearch[idx] ?? ''}
+                                onChange={(e) => setLineSearch(prev => ({ ...prev, [idx]: e.target.value }))}
+                              />
+                              {results.length > 0 && (
+                                <div className="border rounded-md max-h-40 overflow-y-auto divide-y">
+                                  {results.map(c => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setLineCaseChoices(prev => ({ ...prev, [idx]: c }));
+                                        setLineSearch(prev => ({ ...prev, [idx]: '' }));
+                                      }}
+                                      className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                                    >
+                                      <div className="font-medium">{c.address}</div>
+                                      <div className="text-xs text-muted-foreground">{c.customer_name}</div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
                         return (
                           <div key={idx} className="p-2 flex flex-wrap items-center gap-2 text-sm">
                             <div className="flex-1 min-w-[180px]">
