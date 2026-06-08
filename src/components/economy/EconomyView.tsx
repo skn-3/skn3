@@ -127,15 +127,17 @@ export function EconomyView() {
       const hasMontor = order?.total_amount != null || aOrderSum > 0;
       const sheetCost = cd.filter(d => d.doc_type === 'sheet_metal_invoice')
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
+      const montorInvoiceCost = cd.filter(d => d.doc_type === 'montor_invoice')
+        .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
       const cc = costsByCase.get(c.id) || 0;
-      const cost = montorCost + cc + sheetCost;
+      const cost = montorCost + cc + sheetCost + montorInvoiceCost;
       const profit = revenue - cost;
       const hasRevenue = revenue > 0;
       const complete = hasRevenue && hasMontor;
       return {
         c, revenue, cost, profit,
         margin: revenue > 0 ? profit / revenue : null,
-        costBreakdown: { montor: montorCost, caseCosts: cc, sheet: sheetCost },
+        costBreakdown: { montor: montorCost, caseCosts: cc, sheet: sheetCost, montorInvoice: montorInvoiceCost },
         hasRevenue,
         hasCost: hasMontor,
         complete,
