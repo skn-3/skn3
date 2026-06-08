@@ -322,7 +322,8 @@ export function EconomyView() {
       </div>
       <div className="text-sm text-muted-foreground">
         Baserat på {completeEconomy.length} av {filteredEconomy.length} ärenden med komplett data
-        (både intäkt och montörskostnad).
+        (både intäkt och montörskostnad). Endast kompletta ärenden räknas — ofullständiga visas
+        separat och påverkar inte totalen.
       </div>
 
       {/* Trend */}
