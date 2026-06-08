@@ -129,8 +129,11 @@ function findNameMatches(
 }
 
 
+type DocType = 'mockfjards_payout' | 'a_order';
+
 export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const qc = useQueryClient();
+  const [docType, setDocType] = useState<DocType>('mockfjards_payout');
   const [file, setFile] = useState<File | null>(null);
   const [orderNumber, setOrderNumber] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -147,6 +150,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState(false);
+
+  const isCost = docType === 'a_order';
+  const typeLabel = isCost ? 'Egen faktura / A-order (utgift)' : 'Mockfjärds-utbetalning (intäkt)';
+  const shortLabel = isCost ? 'Faktura/A-order' : 'Utbetalning';
 
   const { data: cases = [] } = useQuery({ queryKey: ['cases-all'], queryFn: fetchAllCases });
 
