@@ -48,6 +48,9 @@ export function AdminView({ currentUser }: AdminViewProps) {
         <TabsContent value="payouts" className="mt-4">
           <PayoutUploadView currentUser={currentUser} />
         </TabsContent>
+        <TabsContent value="link-orders" className="mt-4">
+          <LinkOrdersView currentUser={currentUser} />
+        </TabsContent>
         <TabsContent value="activity-log" className="mt-4">
           <ActivityLogView />
         </TabsContent>
