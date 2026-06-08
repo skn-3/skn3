@@ -435,20 +435,22 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
       const amountNum = Number(totalAmount);
       const inclNum = totalAmountIncl.trim() && !isNaN(Number(totalAmountIncl)) ? Number(totalAmountIncl) : null;
+      const sheetLine = isSheet
+        ? [{ order_number: null, customer_name: null, name: 'Plåt (ex moms)', note: inclNum != null ? `Total inkl moms: ${inclNum} kr` : (jobAddress ? `Jobbadress: ${jobAddress}` : null), qty: null, unit_price: null, amount: amountNum }]
+        : null;
       const { error: insErr } = await (supabase as any).from('case_documents').insert({
         case_id: caseId,
         doc_type: docType,
         file_path: path,
         file_name: file.name,
-        order_number: isSheet ? null : orderNumber.trim(),
+        order_number: isSheet ? (jobAddress || null) : orderNumber.trim(),
         invoice_number: invoiceNumber.trim(),
         customer_name: customerName.trim() || null,
         invoice_date: invoiceDate || null,
         total_amount: amountNum,
         currency: 'SEK',
-        line_items: lineItems.length > 0 ? lineItems : null,
+        line_items: lineItems.length > 0 ? lineItems : sheetLine,
         uploaded_by: currentUser,
-        metadata: isSheet ? { job_address: jobAddress || null, total_amount_incl_vat: inclNum } : null,
       });
       if (insErr) throw insErr;
 
