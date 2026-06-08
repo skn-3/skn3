@@ -11,7 +11,8 @@ const corsHeaders = {
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
 
-const SYSTEM_PROMPT = `Du extraherar fakturadata från en Mockfjärds-utbetalning (PDF på svenska).
+const SYSTEM_PROMPT = `Du extraherar fakturadata från en svensk PDF. Det kan vara antingen
+en Mockfjärds-utbetalning (intäkt till oss) ELLER vår egen faktura/A-order till en montör (utgift).
 Returnera ENBART ett JSON-objekt — ingen text, ingen markdown, inga kodblock — med EXAKT denna struktur:
 
 {
