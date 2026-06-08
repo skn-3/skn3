@@ -226,25 +226,32 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     return Array.from(set);
   }, [lineItems]);
 
-  const isMulti = distinctOrderNumbers.length > 1;
+  const isMulti = !isSheet && distinctOrderNumbers.length > 1;
 
-  // Single-mode auto-match by order_number
+  // Single-mode auto-match by order_number (not used for sheet metal)
   const orderMatch = useMemo(() => {
+    if (isSheet) return null;
     const q = orderNumber.trim();
     if (!q) return null;
     return (cases as any[]).find(c => norm(c.order_number) === q) || null;
-  }, [orderNumber, cases]);
+  }, [orderNumber, cases, isSheet]);
 
   // Namnkandidater (fallback i single-läge)
   const nameCandidates = useMemo<Candidate[]>(() => {
-    if (orderMatch) return [];
+    if (isSheet || orderMatch) return [];
     return findNameMatches(cases as CaseRow[], customerName, null, 5);
-  }, [orderMatch, cases, customerName]);
+  }, [orderMatch, cases, customerName, isSheet]);
 
-  // Auto-välj toppkandidat om den är tydlig (exakt namn / omvänd ordning)
   const strongNameMatch = nameCandidates[0] && nameCandidates[0].score >= 90 ? nameCandidates[0].case : null;
 
-  const effectiveCase = chosenCase || orderMatch || strongNameMatch;
+  // Adress-kandidater (plåtfaktura)
+  const addressMatches = useMemo<AddrCandidate[]>(() => {
+    if (!isSheet) return [];
+    return addressCandidates(cases as CaseRow[], jobAddress || null);
+  }, [isSheet, jobAddress, cases]);
+  const strongAddrMatch = addressMatches[0]?.case || null;
+
+  const effectiveCase = chosenCase || orderMatch || strongNameMatch || strongAddrMatch;
 
   // Multi-mode groups
   type Group = {
