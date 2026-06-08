@@ -9,6 +9,7 @@ import { Pipeline } from './Pipeline';
 import { SellerDashboard } from './SellerDashboard';
 import { VisitForm } from './VisitForm';
 import { AdminView } from './AdminView';
+import { EconomyView } from '@/components/economy/EconomyView';
 
 
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
