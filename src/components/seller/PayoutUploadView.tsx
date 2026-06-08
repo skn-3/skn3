@@ -902,8 +902,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             Inkludera igen
                           </Button>
                         </div>
-                      ) : (<></>)}
-                      {g.effectiveCase ? (
+                      ) : null}
+                      {!skipped && (g.effectiveCase ? (
                         <Alert>
                           <Check className="h-4 w-4" />
                           <AlertTitle className="flex items-center gap-2">
