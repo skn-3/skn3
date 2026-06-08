@@ -436,7 +436,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         const caseId = c.id;
         const { error: insErr } = await (supabase as any).from('case_documents').insert({
           case_id: caseId,
-          doc_type: 'mockfjards_payout',
+          doc_type: docType,
           file_path: path,
           file_name: file.name,
           order_number: g.order_number,
@@ -454,19 +454,22 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           try { await updateCase(caseId, { order_number: g.order_number } as any); } catch (e) { console.warn(e); }
         }
 
+        const eventDesc = isCost
+          ? `Egen faktura/A-order kopplad (del av faktura ${inv}): kostnad ${g.subtotal.toLocaleString('sv-SE')} kr`
+          : `Mockfjärds-utbetalning kopplad (del av faktura ${inv}): belopp ${g.subtotal.toLocaleString('sv-SE')} kr`;
         await createCaseEvent({
           case_id: caseId,
           event_type: 'note',
-          description: `Mockfjärds-utbetalning kopplad (del av faktura ${inv}): belopp ${g.subtotal.toLocaleString('sv-SE')} kr`,
+          description: eventDesc,
           created_by: currentUser,
         });
 
         logActivity({
-          action: 'payout_uploaded',
+          action: isCost ? 'cost_doc_uploaded' : 'payout_uploaded',
           category: 'case',
-          description: `Laddade upp utbetalning (del av faktura ${inv}) för ${c.address}`,
+          description: `Laddade upp ${shortLabel.toLowerCase()} (del av faktura ${inv}) för ${c.address}`,
           case_id: caseId,
-          metadata: { invoice_number: inv, total_amount: g.subtotal, order_number: g.order_number, multi: true, groups: groups.length },
+          metadata: { doc_type: docType, invoice_number: inv, total_amount: g.subtotal, order_number: g.order_number, multi: true, groups: groups.length },
         });
 
         qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
