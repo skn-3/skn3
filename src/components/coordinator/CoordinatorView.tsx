@@ -11,6 +11,7 @@ import { CoordinatorDeviations } from './CoordinatorDeviations';
 import { Pipeline } from '@/components/seller/Pipeline';
 import { CalendarView } from '@/components/calendar/CalendarView';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
+import { EconomyView } from '@/components/economy/EconomyView';
 
 interface Props {
   role: UserRole;
