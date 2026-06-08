@@ -443,6 +443,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setChosenCase(null);
     setGroupChoices({});
     setGroupSearch({});
+    setLineCaseChoices({});
+    setLineSearch({});
     setExtracted(false);
     setExtractError(null);
   };
