@@ -698,7 +698,19 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       }
 
       qc.invalidateQueries({ queryKey: ['cases-all'] });
-      toast.success(`Faktura kopplad till ${groups.length} ärenden`);
+      if (isMontorInvoice && skippedList.length > 0) {
+        try {
+          await logActivity({
+            action: 'montor_invoice_partial_skip',
+            category: 'case',
+            description: `Montörsfaktura ${inv}: ${skippedList.length} adress${skippedList.length === 1 ? '' : 'er'} hoppades över (${skippedList.map(g => g.order_number).join(', ')})`,
+            metadata: { invoice_number: inv, skipped_addresses: skippedList.map(g => g.order_number), skipped_total: skippedList.reduce((s, g) => s + g.subtotal, 0) },
+          });
+        } catch (e) { console.warn(e); }
+        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden (${skippedList.length} hoppades över)`);
+      } else {
+        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden`);
+      }
       reset();
     } catch (e: any) {
       console.error(e);
@@ -710,12 +722,21 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   const handleSubmit = () => (isMulti ? handleSubmitMulti() : handleSubmitSingle());
 
+  const matchedActiveGroups = isMontorInvoice
+    ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
+    : groups.filter(g => g.effectiveCase);
+  const unresolvedGroups = isMontorInvoice
+    ? groups.filter(g => !g.effectiveCase && !isSkipped(g.order_number))
+    : groups.filter(g => !g.effectiveCase);
+
   const submitDisabled =
     submitting ||
     !file ||
     extracting ||
     (isMulti
-      ? groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase)
+      ? (isMontorInvoice
+          ? groups.length === 0 || unassignedLines.length > 0 || matchedActiveGroups.length === 0 || unresolvedGroups.length > 0
+          : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase))
       : !effectiveCase);
 
   return (
