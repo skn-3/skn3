@@ -984,7 +984,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                         </Alert>
                       ))}
 
-                      {showSearch && (
+                      {!skipped && showSearch && (
                         <div className="space-y-2">
                           <Label className="flex items-center gap-1 text-xs">
                             <Search className="h-3 w-3" /> Sök ärende manuellt
