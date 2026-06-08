@@ -234,7 +234,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     return Array.from(set);
   }, [lineItems]);
 
-  const isMulti = !isSheet && distinctOrderNumbers.length > 1;
+  const isMulti = isMontorInvoice || (!isSheet && distinctOrderNumbers.length > 1);
 
   // Single-mode auto-match by order_number (not used for sheet metal)
   const orderMatch = useMemo(() => {
