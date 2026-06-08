@@ -205,6 +205,16 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   // For montor_invoice: per-line manual case assignment (when address can't auto-match)
   const [lineCaseChoices, setLineCaseChoices] = useState<Record<number, CaseRow | null>>({});
   const [lineSearch, setLineSearch] = useState<Record<number, string>>({});
+  // For montor_invoice: addresses (group keys) the user has explicitly skipped
+  const [skippedGroups, setSkippedGroups] = useState<Set<string>>(new Set());
+  const isSkipped = (key: string) => skippedGroups.has(key);
+  const toggleSkip = (key: string, next: boolean) => {
+    setSkippedGroups(prev => {
+      const s = new Set(prev);
+      if (next) s.add(key); else s.delete(key);
+      return s;
+    });
+  };
   const [submitting, setSubmitting] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
@@ -383,11 +393,18 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const unassignedLines = useMemo(
     () => {
       if (isMontorInvoice) {
-        return lineItems.filter((li, idx) => !lineAddrKey(li) && !lineCaseChoices[idx]);
+        return lineItems.filter((li, idx) => {
+          const k = lineAddrKey(li);
+          if (k) {
+            // line belongs to an address group — skipped groups are NOT unassigned
+            return isSkipped(k) ? false : false; // address-keyed lines never "unassigned" (group handles it)
+          }
+          return !lineCaseChoices[idx];
+        });
       }
       return lineItems.filter(li => !norm(li.order_number));
     },
-    [lineItems, isMontorInvoice, lineCaseChoices],
+    [lineItems, isMontorInvoice, lineCaseChoices, skippedGroups],
   );
 
   const groupedSubtotalSum = useMemo(
@@ -445,6 +462,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setGroupSearch({});
     setLineCaseChoices({});
     setLineSearch({});
+    setSkippedGroups(new Set());
     setExtracted(false);
     setExtractError(null);
   };
@@ -596,10 +614,18 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         : 'Tilldela alla rader till ett ordernummer först');
       return;
     }
-    const missing = groups.filter(g => !g.effectiveCase);
-    if (missing.length > 0) {
-      toast.error(`Koppla ärende för: ${missing.map(g => g.order_number).join(', ')}`);
-      return;
+    if (isMontorInvoice) {
+      const activeUnmatched = groups.filter(g => !g.effectiveCase && !isSkipped(g.order_number));
+      if (activeUnmatched.length > 0) {
+        toast.error(`Koppla eller hoppa över: ${activeUnmatched.map(g => g.order_number).join(', ')}`);
+        return;
+      }
+    } else {
+      const missing = groups.filter(g => !g.effectiveCase);
+      if (missing.length > 0) {
+        toast.error(`Koppla ärende för: ${missing.map(g => g.order_number).join(', ')}`);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -615,7 +641,14 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
       const inv = invoiceNumber.trim();
 
-      for (const g of groups) {
+      const groupsToInsert = isMontorInvoice
+        ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
+        : groups;
+      const skippedList = isMontorInvoice
+        ? groups.filter(g => isSkipped(g.order_number))
+        : [];
+
+      for (const g of groupsToInsert) {
         const c = g.effectiveCase!;
         const caseId = c.id;
         const { error: insErr } = await (supabase as any).from('case_documents').insert({
@@ -665,7 +698,19 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       }
 
       qc.invalidateQueries({ queryKey: ['cases-all'] });
-      toast.success(`Faktura kopplad till ${groups.length} ärenden`);
+      if (isMontorInvoice && skippedList.length > 0) {
+        try {
+          await logActivity({
+            action: 'montor_invoice_partial_skip',
+            category: 'case',
+            description: `Montörsfaktura ${inv}: ${skippedList.length} adress${skippedList.length === 1 ? '' : 'er'} hoppades över (${skippedList.map(g => g.order_number).join(', ')})`,
+            metadata: { invoice_number: inv, skipped_addresses: skippedList.map(g => g.order_number), skipped_total: skippedList.reduce((s, g) => s + g.subtotal, 0) },
+          });
+        } catch (e) { console.warn(e); }
+        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden (${skippedList.length} hoppades över)`);
+      } else {
+        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden`);
+      }
       reset();
     } catch (e: any) {
       console.error(e);
@@ -677,12 +722,21 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   const handleSubmit = () => (isMulti ? handleSubmitMulti() : handleSubmitSingle());
 
+  const matchedActiveGroups = isMontorInvoice
+    ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
+    : groups.filter(g => g.effectiveCase);
+  const unresolvedGroups = isMontorInvoice
+    ? groups.filter(g => !g.effectiveCase && !isSkipped(g.order_number))
+    : groups.filter(g => !g.effectiveCase);
+
   const submitDisabled =
     submitting ||
     !file ||
     extracting ||
     (isMulti
-      ? groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase)
+      ? (isMontorInvoice
+          ? groups.length === 0 || unassignedLines.length > 0 || matchedActiveGroups.length === 0 || unresolvedGroups.length > 0
+          : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase))
       : !effectiveCase);
 
   return (
@@ -805,7 +859,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 </AlertDescription>
               </Alert>
 
-              {multiSumMismatch && (
+              {multiSumMismatch && !isMontorInvoice && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Delsummorna stämmer inte med fakturans total</AlertTitle>
@@ -819,8 +873,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 const override = groupChoices[g.order_number] ?? null;
                 const showSearch = !g.autoCase || !!override;
                 const results = filteredCasesForGroup(g.order_number);
+                const skipped = isMontorInvoice && isSkipped(g.order_number);
                 return (
-                  <Card key={g.order_number} className="border-l-4 border-l-primary/40">
+                  <Card key={g.order_number} className={`border-l-4 ${skipped ? 'border-l-muted opacity-60' : 'border-l-primary/40'}`}>
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between gap-2">
                         <CardTitle className="text-base">
@@ -828,6 +883,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                           <span className="ml-2 text-sm font-normal text-muted-foreground">
                             ({g.lines.length} rad{g.lines.length === 1 ? '' : 'er'} · {g.subtotal.toLocaleString('sv-SE')} kr)
                           </span>
+                          {skipped && <Badge variant="outline" className="ml-2">Hoppas över</Badge>}
                         </CardTitle>
                       </div>
                     </CardHeader>
@@ -837,7 +893,17 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                           Slutkund: <span className="text-foreground font-medium">{g.groupCustomerName}</span>
                         </div>
                       )}
-                      {g.effectiveCase ? (
+                      {skipped ? (
+                        <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                          <span className="text-muted-foreground">
+                            Hoppas över — bokförs inte ({g.subtotal.toLocaleString('sv-SE')} kr)
+                          </span>
+                          <Button variant="outline" size="sm" onClick={() => toggleSkip(g.order_number, false)}>
+                            Inkludera igen
+                          </Button>
+                        </div>
+                      ) : null}
+                      {!skipped && (g.effectiveCase ? (
                         <Alert>
                           <Check className="h-4 w-4" />
                           <AlertTitle className="flex items-center gap-2">
@@ -907,11 +973,18 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             {g.keyKind === 'address'
                               ? <>Adress "{g.order_number}" matchade inget ärende. Sök manuellt nedan.</>
                               : <>Varken ordernummer {g.order_number} eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade. Sök manuellt nedan.</>}
+                            {isMontorInvoice && (
+                              <div className="mt-2">
+                                <Button variant="outline" size="sm" onClick={() => toggleSkip(g.order_number, true)}>
+                                  Hoppa över denna adress
+                                </Button>
+                              </div>
+                            )}
                           </AlertDescription>
                         </Alert>
-                      )}
+                      ))}
 
-                      {showSearch && (
+                      {!skipped && showSearch && (
                         <div className="space-y-2">
                           <Label className="flex items-center gap-1 text-xs">
                             <Search className="h-3 w-3" /> Sök ärende manuellt
@@ -1083,10 +1156,23 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 </Card>
               )}
 
-              <div className="text-xs text-muted-foreground text-right">
-                Summa delsummor: <span className="font-medium text-foreground">{groupedSubtotalSum.toLocaleString('sv-SE')} kr</span>
-                {totalNum > 0 && <> av {totalNum.toLocaleString('sv-SE')} kr</>}
-              </div>
+              {isMontorInvoice ? (() => {
+                const bookedSum = matchedActiveGroups.reduce((s, g) => s + g.subtotal, 0);
+                const skippedListUI = groups.filter(g => isSkipped(g.order_number));
+                const skippedSum = skippedListUI.reduce((s, g) => s + g.subtotal, 0);
+                return (
+                  <div className="text-xs text-muted-foreground text-right">
+                    Bokförs: <span className="font-medium text-foreground">{bookedSum.toLocaleString('sv-SE')} kr</span> ({matchedActiveGroups.length} ärenden)
+                    {skippedListUI.length > 0 && <> · Hoppas över: <span className="font-medium text-foreground">{skippedSum.toLocaleString('sv-SE')} kr</span> ({skippedListUI.length} adress{skippedListUI.length === 1 ? '' : 'er'})</>}
+                    {totalNum > 0 && <> · Faktura totalt: <span className="font-medium text-foreground">{totalNum.toLocaleString('sv-SE')} kr</span></>}
+                  </div>
+                );
+              })() : (
+                <div className="text-xs text-muted-foreground text-right">
+                  Summa delsummor: <span className="font-medium text-foreground">{groupedSubtotalSum.toLocaleString('sv-SE')} kr</span>
+                  {totalNum > 0 && <> av {totalNum.toLocaleString('sv-SE')} kr</>}
+                </div>
+              )}
             </div>
           )}
 
@@ -1320,7 +1406,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             <Button variant="outline" onClick={reset} disabled={submitting}>Rensa</Button>
             <Button onClick={handleSubmit} disabled={submitDisabled}>
               {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-              {isMulti ? `Bekräfta & koppla till ${groups.length} ärenden` : 'Bekräfta & koppla'}
+              {isMulti
+                ? (isMontorInvoice
+                    ? `Bekräfta & koppla till ${matchedActiveGroups.length} ärenden`
+                    : `Bekräfta & koppla till ${groups.length} ärenden`)
+                : 'Bekräfta & koppla'}
             </Button>
           </div>
         </CardContent>
