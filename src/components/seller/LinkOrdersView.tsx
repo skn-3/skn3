@@ -48,19 +48,45 @@ function tokenOverlap(a: string, b: string) {
   return hit / Math.min(ta.size, tb.size);
 }
 
-function streetMatch(a: any, b: any) {
-  // extract first chunk: "Storgatan 12, 12345 Stockholm" -> "storgatan 12"
-  const first = (x: any) => stripDiacritics(norm(x)).split(',')[0].trim();
-  const fa = first(a);
-  const fb = first(b);
-  if (!fa || !fb) return 0;
-  if (fa === fb) return 1;
-  // street name + number
-  const numA = fa.match(/\d+/)?.[0];
-  const numB = fb.match(/\d+/)?.[0];
-  const ovl = tokenOverlap(fa, fb);
-  if (numA && numB && numA === numB && ovl >= 0.5) return 1;
-  return ovl;
+type ParsedAddr = { street: string; number: string; city: string };
+
+function parseAddress(raw: any): ParsedAddr {
+  const s = stripDiacritics(norm(raw));
+  if (!s) return { street: '', number: '', city: '' };
+  const parts = s.split(',').map(p => p.trim()).filter(Boolean);
+  const head = parts[0] || '';
+  let city = '';
+  if (parts.length > 1) {
+    city = parts.slice(1).join(' ').replace(/\b\d{3}\s?\d{2}\b/g, '').replace(/\s+/g, ' ').trim();
+  } else {
+    const m = s.match(/^(.*?)(\d{3}\s?\d{2})\s+(.+)$/);
+    if (m) city = m[3].trim();
+  }
+  const numMatch = head.match(/(\d+)\s*([a-z])?\b/);
+  const number = numMatch ? (numMatch[1] + (numMatch[2] || '')) : '';
+  const street = (numMatch ? head.slice(0, numMatch.index).trim() : head)
+    .replace(/[^a-z0-9åäö\s]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { street, number, city };
+}
+
+function streetNameMatch(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.length >= 4 && b.includes(a)) return true;
+  if (b.length >= 4 && a.includes(b)) return true;
+  return false;
+}
+
+function addressMatch(orderAddr: any, caseAddr: any): { matched: boolean; sameCity: boolean } {
+  const a = parseAddress(orderAddr);
+  const b = parseAddress(caseAddr);
+  if (!a.street || !b.street || !a.number || !b.number) return { matched: false, sameCity: false };
+  if (a.number !== b.number) return { matched: false, sameCity: false };
+  if (!streetNameMatch(a.street, b.street)) return { matched: false, sameCity: false };
+  const sameCity = !!(a.city && b.city && (a.city === b.city || a.city.includes(b.city) || b.city.includes(a.city)));
+  return { matched: true, sameCity };
 }
 
 function scoreOrderAgainstCase(order: OrderRow, c: CaseLite): Match {
@@ -76,15 +102,11 @@ function scoreOrderAgainstCase(order: OrderRow, c: CaseLite): Match {
     strength = 'high';
   }
 
-  const addrScore = streetMatch(order.customer_address, c.address);
-  if (addrScore >= 0.8) {
-    score += 60;
-    reasons.push('adress');
-    if (strength !== 'high') strength = 'high';
-  } else if (addrScore >= 0.4) {
-    score += 25;
-    reasons.push('adress (delvis)');
-    if (strength === 'none') strength = 'medium';
+  const addr = addressMatch(order.customer_address, c.address);
+  if (addr.matched) {
+    score += 60 + (addr.sameCity ? 10 : 0);
+    reasons.push(addr.sameCity ? 'adress (gata, nr, ort)' : 'adress (gata + nr)');
+    strength = 'high';
   }
 
   const nameOvl = tokenOverlap(order.customer_name, c.customer_name);
@@ -94,7 +116,8 @@ function scoreOrderAgainstCase(order: OrderRow, c: CaseLite): Match {
     if (strength === 'none') strength = 'medium';
   } else if (nameOvl > 0) {
     score += 10;
-    if (strength === 'none') strength = 'low';
+    reasons.push('namn (delvis)');
+    if (strength === 'none') strength = 'medium';
   }
 
   return { caseRow: c, strength, reasons, score };
