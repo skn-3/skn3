@@ -783,7 +783,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
             </div>
             <div>
-              <Label>{isSheet ? 'Belopp ex moms (kostnad) *' : `Totalbelopp (SEK) ${isMulti ? '' : '*'}`}</Label>
+              <Label>{isSheet ? 'Belopp ex moms (kostnad) *' : isMontorInvoice ? 'Totalbelopp ex moms (referens)' : `Totalbelopp (SEK) ${isMulti ? '' : '*'}`}</Label>
               <Input type="number" inputMode="decimal" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} />
             </div>
             {isSheet && (
