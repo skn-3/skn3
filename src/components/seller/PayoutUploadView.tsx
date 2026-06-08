@@ -859,7 +859,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 </AlertDescription>
               </Alert>
 
-              {multiSumMismatch && (
+              {multiSumMismatch && !isMontorInvoice && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Delsummorna stämmer inte med fakturans total</AlertTitle>
