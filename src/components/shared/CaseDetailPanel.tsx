@@ -1685,6 +1685,40 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 </ul>
               </div>
             )}
+
+            {/* Montörsfakturor (extra utgift) */}
+            {montorInvoices && montorInvoices.length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t">
+                <div className="text-xs font-medium text-muted-foreground">Montörsfakturor (extra, ex moms)</div>
+                <ul className="divide-y rounded-md border">
+                  {montorInvoices.map(p => (
+                    <li key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <div className="truncate">
+                          {p.invoice_number ? `Faktura ${p.invoice_number}` : (p.file_name || 'Montörsfaktura')}
+                          {(p as any).order_number && (
+                            <span className="text-xs text-muted-foreground"> · {(p as any).order_number}</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {p.invoice_date || '—'}
+                          {p.total_amount != null && (
+                            <> · {Number(p.total_amount).toLocaleString('sv-SE')} kr ex moms</>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openPayoutPdf(p.file_path)}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 whitespace-nowrap"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Visa PDF
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
           )}
 
