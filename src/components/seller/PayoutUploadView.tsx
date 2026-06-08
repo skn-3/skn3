@@ -455,6 +455,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setGroupSearch({});
     setLineCaseChoices({});
     setLineSearch({});
+    setSkippedGroups(new Set());
     setExtracted(false);
     setExtractError(null);
   };
