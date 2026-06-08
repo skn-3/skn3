@@ -1530,13 +1530,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               const hasCostDocs = (costDocs || []).length > 0;
               const sheetCost = (sheetInvoices || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
               const hasSheet = (sheetInvoices || []).length > 0;
+              const montorInvoiceCost = (montorInvoices || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
+              const hasMontorInvoice = (montorInvoices || []).length > 0;
               const orderCost = linkedOrder?.total_amount != null ? Number(linkedOrder.total_amount) : null;
               const baseCost = orderCost != null ? orderCost : (hasCostDocs ? costFromDocs : null);
-              const cost = baseCost != null || hasSheet
-                ? (baseCost ?? 0) + sheetCost
+              const cost = (baseCost != null || hasSheet || hasMontorInvoice)
+                ? (baseCost ?? 0) + sheetCost + montorInvoiceCost
                 : null;
-              const costSource: 'order' | 'docs' | 'sheet' | null =
-                orderCost != null ? 'order' : (hasCostDocs ? 'docs' : (hasSheet ? 'sheet' : null));
+              const costSource: 'order' | 'docs' | 'sheet' | 'montor_invoice' | null =
+                orderCost != null ? 'order' : (hasCostDocs ? 'docs' : (hasSheet ? 'sheet' : (hasMontorInvoice ? 'montor_invoice' : null)));
               const possibleDuplicate = orderCost != null && hasCostDocs;
               const profit = hasRevenue && cost != null ? revenue - cost : null;
               const margin = profit != null && revenue > 0 ? (profit / revenue) * 100 : null;
@@ -1555,9 +1557,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     </div>
                     {costSource && (
                       <div className="text-[10px] text-muted-foreground mt-0.5">
-                        {costSource === 'order' && (hasSheet ? 'n3prenad + plåt' : 'från n3prenad-order')}
-                        {costSource === 'docs' && (hasSheet ? 'egna A-ordrar + plåt' : 'från egna A-ordrar')}
-                        {costSource === 'sheet' && 'endast plåtfakturor'}
+                        {costSource === 'order' && `n3prenad${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
+                        {costSource === 'docs' && `egna A-ordrar${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
+                        {costSource === 'sheet' && `endast plåtfakturor${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
+                        {costSource === 'montor_invoice' && 'endast montörsfaktura'}
                       </div>
                     )}
                   </div>
