@@ -130,7 +130,7 @@ function findNameMatches(
 }
 
 
-type DocType = 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice';
+type DocType = 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
 
 // ---- Adressmatchning (för plåtfakturor) -----------------------------------
 const stripDiacritics = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
