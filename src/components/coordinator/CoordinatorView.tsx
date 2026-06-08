@@ -11,6 +11,7 @@ import { CoordinatorDeviations } from './CoordinatorDeviations';
 import { Pipeline } from '@/components/seller/Pipeline';
 import { CalendarView } from '@/components/calendar/CalendarView';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
+import { EconomyView } from '@/components/economy/EconomyView';
 
 interface Props {
   role: UserRole;
@@ -65,6 +66,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
         {tab === 'deviations' && (
           <CoordinatorDeviations coordinatorName={role.name} onSelectCase={setSelectedCase} />
         )}
+        {tab === 'economy' && <EconomyView />}
       </main>
 
       {selectedCase && (

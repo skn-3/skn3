@@ -9,6 +9,7 @@ import { Pipeline } from './Pipeline';
 import { SellerDashboard } from './SellerDashboard';
 import { VisitForm } from './VisitForm';
 import { AdminView } from './AdminView';
+import { EconomyView } from '@/components/economy/EconomyView';
 
 
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
@@ -79,6 +80,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         )}
         {tab === 'dashboard' && (
           <SellerDashboard sellerName={role.name} />
+        )}
+        {tab === 'economy' && isAdmin && (
+          <EconomyView />
         )}
         {tab === 'admin' && isAdmin && (
           <AdminView currentUser={role.name} />
