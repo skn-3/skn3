@@ -11,16 +11,25 @@ const corsHeaders = {
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
 
-const SYSTEM_PROMPT = `Du extraherar fakturadata från en svensk PDF. Det kan vara antingen
-en Mockfjärds-utbetalning (intäkt till oss) ELLER vår egen faktura/A-order till en montör (utgift).
+const SYSTEM_PROMPT = `Du extraherar fakturadata från en svensk PDF. Det kan vara:
+(A) en Mockfjärds-utbetalning (intäkt till oss),
+(B) vår egen faktura/A-order till en montör (utgift), eller
+(C) en plåtfaktura från plåtslagaren (t.ex. Byggplåtar) — utgift med vanlig moms,
+    där fältet "Ert ordernummer" innehåller jobbets LEVERANSADRESS (gata + nummer),
+    INTE ett ordernummer. Mottagaradressen är vårt eget bolag (Segeltorp) och ska
+    INTE användas. Plocka "Ert ordernummer" till job_address.
+
 Returnera ENBART ett JSON-objekt — ingen text, ingen markdown, inga kodblock — med EXAKT denna struktur:
 
 {
   "invoice_number": string|null,
   "invoice_date": "YYYY-MM-DD"|null,
   "customer_name": string|null,
+  "job_address": string|null,
   "currency": string,
   "total_amount": number|null,
+  "total_amount_excl_vat": number|null,
+  "total_amount_incl_vat": number|null,
   "line_items": [
     {
       "order_number": string|null,
@@ -37,12 +46,22 @@ Returnera ENBART ett JSON-objekt — ingen text, ingen markdown, inga kodblock �
 VIKTIGT om namn:
 - Slutkundens namn ska in i customer_name (både per rad och top-level). Det är slutkunden
   vars adress jobbet gäller — INTE fakturans mottagare (t.ex. "Mockfjärds Fönster AB" eller
-  vårt eget bolag "Smartklimat Entreprenad AB" / "n3prenad AB").
+  vårt eget bolag "Smartklimat Entreprenad AB" / "n3prenad AB" / "Byggplåtar").
 - I Mockfjärds-utbetalningar: slutkundens namn står i radernas "Namn"-kolumn. Använd det.
 - I våra egna fakturor/A-ordrar: slutkunden står vanligen som "Avser"/"Objekt"/"Kund" på raderna
   eller i radbeskrivningen (adress/efternamn). Plocka ut det bästa namnet du kan.
+- I plåtfakturor finns ofta inget slutkundsnamn — låt customer_name vara null då.
 - För top-level customer_name: använd första radens customer_name, eller null om det saknas.
-  Skriv ALDRIG in vårt eller Mockfjärds bolagsnamn här.
+  Skriv ALDRIG in vårt eller Mockfjärds/Byggplåtars bolagsnamn här.
+
+job_address: ENDAST för plåtfakturor — kopiera värdet i "Ert ordernummer" exakt (gata + nummer, ev. ort).
+Övriga typer: null.
+
+Belopp:
+- total_amount_excl_vat = raden "Exkl. moms" (inkluderar frakt).
+- total_amount_incl_vat = totalen att betala (inkl. moms).
+- För plåtfakturor: total_amount = total_amount_excl_vat (kostnaden ex moms).
+- För andra typer: total_amount = den naturliga totalen på fakturan.
 
 Övriga regler:
 - "Fsg. order" / "Order"-kolumnen (eller motsvarande ordernummer per rad) → line_items[].order_number.
@@ -152,18 +171,25 @@ Deno.serve(async (req) => {
     // with first line's customer_name (slutkunden).
     let topCustomer: string | null = parsed.customer_name ?? null;
     const looksLikeOwnOrMockfjards = (s: string | null) =>
-      !!s && /(mockfj[aä]rds|smartklimat|n3prenad)/i.test(s);
+      !!s && /(mockfj[aä]rds|smartklimat|n3prenad|byggpl[aå]t)/i.test(s);
     if (!topCustomer || looksLikeOwnOrMockfjards(topCustomer)) {
       const firstLineCustomer = normalizedLines.find((l: any) => l.customer_name)?.customer_name ?? null;
       topCustomer = firstLineCustomer;
     }
 
+    const totalExcl = parsed.total_amount_excl_vat != null ? Number(parsed.total_amount_excl_vat) : null;
+    const totalIncl = parsed.total_amount_incl_vat != null ? Number(parsed.total_amount_incl_vat) : null;
+    const totalAmount = parsed.total_amount != null ? Number(parsed.total_amount) : null;
+
     return json({
       invoice_number: parsed.invoice_number ?? null,
       invoice_date: parsed.invoice_date ?? null,
       customer_name: topCustomer,
+      job_address: parsed.job_address ?? null,
       currency: parsed.currency ?? 'SEK',
-      total_amount: parsed.total_amount != null ? Number(parsed.total_amount) : null,
+      total_amount: totalAmount,
+      total_amount_excl_vat: totalExcl,
+      total_amount_incl_vat: totalIncl,
       line_items: normalizedLines,
       order_numbers,
     }, 200);

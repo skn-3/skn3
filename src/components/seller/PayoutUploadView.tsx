@@ -129,7 +129,60 @@ function findNameMatches(
 }
 
 
-type DocType = 'mockfjards_payout' | 'a_order';
+type DocType = 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice';
+
+// ---- Adressmatchning (för plåtfakturor) -----------------------------------
+const stripDiacritics = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const addrNorm = (s: any) => stripDiacritics(String(s ?? '').toLowerCase().trim());
+
+type ParsedAddr = { street: string; number: string; city: string };
+function parseAddress(raw: any): ParsedAddr {
+  const s = addrNorm(raw);
+  if (!s) return { street: '', number: '', city: '' };
+  const parts = s.split(',').map(p => p.trim()).filter(Boolean);
+  const head = parts[0] || '';
+  let city = '';
+  if (parts.length > 1) {
+    city = parts.slice(1).join(' ').replace(/\b\d{3}\s?\d{2}\b/g, '').replace(/\s+/g, ' ').trim();
+  } else {
+    const m = s.match(/^(.*?)(\d{3}\s?\d{2})\s+(.+)$/);
+    if (m) city = m[3].trim();
+  }
+  const numMatch = head.match(/(\d+)\s*([a-z])?\b/);
+  const number = numMatch ? (numMatch[1] + (numMatch[2] || '')) : '';
+  const street = (numMatch ? head.slice(0, numMatch.index).trim() : head)
+    .replace(/[^a-z0-9åäö\s]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { street, number, city };
+}
+function streetNameMatch(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.length >= 4 && b.includes(a)) return true;
+  if (b.length >= 4 && a.includes(b)) return true;
+  return false;
+}
+type AddrCandidate = { case: CaseRow; score: number; reason: string };
+function addressCandidates(allCases: CaseRow[], rawAddr: string | null): AddrCandidate[] {
+  const a = parseAddress(rawAddr);
+  if (!a.street || !a.number) return [];
+  const out: AddrCandidate[] = [];
+  for (const c of allCases) {
+    const b = parseAddress(c.address);
+    if (!b.street || !b.number) continue;
+    if (a.number !== b.number) continue;
+    if (!streetNameMatch(a.street, b.street)) continue;
+    const sameCity = !!(a.city && b.city && (a.city === b.city || a.city.includes(b.city) || b.city.includes(a.city)));
+    out.push({
+      case: c,
+      score: 100 + (sameCity ? 10 : 0),
+      reason: sameCity ? 'gata + nr + ort' : 'gata + nr',
+    });
+  }
+  out.sort((x, y) => y.score - x.score);
+  return out.slice(0, 5);
+}
 
 export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const qc = useQueryClient();
@@ -138,8 +191,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [orderNumber, setOrderNumber] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [jobAddress, setJobAddress] = useState('');
   const [invoiceDate, setInvoiceDate] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
+  const [totalAmountIncl, setTotalAmountIncl] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [search, setSearch] = useState('');
   const [chosenCase, setChosenCase] = useState<CaseRow | null>(null);
@@ -151,9 +206,13 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState(false);
 
-  const isCost = docType === 'a_order';
-  const typeLabel = isCost ? 'Egen faktura / A-order (utgift)' : 'Mockfjärds-utbetalning (intäkt)';
-  const shortLabel = isCost ? 'Faktura/A-order' : 'Utbetalning';
+  const isSheet = docType === 'sheet_metal_invoice';
+  const isCost = docType === 'a_order' || isSheet;
+  const typeLabel =
+    docType === 'sheet_metal_invoice' ? 'Plåtfaktura (utgift)'
+    : docType === 'a_order' ? 'Egen faktura / A-order (utgift)'
+    : 'Mockfjärds-utbetalning (intäkt)';
+  const shortLabel = isSheet ? 'Plåtfaktura' : (docType === 'a_order' ? 'Faktura/A-order' : 'Utbetalning');
 
   const { data: cases = [] } = useQuery({ queryKey: ['cases-all'], queryFn: fetchAllCases });
 
@@ -167,25 +226,32 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     return Array.from(set);
   }, [lineItems]);
 
-  const isMulti = distinctOrderNumbers.length > 1;
+  const isMulti = !isSheet && distinctOrderNumbers.length > 1;
 
-  // Single-mode auto-match by order_number
+  // Single-mode auto-match by order_number (not used for sheet metal)
   const orderMatch = useMemo(() => {
+    if (isSheet) return null;
     const q = orderNumber.trim();
     if (!q) return null;
     return (cases as any[]).find(c => norm(c.order_number) === q) || null;
-  }, [orderNumber, cases]);
+  }, [orderNumber, cases, isSheet]);
 
   // Namnkandidater (fallback i single-läge)
   const nameCandidates = useMemo<Candidate[]>(() => {
-    if (orderMatch) return [];
+    if (isSheet || orderMatch) return [];
     return findNameMatches(cases as CaseRow[], customerName, null, 5);
-  }, [orderMatch, cases, customerName]);
+  }, [orderMatch, cases, customerName, isSheet]);
 
-  // Auto-välj toppkandidat om den är tydlig (exakt namn / omvänd ordning)
   const strongNameMatch = nameCandidates[0] && nameCandidates[0].score >= 90 ? nameCandidates[0].case : null;
 
-  const effectiveCase = chosenCase || orderMatch || strongNameMatch;
+  // Adress-kandidater (plåtfaktura)
+  const addressMatches = useMemo<AddrCandidate[]>(() => {
+    if (!isSheet) return [];
+    return addressCandidates(cases as CaseRow[], jobAddress || null);
+  }, [isSheet, jobAddress, cases]);
+  const strongAddrMatch = addressMatches[0]?.case || null;
+
+  const effectiveCase = chosenCase || orderMatch || strongNameMatch || strongAddrMatch;
 
   // Multi-mode groups
   type Group = {
@@ -273,8 +339,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setOrderNumber('');
     setInvoiceNumber('');
     setCustomerName('');
+    setJobAddress('');
     setInvoiceDate('');
     setTotalAmount('');
+    setTotalAmountIncl('');
     setLineItems([]);
     setSearch('');
     setChosenCase(null);
@@ -300,11 +368,19 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const orderNumbers: string[] = Array.isArray(data.order_numbers) ? data.order_numbers : [];
       const firstOrder = orderNumbers[0] || (items[0]?.order_number ?? '');
 
+      const excl = data.total_amount_excl_vat;
+      const incl = data.total_amount_incl_vat;
+      const preferred = isSheet
+        ? (excl ?? data.total_amount ?? null)
+        : (data.total_amount ?? excl ?? null);
+
       setOrderNumber(prev => prev || (firstOrder ?? ''));
       setInvoiceNumber(prev => prev || (data.invoice_number ?? ''));
       setCustomerName(prev => prev || (data.customer_name ?? ''));
+      setJobAddress(prev => prev || (data.job_address ?? ''));
       setInvoiceDate(prev => prev || (data.invoice_date ?? ''));
-      setTotalAmount(prev => prev || (data.total_amount != null ? String(data.total_amount) : ''));
+      setTotalAmount(prev => prev || (preferred != null ? String(preferred) : ''));
+      setTotalAmountIncl(prev => prev || (incl != null ? String(incl) : ''));
       setLineItems(items);
       setExtracted(true);
       toast.success('AI förfyllde fälten — granska och bekräfta');
@@ -341,7 +417,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   const handleSubmitSingle = async () => {
     if (!file) { toast.error('Välj en PDF'); return; }
-    if (!orderNumber.trim()) { toast.error('Ange ordernummer'); return; }
+    if (!isSheet && !orderNumber.trim()) { toast.error('Ange ordernummer'); return; }
     if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
     if (!totalAmount.trim() || isNaN(Number(totalAmount))) { toast.error('Ange totalbelopp'); return; }
     if (!effectiveCase) { toast.error('Välj ett ärende att koppla till'); return; }
@@ -350,34 +426,41 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     try {
       const caseId = effectiveCase.id;
       const safe = sanitizeFileName(file.name);
-      const path = `${caseId}/payouts/${Date.now()}_${safe}`;
+      const folder = isSheet ? 'sheet-invoices' : 'payouts';
+      const path = `${caseId}/${folder}/${Date.now()}_${safe}`;
       const { error: upErr } = await supabase.storage
         .from('case-documents')
         .upload(path, file, { upsert: false, contentType: file.type || 'application/pdf' });
       if (upErr) throw upErr;
 
       const amountNum = Number(totalAmount);
+      const inclNum = totalAmountIncl.trim() && !isNaN(Number(totalAmountIncl)) ? Number(totalAmountIncl) : null;
+      const sheetLine = isSheet
+        ? [{ order_number: null, customer_name: null, name: 'Plåt (ex moms)', note: inclNum != null ? `Total inkl moms: ${inclNum} kr` : (jobAddress ? `Jobbadress: ${jobAddress}` : null), qty: null, unit_price: null, amount: amountNum }]
+        : null;
       const { error: insErr } = await (supabase as any).from('case_documents').insert({
         case_id: caseId,
         doc_type: docType,
         file_path: path,
         file_name: file.name,
-        order_number: orderNumber.trim(),
+        order_number: isSheet ? (jobAddress || null) : orderNumber.trim(),
         invoice_number: invoiceNumber.trim(),
         customer_name: customerName.trim() || null,
         invoice_date: invoiceDate || null,
         total_amount: amountNum,
         currency: 'SEK',
-        line_items: lineItems.length > 0 ? lineItems : null,
+        line_items: lineItems.length > 0 ? lineItems : sheetLine,
         uploaded_by: currentUser,
       });
       if (insErr) throw insErr;
 
-      if (!norm((effectiveCase as any).order_number)) {
+      if (!isSheet && !norm((effectiveCase as any).order_number)) {
         try { await updateCase(caseId, { order_number: orderNumber.trim() } as any); } catch (e) { console.warn(e); }
       }
 
-      const eventDesc = isCost
+      const eventDesc = isSheet
+        ? `Plåtfaktura kopplad: faktura ${invoiceNumber.trim()}, kostnad (ex moms) ${amountNum.toLocaleString('sv-SE')} kr`
+        : isCost
         ? `Egen faktura/A-order kopplad: faktura ${invoiceNumber.trim()}, kostnad ${amountNum.toLocaleString('sv-SE')} kr`
         : `Mockfjärds-utbetalning kopplad: faktura ${invoiceNumber.trim()}, belopp ${amountNum.toLocaleString('sv-SE')} kr`;
       await createCaseEvent({
@@ -388,11 +471,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       });
 
       logActivity({
-        action: isCost ? 'cost_doc_uploaded' : 'payout_uploaded',
+        action: isSheet ? 'sheet_invoice_uploaded' : (isCost ? 'cost_doc_uploaded' : 'payout_uploaded'),
         category: 'case',
         description: `Laddade upp ${shortLabel.toLowerCase()} (faktura ${invoiceNumber.trim()}) för ${effectiveCase.address}`,
         case_id: caseId,
-        metadata: { doc_type: docType, invoice_number: invoiceNumber.trim(), total_amount: amountNum, order_number: orderNumber.trim() },
+        metadata: { doc_type: docType, invoice_number: invoiceNumber.trim(), total_amount: amountNum, order_number: isSheet ? null : orderNumber.trim(), job_address: isSheet ? jobAddress || null : null },
       });
 
       qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
@@ -507,10 +590,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         <CardContent className="space-y-4">
           <div>
             <Label>Dokumenttyp</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
               {([
                 { v: 'mockfjards_payout' as DocType, label: 'Mockfjärds-utbetalning', sub: 'intäkt' },
                 { v: 'a_order' as DocType, label: 'Egen faktura / A-order', sub: 'utgift' },
+                { v: 'sheet_metal_invoice' as DocType, label: 'Plåtfaktura', sub: 'utgift (matchas på adress)' },
               ]).map(opt => (
                 <button
                   key={opt.v}
@@ -565,12 +649,18 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             )}
           </div>
 
-          {/* Faktura-fält (ordernummer döljs i multi-läge) */}
+          {/* Faktura-fält (ordernummer döljs i multi-läge och för plåtfaktura) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {!isMulti && (
+            {!isMulti && !isSheet && (
               <div>
                 <Label>Ordernummer *</Label>
                 <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="t.ex. 12345" />
+              </div>
+            )}
+            {isSheet && (
+              <div className="md:col-span-2">
+                <Label>Jobbadress (från "Ert ordernummer") *</Label>
+                <Input value={jobAddress} onChange={(e) => setJobAddress(e.target.value)} placeholder="t.ex. Norregölesvägen 40" />
               </div>
             )}
             <div>
@@ -586,9 +676,15 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
             </div>
             <div>
-              <Label>Totalbelopp (SEK) {isMulti ? '' : '*'}</Label>
+              <Label>{isSheet ? 'Belopp ex moms (kostnad) *' : `Totalbelopp (SEK) ${isMulti ? '' : '*'}`}</Label>
               <Input type="number" inputMode="decimal" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} />
             </div>
+            {isSheet && (
+              <div>
+                <Label>Total inkl moms (referens)</Label>
+                <Input type="number" inputMode="decimal" value={totalAmountIncl} onChange={(e) => setTotalAmountIncl(e.target.value)} />
+              </div>
+            )}
           </div>
 
           {/* MULTI-LÄGE */}
@@ -901,7 +997,38 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             </div>
           )}
 
-          {!isMulti && (orderNumber.trim() || extracted) && !chosenCase && (
+          {isSheet && (jobAddress.trim() || extracted) && !chosenCase && (
+            strongAddrMatch ? (
+              <Alert>
+                <Check className="h-4 w-4" />
+                <AlertTitle className="flex items-center gap-2">
+                  Matchat ärende <Badge variant="outline">adress</Badge>
+                </AlertTitle>
+                <AlertDescription>
+                  <div className="text-sm">
+                    <div><b>{strongAddrMatch.address}</b></div>
+                    <div className="text-muted-foreground">
+                      {strongAddrMatch.customer_name}
+                      {addressMatches[0]?.reason ? ` · ${addressMatches[0].reason}` : ''}
+                    </div>
+                  </div>
+                  {addressMatches.length > 1 && (
+                    <div className="text-xs text-muted-foreground mt-2">
+                      {addressMatches.length - 1} fler adressmatchning(ar) — välj manuellt nedan om fel.
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Inget ärende med adress "{jobAddress || '—'}"</AlertTitle>
+                <AlertDescription>Sök och välj ärende manuellt nedan.</AlertDescription>
+              </Alert>
+            )
+          )}
+
+          {!isMulti && !isSheet && (orderNumber.trim() || extracted) && !chosenCase && (
             orderMatch ? (
               <Alert>
                 <Check className="h-4 w-4" />
