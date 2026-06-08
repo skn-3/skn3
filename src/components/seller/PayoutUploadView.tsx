@@ -641,7 +641,14 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
       const inv = invoiceNumber.trim();
 
-      for (const g of groups) {
+      const groupsToInsert = isMontorInvoice
+        ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
+        : groups;
+      const skippedList = isMontorInvoice
+        ? groups.filter(g => isSkipped(g.order_number))
+        : [];
+
+      for (const g of groupsToInsert) {
         const c = g.effectiveCase!;
         const caseId = c.id;
         const { error: insErr } = await (supabase as any).from('case_documents').insert({
