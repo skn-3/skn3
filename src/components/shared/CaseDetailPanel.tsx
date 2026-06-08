@@ -278,24 +278,27 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
   });
 
-  const { data: payouts } = useQuery({
+  const { data: caseDocs } = useQuery({
     queryKey: ['case-documents', caseData.id],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('case_documents')
         .select('*')
         .eq('case_id', caseData.id)
-        .eq('doc_type', 'mockfjards_payout')
+        .in('doc_type', ['mockfjards_payout', 'a_order'])
         .order('invoice_date', { ascending: false });
       if (error) throw error;
       return (data || []) as Array<{
         id: string; file_path: string; file_name: string | null;
+        doc_type: 'mockfjards_payout' | 'a_order';
         invoice_number: string | null; invoice_date: string | null;
         total_amount: number | null;
       }>;
     },
     enabled: !isCoordinator,
   });
+  const payouts = useMemo(() => (caseDocs || []).filter(d => d.doc_type === 'mockfjards_payout'), [caseDocs]);
+  const costDocs = useMemo(() => (caseDocs || []).filter(d => d.doc_type === 'a_order'), [caseDocs]);
 
   const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
   const linkedOrder = (linkedOrders && linkedOrders[0]) || null;
