@@ -997,7 +997,38 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             </div>
           )}
 
-          {!isMulti && (orderNumber.trim() || extracted) && !chosenCase && (
+          {isSheet && (jobAddress.trim() || extracted) && !chosenCase && (
+            strongAddrMatch ? (
+              <Alert>
+                <Check className="h-4 w-4" />
+                <AlertTitle className="flex items-center gap-2">
+                  Matchat ärende <Badge variant="outline">adress</Badge>
+                </AlertTitle>
+                <AlertDescription>
+                  <div className="text-sm">
+                    <div><b>{strongAddrMatch.address}</b></div>
+                    <div className="text-muted-foreground">
+                      {strongAddrMatch.customer_name}
+                      {addressMatches[0]?.reason ? ` · ${addressMatches[0].reason}` : ''}
+                    </div>
+                  </div>
+                  {addressMatches.length > 1 && (
+                    <div className="text-xs text-muted-foreground mt-2">
+                      {addressMatches.length - 1} fler adressmatchning(ar) — välj manuellt nedan om fel.
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Inget ärende med adress "{jobAddress || '—'}"</AlertTitle>
+                <AlertDescription>Sök och välj ärende manuellt nedan.</AlertDescription>
+              </Alert>
+            )
+          )}
+
+          {!isMulti && !isSheet && (orderNumber.trim() || extracted) && !chosenCase && (
             orderMatch ? (
               <Alert>
                 <Check className="h-4 w-4" />
