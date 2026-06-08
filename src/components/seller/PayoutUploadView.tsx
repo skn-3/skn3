@@ -873,8 +873,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 const override = groupChoices[g.order_number] ?? null;
                 const showSearch = !g.autoCase || !!override;
                 const results = filteredCasesForGroup(g.order_number);
+                const skipped = isMontorInvoice && isSkipped(g.order_number);
                 return (
-                  <Card key={g.order_number} className="border-l-4 border-l-primary/40">
+                  <Card key={g.order_number} className={`border-l-4 ${skipped ? 'border-l-muted opacity-60' : 'border-l-primary/40'}`}>
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between gap-2">
                         <CardTitle className="text-base">
@@ -882,6 +883,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                           <span className="ml-2 text-sm font-normal text-muted-foreground">
                             ({g.lines.length} rad{g.lines.length === 1 ? '' : 'er'} · {g.subtotal.toLocaleString('sv-SE')} kr)
                           </span>
+                          {skipped && <Badge variant="outline" className="ml-2">Hoppas över</Badge>}
                         </CardTitle>
                       </div>
                     </CardHeader>
@@ -891,6 +893,16 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                           Slutkund: <span className="text-foreground font-medium">{g.groupCustomerName}</span>
                         </div>
                       )}
+                      {skipped ? (
+                        <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                          <span className="text-muted-foreground">
+                            Hoppas över — bokförs inte ({g.subtotal.toLocaleString('sv-SE')} kr)
+                          </span>
+                          <Button variant="outline" size="sm" onClick={() => toggleSkip(g.order_number, false)}>
+                            Inkludera igen
+                          </Button>
+                        </div>
+                      ) : (<></>)}
                       {g.effectiveCase ? (
                         <Alert>
                           <Check className="h-4 w-4" />
