@@ -904,7 +904,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                           <AlertTriangle className="h-4 w-4" />
                           <AlertTitle>Inget ärende kunde matchas</AlertTitle>
                           <AlertDescription>
-                            Varken ordernummer {g.order_number} eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade. Sök manuellt nedan.
+                            {g.keyKind === 'address'
+                              ? <>Adress "{g.order_number}" matchade inget ärende. Sök manuellt nedan.</>
+                              : <>Varken ordernummer {g.order_number} eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade. Sök manuellt nedan.</>}
                           </AlertDescription>
                         </Alert>
                       )}
