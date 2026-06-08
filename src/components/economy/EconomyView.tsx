@@ -408,6 +408,7 @@ export function EconomyView() {
                             <div>Montörsbetalning: {fmtKr(e.costBreakdown.montor)}</div>
                             <div>Egna kostnader (case_costs): {fmtKr(e.costBreakdown.caseCosts)}</div>
                             <div>Plåtfakturor: {fmtKr(e.costBreakdown.sheet)}</div>
+                            <div>Montörsfaktura (extra): {fmtKr(e.costBreakdown.montorInvoice)}</div>
                           </div>
                         </TableCell>
                       </TableRow>
