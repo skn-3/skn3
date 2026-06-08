@@ -397,7 +397,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
       qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
       qc.invalidateQueries({ queryKey: ['cases-all'] });
-      toast.success('Utbetalning kopplad till ärendet');
+      toast.success(isCost ? 'Faktura/A-order kopplad till ärendet' : 'Utbetalning kopplad till ärendet');
       reset();
     } catch (e: any) {
       console.error(e);
