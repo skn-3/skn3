@@ -5,6 +5,7 @@ import { ValidatePipelineView } from './ValidatePipelineView';
 import { CleanAddressesView } from './CleanAddressesView';
 import { PayoutUploadView } from './PayoutUploadView';
 import { ActivityLogView } from './ActivityLogView';
+import { LinkOrdersView } from './LinkOrdersView';
 
 interface AdminViewProps {
   currentUser: string;
@@ -15,6 +16,7 @@ const ADMIN_SUBTABS = [
   { value: 'validate', label: 'Validera pipeline' },
   { value: 'clean-addresses', label: 'Städa adresser' },
   { value: 'payouts', label: 'Ladda upp utbetalning' },
+  { value: 'link-orders', label: 'Koppla ordrar' },
   { value: 'activity-log', label: 'Aktivitetslogg' },
 ] as const;
 
@@ -45,6 +47,9 @@ export function AdminView({ currentUser }: AdminViewProps) {
         </TabsContent>
         <TabsContent value="payouts" className="mt-4">
           <PayoutUploadView currentUser={currentUser} />
+        </TabsContent>
+        <TabsContent value="link-orders" className="mt-4">
+          <LinkOrdersView currentUser={currentUser} />
         </TabsContent>
         <TabsContent value="activity-log" className="mt-4">
           <ActivityLogView />
