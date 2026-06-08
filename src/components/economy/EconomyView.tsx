@@ -19,7 +19,7 @@ import type { CaseRow } from '@/lib/supabaseClient';
 type DocRow = {
   id: string;
   case_id: string;
-  doc_type: 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice';
+  doc_type: 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
   total_amount: number | null;
   invoice_number: string | null;
   created_at: string;
