@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail, deleteCase } from '@/lib/supabaseClient';
@@ -278,24 +278,27 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
   });
 
-  const { data: payouts } = useQuery({
+  const { data: caseDocs } = useQuery({
     queryKey: ['case-documents', caseData.id],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('case_documents')
         .select('*')
         .eq('case_id', caseData.id)
-        .eq('doc_type', 'mockfjards_payout')
+        .in('doc_type', ['mockfjards_payout', 'a_order'])
         .order('invoice_date', { ascending: false });
       if (error) throw error;
       return (data || []) as Array<{
         id: string; file_path: string; file_name: string | null;
+        doc_type: 'mockfjards_payout' | 'a_order';
         invoice_number: string | null; invoice_date: string | null;
         total_amount: number | null;
       }>;
     },
     enabled: !isCoordinator,
   });
+  const payouts = useMemo(() => (caseDocs || []).filter(d => d.doc_type === 'mockfjards_payout'), [caseDocs]);
+  const costDocs = useMemo(() => (caseDocs || []).filter(d => d.doc_type === 'a_order'), [caseDocs]);
 
   const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
   const linkedOrder = (linkedOrders && linkedOrders[0]) || null;
@@ -1519,10 +1522,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             {/* Intäkt / Vinst */}
             {(() => {
               const revenue = (payouts || []).reduce((s, p) => s + (Number(p.total_amount) || 0), 0);
-              const cost = linkedOrder?.total_amount != null ? Number(linkedOrder.total_amount) : null;
               const hasRevenue = (payouts || []).length > 0;
+              const costFromDocs = (costDocs || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
+              const hasCostDocs = (costDocs || []).length > 0;
+              const orderCost = linkedOrder?.total_amount != null ? Number(linkedOrder.total_amount) : null;
+              const cost = orderCost != null ? orderCost : (hasCostDocs ? costFromDocs : null);
+              const costSource: 'order' | 'docs' | null = orderCost != null ? 'order' : (hasCostDocs ? 'docs' : null);
+              const possibleDuplicate = orderCost != null && hasCostDocs;
               const profit = hasRevenue && cost != null ? revenue - cost : null;
-              const margin = profit != null && cost != null && cost > 0 ? (profit / revenue) * 100 : null;
+              const margin = profit != null && revenue > 0 ? (profit / revenue) * 100 : null;
               return (
                 <div className="grid grid-cols-3 gap-2 pt-2 border-t">
                   <div className="rounded-md border p-2">
@@ -1536,6 +1544,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <div className="text-sm font-semibold">
                       {cost != null ? `${cost.toLocaleString('sv-SE')} kr` : '–'}
                     </div>
+                    {costSource && (
+                      <div className="text-[10px] text-muted-foreground mt-0.5">
+                        {costSource === 'order' ? 'från n3prenad-order' : 'från egna A-ordrar'}
+                      </div>
+                    )}
                   </div>
                   <div className="rounded-md border p-2">
                     <div className="text-[11px] uppercase text-muted-foreground tracking-wider">Vinst</div>
@@ -1551,20 +1564,62 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       Ingen utbetalning kopplad än
                     </div>
                   )}
+                  {possibleDuplicate && (
+                    <div className="col-span-3 text-xs text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Ärendet har både n3prenad-order och uppladdade A-ordrar — n3prenad-ordern används som kostnad. Kontrollera dubbletter nedan.
+                    </div>
+                  )}
                 </div>
               );
             })()}
 
-            {/* Kopplade utbetalningar */}
+            {/* Kopplade utbetalningar (intäkt) */}
             {payouts && payouts.length > 0 && (
               <div className="space-y-1.5 pt-2 border-t">
-                <div className="text-xs font-medium text-muted-foreground">Utbetalningar</div>
+                <div className="text-xs font-medium text-muted-foreground">Utbetalningar (intäkt)</div>
                 <ul className="divide-y rounded-md border">
                   {payouts.map(p => (
                     <li key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
                       <div className="min-w-0">
                         <div className="truncate">
                           {p.invoice_number ? `Faktura ${p.invoice_number}` : (p.file_name || 'Utbetalning')}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {p.invoice_date || '—'}
+                          {p.total_amount != null && (
+                            <> · {Number(p.total_amount).toLocaleString('sv-SE')} kr</>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openPayoutPdf(p.file_path)}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 whitespace-nowrap"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Visa PDF
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Egna A-ordrar / fakturor (utgift) */}
+            {costDocs && costDocs.length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t">
+                <div className="text-xs font-medium text-muted-foreground inline-flex items-center gap-1">
+                  Egna A-ordrar / fakturor (utgift)
+                  {linkedOrder && (
+                    <Badge variant="outline" className="text-[10px]">möjliga dubbletter</Badge>
+                  )}
+                </div>
+                <ul className="divide-y rounded-md border">
+                  {costDocs.map(p => (
+                    <li key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <div className="truncate">
+                          {p.invoice_number ? `Faktura ${p.invoice_number}` : (p.file_name || 'A-order')}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {p.invoice_date || '—'}

@@ -129,8 +129,11 @@ function findNameMatches(
 }
 
 
+type DocType = 'mockfjards_payout' | 'a_order';
+
 export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const qc = useQueryClient();
+  const [docType, setDocType] = useState<DocType>('mockfjards_payout');
   const [file, setFile] = useState<File | null>(null);
   const [orderNumber, setOrderNumber] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -147,6 +150,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState(false);
+
+  const isCost = docType === 'a_order';
+  const typeLabel = isCost ? 'Egen faktura / A-order (utgift)' : 'Mockfjärds-utbetalning (intäkt)';
+  const shortLabel = isCost ? 'Faktura/A-order' : 'Utbetalning';
 
   const { data: cases = [] } = useQuery({ queryKey: ['cases-all'], queryFn: fetchAllCases });
 
@@ -352,7 +359,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const amountNum = Number(totalAmount);
       const { error: insErr } = await (supabase as any).from('case_documents').insert({
         case_id: caseId,
-        doc_type: 'mockfjards_payout',
+        doc_type: docType,
         file_path: path,
         file_name: file.name,
         order_number: orderNumber.trim(),
@@ -370,24 +377,27 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         try { await updateCase(caseId, { order_number: orderNumber.trim() } as any); } catch (e) { console.warn(e); }
       }
 
+      const eventDesc = isCost
+        ? `Egen faktura/A-order kopplad: faktura ${invoiceNumber.trim()}, kostnad ${amountNum.toLocaleString('sv-SE')} kr`
+        : `Mockfjärds-utbetalning kopplad: faktura ${invoiceNumber.trim()}, belopp ${amountNum.toLocaleString('sv-SE')} kr`;
       await createCaseEvent({
         case_id: caseId,
         event_type: 'note',
-        description: `Mockfjärds-utbetalning kopplad: faktura ${invoiceNumber.trim()}, belopp ${amountNum.toLocaleString('sv-SE')} kr`,
+        description: eventDesc,
         created_by: currentUser,
       });
 
       logActivity({
-        action: 'payout_uploaded',
+        action: isCost ? 'cost_doc_uploaded' : 'payout_uploaded',
         category: 'case',
-        description: `Laddade upp utbetalning (faktura ${invoiceNumber.trim()}) för ${effectiveCase.address}`,
+        description: `Laddade upp ${shortLabel.toLowerCase()} (faktura ${invoiceNumber.trim()}) för ${effectiveCase.address}`,
         case_id: caseId,
-        metadata: { invoice_number: invoiceNumber.trim(), total_amount: amountNum, order_number: orderNumber.trim() },
+        metadata: { doc_type: docType, invoice_number: invoiceNumber.trim(), total_amount: amountNum, order_number: orderNumber.trim() },
       });
 
       qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
       qc.invalidateQueries({ queryKey: ['cases-all'] });
-      toast.success('Utbetalning kopplad till ärendet');
+      toast.success(isCost ? 'Faktura/A-order kopplad till ärendet' : 'Utbetalning kopplad till ärendet');
       reset();
     } catch (e: any) {
       console.error(e);
@@ -426,7 +436,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         const caseId = c.id;
         const { error: insErr } = await (supabase as any).from('case_documents').insert({
           case_id: caseId,
-          doc_type: 'mockfjards_payout',
+          doc_type: docType,
           file_path: path,
           file_name: file.name,
           order_number: g.order_number,
@@ -444,19 +454,22 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           try { await updateCase(caseId, { order_number: g.order_number } as any); } catch (e) { console.warn(e); }
         }
 
+        const eventDesc = isCost
+          ? `Egen faktura/A-order kopplad (del av faktura ${inv}): kostnad ${g.subtotal.toLocaleString('sv-SE')} kr`
+          : `Mockfjärds-utbetalning kopplad (del av faktura ${inv}): belopp ${g.subtotal.toLocaleString('sv-SE')} kr`;
         await createCaseEvent({
           case_id: caseId,
           event_type: 'note',
-          description: `Mockfjärds-utbetalning kopplad (del av faktura ${inv}): belopp ${g.subtotal.toLocaleString('sv-SE')} kr`,
+          description: eventDesc,
           created_by: currentUser,
         });
 
         logActivity({
-          action: 'payout_uploaded',
+          action: isCost ? 'cost_doc_uploaded' : 'payout_uploaded',
           category: 'case',
-          description: `Laddade upp utbetalning (del av faktura ${inv}) för ${c.address}`,
+          description: `Laddade upp ${shortLabel.toLowerCase()} (del av faktura ${inv}) för ${c.address}`,
           case_id: caseId,
-          metadata: { invoice_number: inv, total_amount: g.subtotal, order_number: g.order_number, multi: true, groups: groups.length },
+          metadata: { doc_type: docType, invoice_number: inv, total_amount: g.subtotal, order_number: g.order_number, multi: true, groups: groups.length },
         });
 
         qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
@@ -488,10 +501,31 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" /> Ladda upp Mockfjärds-utbetalning
+            <Upload className="h-5 w-5" /> Ladda upp faktura/utbetalning
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div>
+            <Label>Dokumenttyp</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+              {([
+                { v: 'mockfjards_payout' as DocType, label: 'Mockfjärds-utbetalning', sub: 'intäkt' },
+                { v: 'a_order' as DocType, label: 'Egen faktura / A-order', sub: 'utgift' },
+              ]).map(opt => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setDocType(opt.v)}
+                  className={`text-left rounded-md border px-3 py-2 text-sm transition-colors ${
+                    docType === opt.v ? 'border-primary bg-primary/5' : 'hover:bg-muted'
+                  }`}
+                >
+                  <div className="font-medium">{opt.label}</div>
+                  <div className="text-xs text-muted-foreground">{opt.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <Label>PDF-fil</Label>
             <Input
