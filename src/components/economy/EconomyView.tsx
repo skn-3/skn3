@@ -173,18 +173,82 @@ export function EconomyView() {
     return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month));
   }, [completeEconomy]);
 
-  const sortedTable = useMemo(() => {
-    const arr = [...filteredEconomy];
-    arr.sort((a, b) => {
-      let av: number; let bv: number;
-      if (sortBy === 'profit') { av = a.profit; bv = b.profit; }
-      else if (sortBy === 'margin') { av = a.margin ?? -Infinity; bv = b.margin ?? -Infinity; }
-      else if (sortBy === 'revenue') { av = a.revenue; bv = b.revenue; }
-      else { av = a.cost; bv = b.cost; }
-      return sortDir === 'asc' ? av - bv : bv - av;
+  const sortFn = (a: CaseEconomy, b: CaseEconomy) => {
+    let av: number; let bv: number;
+    if (sortBy === 'profit') { av = a.profit; bv = b.profit; }
+    else if (sortBy === 'margin') { av = a.margin ?? -Infinity; bv = b.margin ?? -Infinity; }
+    else if (sortBy === 'revenue') { av = a.revenue; bv = b.revenue; }
+    else { av = a.cost; bv = b.cost; }
+    return sortDir === 'asc' ? av - bv : bv - av;
+  };
+  const sortedComplete = useMemo(
+    () => filteredEconomy.filter(e => e.complete).sort(sortFn),
+    [filteredEconomy, sortBy, sortDir],
+  );
+  const incompleteList = useMemo(
+    () => filteredEconomy.filter(e => !e.complete),
+    [filteredEconomy],
+  );
+
+  // Team statistics
+  type TeamStat = {
+    team: string;
+    count: number;
+    revenue: number;
+    cost: number;
+    profit: number;
+    margin: number | null;
+    avgProfit: number;
+    montorCost: number;
+    units: number;
+    costPerUnit: number | null;
+  };
+  const [teamSortBy, setTeamSortBy] = useState<'profit' | 'margin'>('profit');
+  const [teamSortDir, setTeamSortDir] = useState<'asc' | 'desc'>('desc');
+  const teamStats = useMemo<TeamStat[]>(() => {
+    const map = new Map<string, CaseEconomy[]>();
+    sortedComplete.forEach(e => {
+      const team = (e.c.team && e.c.team.trim()) || 'Ej tilldelad';
+      const arr = map.get(team) || [];
+      arr.push(e);
+      map.set(team, arr);
     });
-    return arr;
-  }, [filteredEconomy, sortBy, sortDir]);
+    const stats: TeamStat[] = [];
+    map.forEach((arr, team) => {
+      const revenue = arr.reduce((s, e) => s + e.revenue, 0);
+      const cost = arr.reduce((s, e) => s + e.cost, 0);
+      const profit = revenue - cost;
+      const montorCost = arr.reduce((s, e) => s + e.costBreakdown.montor, 0);
+      const units = arr.reduce((s, e) => s + (e.c.units || 0), 0);
+      stats.push({
+        team, count: arr.length, revenue, cost, profit,
+        margin: revenue > 0 ? profit / revenue : null,
+        avgProfit: arr.length > 0 ? profit / arr.length : 0,
+        montorCost, units,
+        costPerUnit: units > 0 ? montorCost / units : null,
+      });
+    });
+    stats.sort((a, b) => {
+      const av = teamSortBy === 'profit' ? a.profit : (a.margin ?? -Infinity);
+      const bv = teamSortBy === 'profit' ? b.profit : (b.margin ?? -Infinity);
+      return teamSortDir === 'asc' ? av - bv : bv - av;
+    });
+    return stats;
+  }, [sortedComplete, teamSortBy, teamSortDir]);
+
+  const bestTeam = useMemo(() => {
+    if (teamStats.length < 2) return null;
+    return [...teamStats].sort((a, b) => b.profit - a.profit)[0].team;
+  }, [teamStats]);
+  const worstTeam = useMemo(() => {
+    if (teamStats.length < 2) return null;
+    return [...teamStats].sort((a, b) => a.profit - b.profit)[0].team;
+  }, [teamStats]);
+
+  const toggleTeamSort = (col: 'profit' | 'margin') => {
+    if (teamSortBy === col) setTeamSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    else { setTeamSortBy(col); setTeamSortDir('desc'); }
+  };
 
   // Datakvalitet / obetalt
   const awaitingPayout = useMemo(
