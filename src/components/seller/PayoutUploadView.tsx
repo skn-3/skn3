@@ -824,7 +824,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between gap-2">
                         <CardTitle className="text-base">
-                          Order {g.order_number}
+                          {g.keyKind === 'address' ? 'Adress' : g.keyKind === 'manual' ? 'Manuellt vald' : 'Order'} {g.order_number}
                           <span className="ml-2 text-sm font-normal text-muted-foreground">
                             ({g.lines.length} rad{g.lines.length === 1 ? '' : 'er'} · {g.subtotal.toLocaleString('sv-SE')} kr)
                           </span>
