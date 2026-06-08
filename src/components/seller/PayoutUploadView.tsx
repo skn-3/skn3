@@ -501,10 +501,31 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" /> Ladda upp Mockfjärds-utbetalning
+            <Upload className="h-5 w-5" /> Ladda upp faktura/utbetalning
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div>
+            <Label>Dokumenttyp</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+              {([
+                { v: 'mockfjards_payout' as DocType, label: 'Mockfjärds-utbetalning', sub: 'intäkt' },
+                { v: 'a_order' as DocType, label: 'Egen faktura / A-order', sub: 'utgift' },
+              ]).map(opt => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setDocType(opt.v)}
+                  className={`text-left rounded-md border px-3 py-2 text-sm transition-colors ${
+                    docType === opt.v ? 'border-primary bg-primary/5' : 'hover:bg-muted'
+                  }`}
+                >
+                  <div className="font-medium">{opt.label}</div>
+                  <div className="text-xs text-muted-foreground">{opt.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <Label>PDF-fil</Label>
             <Input
