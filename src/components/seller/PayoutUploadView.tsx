@@ -649,12 +649,18 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             )}
           </div>
 
-          {/* Faktura-fält (ordernummer döljs i multi-läge) */}
+          {/* Faktura-fält (ordernummer döljs i multi-läge och för plåtfaktura) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {!isMulti && (
+            {!isMulti && !isSheet && (
               <div>
                 <Label>Ordernummer *</Label>
                 <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="t.ex. 12345" />
+              </div>
+            )}
+            {isSheet && (
+              <div className="md:col-span-2">
+                <Label>Jobbadress (från "Ert ordernummer") *</Label>
+                <Input value={jobAddress} onChange={(e) => setJobAddress(e.target.value)} placeholder="t.ex. Norregölesvägen 40" />
               </div>
             )}
             <div>
@@ -670,9 +676,15 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
             </div>
             <div>
-              <Label>Totalbelopp (SEK) {isMulti ? '' : '*'}</Label>
+              <Label>{isSheet ? 'Belopp ex moms (kostnad) *' : `Totalbelopp (SEK) ${isMulti ? '' : '*'}`}</Label>
               <Input type="number" inputMode="decimal" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} />
             </div>
+            {isSheet && (
+              <div>
+                <Label>Total inkl moms (referens)</Label>
+                <Input type="number" inputMode="decimal" value={totalAmountIncl} onChange={(e) => setTotalAmountIncl(e.target.value)} />
+              </div>
+            )}
           </div>
 
           {/* MULTI-LÄGE */}
