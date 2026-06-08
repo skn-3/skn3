@@ -591,11 +591,14 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     if (!file) { toast.error('Välj en PDF'); return; }
     if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
     if (unassignedLines.length > 0) {
-      toast.error('Tilldela alla rader till ett ordernummer först'); return;
+      toast.error(isMontorInvoice
+        ? 'Koppla alla rader utan automatisk adressmatch till ett ärende'
+        : 'Tilldela alla rader till ett ordernummer först');
+      return;
     }
     const missing = groups.filter(g => !g.effectiveCase);
     if (missing.length > 0) {
-      toast.error(`Koppla ärende för ordernummer: ${missing.map(g => g.order_number).join(', ')}`);
+      toast.error(`Koppla ärende för: ${missing.map(g => g.order_number).join(', ')}`);
       return;
     }
 
@@ -603,7 +606,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     try {
       // Upload file ONCE; reuse same path for all rows
       const safe = sanitizeFileName(file.name);
-      const path = `shared-payouts/${Date.now()}_${safe}`;
+      const folder = isMontorInvoice ? 'montor-invoices' : 'shared-payouts';
+      const path = `${folder}/${Date.now()}_${safe}`;
       const { error: upErr } = await supabase.storage
         .from('case-documents')
         .upload(path, file, { upsert: false, contentType: file.type || 'application/pdf' });
@@ -621,7 +625,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           file_name: file.name,
           order_number: g.order_number,
           invoice_number: inv,
-          customer_name: customerName.trim() || null,
+          customer_name: isMontorInvoice ? null : (customerName.trim() || null),
           invoice_date: invoiceDate || null,
           total_amount: g.subtotal,
           currency: 'SEK',
@@ -630,11 +634,14 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         });
         if (insErr) throw insErr;
 
-        if (!norm((c as any).order_number)) {
+        // Only update case.order_number for n3prenad-orders (not montor_invoice/sheet — those are addresses)
+        if (!isMontorInvoice && !norm((c as any).order_number)) {
           try { await updateCase(caseId, { order_number: g.order_number } as any); } catch (e) { console.warn(e); }
         }
 
-        const eventDesc = isCost
+        const eventDesc = isMontorInvoice
+          ? `Laddade upp montörsfaktura (del av faktura ${inv}) för ${g.order_number}, kostnad ${g.subtotal.toLocaleString('sv-SE')} kr ex moms`
+          : isCost
           ? `Egen faktura/A-order kopplad (del av faktura ${inv}): kostnad ${g.subtotal.toLocaleString('sv-SE')} kr`
           : `Mockfjärds-utbetalning kopplad (del av faktura ${inv}): belopp ${g.subtotal.toLocaleString('sv-SE')} kr`;
         await createCaseEvent({
@@ -645,11 +652,13 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         });
 
         logActivity({
-          action: isCost ? 'cost_doc_uploaded' : 'payout_uploaded',
+          action: isMontorInvoice ? 'montor_invoice_uploaded' : (isCost ? 'cost_doc_uploaded' : 'payout_uploaded'),
           category: 'case',
-          description: `Laddade upp ${shortLabel.toLowerCase()} (del av faktura ${inv}) för ${c.address}`,
+          description: isMontorInvoice
+            ? `Laddade upp montörsfaktura (del av faktura ${inv}) för ${g.order_number}, kostnad ${g.subtotal.toLocaleString('sv-SE')} kr ex moms`
+            : `Laddade upp ${shortLabel.toLowerCase()} (del av faktura ${inv}) för ${c.address}`,
           case_id: caseId,
-          metadata: { doc_type: docType, invoice_number: inv, total_amount: g.subtotal, order_number: g.order_number, multi: true, groups: groups.length },
+          metadata: { doc_type: docType, invoice_number: inv, total_amount: g.subtotal, address: g.order_number, multi: true, groups: groups.length },
         });
 
         qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
