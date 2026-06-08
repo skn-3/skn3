@@ -590,10 +590,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         <CardContent className="space-y-4">
           <div>
             <Label>Dokumenttyp</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
               {([
                 { v: 'mockfjards_payout' as DocType, label: 'Mockfjärds-utbetalning', sub: 'intäkt' },
                 { v: 'a_order' as DocType, label: 'Egen faktura / A-order', sub: 'utgift' },
+                { v: 'sheet_metal_invoice' as DocType, label: 'Plåtfaktura', sub: 'utgift (matchas på adress)' },
               ]).map(opt => (
                 <button
                   key={opt.v}
