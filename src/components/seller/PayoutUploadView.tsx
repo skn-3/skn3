@@ -393,11 +393,18 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const unassignedLines = useMemo(
     () => {
       if (isMontorInvoice) {
-        return lineItems.filter((li, idx) => !lineAddrKey(li) && !lineCaseChoices[idx]);
+        return lineItems.filter((li, idx) => {
+          const k = lineAddrKey(li);
+          if (k) {
+            // line belongs to an address group — skipped groups are NOT unassigned
+            return isSkipped(k) ? false : false; // address-keyed lines never "unassigned" (group handles it)
+          }
+          return !lineCaseChoices[idx];
+        });
       }
       return lineItems.filter(li => !norm(li.order_number));
     },
-    [lineItems, isMontorInvoice, lineCaseChoices],
+    [lineItems, isMontorInvoice, lineCaseChoices, skippedGroups],
   );
 
   const groupedSubtotalSum = useMemo(
