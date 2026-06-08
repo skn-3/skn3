@@ -614,10 +614,18 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         : 'Tilldela alla rader till ett ordernummer först');
       return;
     }
-    const missing = groups.filter(g => !g.effectiveCase);
-    if (missing.length > 0) {
-      toast.error(`Koppla ärende för: ${missing.map(g => g.order_number).join(', ')}`);
-      return;
+    if (isMontorInvoice) {
+      const activeUnmatched = groups.filter(g => !g.effectiveCase && !isSkipped(g.order_number));
+      if (activeUnmatched.length > 0) {
+        toast.error(`Koppla eller hoppa över: ${activeUnmatched.map(g => g.order_number).join(', ')}`);
+        return;
+      }
+    } else {
+      const missing = groups.filter(g => !g.effectiveCase);
+      if (missing.length > 0) {
+        toast.error(`Koppla ärende för: ${missing.map(g => g.order_number).join(', ')}`);
+        return;
+      }
     }
 
     setSubmitting(true);
