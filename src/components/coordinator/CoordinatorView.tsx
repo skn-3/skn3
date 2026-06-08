@@ -66,6 +66,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
         {tab === 'deviations' && (
           <CoordinatorDeviations coordinatorName={role.name} onSelectCase={setSelectedCase} />
         )}
+        {tab === 'economy' && <EconomyView />}
       </main>
 
       {selectedCase && (
