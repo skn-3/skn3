@@ -1526,9 +1526,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               const hasRevenue = (payouts || []).length > 0;
               const costFromDocs = (costDocs || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
               const hasCostDocs = (costDocs || []).length > 0;
+              const sheetCost = (sheetInvoices || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
+              const hasSheet = (sheetInvoices || []).length > 0;
               const orderCost = linkedOrder?.total_amount != null ? Number(linkedOrder.total_amount) : null;
-              const cost = orderCost != null ? orderCost : (hasCostDocs ? costFromDocs : null);
-              const costSource: 'order' | 'docs' | null = orderCost != null ? 'order' : (hasCostDocs ? 'docs' : null);
+              const baseCost = orderCost != null ? orderCost : (hasCostDocs ? costFromDocs : null);
+              const cost = baseCost != null || hasSheet
+                ? (baseCost ?? 0) + sheetCost
+                : null;
+              const costSource: 'order' | 'docs' | 'sheet' | null =
+                orderCost != null ? 'order' : (hasCostDocs ? 'docs' : (hasSheet ? 'sheet' : null));
               const possibleDuplicate = orderCost != null && hasCostDocs;
               const profit = hasRevenue && cost != null ? revenue - cost : null;
               const margin = profit != null && revenue > 0 ? (profit / revenue) * 100 : null;
@@ -1547,7 +1553,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     </div>
                     {costSource && (
                       <div className="text-[10px] text-muted-foreground mt-0.5">
-                        {costSource === 'order' ? 'från n3prenad-order' : 'från egna A-ordrar'}
+                        {costSource === 'order' && (hasSheet ? 'n3prenad + plåt' : 'från n3prenad-order')}
+                        {costSource === 'docs' && (hasSheet ? 'egna A-ordrar + plåt' : 'från egna A-ordrar')}
+                        {costSource === 'sheet' && 'endast plåtfakturor'}
                       </div>
                     )}
                   </div>
