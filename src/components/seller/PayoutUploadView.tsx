@@ -417,7 +417,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   const handleSubmitSingle = async () => {
     if (!file) { toast.error('Välj en PDF'); return; }
-    if (!orderNumber.trim()) { toast.error('Ange ordernummer'); return; }
+    if (!isSheet && !orderNumber.trim()) { toast.error('Ange ordernummer'); return; }
     if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
     if (!totalAmount.trim() || isNaN(Number(totalAmount))) { toast.error('Ange totalbelopp'); return; }
     if (!effectiveCase) { toast.error('Välj ett ärende att koppla till'); return; }
@@ -426,19 +426,21 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     try {
       const caseId = effectiveCase.id;
       const safe = sanitizeFileName(file.name);
-      const path = `${caseId}/payouts/${Date.now()}_${safe}`;
+      const folder = isSheet ? 'sheet-invoices' : 'payouts';
+      const path = `${caseId}/${folder}/${Date.now()}_${safe}`;
       const { error: upErr } = await supabase.storage
         .from('case-documents')
         .upload(path, file, { upsert: false, contentType: file.type || 'application/pdf' });
       if (upErr) throw upErr;
 
       const amountNum = Number(totalAmount);
+      const inclNum = totalAmountIncl.trim() && !isNaN(Number(totalAmountIncl)) ? Number(totalAmountIncl) : null;
       const { error: insErr } = await (supabase as any).from('case_documents').insert({
         case_id: caseId,
         doc_type: docType,
         file_path: path,
         file_name: file.name,
-        order_number: orderNumber.trim(),
+        order_number: isSheet ? null : orderNumber.trim(),
         invoice_number: invoiceNumber.trim(),
         customer_name: customerName.trim() || null,
         invoice_date: invoiceDate || null,
@@ -446,14 +448,17 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         currency: 'SEK',
         line_items: lineItems.length > 0 ? lineItems : null,
         uploaded_by: currentUser,
+        metadata: isSheet ? { job_address: jobAddress || null, total_amount_incl_vat: inclNum } : null,
       });
       if (insErr) throw insErr;
 
-      if (!norm((effectiveCase as any).order_number)) {
+      if (!isSheet && !norm((effectiveCase as any).order_number)) {
         try { await updateCase(caseId, { order_number: orderNumber.trim() } as any); } catch (e) { console.warn(e); }
       }
 
-      const eventDesc = isCost
+      const eventDesc = isSheet
+        ? `Plåtfaktura kopplad: faktura ${invoiceNumber.trim()}, kostnad (ex moms) ${amountNum.toLocaleString('sv-SE')} kr`
+        : isCost
         ? `Egen faktura/A-order kopplad: faktura ${invoiceNumber.trim()}, kostnad ${amountNum.toLocaleString('sv-SE')} kr`
         : `Mockfjärds-utbetalning kopplad: faktura ${invoiceNumber.trim()}, belopp ${amountNum.toLocaleString('sv-SE')} kr`;
       await createCaseEvent({
@@ -464,11 +469,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       });
 
       logActivity({
-        action: isCost ? 'cost_doc_uploaded' : 'payout_uploaded',
+        action: isSheet ? 'sheet_invoice_uploaded' : (isCost ? 'cost_doc_uploaded' : 'payout_uploaded'),
         category: 'case',
         description: `Laddade upp ${shortLabel.toLowerCase()} (faktura ${invoiceNumber.trim()}) för ${effectiveCase.address}`,
         case_id: caseId,
-        metadata: { doc_type: docType, invoice_number: invoiceNumber.trim(), total_amount: amountNum, order_number: orderNumber.trim() },
+        metadata: { doc_type: docType, invoice_number: invoiceNumber.trim(), total_amount: amountNum, order_number: isSheet ? null : orderNumber.trim(), job_address: isSheet ? jobAddress || null : null },
       });
 
       qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
