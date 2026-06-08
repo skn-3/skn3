@@ -151,8 +151,8 @@ Deno.serve(async (req) => {
     // Safety: if top-level customer_name looks like Mockfjärds itself, override
     // with first line's customer_name (slutkunden).
     let topCustomer: string | null = parsed.customer_name ?? null;
-    const looksLikeMockfjards = (s: string | null) =>
-      !!s && /mockfj[aä]rds/i.test(s);
+    const looksLikeOwnOrMockfjards = (s: string | null) =>
+      !!s && /(mockfj[aä]rds|smartklimat|n3prenad)/i.test(s);
     if (!topCustomer || looksLikeMockfjards(topCustomer)) {
       const firstLineCustomer = normalizedLines.find((l: any) => l.customer_name)?.customer_name ?? null;
       topCustomer = firstLineCustomer;
