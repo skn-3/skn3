@@ -205,6 +205,16 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   // For montor_invoice: per-line manual case assignment (when address can't auto-match)
   const [lineCaseChoices, setLineCaseChoices] = useState<Record<number, CaseRow | null>>({});
   const [lineSearch, setLineSearch] = useState<Record<number, string>>({});
+  // For montor_invoice: addresses (group keys) the user has explicitly skipped
+  const [skippedGroups, setSkippedGroups] = useState<Set<string>>(new Set());
+  const isSkipped = (key: string) => skippedGroups.has(key);
+  const toggleSkip = (key: string, next: boolean) => {
+    setSkippedGroups(prev => {
+      const s = new Set(prev);
+      if (next) s.add(key); else s.delete(key);
+      return s;
+    });
+  };
   const [submitting, setSubmitting] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
