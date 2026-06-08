@@ -1406,7 +1406,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             <Button variant="outline" onClick={reset} disabled={submitting}>Rensa</Button>
             <Button onClick={handleSubmit} disabled={submitDisabled}>
               {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-              {isMulti ? `Bekräfta & koppla till ${groups.length} ärenden` : 'Bekräfta & koppla'}
+              {isMulti
+                ? (isMontorInvoice
+                    ? `Bekräfta & koppla till ${matchedActiveGroups.length} ärenden`
+                    : `Bekräfta & koppla till ${groups.length} ärenden`)
+                : 'Bekräfta & koppla'}
             </Button>
           </div>
         </CardContent>
