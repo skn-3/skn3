@@ -249,7 +249,8 @@ export function LinkOrdersView({ currentUser }: LinkOrdersViewProps) {
         <div className="space-y-3">
           {filteredRows.map(({ order, match }) => {
             const id = String(order.id);
-            const picked = manualPick[id] ?? match.caseRow;
+            const autoSuggest = match.strength === 'none' ? null : match.caseRow;
+            const picked = manualPick[id] ?? autoSuggest;
             const isManual = !!manualPick[id];
             const sb = strengthBadge[isManual ? 'high' : match.strength];
             return (
