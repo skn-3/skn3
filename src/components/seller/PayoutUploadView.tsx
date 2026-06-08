@@ -208,12 +208,16 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [extracted, setExtracted] = useState(false);
 
   const isSheet = docType === 'sheet_metal_invoice';
-  const isCost = docType === 'a_order' || isSheet;
+  const isMontorInvoice = docType === 'montor_invoice';
+  const isCost = docType === 'a_order' || isSheet || isMontorInvoice;
   const typeLabel =
-    docType === 'sheet_metal_invoice' ? 'Plåtfaktura (utgift)'
+    isMontorInvoice ? 'Montörsfaktura (utgift, extra)'
+    : docType === 'sheet_metal_invoice' ? 'Plåtfaktura (utgift)'
     : docType === 'a_order' ? 'Egen faktura / A-order (utgift)'
     : 'Mockfjärds-utbetalning (intäkt)';
-  const shortLabel = isSheet ? 'Plåtfaktura' : (docType === 'a_order' ? 'Faktura/A-order' : 'Utbetalning');
+  const shortLabel = isMontorInvoice ? 'Montörsfaktura'
+    : isSheet ? 'Plåtfaktura'
+    : (docType === 'a_order' ? 'Faktura/A-order' : 'Utbetalning');
 
   const { data: cases = [] } = useQuery({ queryKey: ['cases-all'], queryFn: fetchAllCases });
 
