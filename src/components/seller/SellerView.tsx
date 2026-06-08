@@ -81,6 +81,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         {tab === 'dashboard' && (
           <SellerDashboard sellerName={role.name} />
         )}
+        {tab === 'economy' && isAdmin && (
+          <EconomyView />
+        )}
         {tab === 'admin' && isAdmin && (
           <AdminView currentUser={role.name} />
         )}
