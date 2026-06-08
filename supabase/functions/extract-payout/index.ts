@@ -35,14 +35,18 @@ Returnera ENBART ett JSON-objekt — ingen text, ingen markdown, inga kodblock �
 }
 
 VIKTIGT om namn:
-- Fakturans mottagare/"Kund" högst upp är ALLTID "Mockfjärds Fönster AB" eller liknande — det är INTE slutkunden och ska INTE användas som customer_name.
-- Slutkundens namn står i radernas "Namn"-kolumn (t.ex. "Sirkka Mäkitalo", "Anders Andersson"). Det är det enda korrekta customer_name.
-- För varje rad: sätt line_items[].customer_name från radens "Namn"-kolumn.
-- För top-level customer_name: använd första radens "Namn", eller null om det saknas. Skriv ALDRIG in "Mockfjärds Fönster AB" här.
+- Slutkundens namn ska in i customer_name (både per rad och top-level). Det är slutkunden
+  vars adress jobbet gäller — INTE fakturans mottagare (t.ex. "Mockfjärds Fönster AB" eller
+  vårt eget bolag "Smartklimat Entreprenad AB" / "n3prenad AB").
+- I Mockfjärds-utbetalningar: slutkundens namn står i radernas "Namn"-kolumn. Använd det.
+- I våra egna fakturor/A-ordrar: slutkunden står vanligen som "Avser"/"Objekt"/"Kund" på raderna
+  eller i radbeskrivningen (adress/efternamn). Plocka ut det bästa namnet du kan.
+- För top-level customer_name: använd första radens customer_name, eller null om det saknas.
+  Skriv ALDRIG in vårt eller Mockfjärds bolagsnamn här.
 
 Övriga regler:
-- "Fsg. order" / "Order"-kolumnen → line_items[].order_number (Mockfjärds eget ordernummer per rad).
-- line_items[].name = produkt-/tjänstebenämning (t.ex. "Fönster", "Montage").
+- "Fsg. order" / "Order"-kolumnen (eller motsvarande ordernummer per rad) → line_items[].order_number.
+- line_items[].name = produkt-/tjänstebenämning (t.ex. "Fönster", "Montage", "A-order").
 - Belopp ska vara tal (ej strängar), använd punkt som decimaltecken.
 - Tolka svenska tusentalsavgränsare (mellanslag) korrekt.
 - invoice_date i ISO-format YYYY-MM-DD.
