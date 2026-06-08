@@ -844,8 +844,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             {g.matchSource === 'manual' && 'Valt ärende'}
                             {g.matchSource === 'order' && 'Matchat ärende (ordernummer)'}
                             {g.matchSource === 'name' && 'Föreslaget ärende'}
+                            {g.matchSource === 'address' && 'Matchat ärende (adress)'}
                             {g.matchSource === 'manual' && <Badge variant="outline">manuellt</Badge>}
                             {g.matchSource === 'name' && <Badge variant="outline">namn</Badge>}
+                            {g.matchSource === 'address' && <Badge variant="outline">{g.addrCandidates[0]?.reason || 'adress'}</Badge>}
                           </AlertTitle>
                           <AlertDescription>
                             <div className="text-sm">
