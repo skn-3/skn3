@@ -171,18 +171,25 @@ Deno.serve(async (req) => {
     // with first line's customer_name (slutkunden).
     let topCustomer: string | null = parsed.customer_name ?? null;
     const looksLikeOwnOrMockfjards = (s: string | null) =>
-      !!s && /(mockfj[aä]rds|smartklimat|n3prenad)/i.test(s);
+      !!s && /(mockfj[aä]rds|smartklimat|n3prenad|byggpl[aå]t)/i.test(s);
     if (!topCustomer || looksLikeOwnOrMockfjards(topCustomer)) {
       const firstLineCustomer = normalizedLines.find((l: any) => l.customer_name)?.customer_name ?? null;
       topCustomer = firstLineCustomer;
     }
 
+    const totalExcl = parsed.total_amount_excl_vat != null ? Number(parsed.total_amount_excl_vat) : null;
+    const totalIncl = parsed.total_amount_incl_vat != null ? Number(parsed.total_amount_incl_vat) : null;
+    const totalAmount = parsed.total_amount != null ? Number(parsed.total_amount) : null;
+
     return json({
       invoice_number: parsed.invoice_number ?? null,
       invoice_date: parsed.invoice_date ?? null,
       customer_name: topCustomer,
+      job_address: parsed.job_address ?? null,
       currency: parsed.currency ?? 'SEK',
-      total_amount: parsed.total_amount != null ? Number(parsed.total_amount) : null,
+      total_amount: totalAmount,
+      total_amount_excl_vat: totalExcl,
+      total_amount_incl_vat: totalIncl,
       line_items: normalizedLines,
       order_numbers,
     }, 200);
