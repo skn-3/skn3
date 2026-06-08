@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-export type CoordinatorTab = 'inbox' | 'pipeline' | 'calendar' | 'deviations';
+export type CoordinatorTab = 'inbox' | 'pipeline' | 'calendar' | 'deviations' | 'economy';
 
 interface Props {
   active: CoordinatorTab;
@@ -12,6 +12,7 @@ const TABS: { value: CoordinatorTab; label: string }[] = [
   { value: 'pipeline', label: 'Pipeline' },
   { value: 'calendar', label: 'Kalender' },
   { value: 'deviations', label: 'Reklamationer' },
+  { value: 'economy', label: 'Ekonomi' },
 ];
 
 export function CoordinatorNav({ active, onChange }: Props) {
