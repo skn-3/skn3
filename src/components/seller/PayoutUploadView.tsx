@@ -129,7 +129,60 @@ function findNameMatches(
 }
 
 
-type DocType = 'mockfjards_payout' | 'a_order';
+type DocType = 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice';
+
+// ---- Adressmatchning (för plåtfakturor) -----------------------------------
+const stripDiacritics = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const addrNorm = (s: any) => stripDiacritics(String(s ?? '').toLowerCase().trim());
+
+type ParsedAddr = { street: string; number: string; city: string };
+function parseAddress(raw: any): ParsedAddr {
+  const s = addrNorm(raw);
+  if (!s) return { street: '', number: '', city: '' };
+  const parts = s.split(',').map(p => p.trim()).filter(Boolean);
+  const head = parts[0] || '';
+  let city = '';
+  if (parts.length > 1) {
+    city = parts.slice(1).join(' ').replace(/\b\d{3}\s?\d{2}\b/g, '').replace(/\s+/g, ' ').trim();
+  } else {
+    const m = s.match(/^(.*?)(\d{3}\s?\d{2})\s+(.+)$/);
+    if (m) city = m[3].trim();
+  }
+  const numMatch = head.match(/(\d+)\s*([a-z])?\b/);
+  const number = numMatch ? (numMatch[1] + (numMatch[2] || '')) : '';
+  const street = (numMatch ? head.slice(0, numMatch.index).trim() : head)
+    .replace(/[^a-z0-9åäö\s]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { street, number, city };
+}
+function streetNameMatch(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.length >= 4 && b.includes(a)) return true;
+  if (b.length >= 4 && a.includes(b)) return true;
+  return false;
+}
+type AddrCandidate = { case: CaseRow; score: number; reason: string };
+function addressCandidates(allCases: CaseRow[], rawAddr: string | null): AddrCandidate[] {
+  const a = parseAddress(rawAddr);
+  if (!a.street || !a.number) return [];
+  const out: AddrCandidate[] = [];
+  for (const c of allCases) {
+    const b = parseAddress(c.address);
+    if (!b.street || !b.number) continue;
+    if (a.number !== b.number) continue;
+    if (!streetNameMatch(a.street, b.street)) continue;
+    const sameCity = !!(a.city && b.city && (a.city === b.city || a.city.includes(b.city) || b.city.includes(a.city)));
+    out.push({
+      case: c,
+      score: 100 + (sameCity ? 10 : 0),
+      reason: sameCity ? 'gata + nr + ort' : 'gata + nr',
+    });
+  }
+  out.sort((x, y) => y.score - x.score);
+  return out.slice(0, 5);
+}
 
 export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const qc = useQueryClient();
@@ -138,8 +191,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [orderNumber, setOrderNumber] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [jobAddress, setJobAddress] = useState('');
   const [invoiceDate, setInvoiceDate] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
+  const [totalAmountIncl, setTotalAmountIncl] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [search, setSearch] = useState('');
   const [chosenCase, setChosenCase] = useState<CaseRow | null>(null);
@@ -151,9 +206,13 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState(false);
 
-  const isCost = docType === 'a_order';
-  const typeLabel = isCost ? 'Egen faktura / A-order (utgift)' : 'Mockfjärds-utbetalning (intäkt)';
-  const shortLabel = isCost ? 'Faktura/A-order' : 'Utbetalning';
+  const isSheet = docType === 'sheet_metal_invoice';
+  const isCost = docType === 'a_order' || isSheet;
+  const typeLabel =
+    docType === 'sheet_metal_invoice' ? 'Plåtfaktura (utgift)'
+    : docType === 'a_order' ? 'Egen faktura / A-order (utgift)'
+    : 'Mockfjärds-utbetalning (intäkt)';
+  const shortLabel = isSheet ? 'Plåtfaktura' : (docType === 'a_order' ? 'Faktura/A-order' : 'Utbetalning');
 
   const { data: cases = [] } = useQuery({ queryKey: ['cases-all'], queryFn: fetchAllCases });
 
