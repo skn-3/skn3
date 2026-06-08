@@ -1156,10 +1156,23 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 </Card>
               )}
 
-              <div className="text-xs text-muted-foreground text-right">
-                Summa delsummor: <span className="font-medium text-foreground">{groupedSubtotalSum.toLocaleString('sv-SE')} kr</span>
-                {totalNum > 0 && <> av {totalNum.toLocaleString('sv-SE')} kr</>}
-              </div>
+              {isMontorInvoice ? (() => {
+                const bookedSum = matchedActiveGroups.reduce((s, g) => s + g.subtotal, 0);
+                const skippedListUI = groups.filter(g => isSkipped(g.order_number));
+                const skippedSum = skippedListUI.reduce((s, g) => s + g.subtotal, 0);
+                return (
+                  <div className="text-xs text-muted-foreground text-right">
+                    Bokförs: <span className="font-medium text-foreground">{bookedSum.toLocaleString('sv-SE')} kr</span> ({matchedActiveGroups.length} ärenden)
+                    {skippedListUI.length > 0 && <> · Hoppas över: <span className="font-medium text-foreground">{skippedSum.toLocaleString('sv-SE')} kr</span> ({skippedListUI.length} adress{skippedListUI.length === 1 ? '' : 'er'})</>}
+                    {totalNum > 0 && <> · Faktura totalt: <span className="font-medium text-foreground">{totalNum.toLocaleString('sv-SE')} kr</span></>}
+                  </div>
+                );
+              })() : (
+                <div className="text-xs text-muted-foreground text-right">
+                  Summa delsummor: <span className="font-medium text-foreground">{groupedSubtotalSum.toLocaleString('sv-SE')} kr</span>
+                  {totalNum > 0 && <> av {totalNum.toLocaleString('sv-SE')} kr</>}
+                </div>
+              )}
             </div>
           )}
 
