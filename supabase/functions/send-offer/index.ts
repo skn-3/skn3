@@ -53,6 +53,11 @@ ${opts.validUntil ? `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;c
 <a href="${opts.publicUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 36px;background:#22C55E;color:#ffffff;font-weight:bold;font-size:15px;text-decoration:none;border-radius:6px;"><span style="color:#ffffff;text-decoration:none;">Öppna din offert</span></a>
 </td></tr></table>
 </td></tr>
+<tr><td style="padding:0 28px 16px;">
+<p style="margin:0;font-size:12px;color:#6b7280;line-height:1.5;word-break:break-all;">
+Fungerar inte knappen? Kopiera och klistra in denna länk i webbläsaren:<br>
+<a href="${opts.publicUrl}" style="color:#15803D;">${opts.publicUrl}</a>
+</p></td></tr>
 <tr><td style="padding:0 28px 16px;" align="center">
 <p style="margin:0;font-size:12px;color:#6b7280;">Om knappen inte fungerar, kopiera länken nedan:</p>
 <p style="margin:6px 0 0;font-size:12px;word-break:break-all;"><a href="${opts.publicUrl}" target="_blank" rel="noopener" style="color:#22C55E;text-decoration:underline;">${opts.publicUrl}</a></p>
