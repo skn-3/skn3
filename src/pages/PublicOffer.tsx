@@ -34,6 +34,8 @@ type PublicOfferData = {
   status: string;
   accepted_at: string | null;
   accept_name: string | null;
+  customer_personnummer?: string | null;
+  fastighetsbeteckning?: string | null;
   signed_url: string | null;       // unsigned offer PDF (signed download URL)
   signed_pdf_url: string | null;   // accepted/signed PDF (signed download URL)
 };
