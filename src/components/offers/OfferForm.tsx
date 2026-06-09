@@ -162,6 +162,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
         .upload(path, blob, { upsert: true, contentType: 'application/pdf' });
       if (upErr) throw upErr;
       await (supabase as any).from('offers').update({ pdf_path: path }).eq('id', id);
+      setPdfPath(path);
       const { data: signed } = await supabase.storage.from('case-documents').createSignedUrl(path, 3600);
       if (signed?.signedUrl) window.open(signed.signedUrl, '_blank', 'noopener,noreferrer');
       onSaved();
@@ -173,6 +174,45 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
       setGenerating(false);
     }
   };
+
+  const handleSendToCustomer = async () => {
+    const id = offer?.id;
+    if (!id) { toast.error('Spara offerten först'); return; }
+    if (!email) { toast.error('Kunden saknar e-post'); return; }
+    if (!pdfPath) { toast.error('Generera PDF först'); return; }
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: id } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const url = (data as any)?.public_url as string | undefined;
+      if (url) setPublicUrl(url);
+      if (currentStatus !== 'accepted') setCurrentStatus('sent');
+      toast.success(`Offert skickad till ${email}`);
+      onSaved();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Kunde inte skicka offert');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const copyPublicUrl = async () => {
+    if (!publicUrl) return;
+    try { await navigator.clipboard.writeText(publicUrl); toast.success('Länk kopierad'); }
+    catch { toast.error('Kunde inte kopiera'); }
+  };
+
+  const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+    draft: { label: 'Utkast', cls: 'bg-muted text-muted-foreground' },
+    sent: { label: 'Skickad', cls: 'bg-blue-100 text-blue-800' },
+    accepted: { label: 'Accepterad', cls: 'bg-green-100 text-green-800' },
+    declined: { label: 'Avböjd', cls: 'bg-red-100 text-red-800' },
+  };
+  const statusMeta = STATUS_BADGE[currentStatus] || STATUS_BADGE.draft;
+
+  const canSend = isEdit && !!email && !!pdfPath;
 
   const isPrivat = customerType === 'privat';
 
