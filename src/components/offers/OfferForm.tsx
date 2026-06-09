@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Trash2, Plus, Save, FileDown, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Trash2, Plus, Save, FileDown, ChevronDown, ChevronRight, AlertTriangle, Send, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,10 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const isEdit = !!offer?.id;
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<string>(offer?.status || 'draft');
+  const [pdfPath, setPdfPath] = useState<string | null>(offer?.pdf_path || null);
   const [termsOpen, setTermsOpen] = useState(false);
 
   const [customerType, setCustomerType] = useState<'privat' | 'foretag'>(offer?.customer_type || 'privat');
