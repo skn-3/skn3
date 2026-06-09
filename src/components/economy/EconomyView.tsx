@@ -485,7 +485,7 @@ export function EconomyView() {
         <div className="p-4 border-b">
           <div className="text-sm font-medium">Statistik per montageteam</div>
           <div className="text-xs text-muted-foreground mt-1">
-            Baserat på kompletta ärenden. Klicka kolumn för att sortera.
+            Baserat på kompletta ärenden. Bäst/Sämst = lägst/högst kostnad per enhet. Klicka kolumn för att sortera.
           </div>
         </div>
         <Table>
