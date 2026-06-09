@@ -221,15 +221,38 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     <div className="space-y-5">
       {/* Status + public link */}
       {isEdit && (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Status:</span>
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusMeta.cls}`}>{statusMeta.label}</span>
-          {publicUrl && (
-            <div className="flex-1 min-w-[200px] flex items-center gap-2 ml-2">
-              <Input readOnly value={publicUrl} className="text-xs h-8" />
-              <Button type="button" variant="outline" size="sm" onClick={copyPublicUrl} className="gap-1">
-                <Copy className="h-3 w-3" /> Kopiera
-              </Button>
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Status:</span>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusMeta.cls}`}>{statusMeta.label}</span>
+            {publicUrl && (
+              <div className="flex-1 min-w-[200px] flex items-center gap-2 ml-2">
+                <Input readOnly value={publicUrl} className="text-xs h-8" />
+                <Button type="button" variant="outline" size="sm" onClick={copyPublicUrl} className="gap-1">
+                  <Copy className="h-3 w-3" /> Kopiera
+                </Button>
+              </div>
+            )}
+          </div>
+          {currentStatus === 'accepted' && (offer?.accept_name || offer?.accepted_at) && (
+            <div className="flex flex-wrap items-center gap-3 text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+              <span>
+                Accepterad av <strong>{offer?.accept_name || '—'}</strong>
+                {offer?.accepted_at ? ` • ${new Date(offer.accepted_at).toLocaleString('sv-SE')}` : ''}
+              </span>
+              {offer?.signed_pdf_path && (
+                <button
+                  type="button"
+                  className="underline hover:text-green-900"
+                  onClick={async () => {
+                    const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path, 3600);
+                    if (error || !data?.signedUrl) { toast.error('Kunde inte öppna signerad PDF'); return; }
+                    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+                  }}
+                >
+                  Öppna signerad PDF
+                </button>
+              )}
             </div>
           )}
         </div>

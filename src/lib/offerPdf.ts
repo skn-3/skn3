@@ -66,7 +66,11 @@ export interface OfferForPdf {
   terms_text?: string | null;
 }
 
-export async function buildOfferPdfBlob(offer: OfferForPdf): Promise<Blob> {
+export interface OfferPdfOptions {
+  signature?: { name: string; acceptedAt: string };
+}
+
+export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOptions = {}): Promise<Blob> {
   const logo = await loadLogoDataUrl();
   const totals = calcOfferTotals(offer.line_items || [], {
     vat_mode: offer.vat_mode,
@@ -230,6 +234,43 @@ export async function buildOfferPdfBlob(offer: OfferForPdf): Promise<Blob> {
     { text: offer.terms_text || '', fontSize: 9, color: '#374151', lineHeight: 1.35 },
   ];
 
+  // Optional verification page
+  const verificationPage: any[] = [];
+  if (opts.signature) {
+    const acceptedDate = new Date(opts.signature.acceptedAt);
+    const acceptedFmt = isNaN(acceptedDate.getTime())
+      ? opts.signature.acceptedAt
+      : acceptedDate.toLocaleString('sv-SE');
+    verificationPage.push(
+      { text: 'Verifikat – elektroniskt accepterad', fontSize: 18, bold: true, color: GREEN_DARK, pageBreak: 'before', margin: [0, 0, 0, 16] },
+      {
+        table: {
+          widths: [140, '*'],
+          body: [
+            [{ text: 'Offert nr', bold: true, color: GREEN_DARK }, { text: offer.offer_number || '—' }],
+            [{ text: 'Accepterad av', bold: true, color: GREEN_DARK }, { text: opts.signature.name || '—' }],
+            [{ text: 'Datum/tid', bold: true, color: GREEN_DARK }, { text: acceptedFmt }],
+            [{ text: 'Dokumentreferens', bold: true, color: GREEN_DARK }, { text: offer.offer_number || '—' }],
+          ],
+        },
+        layout: {
+          hLineWidth: () => 0.5,
+          vLineWidth: () => 0,
+          hLineColor: () => BORDER,
+          paddingTop: () => 8,
+          paddingBottom: () => 8,
+        },
+        margin: [0, 0, 0, 20],
+      },
+      {
+        text: 'Offerten har accepterats elektroniskt via SmartKlimat N3prenads offertsystem. Accepten har loggats med tidpunkt och IP-adress.',
+        fontSize: 10,
+        color: '#374151',
+        lineHeight: 1.4,
+      },
+    );
+  }
+
   const docDef: TDocumentDefinitions = {
     pageSize: 'A4',
     pageMargins: [40, 50, 40, 50],
@@ -244,6 +285,7 @@ export async function buildOfferPdfBlob(offer: OfferForPdf): Promise<Blob> {
       summary,
       footer1,
       ...termsPage,
+      ...verificationPage,
     ],
     styles: {
       th: { bold: true, color: GREEN_DARK, fontSize: 10 },

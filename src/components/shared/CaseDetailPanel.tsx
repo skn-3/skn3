@@ -1774,16 +1774,33 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                           {o.title || o.customer_name || '—'}
                           {amount != null && <> · {fmtOfferKr(amount)}</>}
                         </div>
+                        {o.status === 'accepted' && o.accept_name && (
+                          <div className="text-[10px] text-green-700 mt-0.5">
+                            Accepterad av {o.accept_name}{o.accepted_at ? ` • ${new Date(o.accepted_at).toLocaleString('sv-SE')}` : ''}
+                          </div>
+                        )}
                       </button>
-                      {o.pdf_path && (
-                        <button
-                          type="button"
-                          onClick={() => openPayoutPdf(o.pdf_path)}
-                          className="text-xs text-primary hover:underline inline-flex items-center gap-1 whitespace-nowrap"
-                        >
-                          <ExternalLink className="h-3 w-3" /> PDF
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {o.pdf_path && (
+                          <button
+                            type="button"
+                            onClick={() => openPayoutPdf(o.pdf_path)}
+                            className="text-xs text-primary hover:underline inline-flex items-center gap-1 whitespace-nowrap"
+                          >
+                            <ExternalLink className="h-3 w-3" /> PDF
+                          </button>
+                        )}
+                        {o.signed_pdf_path && (
+                          <button
+                            type="button"
+                            onClick={() => openPayoutPdf(o.signed_pdf_path)}
+                            className="text-xs text-green-700 hover:underline inline-flex items-center gap-1 whitespace-nowrap"
+                            title="Signerad PDF med verifikat"
+                          >
+                            <ExternalLink className="h-3 w-3" /> Signerad
+                          </button>
+                        )}
+                      </div>
                     </li>
                   );
                 })}
