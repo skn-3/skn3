@@ -248,6 +248,6 @@ export async function buildOfferPdfBlob(offer: OfferForPdf): Promise<Blob> {
   };
 
   return new Promise<Blob>((resolve) => {
-    pdfMake.createPdf(docDef).getBlob((blob) => resolve(blob));
+    (pdfMake.createPdf(docDef) as any).getBlob((blob: Blob) => resolve(blob));
   });
 }
