@@ -1745,6 +1745,53 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
 
 
+          {/* OFFERTER */}
+          <section className="p-4 space-y-3 border-t">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <FileText className="h-4 w-4" /> Offerter
+              </h3>
+              <Button type="button" size="sm" variant="outline" onClick={openNewOffer} className="gap-1 h-8">
+                <FileText className="h-3.5 w-3.5" /> Skapa offert
+              </Button>
+            </div>
+            {caseOffers && caseOffers.length > 0 ? (
+              <ul className="divide-y rounded-md border">
+                {caseOffers.map((o: any) => {
+                  const amount = o.rot_enabled && o.total_after_rot != null ? o.total_after_rot : o.total_incl_vat;
+                  return (
+                    <li key={o.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => openEditOffer(o)}
+                        className="text-left min-w-0 flex-1 hover:text-primary"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{o.offer_number || 'Utkast'}</span>
+                          <Badge variant="secondary" className="text-[10px] capitalize">{o.status || 'draft'}</Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {o.title || o.customer_name || '—'}
+                          {amount != null && <> · {fmtOfferKr(amount)}</>}
+                        </div>
+                      </button>
+                      {o.pdf_path && (
+                        <button
+                          type="button"
+                          onClick={() => openPayoutPdf(o.pdf_path)}
+                          className="text-xs text-primary hover:underline inline-flex items-center gap-1 whitespace-nowrap"
+                        >
+                          <ExternalLink className="h-3 w-3" /> PDF
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">Inga offerter ännu för detta ärende.</p>
+            )}
+          </section>
 
           {/* A-ORDER & Faktura */}
           <section className="p-4 space-y-3 border-t">
