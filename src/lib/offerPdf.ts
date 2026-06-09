@@ -66,7 +66,11 @@ export interface OfferForPdf {
   terms_text?: string | null;
 }
 
-export async function buildOfferPdfBlob(offer: OfferForPdf): Promise<Blob> {
+export interface OfferPdfOptions {
+  signature?: { name: string; acceptedAt: string };
+}
+
+export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOptions = {}): Promise<Blob> {
   const logo = await loadLogoDataUrl();
   const totals = calcOfferTotals(offer.line_items || [], {
     vat_mode: offer.vat_mode,
