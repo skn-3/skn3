@@ -94,10 +94,12 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { offer_id } = body || {};
+    const { offer_id, origin } = body || {};
     if (!offer_id || typeof offer_id !== 'string') {
       return new Response(JSON.stringify({ error: 'offer_id krävs' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    const envUrl = Deno.env.get('PUBLIC_APP_URL');
+    const base = (isUrl(origin) ? origin : (isUrl(envUrl) ? envUrl! : FALLBACK_APP_URL)).replace(/\/$/, '');
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
     const { data: offer, error: ofErr } = await admin.from('offers').select('*').eq('id', offer_id).maybeSingle();
