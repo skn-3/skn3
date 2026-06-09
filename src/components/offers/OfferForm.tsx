@@ -43,9 +43,10 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
-  const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  const [publicToken, setPublicToken] = useState<string | null>(offer?.public_token || null);
   const [currentStatus, setCurrentStatus] = useState<string>(offer?.status || 'draft');
   const [pdfPath, setPdfPath] = useState<string | null>(offer?.pdf_path || null);
+  const publicUrl = publicToken ? `${window.location.origin}/offert/${publicToken}` : null;
   const [termsOpen, setTermsOpen] = useState(false);
 
   const [customerType, setCustomerType] = useState<'privat' | 'foretag'>(offer?.customer_type || 'privat');
@@ -182,11 +183,11 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     if (!pdfPath) { toast.error('Generera PDF först'); return; }
     setSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: id } });
+      const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: id, origin: window.location.origin } });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      const url = (data as any)?.public_url as string | undefined;
-      if (url) setPublicUrl(url);
+      const tok = (data as any)?.public_token as string | undefined;
+      if (tok) setPublicToken(tok);
       if (currentStatus !== 'accepted') setCurrentStatus('sent');
       toast.success(`Offert skickad till ${email}`);
       onSaved();

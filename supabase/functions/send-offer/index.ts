@@ -58,10 +58,6 @@ ${opts.validUntil ? `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;c
 Fungerar inte knappen? Kopiera och klistra in denna länk i webbläsaren:<br>
 <a href="${opts.publicUrl}" style="color:#15803D;">${opts.publicUrl}</a>
 </p></td></tr>
-<tr><td style="padding:0 28px 16px;" align="center">
-<p style="margin:0;font-size:12px;color:#6b7280;">Om knappen inte fungerar, kopiera länken nedan:</p>
-<p style="margin:6px 0 0;font-size:12px;word-break:break-all;"><a href="${opts.publicUrl}" target="_blank" rel="noopener" style="color:#22C55E;text-decoration:underline;">${opts.publicUrl}</a></p>
-</td></tr>
 <tr><td style="padding:0 28px 24px;"><p style="margin:0;font-size:13px;color:#6b7280;">Har du frågor? Svara på detta mejl eller ring 070-719 72 35.</p></td></tr>
 <tr><td style="padding:16px 28px;border-top:1px solid #f0f0f0;"><p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">SmartKlimat N3prenad AB · n3prenad@smartklimat.org</p></td></tr>
 </table></td></tr></table></body></html>`;
@@ -75,7 +71,7 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    const PUBLIC_APP_URL = Deno.env.get('PUBLIC_APP_URL') || FALLBACK_APP_URL;
+    const isUrl = (s?: string | null) => !!s && /^https?:\/\//i.test(s);
 
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
     if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
@@ -94,10 +90,12 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { offer_id } = body || {};
+    const { offer_id, origin } = body || {};
     if (!offer_id || typeof offer_id !== 'string') {
       return new Response(JSON.stringify({ error: 'offer_id krävs' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    const envUrl = Deno.env.get('PUBLIC_APP_URL');
+    const base = (isUrl(origin) ? origin : (isUrl(envUrl) ? envUrl! : FALLBACK_APP_URL)).replace(/\/$/, '');
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
     const { data: offer, error: ofErr } = await admin.from('offers').select('*').eq('id', offer_id).maybeSingle();
@@ -127,8 +125,8 @@ Deno.serve(async (req) => {
     const { error: upErr } = await admin.from('offers').update(updates).eq('id', offer_id);
     if (upErr) throw upErr;
 
-    const publicUrl = `${PUBLIC_APP_URL.replace(/\/$/, '')}/offert/${publicToken}`;
-    const logoUrl = `${PUBLIC_APP_URL.replace(/\/$/, '')}/logo.png`;
+    const publicUrl = `${base}/offert/${publicToken}`;
+    const logoUrl = `${base}/logo.png`;
 
     const amountValue = offer.rot_enabled && offer.total_after_rot != null ? offer.total_after_rot : offer.total_incl_vat;
     const amountLabel = offer.rot_enabled ? 'Att betala efter ROT' : 'Summa inkl moms';
@@ -167,7 +165,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, public_url: publicUrl }), {
+    return new Response(JSON.stringify({ ok: true, public_url: publicUrl, public_token: publicToken }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
