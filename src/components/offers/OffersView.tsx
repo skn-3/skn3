@@ -164,6 +164,11 @@ export function OffersView({ currentUser }: OffersViewProps) {
                   <td className="px-3 py-2 text-right tabular-nums">{amount != null ? fmtKr(amount) : '—'}</td>
                   <td className="px-3 py-2">
                     <Badge variant="secondary" className={meta.cls}>{meta.label}</Badge>
+                    {o.status === 'accepted' && o.accept_name && (
+                      <div className="text-[10px] text-muted-foreground mt-1">
+                        av {o.accept_name}{o.accepted_at ? ` • ${new Date(o.accepted_at).toLocaleDateString('sv-SE')}` : ''}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">{new Date(o.created_at).toLocaleDateString('sv-SE')}</td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
