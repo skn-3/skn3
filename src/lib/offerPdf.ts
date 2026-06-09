@@ -3,9 +3,13 @@ import pdfFonts from 'pdfmake/build/vfs_fonts';
 import type { TDocumentDefinitions } from 'pdfmake/interfaces';
 import { calcOfferTotals, fmtKr, type OfferLineItem } from './offerCalc';
 
-// Wire vfs in a way that works across pdfmake builds
-const vfs: any = (pdfFonts as any)?.pdfMake?.vfs || (pdfFonts as any)?.vfs || (pdfFonts as any);
-(pdfMake as any).vfs = vfs;
+const pf: any = pdfFonts as any;
+const vfs = pf?.pdfMake?.vfs || pf?.vfs || pf?.default?.pdfMake?.vfs || pf?.default?.vfs;
+if (typeof (pdfMake as any).addVirtualFileSystem === 'function' && vfs) {
+  (pdfMake as any).addVirtualFileSystem(vfs);
+} else if (vfs) {
+  (pdfMake as any).vfs = vfs;
+}
 
 const GREEN = '#22C55E';
 const GREEN_DARK = '#15803D';
@@ -247,7 +251,13 @@ export async function buildOfferPdfBlob(offer: OfferForPdf): Promise<Blob> {
     },
   };
 
-  return new Promise<Blob>((resolve) => {
-    (pdfMake.createPdf(docDef) as any).getBlob((blob: Blob) => resolve(blob));
+  return new Promise<Blob>((resolve, reject) => {
+    try {
+      const doc = (pdfMake as any).createPdf(docDef);
+      const timer = setTimeout(() => reject(new Error('PDF-generering tog för lång tid (timeout)')), 20000);
+      doc.getBlob((blob: Blob) => { clearTimeout(timer); resolve(blob); });
+    } catch (e) {
+      reject(e);
+    }
   });
 }
