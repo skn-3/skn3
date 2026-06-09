@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, FileText, ExternalLink, Pencil, Download } from 'lucide-react';
+import { Plus, FileText, ExternalLink, Pencil, Download, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -91,6 +91,24 @@ export function OffersView({ currentUser }: OffersViewProps) {
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     },
     onError: (e: any) => toast.error(e?.message || 'Kunde inte öppna PDF'),
+  });
+
+  const sendOffer = useMutation({
+    mutationFn: async (offer: OfferRow) => {
+      if (!offer.customer_email) throw new Error('Kunden saknar e-post');
+      if (!offer.pdf_path) throw new Error('Generera PDF först');
+      const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: offer.id } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return { email: offer.customer_email as string, public_url: (data as any)?.public_url as string };
+    },
+    onSuccess: async (res) => {
+      toast.success(`Offert skickad till ${res.email}`);
+      try { await navigator.clipboard.writeText(res.public_url); } catch {}
+      qc.invalidateQueries({ queryKey: ['offers'] });
+      qc.invalidateQueries({ queryKey: ['case_offers'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Kunde inte skicka offert'),
   });
 
   return (
