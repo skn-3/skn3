@@ -310,14 +310,15 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         }
       });
       const addrGroups: Group[] = Array.from(keyMap.entries()).map(([key, v]) => {
+        const groupId = v.addr || key;
         const subtotal = v.lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
         const candidates = addressCandidates(cases as CaseRow[], v.addr);
         const auto = candidates[0]?.case || null;
-        const override = groupChoices[key] ?? null;
+        const override = groupChoices[groupId] ?? null;
         const effective = override || auto;
         const matchSource: Group['matchSource'] = override ? 'manual' : (auto ? 'address' : null);
         return {
-          order_number: v.addr || key,
+          order_number: groupId,
           keyKind: 'address',
           lines: v.lines,
           lineIndices: v.indices,
