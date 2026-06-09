@@ -69,6 +69,23 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const [terms, setTerms] = useState<string>(offer?.terms_text || DEFAULT_OFFER_TERMS);
   const [internalNotes, setInternalNotes] = useState<string>(offer?.internal_notes || '');
 
+  // ── UE-import state ──
+  type UeSummaryRow = { id: string; label: string; amount: number };
+  type UeDetailRow = { address: string | null; category: string | null; description: string | null; amount: number | null };
+  const [ueOpen, setUeOpen] = useState<boolean>(false);
+  const [ueLoading, setUeLoading] = useState(false);
+  const [ueError, setUeError] = useState<string | null>(null);
+  const [ueSupplier, setUeSupplier] = useState<string | null>(offer?.ue_supplier || null);
+  const [ueOfferNumber, setUeOfferNumber] = useState<string | null>(null);
+  const [ueTotalExcl, setUeTotalExcl] = useState<number | null>(offer?.ue_total_excl != null ? Number(offer.ue_total_excl) : null);
+  const [ueDocPath, setUeDocPath] = useState<string | null>(offer?.ue_document_path || null);
+  const [markupPercent, setMarkupPercent] = useState<number>(Number(offer?.markup_percent ?? 20));
+  const [ueSummary, setUeSummary] = useState<UeSummaryRow[]>([]);
+  const [ueDetails, setUeDetails] = useState<UeDetailRow[]>([]);
+  const [ueDetailsOpen, setUeDetailsOpen] = useState(false);
+  const [ueSourceLoaded, setUeSourceLoaded] = useState<boolean>(offer?.source === 'ue_offer');
+
+
   const caseId = offer?.case_id || prefillCaseId || null;
 
   // Företag: tvinga av ROT
