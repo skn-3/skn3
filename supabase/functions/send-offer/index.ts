@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, public_url: publicUrl }), {
+    return new Response(JSON.stringify({ ok: true, public_url: publicUrl, public_token: publicToken }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
