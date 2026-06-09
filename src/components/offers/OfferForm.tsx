@@ -43,9 +43,10 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
-  const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  const [publicToken, setPublicToken] = useState<string | null>(offer?.public_token || null);
   const [currentStatus, setCurrentStatus] = useState<string>(offer?.status || 'draft');
   const [pdfPath, setPdfPath] = useState<string | null>(offer?.pdf_path || null);
+  const publicUrl = publicToken ? `${window.location.origin}/offert/${publicToken}` : null;
   const [termsOpen, setTermsOpen] = useState(false);
 
   const [customerType, setCustomerType] = useState<'privat' | 'foretag'>(offer?.customer_type || 'privat');
