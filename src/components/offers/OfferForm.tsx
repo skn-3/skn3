@@ -228,6 +228,77 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     catch { toast.error('Kunde inte kopiera'); }
   };
 
+  // ── UE-import handlers ──
+  const ueCustomerPrice = (amount: number) => Math.round(Number(amount || 0) * (1 + Number(markupPercent || 0) / 100));
+  const ueSumExcl = ueSummary.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const ueSumCustomer = ueSummary.reduce((s, r) => s + ueCustomerPrice(Number(r.amount || 0)), 0);
+
+  const handleUeUpload = async (file: File) => {
+    setUeError(null);
+    setUeLoading(true);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `offers/ue/${Date.now()}_${safeName}`;
+      const { error: upErr } = await supabase.storage
+        .from('case-documents')
+        .upload(path, file, { upsert: true, contentType: file.type || 'application/pdf' });
+      if (upErr) throw upErr;
+      setUeDocPath(path);
+
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(file);
+      });
+      const file_base64 = dataUrl.split('base64,')[1] || '';
+
+      const { data, error } = await supabase.functions.invoke('extract-ue-offer', {
+        body: { file_base64, mime_type: file.type || 'application/pdf', file_name: file.name },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+
+      const d = data as any;
+      setUeSupplier(d.supplier_name || null);
+      setUeOfferNumber(d.offer_number || null);
+      setUeTotalExcl(d.total_excl_vat != null ? Number(d.total_excl_vat) : null);
+      const sum: UeSummaryRow[] = Array.isArray(d.summary) && d.summary.length
+        ? d.summary.map((s: any) => ({ id: makeId(), label: String(s.label || ''), amount: Number(s.amount || 0) }))
+        : [{ id: makeId(), label: 'Entreprenad enligt offert', amount: Number(d.total_excl_vat || 0) }];
+      setUeSummary(sum);
+      setUeDetails(Array.isArray(d.line_items) ? d.line_items.map((li: any) => ({
+        address: li.address ?? null, category: li.category ?? null, description: li.description ?? null, amount: li.amount != null ? Number(li.amount) : null,
+      })) : []);
+      toast.success('UE-offert inläst');
+    } catch (e: any) {
+      console.error(e);
+      setUeError(e?.message || 'Kunde inte läsa offerten');
+      toast.error(e?.message || 'Kunde inte läsa offerten');
+    } finally {
+      setUeLoading(false);
+    }
+  };
+
+  const applyUeToOffer = () => {
+    if (!ueSummary.length) return;
+    const newItems: OfferLineItem[] = ueSummary.map(r => {
+      const price = ueCustomerPrice(Number(r.amount || 0));
+      return { id: makeId(), description: r.label, is_labor: false, qty: 1, unit: 'st', unit_price: price, amount: price };
+    });
+    setItems(newItems);
+    setUeSourceLoaded(true);
+    setUeOpen(false);
+    toast.success('Raderna lades in i offerten');
+  };
+
+  const updateUeRow = (id: string, patch: Partial<UeSummaryRow>) => {
+    setUeSummary(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+  };
+  const addUeRow = () => setUeSummary(prev => [...prev, { id: makeId(), label: '', amount: 0 }]);
+  const removeUeRow = (id: string) => setUeSummary(prev => prev.filter(r => r.id !== id));
+
+
   const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
     draft: { label: 'Utkast', cls: 'bg-muted text-muted-foreground' },
     sent: { label: 'Skickad', cls: 'bg-blue-100 text-blue-800' },
