@@ -49,9 +49,13 @@ ${opts.validUntil ? `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;c
 </table>
 </td></tr>
 <tr><td style="padding:0 28px 8px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 16px;">
-<a href="${opts.publicUrl}" target="_blank" style="display:inline-block;padding:14px 36px;background:#22C55E;color:#fff;font-weight:bold;font-size:15px;text-decoration:none;border-radius:6px;">Öppna din offert</a>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 8px;">
+<a href="${opts.publicUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 36px;background:#22C55E;color:#ffffff;font-weight:bold;font-size:15px;text-decoration:none;border-radius:6px;"><span style="color:#ffffff;text-decoration:none;">Öppna din offert</span></a>
 </td></tr></table>
+</td></tr>
+<tr><td style="padding:0 28px 16px;" align="center">
+<p style="margin:0;font-size:12px;color:#6b7280;">Om knappen inte fungerar, kopiera länken nedan:</p>
+<p style="margin:6px 0 0;font-size:12px;word-break:break-all;"><a href="${opts.publicUrl}" target="_blank" rel="noopener" style="color:#22C55E;text-decoration:underline;">${opts.publicUrl}</a></p>
 </td></tr>
 <tr><td style="padding:0 28px 24px;"><p style="margin:0;font-size:13px;color:#6b7280;">Har du frågor? Svara på detta mejl eller ring 070-719 72 35.</p></td></tr>
 <tr><td style="padding:16px 28px;border-top:1px solid #f0f0f0;"><p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">SmartKlimat N3prenad AB · n3prenad@smartklimat.org</p></td></tr>
