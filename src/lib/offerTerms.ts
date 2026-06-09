@@ -1,8 +1,5 @@
 // Standardvillkor som förifylls i nya offerter. Texten kan redigeras per offert.
-// Utkast – bör granskas av jurist innan skarpt bruk.
 export const DEFAULT_OFFER_TERMS = `Allmänna villkor – SmartKlimat N3prenad AB
-
-Utkast – ska granskas av jurist innan det används skarpt. Detta är ett förslag baserat på vanliga svenska villkor för konsument- och entreprenadtjänster, anpassat från ett referensavtal. Det är inte juridisk rådgivning.
 
 Säljare: SmartKlimat N3prenad AB, org.nr 559026-6630, Morsstigen 3, 141 71 Segeltorp. VAT: SE559026663001. Tel: 070-719 72 35. E-post: n3prenad@smartklimat.org. Webb: www.n3prenad.se.
 
