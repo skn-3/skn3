@@ -239,12 +239,14 @@ export function EconomyView() {
   }, [sortedComplete, teamSortBy, teamSortDir]);
 
   const bestTeam = useMemo(() => {
-    if (teamStats.length < 2) return null;
-    return [...teamStats].sort((a, b) => b.profit - a.profit)[0].team;
+    const ranked = teamStats.filter(t => t.costPerUnit != null);
+    if (ranked.length < 2) return null;
+    return [...ranked].sort((a, b) => a.costPerUnit! - b.costPerUnit!)[0].team;
   }, [teamStats]);
   const worstTeam = useMemo(() => {
-    if (teamStats.length < 2) return null;
-    return [...teamStats].sort((a, b) => a.profit - b.profit)[0].team;
+    const ranked = teamStats.filter(t => t.costPerUnit != null);
+    if (ranked.length < 2) return null;
+    return [...ranked].sort((a, b) => b.costPerUnit! - a.costPerUnit!)[0].team;
   }, [teamStats]);
 
   const toggleTeamSort = (col: 'profit' | 'margin') => {
