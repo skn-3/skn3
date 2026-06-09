@@ -420,6 +420,143 @@ export type Database = {
         }
         Relationships: []
       }
+      offers: {
+        Row: {
+          accept_ip: string | null
+          accept_name: string | null
+          accept_user_agent: string | null
+          accepted_at: string | null
+          case_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_address: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_personnummer: string | null
+          customer_phone: string | null
+          customer_type: string
+          declined_at: string | null
+          description: string | null
+          fastighetsbeteckning: string | null
+          id: string
+          internal_notes: string | null
+          line_items: Json
+          offer_number: string | null
+          payment_terms: string | null
+          pdf_path: string | null
+          public_token: string | null
+          rot_amount: number | null
+          rot_base: number | null
+          rot_enabled: boolean
+          rot_percent: number
+          sent_at: string | null
+          signed_pdf_path: string | null
+          status: string
+          terms_text: string | null
+          title: string | null
+          total_after_rot: number | null
+          total_ex_vat: number | null
+          total_incl_vat: number | null
+          total_vat: number | null
+          updated_at: string
+          valid_until: string | null
+          vat_mode: string
+          vat_rate: number
+        }
+        Insert: {
+          accept_ip?: string | null
+          accept_name?: string | null
+          accept_user_agent?: string | null
+          accepted_at?: string | null
+          case_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_personnummer?: string | null
+          customer_phone?: string | null
+          customer_type?: string
+          declined_at?: string | null
+          description?: string | null
+          fastighetsbeteckning?: string | null
+          id?: string
+          internal_notes?: string | null
+          line_items?: Json
+          offer_number?: string | null
+          payment_terms?: string | null
+          pdf_path?: string | null
+          public_token?: string | null
+          rot_amount?: number | null
+          rot_base?: number | null
+          rot_enabled?: boolean
+          rot_percent?: number
+          sent_at?: string | null
+          signed_pdf_path?: string | null
+          status?: string
+          terms_text?: string | null
+          title?: string | null
+          total_after_rot?: number | null
+          total_ex_vat?: number | null
+          total_incl_vat?: number | null
+          total_vat?: number | null
+          updated_at?: string
+          valid_until?: string | null
+          vat_mode?: string
+          vat_rate?: number
+        }
+        Update: {
+          accept_ip?: string | null
+          accept_name?: string | null
+          accept_user_agent?: string | null
+          accepted_at?: string | null
+          case_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_personnummer?: string | null
+          customer_phone?: string | null
+          customer_type?: string
+          declined_at?: string | null
+          description?: string | null
+          fastighetsbeteckning?: string | null
+          id?: string
+          internal_notes?: string | null
+          line_items?: Json
+          offer_number?: string | null
+          payment_terms?: string | null
+          pdf_path?: string | null
+          public_token?: string | null
+          rot_amount?: number | null
+          rot_base?: number | null
+          rot_enabled?: boolean
+          rot_percent?: number
+          sent_at?: string | null
+          signed_pdf_path?: string | null
+          status?: string
+          terms_text?: string | null
+          title?: string | null
+          total_after_rot?: number | null
+          total_ex_vat?: number | null
+          total_incl_vat?: number | null
+          total_vat?: number | null
+          updated_at?: string
+          valid_until?: string | null
+          vat_mode?: string
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

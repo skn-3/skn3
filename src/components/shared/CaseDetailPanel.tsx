@@ -35,6 +35,9 @@ import { format } from 'date-fns';
 import { cn, formatAmount } from '@/lib/utils';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 import { SignedImage } from '@/components/shared/SignedImage';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { OfferForm } from '@/components/offers/OfferForm';
+import { fmtKr as fmtOfferKr } from '@/lib/offerCalc';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -305,6 +308,24 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
   const linkedOrder = (linkedOrders && linkedOrders[0]) || null;
+
+  // Offerter kopplade till ärendet
+  const { data: caseOffers } = useQuery({
+    queryKey: ['case_offers', caseData.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('offers')
+        .select('*')
+        .eq('case_id', caseData.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+  const [offerSheetOpen, setOfferSheetOpen] = useState(false);
+  const [editingOffer, setEditingOffer] = useState<any | null>(null);
+  const openNewOffer = () => { setEditingOffer(null); setOfferSheetOpen(true); };
+  const openEditOffer = (o: any) => { setEditingOffer(o); setOfferSheetOpen(true); };
   const [economyOpsOpen, setEconomyOpsOpen] = useState(false);
 
   const openPayoutPdf = async (path: string) => {
@@ -1724,6 +1745,53 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
 
 
+          {/* OFFERTER */}
+          <section className="p-4 space-y-3 border-t">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <FileText className="h-4 w-4" /> Offerter
+              </h3>
+              <Button type="button" size="sm" variant="outline" onClick={openNewOffer} className="gap-1 h-8">
+                <FileText className="h-3.5 w-3.5" /> Skapa offert
+              </Button>
+            </div>
+            {caseOffers && caseOffers.length > 0 ? (
+              <ul className="divide-y rounded-md border">
+                {caseOffers.map((o: any) => {
+                  const amount = o.rot_enabled && o.total_after_rot != null ? o.total_after_rot : o.total_incl_vat;
+                  return (
+                    <li key={o.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => openEditOffer(o)}
+                        className="text-left min-w-0 flex-1 hover:text-primary"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{o.offer_number || 'Utkast'}</span>
+                          <Badge variant="secondary" className="text-[10px] capitalize">{o.status || 'draft'}</Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {o.title || o.customer_name || '—'}
+                          {amount != null && <> · {fmtOfferKr(amount)}</>}
+                        </div>
+                      </button>
+                      {o.pdf_path && (
+                        <button
+                          type="button"
+                          onClick={() => openPayoutPdf(o.pdf_path)}
+                          className="text-xs text-primary hover:underline inline-flex items-center gap-1 whitespace-nowrap"
+                        >
+                          <ExternalLink className="h-3 w-3" /> PDF
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">Inga offerter ännu för detta ärende.</p>
+            )}
+          </section>
 
           {/* A-ORDER & Faktura */}
           <section className="p-4 space-y-3 border-t">
@@ -2186,6 +2254,37 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         </DialogContent>
       </Dialog>
 
+      {/* Offert-sheet */}
+      <Sheet open={offerSheetOpen} onOpenChange={(v) => { setOfferSheetOpen(v); if (!v) setEditingOffer(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
+          <SheetHeader className="px-5 py-4 border-b sticky top-0 bg-background z-10">
+            <SheetTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4" /> {editingOffer ? `Offert ${editingOffer.offer_number || ''}` : 'Ny offert'}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="px-5 py-4">
+            <OfferForm
+              key={editingOffer?.id || 'new'}
+              offer={editingOffer}
+              prefillCaseId={caseData.id}
+              prefillCustomer={editingOffer ? null : {
+                name: caseData.customer_name || '',
+                email: caseData.customer_email || '',
+                phone: caseData.customer_phone || '',
+                address: caseData.address || '',
+              }}
+              currentUser={currentUser}
+              onSaved={() => {
+                queryClient.invalidateQueries({ queryKey: ['case_offers', caseData.id] });
+                queryClient.invalidateQueries({ queryKey: ['offers'] });
+              }}
+              onClose={() => { setOfferSheetOpen(false); setEditingOffer(null); }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
     </div>
   );
 }
+

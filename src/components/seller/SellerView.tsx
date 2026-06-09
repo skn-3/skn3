@@ -10,6 +10,7 @@ import { SellerDashboard } from './SellerDashboard';
 import { VisitForm } from './VisitForm';
 import { AdminView } from './AdminView';
 import { EconomyView } from '@/components/economy/EconomyView';
+import { OffersView } from '@/components/offers/OffersView';
 
 
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
@@ -83,6 +84,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         )}
         {tab === 'economy' && isAdmin && (
           <EconomyView />
+        )}
+        {tab === 'offers' && (
+          <OffersView currentUser={role.name} />
         )}
         {tab === 'admin' && isAdmin && (
           <AdminView currentUser={role.name} />

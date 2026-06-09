@@ -1,0 +1,253 @@
+import pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
+import type { TDocumentDefinitions } from 'pdfmake/interfaces';
+import { calcOfferTotals, fmtKr, type OfferLineItem } from './offerCalc';
+
+// Wire vfs in a way that works across pdfmake builds
+const vfs: any = (pdfFonts as any)?.pdfMake?.vfs || (pdfFonts as any)?.vfs || (pdfFonts as any);
+(pdfMake as any).vfs = vfs;
+
+const GREEN = '#22C55E';
+const GREEN_DARK = '#15803D';
+const MUTED = '#6B7280';
+const BORDER = '#E5E7EB';
+
+let logoCache: string | null = null;
+async function loadLogoDataUrl(): Promise<string | null> {
+  if (logoCache) return logoCache;
+  try {
+    const res = await fetch('/logo.png');
+    const blob = await res.blob();
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+    logoCache = dataUrl;
+    return dataUrl;
+  } catch {
+    return null;
+  }
+}
+
+function fmtDate(d: string | Date | null | undefined) {
+  if (!d) return '';
+  const dt = typeof d === 'string' ? new Date(d) : d;
+  if (isNaN(dt.getTime())) return String(d);
+  return dt.toLocaleDateString('sv-SE');
+}
+
+export interface OfferForPdf {
+  offer_number?: string | null;
+  created_at?: string | null;
+  valid_until?: string | null;
+  payment_terms?: string | null;
+  customer_type: 'privat' | 'foretag';
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  customer_address?: string | null;
+  customer_personnummer?: string | null;
+  fastighetsbeteckning?: string | null;
+  title?: string | null;
+  description?: string | null;
+  line_items: OfferLineItem[];
+  vat_mode: 'vanlig' | 'omvand';
+  rot_enabled: boolean;
+  rot_percent: number;
+  terms_text?: string | null;
+}
+
+export async function buildOfferPdfBlob(offer: OfferForPdf): Promise<Blob> {
+  const logo = await loadLogoDataUrl();
+  const totals = calcOfferTotals(offer.line_items || [], {
+    vat_mode: offer.vat_mode,
+    rot_enabled: offer.rot_enabled,
+    rot_percent: offer.rot_percent,
+  });
+
+  const validDays = (() => {
+    if (!offer.valid_until) return 30;
+    const start = offer.created_at ? new Date(offer.created_at) : new Date();
+    const end = new Date(offer.valid_until);
+    const ms = end.getTime() - start.getTime();
+    return Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
+  })();
+
+  // Header row: logo left, meta right
+  const headerRow: any = {
+    columns: [
+      logo
+        ? { image: logo, width: 70, height: 70, fit: [70, 70] as any }
+        : { text: '', width: 70 },
+      {
+        stack: [
+          { text: 'OFFERT', color: GREEN_DARK, bold: true, fontSize: 22, alignment: 'right' },
+          { text: offer.offer_number ? `Nr ${offer.offer_number}` : '', alignment: 'right', color: MUTED, fontSize: 10 },
+          { text: `Datum ${fmtDate(offer.created_at || new Date())}`, alignment: 'right', color: MUTED, fontSize: 10 },
+          offer.valid_until
+            ? { text: `Giltig t.o.m. ${fmtDate(offer.valid_until)}`, alignment: 'right', color: MUTED, fontSize: 10 }
+            : null,
+        ].filter(Boolean) as any[],
+      },
+    ],
+    columnGap: 20,
+    margin: [0, 0, 0, 18] as [number, number, number, number],
+  };
+
+  // From / To columns
+  const fromStack = [
+    { text: 'Från', bold: true, color: GREEN_DARK, margin: [0, 0, 0, 4] as [number, number, number, number] },
+    { text: 'SmartKlimat N3prenad AB' },
+    { text: 'Org.nr 559026-6630', color: MUTED, fontSize: 9 },
+    { text: 'Morsstigen 3, 141 71 Segeltorp', color: MUTED, fontSize: 9 },
+    { text: '070-719 72 35', color: MUTED, fontSize: 9 },
+    { text: 'n3prenad@smartklimat.org', color: MUTED, fontSize: 9 },
+    { text: 'Godkänd för F-skatt', color: MUTED, fontSize: 9, italics: true },
+  ];
+
+  const toStack: any[] = [
+    { text: 'Till', bold: true, color: GREEN_DARK, margin: [0, 0, 0, 4] },
+    { text: offer.customer_name || '—' },
+  ];
+  if (offer.customer_address) toStack.push({ text: offer.customer_address, color: MUTED, fontSize: 9 });
+  if (offer.customer_email) toStack.push({ text: offer.customer_email, color: MUTED, fontSize: 9 });
+  if (offer.customer_phone) toStack.push({ text: offer.customer_phone, color: MUTED, fontSize: 9 });
+  if (offer.customer_type === 'privat' && offer.customer_personnummer)
+    toStack.push({ text: `Personnr: ${offer.customer_personnummer}`, color: MUTED, fontSize: 9 });
+  if (offer.customer_type === 'privat' && offer.fastighetsbeteckning)
+    toStack.push({ text: `Fastighet: ${offer.fastighetsbeteckning}`, color: MUTED, fontSize: 9 });
+
+  const fromTo: any = {
+    columns: [
+      { stack: fromStack, width: '*' },
+      { stack: toStack, width: '*' },
+    ],
+    columnGap: 20,
+    margin: [0, 0, 0, 16],
+  };
+
+  const titleBlock: any[] = [];
+  if (offer.title) titleBlock.push({ text: offer.title, fontSize: 14, bold: true, margin: [0, 0, 0, 4] });
+  if (offer.description) titleBlock.push({ text: offer.description, color: '#374151', margin: [0, 0, 0, 12] });
+
+  // Items table
+  const showLaborBadge = offer.rot_enabled && offer.vat_mode === 'vanlig';
+  const tableHeader = [
+    { text: 'Benämning', style: 'th' },
+    { text: 'Antal', style: 'th', alignment: 'right' },
+    { text: 'Enhet', style: 'th' },
+    { text: 'À-pris', style: 'th', alignment: 'right' },
+    { text: 'Summa', style: 'th', alignment: 'right' },
+  ];
+
+  const itemRows = (offer.line_items || []).map(it => {
+    const desc: any = showLaborBadge && it.is_labor
+      ? { stack: [
+          { text: it.description || '' },
+          { text: 'arbete', fontSize: 8, color: GREEN_DARK, italics: true },
+        ] }
+      : { text: it.description || '' };
+    return [
+      desc,
+      { text: String(Number(it.qty || 0).toLocaleString('sv-SE')), alignment: 'right' },
+      { text: it.unit || '' },
+      { text: fmtKr(it.unit_price), alignment: 'right' },
+      { text: fmtKr(it.amount), alignment: 'right' },
+    ];
+  });
+
+  const itemsTable: any = {
+    table: {
+      headerRows: 1,
+      widths: ['*', 50, 60, 70, 80],
+      body: [tableHeader, ...itemRows],
+    },
+    layout: {
+      hLineWidth: (i: number) => (i === 0 || i === 1 ? 0 : 0.5),
+      vLineWidth: () => 0,
+      hLineColor: () => BORDER,
+      fillColor: (rowIndex: number) => (rowIndex === 0 ? '#F0FDF4' : null),
+      paddingTop: () => 6,
+      paddingBottom: () => 6,
+    },
+    margin: [0, 0, 0, 12],
+  };
+
+  // Summary block right aligned
+  const sumRow = (label: string, value: string, opts: { bold?: boolean; color?: string; size?: number } = {}) => ({
+    columns: [
+      { text: label, alignment: 'right', color: opts.color || '#374151', bold: opts.bold, fontSize: opts.size || 10 },
+      { text: value, width: 110, alignment: 'right', bold: opts.bold, color: opts.color || '#111827', fontSize: opts.size || 10 },
+    ],
+    columnGap: 12,
+    margin: [0, 2, 0, 2],
+  });
+
+  const summaryStack: any[] = [];
+  summaryStack.push(sumRow('Summa ex moms', fmtKr(totals.total_ex_vat)));
+  if (offer.vat_mode === 'omvand') {
+    summaryStack.push(sumRow('Moms', 'Omvänd betalningsskyldighet', { color: MUTED }));
+  } else {
+    summaryStack.push(sumRow('Moms 25%', fmtKr(totals.total_vat)));
+  }
+  summaryStack.push(sumRow('Summa inkl moms', fmtKr(totals.total_incl_vat), { bold: true }));
+  if (offer.rot_enabled && offer.vat_mode === 'vanlig') {
+    summaryStack.push({ text: '', margin: [0, 4, 0, 0] });
+    summaryStack.push(sumRow('Rotberättigad arbetskostnad', fmtKr(totals.rot_base), { color: MUTED }));
+    summaryStack.push(sumRow(`Preliminärt ROT-avdrag (${offer.rot_percent}%)`, `-${fmtKr(totals.rot_amount)}`, { color: GREEN_DARK }));
+    summaryStack.push(sumRow('Att betala efter ROT', fmtKr(totals.total_after_rot), { bold: true, color: GREEN_DARK, size: 12 }));
+  } else {
+    summaryStack.push(sumRow('Att betala', fmtKr(totals.total_incl_vat), { bold: true, color: GREEN_DARK, size: 12 }));
+  }
+
+  const summary: any = {
+    columns: [
+      { text: '', width: '*' },
+      { stack: summaryStack, width: 320 },
+    ],
+    margin: [0, 0, 0, 16],
+  };
+
+  const footer1: any = {
+    text: `Giltig ${validDays} dagar. Betalningsvillkor ${offer.payment_terms || '10 dagar netto'}. Allmänna villkor, se sida 2.`,
+    color: MUTED,
+    fontSize: 9,
+    margin: [0, 16, 0, 0],
+  };
+
+  // Page 2 — terms
+  const termsPage: any[] = [
+    { text: 'Allmänna villkor', fontSize: 16, bold: true, color: GREEN_DARK, margin: [0, 0, 0, 10], pageBreak: 'before' },
+    { text: offer.terms_text || '', fontSize: 9, color: '#374151', lineHeight: 1.35 },
+  ];
+
+  const docDef: TDocumentDefinitions = {
+    pageSize: 'A4',
+    pageMargins: [40, 50, 40, 50],
+    background: () => ({
+      canvas: [{ type: 'rect', x: 0, y: 0, w: 595.28, h: 4, color: GREEN }],
+    }) as any,
+    content: [
+      headerRow,
+      fromTo,
+      ...titleBlock,
+      itemsTable,
+      summary,
+      footer1,
+      ...termsPage,
+    ],
+    styles: {
+      th: { bold: true, color: GREEN_DARK, fontSize: 10 },
+    },
+    defaultStyle: {
+      fontSize: 10,
+      color: '#111827',
+    },
+  };
+
+  return new Promise<Blob>((resolve) => {
+    (pdfMake.createPdf(docDef) as any).getBlob((blob: Blob) => resolve(blob));
+  });
+}
