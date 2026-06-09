@@ -2254,6 +2254,37 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         </DialogContent>
       </Dialog>
 
+      {/* Offert-sheet */}
+      <Sheet open={offerSheetOpen} onOpenChange={(v) => { setOfferSheetOpen(v); if (!v) setEditingOffer(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
+          <SheetHeader className="px-5 py-4 border-b sticky top-0 bg-background z-10">
+            <SheetTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4" /> {editingOffer ? `Offert ${editingOffer.offer_number || ''}` : 'Ny offert'}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="px-5 py-4">
+            <OfferForm
+              key={editingOffer?.id || 'new'}
+              offer={editingOffer}
+              prefillCaseId={caseData.id}
+              prefillCustomer={editingOffer ? null : {
+                name: caseData.customer_name || '',
+                email: caseData.customer_email || '',
+                phone: caseData.customer_phone || '',
+                address: caseData.address || '',
+              }}
+              currentUser={currentUser}
+              onSaved={() => {
+                queryClient.invalidateQueries({ queryKey: ['case_offers', caseData.id] });
+                queryClient.invalidateQueries({ queryKey: ['offers'] });
+              }}
+              onClose={() => { setOfferSheetOpen(false); setEditingOffer(null); }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
     </div>
   );
 }
+
