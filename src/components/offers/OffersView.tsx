@@ -176,6 +176,15 @@ export function OffersView({ currentUser }: OffersViewProps) {
                     </button>
                     <button
                       type="button"
+                      onClick={(e) => { e.stopPropagation(); sendOffer.mutate(o); }}
+                      disabled={!o.customer_email || !o.pdf_path || sendOffer.isPending}
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1 mr-3 disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+                      title={!o.customer_email ? 'Kunden saknar e-post' : !o.pdf_path ? 'Generera PDF först' : 'Skicka till kund'}
+                    >
+                      <Send className="h-3 w-3" /> Skicka
+                    </button>
+                    <button
+                      type="button"
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(o); }}
                       className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                     >
