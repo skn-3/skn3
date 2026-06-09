@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Trash2, Plus, Save, FileDown, ChevronDown, ChevronRight, AlertTriangle, Send, Copy } from 'lucide-react';
+import { Trash2, Plus, Save, FileDown, ChevronDown, ChevronRight, AlertTriangle, Send, Copy, Upload, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -69,6 +69,23 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const [terms, setTerms] = useState<string>(offer?.terms_text || DEFAULT_OFFER_TERMS);
   const [internalNotes, setInternalNotes] = useState<string>(offer?.internal_notes || '');
 
+  // ── UE-import state ──
+  type UeSummaryRow = { id: string; label: string; amount: number };
+  type UeDetailRow = { address: string | null; category: string | null; description: string | null; amount: number | null };
+  const [ueOpen, setUeOpen] = useState<boolean>(false);
+  const [ueLoading, setUeLoading] = useState(false);
+  const [ueError, setUeError] = useState<string | null>(null);
+  const [ueSupplier, setUeSupplier] = useState<string | null>(offer?.ue_supplier || null);
+  const [ueOfferNumber, setUeOfferNumber] = useState<string | null>(null);
+  const [ueTotalExcl, setUeTotalExcl] = useState<number | null>(offer?.ue_total_excl != null ? Number(offer.ue_total_excl) : null);
+  const [ueDocPath, setUeDocPath] = useState<string | null>(offer?.ue_document_path || null);
+  const [markupPercent, setMarkupPercent] = useState<number>(Number(offer?.markup_percent ?? 20));
+  const [ueSummary, setUeSummary] = useState<UeSummaryRow[]>([]);
+  const [ueDetails, setUeDetails] = useState<UeDetailRow[]>([]);
+  const [ueDetailsOpen, setUeDetailsOpen] = useState(false);
+  const [ueSourceLoaded, setUeSourceLoaded] = useState<boolean>(offer?.source === 'ue_offer');
+
+
   const caseId = offer?.case_id || prefillCaseId || null;
 
   // Företag: tvinga av ROT
@@ -119,7 +136,13 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     rot_amount: totals.rot_amount,
     total_after_rot: totals.total_after_rot,
     status: offer?.status || 'draft',
+    source: ueSourceLoaded ? 'ue_offer' : (offer?.source || 'manual'),
+    ue_supplier: ueSupplier,
+    ue_document_path: ueDocPath,
+    ue_total_excl: ueTotalExcl,
+    markup_percent: ueSourceLoaded ? markupPercent : (offer?.markup_percent ?? null),
   });
+
 
   const handleSave = async (closeAfter = false): Promise<string | null> => {
     if (!name.trim()) { toast.error('Ange kundens namn'); return null; }
@@ -205,6 +228,77 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     catch { toast.error('Kunde inte kopiera'); }
   };
 
+  // ── UE-import handlers ──
+  const ueCustomerPrice = (amount: number) => Math.round(Number(amount || 0) * (1 + Number(markupPercent || 0) / 100));
+  const ueSumExcl = ueSummary.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const ueSumCustomer = ueSummary.reduce((s, r) => s + ueCustomerPrice(Number(r.amount || 0)), 0);
+
+  const handleUeUpload = async (file: File) => {
+    setUeError(null);
+    setUeLoading(true);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `offers/ue/${Date.now()}_${safeName}`;
+      const { error: upErr } = await supabase.storage
+        .from('case-documents')
+        .upload(path, file, { upsert: true, contentType: file.type || 'application/pdf' });
+      if (upErr) throw upErr;
+      setUeDocPath(path);
+
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(file);
+      });
+      const file_base64 = dataUrl.split('base64,')[1] || '';
+
+      const { data, error } = await supabase.functions.invoke('extract-ue-offer', {
+        body: { file_base64, mime_type: file.type || 'application/pdf', file_name: file.name },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+
+      const d = data as any;
+      setUeSupplier(d.supplier_name || null);
+      setUeOfferNumber(d.offer_number || null);
+      setUeTotalExcl(d.total_excl_vat != null ? Number(d.total_excl_vat) : null);
+      const sum: UeSummaryRow[] = Array.isArray(d.summary) && d.summary.length
+        ? d.summary.map((s: any) => ({ id: makeId(), label: String(s.label || ''), amount: Number(s.amount || 0) }))
+        : [{ id: makeId(), label: 'Entreprenad enligt offert', amount: Number(d.total_excl_vat || 0) }];
+      setUeSummary(sum);
+      setUeDetails(Array.isArray(d.line_items) ? d.line_items.map((li: any) => ({
+        address: li.address ?? null, category: li.category ?? null, description: li.description ?? null, amount: li.amount != null ? Number(li.amount) : null,
+      })) : []);
+      toast.success('UE-offert inläst');
+    } catch (e: any) {
+      console.error(e);
+      setUeError(e?.message || 'Kunde inte läsa offerten');
+      toast.error(e?.message || 'Kunde inte läsa offerten');
+    } finally {
+      setUeLoading(false);
+    }
+  };
+
+  const applyUeToOffer = () => {
+    if (!ueSummary.length) return;
+    const newItems: OfferLineItem[] = ueSummary.map(r => {
+      const price = ueCustomerPrice(Number(r.amount || 0));
+      return { id: makeId(), description: r.label, is_labor: false, qty: 1, unit: 'st', unit_price: price, amount: price };
+    });
+    setItems(newItems);
+    setUeSourceLoaded(true);
+    setUeOpen(false);
+    toast.success('Raderna lades in i offerten');
+  };
+
+  const updateUeRow = (id: string, patch: Partial<UeSummaryRow>) => {
+    setUeSummary(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+  };
+  const addUeRow = () => setUeSummary(prev => [...prev, { id: makeId(), label: '', amount: 0 }]);
+  const removeUeRow = (id: string) => setUeSummary(prev => prev.filter(r => r.id !== id));
+
+
   const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
     draft: { label: 'Utkast', cls: 'bg-muted text-muted-foreground' },
     sent: { label: 'Skickad', cls: 'bg-blue-100 text-blue-800' },
@@ -257,7 +351,127 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
           )}
         </div>
       )}
+      {/* UE-import */}
+      <section className="rounded-md border bg-muted/20">
+        <Collapsible open={ueOpen} onOpenChange={setUeOpen}>
+          <CollapsibleTrigger asChild>
+            <button type="button" className="w-full flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium hover:bg-muted/40">
+              <span className="flex items-center gap-2">
+                {ueOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                Importera från UE-offert (valfritt)
+                {ueSourceLoaded && ueSupplier && (
+                  <span className="ml-2 text-xs text-muted-foreground font-normal">· {ueSupplier}{ueTotalExcl != null ? ` · ${fmtKr(ueTotalExcl)} ex moms` : ''} · påslag {markupPercent}%</span>
+                )}
+              </span>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="px-4 pb-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleUeUpload(f);
+                    e.target.value = '';
+                  }}
+                  disabled={ueLoading}
+                />
+                <span className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-md hover:bg-muted">
+                  <Upload className="h-4 w-4" /> Välj UE-offert (PDF)
+                </span>
+              </label>
+              {ueLoading && (
+                <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Läser offerten…
+                </span>
+              )}
+              {ueError && <span className="text-sm text-destructive">{ueError}</span>}
+            </div>
+
+            {ueSummary.length > 0 && (
+              <>
+                <div className="text-sm text-muted-foreground">
+                  UE: <strong className="text-foreground">{ueSupplier || '—'}</strong>
+                  {ueOfferNumber ? <> · Offertnr {ueOfferNumber}</> : null}
+                  {ueTotalExcl != null ? <> · UE-summa ex moms {fmtKr(ueTotalExcl)}</> : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm">Påslag %</Label>
+                  <Input type="number" className="w-24" value={markupPercent} onChange={e => setMarkupPercent(Number(e.target.value))} />
+                </div>
+
+                <div className="rounded-md border divide-y bg-background">
+                  <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/40">
+                    <div className="col-span-6">Benämning (visas för kunden)</div>
+                    <div className="col-span-2 text-right">UE ex moms</div>
+                    <div className="col-span-3 text-right">Kundpris ex moms</div>
+                    <div className="col-span-1"></div>
+                  </div>
+                  {ueSummary.map((r) => (
+                    <div key={r.id} className="grid grid-cols-12 gap-2 px-3 py-2 items-center">
+                      <div className="col-span-6">
+                        <Input value={r.label} onChange={e => updateUeRow(r.id, { label: e.target.value })} />
+                      </div>
+                      <div className="col-span-2">
+                        <Input type="number" step="any" className="text-right" value={r.amount} onChange={e => updateUeRow(r.id, { amount: Number(e.target.value) })} />
+                      </div>
+                      <div className="col-span-3 text-right font-medium tabular-nums">{fmtKr(ueCustomerPrice(r.amount))}</div>
+                      <div className="col-span-1 flex justify-end">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeUeRow(r.id)} title="Ta bort">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between">
+                  <Button type="button" variant="outline" size="sm" onClick={addUeRow} className="gap-1">
+                    <Plus className="h-3 w-3" /> Lägg till rad
+                  </Button>
+                  <div className="text-xs text-muted-foreground">
+                    UE ex moms <span className="font-medium text-foreground tabular-nums">{fmtKr(ueSumExcl)}</span> · påslag {markupPercent}% · ditt pris ex moms <span className="font-medium text-foreground tabular-nums">{fmtKr(ueSumCustomer)}</span>
+                  </div>
+                </div>
+
+                {ueDetails.length > 0 && (
+                  <Collapsible open={ueDetailsOpen} onOpenChange={setUeDetailsOpen}>
+                    <CollapsibleTrigger asChild>
+                      <button type="button" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
+                        {ueDetailsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                        Visa detaljerade UE-rader ({ueDetails.length}) för avstämning
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-2">
+                      <div className="rounded-md border divide-y text-xs bg-background">
+                        {ueDetails.map((d, i) => (
+                          <div key={i} className="grid grid-cols-12 gap-2 px-3 py-1.5">
+                            <div className="col-span-3 text-muted-foreground">{d.address || '—'}</div>
+                            <div className="col-span-2 text-muted-foreground">{d.category || '—'}</div>
+                            <div className="col-span-5">{d.description || '—'}</div>
+                            <div className="col-span-2 text-right tabular-nums">{d.amount != null ? fmtKr(d.amount) : '—'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+
+                <div className="flex justify-end pt-1">
+                  <Button type="button" onClick={applyUeToOffer} className="gap-2">
+                    <Plus className="h-4 w-4" /> Lägg in i offerten
+                  </Button>
+                </div>
+              </>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
+      </section>
+
       {/* Kundtyp */}
+
       <section className="space-y-2">
 
         <Label>Kundtyp</Label>

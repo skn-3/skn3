@@ -441,6 +441,7 @@ export type Database = {
           id: string
           internal_notes: string | null
           line_items: Json
+          markup_percent: number | null
           offer_number: string | null
           payment_terms: string | null
           pdf_path: string | null
@@ -451,6 +452,7 @@ export type Database = {
           rot_percent: number
           sent_at: string | null
           signed_pdf_path: string | null
+          source: string
           status: string
           terms_text: string | null
           title: string | null
@@ -458,6 +460,9 @@ export type Database = {
           total_ex_vat: number | null
           total_incl_vat: number | null
           total_vat: number | null
+          ue_document_path: string | null
+          ue_supplier: string | null
+          ue_total_excl: number | null
           updated_at: string
           valid_until: string | null
           vat_mode: string
@@ -483,6 +488,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           line_items?: Json
+          markup_percent?: number | null
           offer_number?: string | null
           payment_terms?: string | null
           pdf_path?: string | null
@@ -493,6 +499,7 @@ export type Database = {
           rot_percent?: number
           sent_at?: string | null
           signed_pdf_path?: string | null
+          source?: string
           status?: string
           terms_text?: string | null
           title?: string | null
@@ -500,6 +507,9 @@ export type Database = {
           total_ex_vat?: number | null
           total_incl_vat?: number | null
           total_vat?: number | null
+          ue_document_path?: string | null
+          ue_supplier?: string | null
+          ue_total_excl?: number | null
           updated_at?: string
           valid_until?: string | null
           vat_mode?: string
@@ -525,6 +535,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           line_items?: Json
+          markup_percent?: number | null
           offer_number?: string | null
           payment_terms?: string | null
           pdf_path?: string | null
@@ -535,6 +546,7 @@ export type Database = {
           rot_percent?: number
           sent_at?: string | null
           signed_pdf_path?: string | null
+          source?: string
           status?: string
           terms_text?: string | null
           title?: string | null
@@ -542,6 +554,9 @@ export type Database = {
           total_ex_vat?: number | null
           total_incl_vat?: number | null
           total_vat?: number | null
+          ue_document_path?: string | null
+          ue_supplier?: string | null
+          ue_total_excl?: number | null
           updated_at?: string
           valid_until?: string | null
           vat_mode?: string
