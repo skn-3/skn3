@@ -97,10 +97,12 @@ export function OffersView({ currentUser }: OffersViewProps) {
     mutationFn: async (offer: OfferRow) => {
       if (!offer.customer_email) throw new Error('Kunden saknar e-post');
       if (!offer.pdf_path) throw new Error('Generera PDF först');
-      const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: offer.id } });
+      const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: offer.id, origin: window.location.origin } });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      return { email: offer.customer_email as string, public_url: (data as any)?.public_url as string };
+      const tok = (data as any)?.public_token as string | undefined;
+      const public_url = tok ? `${window.location.origin}/offert/${tok}` : ((data as any)?.public_url as string);
+      return { email: offer.customer_email as string, public_url };
     },
     onSuccess: async (res) => {
       toast.success(`Offert skickad till ${res.email}`);
