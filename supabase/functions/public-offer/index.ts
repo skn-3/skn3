@@ -45,8 +45,13 @@ Deno.serve(async (req) => {
       const { data: sig } = await admin.storage.from('case-documents').createSignedUrl(offer.pdf_path, 3600);
       signedUrl = sig?.signedUrl || null;
     }
+    let signedPdfUrl: string | null = null;
+    if (offer.signed_pdf_path) {
+      const { data: sig2 } = await admin.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path, 3600);
+      signedPdfUrl = sig2?.signedUrl || null;
+    }
 
-    const out: Record<string, unknown> = { signed_pdf_url: signedUrl };
+    const out: Record<string, unknown> = { signed_url: signedUrl, signed_pdf_url: signedPdfUrl };
     for (const f of PUBLIC_FIELDS) out[f] = (offer as any)[f];
 
     return new Response(JSON.stringify(out), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
