@@ -35,6 +35,9 @@ import { format } from 'date-fns';
 import { cn, formatAmount } from '@/lib/utils';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 import { SignedImage } from '@/components/shared/SignedImage';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { OfferForm } from '@/components/offers/OfferForm';
+import { fmtKr as fmtOfferKr } from '@/lib/offerCalc';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
