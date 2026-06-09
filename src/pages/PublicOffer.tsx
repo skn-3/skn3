@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Download, ChevronDown, ChevronRight, FileText, Loader2 } from 'lucide-react';
+import { Download, ChevronDown, ChevronRight, FileText, Loader2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { buildOfferPdfBlob } from '@/lib/offerPdf';
+import { toast } from 'sonner';
 
 type PublicOfferData = {
   offer_number: string | null;
@@ -28,18 +33,34 @@ type PublicOfferData = {
   terms_text: string | null;
   status: string;
   accepted_at: string | null;
-  signed_pdf_url: string | null;
+  accept_name: string | null;
+  signed_url: string | null;       // unsigned offer PDF (signed download URL)
+  signed_pdf_url: string | null;   // accepted/signed PDF (signed download URL)
 };
 
 const fmtKr = (n: number | null | undefined) =>
   new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 }).format(Number(n || 0));
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString('sv-SE') : '—');
+const fmtDateTime = (s: string | null) => (s ? new Date(s).toLocaleString('sv-SE') : '—');
 
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   sent: { text: 'Skickad', cls: 'bg-blue-100 text-blue-800' },
   accepted: { text: 'Accepterad', cls: 'bg-green-100 text-green-800' },
 };
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const result = String(r.result || '');
+      const idx = result.indexOf('base64,');
+      resolve(idx >= 0 ? result.slice(idx + 'base64,'.length) : result);
+    };
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
 
 export default function PublicOffer() {
   const { token } = useParams<{ token: string }>();
@@ -47,6 +68,11 @@ export default function PublicOffer() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<PublicOfferData | null>(null);
   const [termsOpen, setTermsOpen] = useState(false);
+
+  // Accept form
+  const [acceptName, setAcceptName] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     document.title = 'Din offert · SmartKlimat N3prenad';
@@ -62,7 +88,9 @@ export default function PublicOffer() {
         if (invErr || !res || (res as any).error) {
           setError('Offerten kunde inte hittas eller har gått ut');
         } else {
-          setData(res as PublicOfferData);
+          const d = res as PublicOfferData;
+          setData(d);
+          if (!acceptName) setAcceptName(d.customer_name || '');
         }
       } catch {
         if (!cancelled) setError('Offerten kunde inte hittas eller har gått ut');
@@ -71,7 +99,47 @@ export default function PublicOffer() {
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  const handleAccept = async () => {
+    if (!data || !token) return;
+    if (!acceptedTerms) { toast.error('Du behöver bekräfta att du har läst villkoren'); return; }
+    if (!acceptName.trim()) { toast.error('Ange ditt namn'); return; }
+
+    setSubmitting(true);
+    const acceptedAt = new Date().toISOString();
+    let signedPdfBase64: string | undefined;
+
+    try {
+      const blob = await buildOfferPdfBlob(data as any, { signature: { name: acceptName.trim(), acceptedAt } });
+      signedPdfBase64 = await blobToBase64(blob);
+    } catch (e) {
+      console.error('PDF signering misslyckades, fortsätter med accept', e);
+    }
+
+    try {
+      const { data: res, error: invErr } = await supabase.functions.invoke('accept-offer', {
+        body: { token, name: acceptName.trim(), signed_pdf_base64: signedPdfBase64 },
+      });
+      if (invErr || !res || (res as any).error) {
+        throw new Error((res as any)?.error || 'Kunde inte registrera accept');
+      }
+      const out = res as { ok: boolean; accepted_at?: string; accept_name?: string; already?: boolean };
+      // Re-fetch fresh state (gives us signed_pdf_url etc.)
+      const { data: res2 } = await supabase.functions.invoke('public-offer', { body: { token } });
+      if (res2 && !(res2 as any).error) {
+        setData(res2 as PublicOfferData);
+      } else {
+        setData(prev => prev ? { ...prev, status: 'accepted', accepted_at: out.accepted_at || acceptedAt, accept_name: out.accept_name || acceptName.trim() } : prev);
+      }
+      toast.success('Tack! Offerten är accepterad.');
+    } catch (e: any) {
+      toast.error(e?.message || 'Något gick fel');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -95,6 +163,8 @@ export default function PublicOffer() {
   }
 
   const status = STATUS_LABEL[data.status] || { text: data.status, cls: 'bg-muted text-muted-foreground' };
+  const isAccepted = data.status === 'accepted';
+  const pdfDownloadUrl = data.signed_pdf_url || data.signed_url;
 
   return (
     <div className="min-h-screen bg-muted/30 pb-12">
@@ -133,10 +203,10 @@ export default function PublicOffer() {
             </div>
           </div>
 
-          {data.signed_pdf_url && (
+          {pdfDownloadUrl && (
             <div className="mt-4">
               <Button asChild className="gap-2 bg-[#22C55E] hover:bg-[#16A34A]">
-                <a href={data.signed_pdf_url} target="_blank" rel="noopener noreferrer">
+                <a href={pdfDownloadUrl} target="_blank" rel="noopener noreferrer">
                   <Download className="h-4 w-4" /> Ladda ner PDF
                 </a>
               </Button>
@@ -246,8 +316,59 @@ export default function PublicOffer() {
           </section>
         )}
 
-        {/* Accept section placeholder for step 3 */}
-        {/* Reserved space for accept/sign — added in step 3 */}
+        {/* Accept / verification */}
+        {isAccepted ? (
+          <section className="bg-green-50 border border-green-200 rounded-xl shadow-sm p-6 text-center">
+            <CheckCircle2 className="h-10 w-10 text-[#16A34A] mx-auto mb-2" />
+            <h2 className="text-lg font-bold text-[#15803D]">Offerten är accepterad – tack!</h2>
+            <p className="text-sm text-[#15803D]/90 mt-1">
+              Accepterad av <strong>{data.accept_name || data.customer_name || '—'}</strong>, {fmtDateTime(data.accepted_at)}, offert {data.offer_number || '—'}.
+            </p>
+            {data.signed_pdf_url && (
+              <div className="mt-4">
+                <Button asChild variant="outline" className="gap-2">
+                  <a href={data.signed_pdf_url} target="_blank" rel="noopener noreferrer">
+                    <Download className="h-4 w-4" /> Ladda ner signerad PDF med verifikat
+                  </a>
+                </Button>
+              </div>
+            )}
+          </section>
+        ) : data.status === 'sent' ? (
+          <section className="bg-card rounded-xl border shadow-sm p-5 md:p-6 space-y-4">
+            <div>
+              <h2 className="text-base font-semibold">Acceptera offerten</h2>
+              <p className="text-sm text-muted-foreground mt-1">När du accepterar registreras tidpunkt och IP-adress, och du får en bekräftelse på e-post.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <Checkbox id="accept-terms" checked={acceptedTerms} onCheckedChange={(v) => setAcceptedTerms(v === true)} className="mt-1" />
+              <Label htmlFor="accept-terms" className="text-sm font-normal leading-relaxed cursor-pointer">
+                Jag har läst och accepterar offerten samt de allmänna villkoren.
+              </Label>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="accept-name">Ditt namn *</Label>
+                <Input
+                  id="accept-name"
+                  value={acceptName}
+                  onChange={(e) => setAcceptName(e.target.value)}
+                  placeholder="För- och efternamn"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <Button
+              type="button"
+              onClick={handleAccept}
+              disabled={!acceptedTerms || !acceptName.trim() || submitting}
+              className="bg-[#22C55E] hover:bg-[#16A34A] gap-2"
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              {submitting ? 'Registrerar…' : 'Acceptera offert'}
+            </Button>
+          </section>
+        ) : null}
 
         <footer className="text-center text-xs text-muted-foreground pt-4">
           SmartKlimat N3prenad AB · Org.nr 559026-6630
