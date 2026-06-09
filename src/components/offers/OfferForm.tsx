@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Trash2, Plus, Save, FileDown, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Trash2, Plus, Save, FileDown, ChevronDown, ChevronRight, AlertTriangle, Send, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,10 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const isEdit = !!offer?.id;
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<string>(offer?.status || 'draft');
+  const [pdfPath, setPdfPath] = useState<string | null>(offer?.pdf_path || null);
   const [termsOpen, setTermsOpen] = useState(false);
 
   const [customerType, setCustomerType] = useState<'privat' | 'foretag'>(offer?.customer_type || 'privat');
@@ -158,6 +162,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
         .upload(path, blob, { upsert: true, contentType: 'application/pdf' });
       if (upErr) throw upErr;
       await (supabase as any).from('offers').update({ pdf_path: path }).eq('id', id);
+      setPdfPath(path);
       const { data: signed } = await supabase.storage.from('case-documents').createSignedUrl(path, 3600);
       if (signed?.signedUrl) window.open(signed.signedUrl, '_blank', 'noopener,noreferrer');
       onSaved();
@@ -170,12 +175,67 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     }
   };
 
+  const handleSendToCustomer = async () => {
+    const id = offer?.id;
+    if (!id) { toast.error('Spara offerten först'); return; }
+    if (!email) { toast.error('Kunden saknar e-post'); return; }
+    if (!pdfPath) { toast.error('Generera PDF först'); return; }
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: id } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const url = (data as any)?.public_url as string | undefined;
+      if (url) setPublicUrl(url);
+      if (currentStatus !== 'accepted') setCurrentStatus('sent');
+      toast.success(`Offert skickad till ${email}`);
+      onSaved();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Kunde inte skicka offert');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const copyPublicUrl = async () => {
+    if (!publicUrl) return;
+    try { await navigator.clipboard.writeText(publicUrl); toast.success('Länk kopierad'); }
+    catch { toast.error('Kunde inte kopiera'); }
+  };
+
+  const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+    draft: { label: 'Utkast', cls: 'bg-muted text-muted-foreground' },
+    sent: { label: 'Skickad', cls: 'bg-blue-100 text-blue-800' },
+    accepted: { label: 'Accepterad', cls: 'bg-green-100 text-green-800' },
+    declined: { label: 'Avböjd', cls: 'bg-red-100 text-red-800' },
+  };
+  const statusMeta = STATUS_BADGE[currentStatus] || STATUS_BADGE.draft;
+
+  const canSend = isEdit && !!email && !!pdfPath;
+
   const isPrivat = customerType === 'privat';
 
   return (
     <div className="space-y-5">
+      {/* Status + public link */}
+      {isEdit && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Status:</span>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusMeta.cls}`}>{statusMeta.label}</span>
+          {publicUrl && (
+            <div className="flex-1 min-w-[200px] flex items-center gap-2 ml-2">
+              <Input readOnly value={publicUrl} className="text-xs h-8" />
+              <Button type="button" variant="outline" size="sm" onClick={copyPublicUrl} className="gap-1">
+                <Copy className="h-3 w-3" /> Kopiera
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
       {/* Kundtyp */}
       <section className="space-y-2">
+
         <Label>Kundtyp</Label>
         <RadioGroup
           value={customerType}
@@ -381,14 +441,24 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 justify-end pt-2 border-t sticky bottom-0 bg-background pb-2">
-        <Button type="button" variant="outline" onClick={onClose} disabled={saving || generating}>Avbryt</Button>
-        <Button type="button" variant="outline" onClick={() => handleSave(false)} disabled={saving || generating} className="gap-2">
+        <Button type="button" variant="outline" onClick={onClose} disabled={saving || generating || sending}>Avbryt</Button>
+        <Button type="button" variant="outline" onClick={() => handleSave(false)} disabled={saving || generating || sending} className="gap-2">
           <Save className="h-4 w-4" /> {saving ? 'Sparar…' : 'Spara'}
         </Button>
-        <Button type="button" onClick={handleGeneratePdf} disabled={saving || generating} className="gap-2">
+        <Button type="button" variant="outline" onClick={handleGeneratePdf} disabled={saving || generating || sending} className="gap-2">
           <FileDown className="h-4 w-4" /> {generating ? 'Genererar…' : 'Generera & ladda ner PDF'}
         </Button>
+        <Button
+          type="button"
+          onClick={handleSendToCustomer}
+          disabled={saving || generating || sending || !canSend}
+          className="gap-2"
+          title={!isEdit ? 'Spara offerten först' : !email ? 'Kunden saknar e-post' : !pdfPath ? 'Generera PDF först' : 'Skicka till kund'}
+        >
+          <Send className="h-4 w-4" /> {sending ? 'Skickar…' : 'Skicka till kund'}
+        </Button>
       </div>
+
     </div>
   );
 }

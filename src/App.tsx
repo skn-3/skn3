@@ -7,6 +7,7 @@ import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import SheetMetalOrderPage from "./pages/SheetMetalOrderPage.tsx";
 import RapporteraProblem from "./components/shared/RapporteraProblem.tsx";
+import PublicOffer from "./pages/PublicOffer.tsx";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +21,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/case/:caseId/sheet-metal-order" element={<SheetMetalOrderPage />} />
           <Route path="/case/:caseId/rapportera" element={<RapporteraProblem />} />
+          <Route path="/offert/:token" element={<PublicOffer />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
