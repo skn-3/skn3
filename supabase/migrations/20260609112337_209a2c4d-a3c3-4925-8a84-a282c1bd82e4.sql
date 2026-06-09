@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS offers_public_token_unique ON public.offers(public_token) WHERE public_token IS NOT NULL;
