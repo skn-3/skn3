@@ -55,7 +55,7 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
-    "pdfmake": "^0.3.10",
+    "pdfmake": "0.2.10",
     "react": "^18.3.1",
     "react-big-calendar": "^1.19.4",
     "react-day-picker": "^8.10.1",
