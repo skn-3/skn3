@@ -231,6 +231,12 @@ export default function PublicOffer() {
             <div className="font-semibold">{data.customer_name || '—'}</div>
             {data.customer_address && <div className="text-sm text-muted-foreground">{data.customer_address}</div>}
             <div className="text-xs text-muted-foreground mt-1">{data.customer_type === 'privat' ? 'Privatperson' : 'Företag / BRF'}</div>
+            {data.customer_type === 'privat' && data.customer_personnummer && (
+              <div className="text-xs text-muted-foreground">Personnr: {data.customer_personnummer}</div>
+            )}
+            {data.customer_type === 'privat' && data.fastighetsbeteckning && (
+              <div className="text-xs text-muted-foreground">Fastighet: {data.fastighetsbeteckning}</div>
+            )}
           </div>
         </section>
 
