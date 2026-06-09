@@ -441,14 +441,24 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 justify-end pt-2 border-t sticky bottom-0 bg-background pb-2">
-        <Button type="button" variant="outline" onClick={onClose} disabled={saving || generating}>Avbryt</Button>
-        <Button type="button" variant="outline" onClick={() => handleSave(false)} disabled={saving || generating} className="gap-2">
+        <Button type="button" variant="outline" onClick={onClose} disabled={saving || generating || sending}>Avbryt</Button>
+        <Button type="button" variant="outline" onClick={() => handleSave(false)} disabled={saving || generating || sending} className="gap-2">
           <Save className="h-4 w-4" /> {saving ? 'Sparar…' : 'Spara'}
         </Button>
-        <Button type="button" onClick={handleGeneratePdf} disabled={saving || generating} className="gap-2">
+        <Button type="button" variant="outline" onClick={handleGeneratePdf} disabled={saving || generating || sending} className="gap-2">
           <FileDown className="h-4 w-4" /> {generating ? 'Genererar…' : 'Generera & ladda ner PDF'}
         </Button>
+        <Button
+          type="button"
+          onClick={handleSendToCustomer}
+          disabled={saving || generating || sending || !canSend}
+          className="gap-2"
+          title={!isEdit ? 'Spara offerten först' : !email ? 'Kunden saknar e-post' : !pdfPath ? 'Generera PDF först' : 'Skicka till kund'}
+        >
+          <Send className="h-4 w-4" /> {sending ? 'Skickar…' : 'Skicka till kund'}
+        </Button>
       </div>
+
     </div>
   );
 }
