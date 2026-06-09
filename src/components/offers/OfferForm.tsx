@@ -218,8 +218,24 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
 
   return (
     <div className="space-y-5">
+      {/* Status + public link */}
+      {isEdit && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Status:</span>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusMeta.cls}`}>{statusMeta.label}</span>
+          {publicUrl && (
+            <div className="flex-1 min-w-[200px] flex items-center gap-2 ml-2">
+              <Input readOnly value={publicUrl} className="text-xs h-8" />
+              <Button type="button" variant="outline" size="sm" onClick={copyPublicUrl} className="gap-1">
+                <Copy className="h-3 w-3" /> Kopiera
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
       {/* Kundtyp */}
       <section className="space-y-2">
+
         <Label>Kundtyp</Label>
         <RadioGroup
           value={customerType}
