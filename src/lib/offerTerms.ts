@@ -62,6 +62,4 @@ N3prenad innehar ansvarsförsäkring för sin verksamhet. Kunden ansvarar för a
 Ändringar och tillägg till avtalet ska ske skriftligen för att gälla; bekräftelse via e-post eller sms räknas som skriftlig. Delar kunden hushåll med annan myndig person får den personen ingå bindande överenskommelse för kundens räkning, om inte kunden angett annat innan avtalet ingicks.
 
 18. Tvist
-Svensk lag tillämpas på avtalet. Tvist prövas av svensk allmän domstol. Konsument kan även vända sig till Allmänna reklamationsnämnden (ARN) eller kommunal konsumentvägledning.
-
-Detta utkast bör granskas och anpassas av jurist innan det används, särskilt avseende garanti, ROT, B2B-/BRF-avtal samt eventuella större entreprenader (där standardavtal som Hantverkarformuläret 17 eller ABS 18 kan vara lämpligare).`;
+Svensk lag tillämpas på avtalet. Tvist prövas av svensk allmän domstol. Konsument kan även vända sig till Allmänna reklamationsnämnden (ARN) eller kommunal konsumentvägledning.`;
