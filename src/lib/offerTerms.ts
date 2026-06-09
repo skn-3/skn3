@@ -44,7 +44,7 @@ Material som ingår förblir N3prenads egendom till dess full betalning erlagts 
 Konsument har rätt att avbeställa arbete som inte utförts mot ersättning till N3prenad enligt konsumenttjänstlagen, inklusive ersättning för redan utfört arbete, kostnader för material som inte kan returneras samt skälig ersättning för förlust.
 
 12. Garanti och reklamation
-Reklamation ska ske inom skälig tid efter att felet upptäckts eller borde ha upptäckts. För konsumenttjänster gäller reklamationsfristerna i konsumenttjänstlagen. N3prenad lämnar [X] års garanti på utfört arbete [fyll i om och vilken garanti som lämnas]. Avhjälpande sker i första hand genom rättelse. Reklamerar kunden fel som N3prenad inte ansvarar för, står kunden för N3prenads kostnader för felsökning och utredning.
+Reklamation ska ske inom skälig tid efter att felet upptäckts eller borde ha upptäckts. För konsumenttjänster gäller reklamationsfristerna i konsumenttjänstlagen. N3prenad lämnar 3 års garanti på utfört arbete. Avhjälpande sker i första hand genom rättelse. Reklamerar kunden fel som N3prenad inte ansvarar för, står kunden för N3prenads kostnader för felsökning och utredning.
 
 13. Ansvar och force majeure
 N3prenad ansvarar inte för indirekta skador, driftavbrott, utebliven vinst eller liknande. N3prenad är befriat från ansvar vid omständigheter utanför dess kontroll, såsom brand, krig, pandemi, myndighetsbeslut, strejk, naturkatastrof eller större avbrott i tekniska system, som N3prenad inte rimligen kunnat undvika eller förutse.
