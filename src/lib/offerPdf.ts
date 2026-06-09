@@ -285,6 +285,7 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
       summary,
       footer1,
       ...termsPage,
+      ...verificationPage,
     ],
     styles: {
       th: { bold: true, color: GREEN_DARK, fontSize: 10 },
