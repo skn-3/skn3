@@ -1,14 +1,17 @@
-import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
-type TDocumentDefinitions = any;
 import { calcOfferTotals, fmtKr, type OfferLineItem } from './offerCalc';
 
-const pf: any = pdfFonts as any;
-const vfs = pf?.pdfMake?.vfs || pf?.vfs || pf?.default?.pdfMake?.vfs || pf?.default?.vfs;
-if (typeof (pdfMake as any).addVirtualFileSystem === 'function' && vfs) {
-  (pdfMake as any).addVirtualFileSystem(vfs);
-} else if (vfs) {
-  (pdfMake as any).vfs = vfs;
+type TDocumentDefinitions = any;
+
+// pdfmake laddas globalt via CDN i index.html (window.pdfMake) — undviker Vites bundler/vfs-problem.
+function getPdfMake(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    if ((window as any).pdfMake?.createPdf) return resolve((window as any).pdfMake);
+    let tries = 0;
+    const iv = setInterval(() => {
+      if ((window as any).pdfMake?.createPdf) { clearInterval(iv); resolve((window as any).pdfMake); }
+      else if (++tries > 100) { clearInterval(iv); reject(new Error('pdfmake kunde inte laddas (CDN)')); }
+    }, 100);
+  });
 }
 
 const GREEN = '#22C55E';
@@ -251,13 +254,12 @@ export async function buildOfferPdfBlob(offer: OfferForPdf): Promise<Blob> {
     },
   };
 
+  const pdfMake = await getPdfMake();
   return new Promise<Blob>((resolve, reject) => {
     try {
-      const doc = (pdfMake as any).createPdf(docDef);
+      const doc = pdfMake.createPdf(docDef);
       const timer = setTimeout(() => reject(new Error('PDF-generering tog för lång tid (timeout)')), 20000);
       doc.getBlob((blob: Blob) => { clearTimeout(timer); resolve(blob); });
-    } catch (e) {
-      reject(e);
-    }
+    } catch (e) { reject(e); }
   });
 }
