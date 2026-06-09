@@ -438,6 +438,7 @@ export type Database = {
           declined_at: string | null
           description: string | null
           fastighetsbeteckning: string | null
+          handpenning_percent: number
           id: string
           internal_notes: string | null
           line_items: Json
@@ -485,6 +486,7 @@ export type Database = {
           declined_at?: string | null
           description?: string | null
           fastighetsbeteckning?: string | null
+          handpenning_percent?: number
           id?: string
           internal_notes?: string | null
           line_items?: Json
@@ -532,6 +534,7 @@ export type Database = {
           declined_at?: string | null
           description?: string | null
           fastighetsbeteckning?: string | null
+          handpenning_percent?: number
           id?: string
           internal_notes?: string | null
           line_items?: Json
