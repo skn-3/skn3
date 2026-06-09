@@ -1,0 +1,1 @@
+ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS handpenning_percent numeric NOT NULL DEFAULT 25;

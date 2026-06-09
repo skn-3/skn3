@@ -66,6 +66,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const [rotPercent, setRotPercent] = useState<number>(Number(offer?.rot_percent ?? 30));
   const [validUntil, setValidUntil] = useState<string>(offer?.valid_until || defaultValidUntil());
   const [paymentTerms, setPaymentTerms] = useState<string>(offer?.payment_terms || '10 dagar netto');
+  const [handpenningPercent, setHandpenningPercent] = useState<number>(Number(offer?.handpenning_percent ?? 25));
   const [terms, setTerms] = useState<string>(offer?.terms_text || DEFAULT_OFFER_TERMS);
   const [internalNotes, setInternalNotes] = useState<string>(offer?.internal_notes || '');
 
@@ -94,8 +95,8 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   }, [customerType, rotEnabled]);
 
   const totals = useMemo(
-    () => calcOfferTotals(items, { vat_mode: vatMode, rot_enabled: rotEnabled, rot_percent: rotPercent }),
-    [items, vatMode, rotEnabled, rotPercent]
+    () => calcOfferTotals(items, { vat_mode: vatMode, rot_enabled: rotEnabled, rot_percent: rotPercent, handpenning_percent: handpenningPercent }),
+    [items, vatMode, rotEnabled, rotPercent, handpenningPercent]
   );
 
   const updateItem = (id: string, patch: Partial<OfferLineItem>) => {
@@ -127,6 +128,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     rot_percent: rotPercent,
     valid_until: validUntil || null,
     payment_terms: paymentTerms || null,
+    handpenning_percent: handpenningPercent,
     terms_text: terms || null,
     internal_notes: internalNotes || null,
     total_ex_vat: totals.total_ex_vat,
@@ -621,7 +623,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
       </section>
 
       {/* Giltighet / betalning */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
           <Label>Giltig t.o.m.</Label>
           <Input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} />
@@ -629,6 +631,10 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
         <div>
           <Label>Betalningsvillkor</Label>
           <Input value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)} />
+        </div>
+        <div>
+          <Label>Handpenning %</Label>
+          <Input type="number" min={0} max={100} value={handpenningPercent} onChange={e => setHandpenningPercent(Number(e.target.value))} />
         </div>
       </section>
 
@@ -655,26 +661,41 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
 
       {/* Summering */}
       <section className="rounded-md border bg-muted/30 p-4 space-y-1 text-sm">
-        <div className="flex justify-between"><span>Summa ex moms</span><span className="tabular-nums">{fmtKr(totals.total_ex_vat)}</span></div>
-        {vatMode === 'omvand' ? (
-          <div className="flex justify-between text-muted-foreground"><span>Moms</span><span>Omvänd betalningsskyldighet</span></div>
-        ) : (
-          <div className="flex justify-between"><span>Moms 25%</span><span className="tabular-nums">{fmtKr(totals.total_vat)}</span></div>
-        )}
-        <div className="flex justify-between font-medium"><span>Summa inkl moms</span><span className="tabular-nums">{fmtKr(totals.total_incl_vat)}</span></div>
-        {rotEnabled && vatMode === 'vanlig' && (
-          <>
-            <div className="flex justify-between text-muted-foreground pt-1 border-t mt-1"><span>Rotberättigad arbetskostnad</span><span className="tabular-nums">{fmtKr(totals.rot_base)}</span></div>
-            <div className="flex justify-between text-primary"><span>Preliminärt ROT-avdrag ({rotPercent}%)</span><span className="tabular-nums">−{fmtKr(totals.rot_amount)}</span></div>
-            <div className="flex justify-between font-semibold text-primary text-base pt-1"><span>Att betala efter ROT</span><span className="tabular-nums">{fmtKr(totals.total_after_rot)}</span></div>
-            {totals.rot_amount > 50000 && (
-              <div className="flex items-start gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2 mt-2 text-xs">
-                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>ROT-avdraget överstiger 50 000 kr/person/år – kontrollera att kunden har avdragsutrymme.</span>
+        {(() => {
+          const rotActive = rotEnabled && vatMode === 'vanlig';
+          return (
+            <>
+              <div className={`flex justify-between ${rotActive ? '' : 'font-semibold text-primary text-base'}`}>
+                <span>Ordersumma innan avdrag</span>
+                <span className="tabular-nums">{fmtKr(totals.total_incl_vat)}</span>
               </div>
-            )}
-          </>
-        )}
+              <div className="text-xs text-muted-foreground -mt-1">
+                {vatMode === 'omvand' ? 'omvänd byggmoms' : <>varav moms <span className="tabular-nums">{fmtKr(totals.total_vat)}</span></>}
+              </div>
+
+              {rotActive && (
+                <>
+                  <div className="flex justify-between text-muted-foreground pt-2 border-t mt-2"><span>Rotberättigad arbetskostnad</span><span className="tabular-nums">{fmtKr(totals.rot_base)}</span></div>
+                  <div className="flex justify-between text-primary"><span>Preliminärt ROT-avdrag ({rotPercent}%)</span><span className="tabular-nums">−{fmtKr(totals.rot_amount)}</span></div>
+                  <div className="flex justify-between font-semibold text-primary text-base pt-1"><span>Total ordersumma efter ROT</span><span className="tabular-nums">{fmtKr(totals.total_after_rot)}</span></div>
+                  {totals.rot_amount > 50000 && (
+                    <div className="flex items-start gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2 mt-2 text-xs">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span>ROT-avdraget överstiger 50 000 kr/person/år – kontrollera att kunden har avdragsutrymme.</span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {handpenningPercent > 0 && (
+                <>
+                  <div className="flex justify-between pt-2 border-t mt-2"><span>Handpenning {handpenningPercent}%</span><span className="tabular-nums">{fmtKr(totals.handpenning)}</span></div>
+                  <div className="flex justify-between"><span>Slutfaktura{rotActive ? ' (efter prel. ROT-avdrag)' : ''}</span><span className="tabular-nums">{fmtKr(totals.slutfaktura)}</span></div>
+                </>
+              )}
+            </>
+          );
+        })()}
       </section>
 
       {/* Actions */}

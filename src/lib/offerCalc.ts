@@ -17,18 +17,23 @@ export interface OfferTotals {
   rot_base: number;
   rot_amount: number;
   total_after_rot: number;
+  handpenning: number;
+  slutfaktura: number;
 }
 
 const round = (n: number) => Math.round(n);
 
 export function calcOfferTotals(
   items: OfferLineItem[],
-  opts: { vat_mode: 'vanlig' | 'omvand'; rot_enabled: boolean; rot_percent: number }
+  opts: { vat_mode: 'vanlig' | 'omvand'; rot_enabled: boolean; rot_percent: number; handpenning_percent?: number }
 ): OfferTotals {
   const labor_ex_vat = items.filter(i => i.is_labor).reduce((s, i) => s + (Number(i.amount) || 0), 0);
   const total_ex_vat = items.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+  const hp = Number(opts.handpenning_percent ?? 25);
 
   if (opts.vat_mode === 'omvand') {
+    const total_after_rot = total_ex_vat;
+    const handpenning = round(total_after_rot * hp / 100);
     return {
       labor_ex_vat,
       total_ex_vat,
@@ -36,7 +41,9 @@ export function calcOfferTotals(
       total_incl_vat: total_ex_vat,
       rot_base: 0,
       rot_amount: 0,
-      total_after_rot: total_ex_vat,
+      total_after_rot,
+      handpenning,
+      slutfaktura: total_after_rot - handpenning,
     };
   }
 
@@ -45,6 +52,7 @@ export function calcOfferTotals(
   const rot_base = labor_ex_vat * 1.25;
   const rot_amount = opts.rot_enabled ? round(rot_base * (opts.rot_percent / 100)) : 0;
   const total_after_rot = total_incl_vat - rot_amount;
+  const handpenning = round(total_after_rot * hp / 100);
 
   return {
     labor_ex_vat,
@@ -54,6 +62,8 @@ export function calcOfferTotals(
     rot_base,
     rot_amount,
     total_after_rot,
+    handpenning,
+    slutfaktura: total_after_rot - handpenning,
   };
 }
 

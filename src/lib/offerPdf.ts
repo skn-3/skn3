@@ -63,6 +63,7 @@ export interface OfferForPdf {
   vat_mode: 'vanlig' | 'omvand';
   rot_enabled: boolean;
   rot_percent: number;
+  handpenning_percent?: number;
   terms_text?: string | null;
 }
 
@@ -72,10 +73,12 @@ export interface OfferPdfOptions {
 
 export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOptions = {}): Promise<Blob> {
   const logo = await loadLogoDataUrl();
+  const hpPercent = Number(offer.handpenning_percent ?? 25);
   const totals = calcOfferTotals(offer.line_items || [], {
     vat_mode: offer.vat_mode,
     rot_enabled: offer.rot_enabled,
     rot_percent: offer.rot_percent,
+    handpenning_percent: hpPercent,
   });
 
   const validDays = (() => {
@@ -197,20 +200,29 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
   });
 
   const summaryStack: any[] = [];
-  summaryStack.push(sumRow('Summa ex moms', fmtKr(totals.total_ex_vat)));
+  const rotActive = offer.rot_enabled && offer.vat_mode === 'vanlig';
+
+  // 1) Ordersumma innan avdrag
+  summaryStack.push(sumRow('Ordersumma innan avdrag', fmtKr(totals.total_incl_vat), rotActive ? {} : { bold: true, color: GREEN_DARK, size: 12 }));
   if (offer.vat_mode === 'omvand') {
-    summaryStack.push(sumRow('Moms', 'Omvänd betalningsskyldighet', { color: MUTED }));
+    summaryStack.push(sumRow('', 'omvänd byggmoms', { color: MUTED, size: 9 }));
   } else {
-    summaryStack.push(sumRow('Moms 25%', fmtKr(totals.total_vat)));
+    summaryStack.push(sumRow('', `varav moms ${fmtKr(totals.total_vat)}`, { color: MUTED, size: 9 }));
   }
-  summaryStack.push(sumRow('Summa inkl moms', fmtKr(totals.total_incl_vat), { bold: true }));
-  if (offer.rot_enabled && offer.vat_mode === 'vanlig') {
+
+  // 2) ROT-block
+  if (rotActive) {
     summaryStack.push({ text: '', margin: [0, 4, 0, 0] });
     summaryStack.push(sumRow('Rotberättigad arbetskostnad', fmtKr(totals.rot_base), { color: MUTED }));
     summaryStack.push(sumRow(`Preliminärt ROT-avdrag (${offer.rot_percent}%)`, `-${fmtKr(totals.rot_amount)}`, { color: GREEN_DARK }));
-    summaryStack.push(sumRow('Att betala efter ROT', fmtKr(totals.total_after_rot), { bold: true, color: GREEN_DARK, size: 12 }));
-  } else {
-    summaryStack.push(sumRow('Att betala', fmtKr(totals.total_incl_vat), { bold: true, color: GREEN_DARK, size: 12 }));
+    summaryStack.push(sumRow('Total ordersumma efter ROT', fmtKr(totals.total_after_rot), { bold: true, color: GREEN_DARK, size: 12 }));
+  }
+
+  // 3) Handpenning + slutfaktura
+  if (hpPercent > 0) {
+    summaryStack.push({ text: '', margin: [0, 4, 0, 0] });
+    summaryStack.push(sumRow(`Handpenning ${hpPercent}%`, fmtKr(totals.handpenning)));
+    summaryStack.push(sumRow(`Slutfaktura${rotActive ? ' (efter prel. ROT-avdrag)' : ''}`, fmtKr(totals.slutfaktura)));
   }
 
   const summary: any = {
