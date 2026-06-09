@@ -308,6 +308,24 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
   const linkedOrder = (linkedOrders && linkedOrders[0]) || null;
+
+  // Offerter kopplade till ärendet
+  const { data: caseOffers } = useQuery({
+    queryKey: ['case_offers', caseData.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('offers')
+        .select('*')
+        .eq('case_id', caseData.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+  const [offerSheetOpen, setOfferSheetOpen] = useState(false);
+  const [editingOffer, setEditingOffer] = useState<any | null>(null);
+  const openNewOffer = () => { setEditingOffer(null); setOfferSheetOpen(true); };
+  const openEditOffer = (o: any) => { setEditingOffer(o); setOfferSheetOpen(true); };
   const [economyOpsOpen, setEconomyOpsOpen] = useState(false);
 
   const openPayoutPdf = async (path: string) => {
