@@ -1,6 +1,6 @@
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
-import type { TDocumentDefinitions } from 'pdfmake/interfaces';
+type TDocumentDefinitions = any;
 import { calcOfferTotals, fmtKr, type OfferLineItem } from './offerCalc';
 
 const pf: any = pdfFonts as any;
