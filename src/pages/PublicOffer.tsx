@@ -24,6 +24,7 @@ type PublicOfferData = {
   vat_mode: 'vanlig' | 'omvand';
   rot_enabled: boolean;
   rot_percent: number;
+  handpenning_percent?: number;
   total_ex_vat: number;
   total_vat: number;
   total_incl_vat: number;
@@ -278,22 +279,42 @@ export default function PublicOffer() {
         </section>
 
         {/* Totals */}
-        <section className="bg-card rounded-xl border shadow-sm p-5 space-y-1 text-sm">
-          <div className="flex justify-between"><span>Summa ex moms</span><span className="tabular-nums">{fmtKr(data.total_ex_vat)}</span></div>
-          {data.vat_mode === 'omvand' ? (
-            <div className="flex justify-between text-muted-foreground"><span>Moms</span><span>Omvänd betalningsskyldighet</span></div>
-          ) : (
-            <div className="flex justify-between"><span>Moms 25%</span><span className="tabular-nums">{fmtKr(data.total_vat)}</span></div>
-          )}
-          <div className="flex justify-between font-semibold pt-1"><span>Summa inkl moms</span><span className="tabular-nums">{fmtKr(data.total_incl_vat)}</span></div>
-          {data.rot_enabled && data.vat_mode === 'vanlig' && (
-            <>
-              <div className="flex justify-between text-muted-foreground pt-2 border-t mt-2"><span>Rotberättigad arbetskostnad</span><span className="tabular-nums">{fmtKr(data.rot_base)}</span></div>
-              <div className="flex justify-between text-[#22C55E]"><span>Preliminärt ROT-avdrag ({data.rot_percent}%)</span><span className="tabular-nums">−{fmtKr(data.rot_amount)}</span></div>
-              <div className="flex justify-between font-bold text-base text-[#16A34A] pt-1"><span>Att betala efter ROT</span><span className="tabular-nums">{fmtKr(data.total_after_rot)}</span></div>
-            </>
-          )}
-        </section>
+        {(() => {
+          const rotActive = data.rot_enabled && data.vat_mode === 'vanlig';
+          const hpPercent = Number(data.handpenning_percent ?? 25);
+          const payable = Number(data.total_after_rot || 0);
+          const handpenning = Math.round(payable * hpPercent / 100);
+          const slutfaktura = payable - handpenning;
+          return (
+            <section className="bg-card rounded-xl border shadow-sm p-5 space-y-1 text-sm">
+              {/* 1) Ordersumma innan avdrag */}
+              <div className={`flex justify-between ${rotActive ? '' : 'font-bold text-base text-[#16A34A]'}`}>
+                <span>Ordersumma innan avdrag</span>
+                <span className="tabular-nums">{fmtKr(data.total_incl_vat)}</span>
+              </div>
+              <div className="text-xs text-muted-foreground -mt-1">
+                {data.vat_mode === 'omvand' ? 'omvänd byggmoms' : <>varav moms <span className="tabular-nums">{fmtKr(data.total_vat)}</span></>}
+              </div>
+
+              {/* 2) ROT-block */}
+              {rotActive && (
+                <>
+                  <div className="flex justify-between text-muted-foreground pt-2 border-t mt-2"><span>Rotberättigad arbetskostnad</span><span className="tabular-nums">{fmtKr(data.rot_base)}</span></div>
+                  <div className="flex justify-between text-[#22C55E]"><span>Preliminärt ROT-avdrag ({data.rot_percent}%)</span><span className="tabular-nums">−{fmtKr(data.rot_amount)}</span></div>
+                  <div className="flex justify-between font-bold text-base text-[#16A34A] pt-1"><span>Total ordersumma efter ROT</span><span className="tabular-nums">{fmtKr(payable)}</span></div>
+                </>
+              )}
+
+              {/* 3) Handpenning + slutfaktura */}
+              {hpPercent > 0 && (
+                <>
+                  <div className="flex justify-between pt-2 border-t mt-2"><span>Handpenning {hpPercent}%</span><span className="tabular-nums">{fmtKr(handpenning)}</span></div>
+                  <div className="flex justify-between"><span>Slutfaktura{rotActive ? ' (efter prel. ROT-avdrag)' : ''}</span><span className="tabular-nums">{fmtKr(slutfaktura)}</span></div>
+                </>
+              )}
+            </section>
+          );
+        })()}
 
         {/* Validity / payment */}
         <section className="bg-card rounded-xl border shadow-sm p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
