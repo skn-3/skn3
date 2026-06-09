@@ -136,7 +136,13 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     rot_amount: totals.rot_amount,
     total_after_rot: totals.total_after_rot,
     status: offer?.status || 'draft',
+    source: ueSourceLoaded ? 'ue_offer' : (offer?.source || 'manual'),
+    ue_supplier: ueSupplier,
+    ue_document_path: ueDocPath,
+    ue_total_excl: ueTotalExcl,
+    markup_percent: ueSourceLoaded ? markupPercent : (offer?.markup_percent ?? null),
   });
+
 
   const handleSave = async (closeAfter = false): Promise<string | null> => {
     if (!name.trim()) { toast.error('Ange kundens namn'); return null; }
