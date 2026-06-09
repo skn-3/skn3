@@ -129,8 +129,8 @@ Deno.serve(async (req) => {
     const { error: upErr } = await admin.from('offers').update(updates).eq('id', offer_id);
     if (upErr) throw upErr;
 
-    const publicUrl = `${PUBLIC_APP_URL.replace(/\/$/, '')}/offert/${publicToken}`;
-    const logoUrl = `${PUBLIC_APP_URL.replace(/\/$/, '')}/logo.png`;
+    const publicUrl = `${base}/offert/${publicToken}`;
+    const logoUrl = `${base}/logo.png`;
 
     const amountValue = offer.rot_enabled && offer.total_after_rot != null ? offer.total_after_rot : offer.total_incl_vat;
     const amountLabel = offer.rot_enabled ? 'Att betala efter ROT' : 'Summa inkl moms';
