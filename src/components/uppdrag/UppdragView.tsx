@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { fmtKr } from '@/lib/offerCalc';
 import { UPPDRAG_STATUS_META, type UppdragStatus } from '@/lib/uppdrag';
+import { UppdragDetail } from './UppdragDetail';
 
 type UppdragRow = {
   id: string;
