@@ -143,15 +143,24 @@ export function UppdragView() {
                       <div className="text-muted-foreground italic">Ingen kostnad registrerad</div>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(r.id)}
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      Öppna
+                    </button>
                     {r.offer_id && (
-                      <button
-                        type="button"
-                        onClick={() => openOffer(r.offer_id)}
-                        className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                      >
-                        <ExternalLink className="h-3 w-3" /> Offert
-                      </button>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => openOffer(r.offer_id)}
+                          className="text-xs text-muted-foreground hover:underline inline-flex items-center gap-1"
+                        >
+                          <ExternalLink className="h-3 w-3" /> Offert
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
