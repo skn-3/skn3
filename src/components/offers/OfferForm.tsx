@@ -89,6 +89,31 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const [ueSourceLoaded, setUeSourceLoaded] = useState<boolean>(offer?.source === 'ue_offer');
   const [ueDragActive, setUeDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uppdragInfo, setUppdragInfo] = useState<{ id: string; uppdrag_number: string | null } | null>(null);
+  const [creatingUppdrag, setCreatingUppdrag] = useState(false);
+
+  useEffect(() => {
+    if (!currentId || currentStatus !== 'accepted') { setUppdragInfo(null); return; }
+    let cancelled = false;
+    findUppdragForOffer(currentId).then(r => { if (!cancelled) setUppdragInfo(r); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [currentId, currentStatus]);
+
+  const handleCreateUppdrag = async () => {
+    if (!currentId) return;
+    setCreatingUppdrag(true);
+    try {
+      const { data: fresh, error } = await (supabase as any).from('offers').select('*').eq('id', currentId).single();
+      if (error) throw error;
+      const res = await createUppdragFromOffer(fresh, currentUser);
+      setUppdragInfo(res);
+      toast.success(`Uppdrag ${res.uppdrag_number || ''} skapat`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte skapa uppdrag');
+    } finally {
+      setCreatingUppdrag(false);
+    }
+  };
 
 
   const caseId = offer?.case_id || prefillCaseId || null;
