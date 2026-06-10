@@ -27,6 +27,7 @@ const STATUS_OPTIONS: UppdragStatus[] = ['ej_paborjad', 'pagar', 'klar', 'faktur
 export function UppdragView() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['uppdrag'],
