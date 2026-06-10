@@ -7,6 +7,9 @@ import { setCurrentUserAuth } from '@/lib/authState';
 interface ProfileRow {
   id: string;
   name: string;
+}
+
+interface UserRoleRow {
   role: RoleType;
   is_admin: boolean;
 }
@@ -17,23 +20,30 @@ export function useRole() {
   const lastUserId = useRef<string | null>(null);
 
   const loadProfile = useCallback(async (userId: string, isFreshLogin: boolean) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, name, role, is_admin')
-      .eq('id', userId)
-      .maybeSingle<ProfileRow>();
+    const [{ data: profile, error: profileErr }, { data: roleRow, error: roleErr }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, name')
+        .eq('id', userId)
+        .maybeSingle<ProfileRow>(),
+      supabase
+        .from('user_roles')
+        .select('role, is_admin')
+        .eq('user_id', userId)
+        .maybeSingle<UserRoleRow>(),
+    ]);
 
-    if (error || !data) {
-      console.error('Failed to load profile:', error);
+    if (profileErr || roleErr || !profile || !roleRow) {
+      console.error('Failed to load profile/role:', profileErr || roleErr);
       setRoleState(null);
       setCurrentUserAuth(null, false);
       return;
     }
 
     const next: UserRole = {
-      type: data.role,
-      name: data.name,
-      isAdmin: data.is_admin,
+      type: roleRow.role,
+      name: profile.name,
+      isAdmin: roleRow.is_admin,
     };
     setRoleState(next);
     setCurrentUserAuth(next.name, !!next.isAdmin);
@@ -48,6 +58,7 @@ export function useRole() {
       });
     }
   }, []);
+
 
   useEffect(() => {
     // Listen first, then check current session.
