@@ -108,11 +108,13 @@ export function EconomyView() {
     let cancel = false;
     (async () => {
       setLoading(true);
-      const [cRes, dRes, ccRes, smRes] = await Promise.all([
+      const [cRes, dRes, ccRes, smRes, oRes, uRes] = await Promise.all([
         supabase.from('cases').select('*'),
         supabase.from('case_documents').select('id, case_id, doc_type, total_amount, invoice_number, created_at'),
         supabase.from('case_costs').select('id, case_id, amount'),
         supabase.from('sheet_metal_orders').select('id, case_id'),
+        supabase.from('offers').select('id, offer_number, status, customer_name, title, total_incl_vat, total_after_rot, rot_enabled, created_at'),
+        supabase.from('uppdrag').select('id, uppdrag_number, customer_name, title, status, revenue_ex_vat, cost_ex_vat, slutfaktura_amount, slutfaktura_sent_at, created_at'),
       ]);
       if (cancel) return;
       const allCases = (cRes.data || []) as CaseRow[];
@@ -120,6 +122,8 @@ export function EconomyView() {
       setDocs((dRes.data || []) as DocRow[]);
       setCosts((ccRes.data || []) as CostRow[]);
       setSmos((smRes.data || []) as SmoRow[]);
+      setOffers((oRes.data || []) as OfferRow[]);
+      setUppdragList((uRes.data || []) as UppdragRow[]);
       const ids = allCases.map(c => c.id);
       const ord = await listOrdersByCaseIds(ids);
       if (cancel) return;
