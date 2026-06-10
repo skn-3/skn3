@@ -206,7 +206,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   };
 
   const handleSendToCustomer = async () => {
-    const id = offer?.id;
+    const id = currentId;
     if (!id) { toast.error('Spara offerten först'); return; }
     if (!email) { toast.error('Kunden saknar e-post'); return; }
     if (!pdfPath) { toast.error('Generera PDF först'); return; }
