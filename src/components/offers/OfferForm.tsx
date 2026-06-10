@@ -71,7 +71,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const [internalNotes, setInternalNotes] = useState<string>(offer?.internal_notes || '');
 
   // ── UE-import state ──
-  type UeSummaryRow = { id: string; label: string; amount: number };
+  type UeSummaryRow = { id: string; label: string; amount: number; is_labor: boolean };
   type UeDetailRow = { address: string | null; category: string | null; description: string | null; amount: number | null };
   const [ueOpen, setUeOpen] = useState<boolean>(false);
   const [ueLoading, setUeLoading] = useState(false);
