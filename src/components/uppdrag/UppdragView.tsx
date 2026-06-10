@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { fmtKr } from '@/lib/offerCalc';
 import { UPPDRAG_STATUS_META, type UppdragStatus } from '@/lib/uppdrag';
+import { UppdragDetail } from './UppdragDetail';
 
 type UppdragRow = {
   id: string;
@@ -26,6 +27,7 @@ const STATUS_OPTIONS: UppdragStatus[] = ['ej_paborjad', 'pagar', 'klar', 'faktur
 export function UppdragView() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['uppdrag'],
@@ -141,15 +143,24 @@ export function UppdragView() {
                       <div className="text-muted-foreground italic">Ingen kostnad registrerad</div>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(r.id)}
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      Öppna
+                    </button>
                     {r.offer_id && (
-                      <button
-                        type="button"
-                        onClick={() => openOffer(r.offer_id)}
-                        className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                      >
-                        <ExternalLink className="h-3 w-3" /> Offert
-                      </button>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => openOffer(r.offer_id)}
+                          className="text-xs text-muted-foreground hover:underline inline-flex items-center gap-1"
+                        >
+                          <ExternalLink className="h-3 w-3" /> Offert
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -158,6 +169,7 @@ export function UppdragView() {
           </tbody>
         </table>
       </div>
+      <UppdragDetail uppdragId={openId} onClose={() => setOpenId(null)} />
     </div>
   );
 }

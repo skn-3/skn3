@@ -3,7 +3,7 @@ import { calcOfferTotals, fmtKr, type OfferLineItem } from './offerCalc';
 type TDocumentDefinitions = any;
 
 // pdfmake laddas globalt via CDN i index.html (window.pdfMake) — undviker Vites bundler/vfs-problem.
-function getPdfMake(): Promise<any> {
+export function getPdfMake(): Promise<any> {
   return new Promise((resolve, reject) => {
     if ((window as any).pdfMake?.createPdf) return resolve((window as any).pdfMake);
     let tries = 0;
@@ -14,13 +14,14 @@ function getPdfMake(): Promise<any> {
   });
 }
 
+
 const GREEN = '#22C55E';
 const GREEN_DARK = '#15803D';
 const MUTED = '#6B7280';
 const BORDER = '#E5E7EB';
 
 let logoCache: string | null = null;
-async function loadLogoDataUrl(): Promise<string | null> {
+export async function loadLogoDataUrl(): Promise<string | null> {
   if (logoCache) return logoCache;
   try {
     const res = await fetch('/logo.png');
@@ -38,12 +39,13 @@ async function loadLogoDataUrl(): Promise<string | null> {
   }
 }
 
-function fmtDate(d: string | Date | null | undefined) {
+export function fmtDate(d: string | Date | null | undefined) {
   if (!d) return '';
   const dt = typeof d === 'string' ? new Date(d) : d;
   if (isNaN(dt.getTime())) return String(d);
   return dt.toLocaleDateString('sv-SE');
 }
+
 
 export interface OfferForPdf {
   offer_number?: string | null;
