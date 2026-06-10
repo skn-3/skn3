@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Trash2, Plus, Save, FileDown, ChevronDown, ChevronRight, AlertTriangle, Send, Copy, Upload, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Save, FileDown, ChevronDown, ChevronRight, AlertTriangle, Send, Copy, Upload, Loader2, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { DEFAULT_OFFER_TERMS } from '@/lib/offerTerms';
 import { calcOfferTotals, fmtKr, type OfferLineItem } from '@/lib/offerCalc';
 import { buildOfferPdfBlob } from '@/lib/offerPdf';
+import { createUppdragFromOffer, findUppdragForOffer } from '@/lib/uppdrag';
 
 type OfferRow = any;
 
@@ -88,6 +89,31 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const [ueSourceLoaded, setUeSourceLoaded] = useState<boolean>(offer?.source === 'ue_offer');
   const [ueDragActive, setUeDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uppdragInfo, setUppdragInfo] = useState<{ id: string; uppdrag_number: string | null } | null>(null);
+  const [creatingUppdrag, setCreatingUppdrag] = useState(false);
+
+  useEffect(() => {
+    if (!currentId || currentStatus !== 'accepted') { setUppdragInfo(null); return; }
+    let cancelled = false;
+    findUppdragForOffer(currentId).then(r => { if (!cancelled) setUppdragInfo(r); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [currentId, currentStatus]);
+
+  const handleCreateUppdrag = async () => {
+    if (!currentId) return;
+    setCreatingUppdrag(true);
+    try {
+      const { data: fresh, error } = await (supabase as any).from('offers').select('*').eq('id', currentId).single();
+      if (error) throw error;
+      const res = await createUppdragFromOffer(fresh, currentUser);
+      setUppdragInfo(res);
+      toast.success(`Uppdrag ${res.uppdrag_number || ''} skapat`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte skapa uppdrag');
+    } finally {
+      setCreatingUppdrag(false);
+    }
+  };
 
 
   const caseId = offer?.case_id || prefillCaseId || null;
@@ -352,6 +378,20 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
                 >
                   Öppna signerad PDF
                 </button>
+              )}
+            </div>
+          )}
+          {currentStatus === 'accepted' && (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {uppdragInfo ? (
+                <span className="inline-flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-1.5">
+                  <Briefcase className="h-3.5 w-3.5" />
+                  Uppdrag skapat: <strong>{uppdragInfo.uppdrag_number || uppdragInfo.id.slice(0, 8)}</strong>
+                </span>
+              ) : (
+                <Button type="button" size="sm" onClick={handleCreateUppdrag} disabled={creatingUppdrag} className="gap-1">
+                  <Briefcase className="h-3.5 w-3.5" /> {creatingUppdrag ? 'Skapar…' : 'Skapa uppdrag'}
+                </Button>
               )}
             </div>
           )}

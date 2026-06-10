@@ -13,6 +13,7 @@ import { CalendarView } from '@/components/calendar/CalendarView';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { EconomyView } from '@/components/economy/EconomyView';
 import { OffersView } from '@/components/offers/OffersView';
+import { UppdragView } from '@/components/uppdrag/UppdragView';
 
 interface Props {
   role: UserRole;
@@ -68,6 +69,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
           <CoordinatorDeviations coordinatorName={role.name} onSelectCase={setSelectedCase} />
         )}
         {tab === 'offers' && <OffersView currentUser={role.name} />}
+        {tab === 'uppdrag' && <UppdragView />}
         {tab === 'economy' && <EconomyView />}
       </main>
 

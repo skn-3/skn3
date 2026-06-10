@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, FileText, ExternalLink, Pencil, Download, Send } from 'lucide-react';
+import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { OfferForm } from './OfferForm';
 import { fmtKr } from '@/lib/offerCalc';
 import { buildOfferPdfBlob } from '@/lib/offerPdf';
+import { createUppdragFromOffer } from '@/lib/uppdrag';
 
 export type OfferRow = {
   id: string;
@@ -113,6 +114,17 @@ export function OffersView({ currentUser }: OffersViewProps) {
     onError: (e: any) => toast.error(e?.message || 'Kunde inte skicka offert'),
   });
 
+  const createUppdrag = useMutation({
+    mutationFn: async (offer: OfferRow) => createUppdragFromOffer(offer, currentUser),
+    onSuccess: (res) => {
+      toast.success(`Uppdrag ${res.uppdrag_number || ''} skapat`);
+      qc.invalidateQueries({ queryKey: ['uppdrag'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Kunde inte skapa uppdrag'),
+  });
+
+
+
   return (
     <div className="px-3 md:px-4 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -190,6 +202,17 @@ export function OffersView({ currentUser }: OffersViewProps) {
                     >
                       <Send className="h-3 w-3" /> Skicka
                     </button>
+                    {o.status === 'accepted' && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); createUppdrag.mutate(o); }}
+                        disabled={createUppdrag.isPending}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 mr-3 disabled:opacity-40"
+                        title="Skapa uppdrag från denna offert"
+                      >
+                        <Briefcase className="h-3 w-3" /> Skapa uppdrag
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(o); }}

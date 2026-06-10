@@ -652,6 +652,119 @@ export type Database = {
           },
         ]
       }
+      uppdrag: {
+        Row: {
+          assigned_to: string | null
+          cost_ex_vat: number | null
+          created_at: string
+          created_by: string | null
+          customer_address: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_personnummer: string | null
+          customer_phone: string | null
+          customer_type: string | null
+          done_date: string | null
+          fastighetsbeteckning: string | null
+          handpenning_amount: number | null
+          handpenning_invoice_no: string | null
+          handpenning_pdf_path: string | null
+          handpenning_sent_at: string | null
+          id: string
+          notes: string | null
+          offer_id: string | null
+          revenue_after_rot: number | null
+          revenue_ex_vat: number | null
+          revenue_incl_vat: number | null
+          rot_amount: number | null
+          slutfaktura_amount: number | null
+          slutfaktura_invoice_no: string | null
+          slutfaktura_pdf_path: string | null
+          slutfaktura_sent_at: string | null
+          start_date: string | null
+          status: string
+          title: string | null
+          updated_at: string
+          uppdrag_number: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          cost_ex_vat?: number | null
+          created_at?: string
+          created_by?: string | null
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_personnummer?: string | null
+          customer_phone?: string | null
+          customer_type?: string | null
+          done_date?: string | null
+          fastighetsbeteckning?: string | null
+          handpenning_amount?: number | null
+          handpenning_invoice_no?: string | null
+          handpenning_pdf_path?: string | null
+          handpenning_sent_at?: string | null
+          id?: string
+          notes?: string | null
+          offer_id?: string | null
+          revenue_after_rot?: number | null
+          revenue_ex_vat?: number | null
+          revenue_incl_vat?: number | null
+          rot_amount?: number | null
+          slutfaktura_amount?: number | null
+          slutfaktura_invoice_no?: string | null
+          slutfaktura_pdf_path?: string | null
+          slutfaktura_sent_at?: string | null
+          start_date?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          uppdrag_number?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          cost_ex_vat?: number | null
+          created_at?: string
+          created_by?: string | null
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_personnummer?: string | null
+          customer_phone?: string | null
+          customer_type?: string | null
+          done_date?: string | null
+          fastighetsbeteckning?: string | null
+          handpenning_amount?: number | null
+          handpenning_invoice_no?: string | null
+          handpenning_pdf_path?: string | null
+          handpenning_sent_at?: string | null
+          id?: string
+          notes?: string | null
+          offer_id?: string | null
+          revenue_after_rot?: number | null
+          revenue_ex_vat?: number | null
+          revenue_incl_vat?: number | null
+          rot_amount?: number | null
+          slutfaktura_amount?: number | null
+          slutfaktura_invoice_no?: string | null
+          slutfaktura_pdf_path?: string | null
+          slutfaktura_sent_at?: string | null
+          start_date?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          uppdrag_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uppdrag_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_calendar_tokens: {
         Row: {
           created_at: string
