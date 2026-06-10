@@ -212,6 +212,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
                       >
                         <Briefcase className="h-3 w-3" /> Skapa uppdrag
                       </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(o); }}
