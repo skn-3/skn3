@@ -288,7 +288,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     if (!ueSummary.length) return;
     const newItems: OfferLineItem[] = ueSummary.map(r => {
       const price = ueCustomerPrice(Number(r.amount || 0));
-      return { id: makeId(), description: r.label, is_labor: false, qty: 1, unit: 'st', unit_price: price, amount: price };
+      return { id: makeId(), description: r.label, is_labor: !!r.is_labor, qty: 1, unit: 'st', unit_price: price, amount: price };
     });
     setItems(newItems);
     setUeSourceLoaded(true);
