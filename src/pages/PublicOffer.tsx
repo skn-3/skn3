@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Download, ChevronDown, ChevronRight, FileText, Loader2, CheckCircle2 } from 'lucide-react';
+import { Download, ChevronDown, ChevronRight, FileText, Loader2, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +37,8 @@ type PublicOfferData = {
   status: string;
   accepted_at: string | null;
   accept_name: string | null;
+  declined_at?: string | null;
+
   customer_personnummer?: string | null;
   fastighetsbeteckning?: string | null;
   signed_url: string | null;       // unsigned offer PDF (signed download URL)
@@ -50,7 +54,10 @@ const fmtDateTime = (s: string | null) => (s ? new Date(s).toLocaleString('sv-SE
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   sent: { text: 'Skickad', cls: 'bg-blue-100 text-blue-800' },
   accepted: { text: 'Accepterad', cls: 'bg-green-100 text-green-800' },
+  expired: { text: 'Utgången', cls: 'bg-yellow-100 text-yellow-800' },
+  declined: { text: 'Avböjd', cls: 'bg-muted text-muted-foreground' },
 };
+
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -76,6 +83,13 @@ export default function PublicOffer() {
   const [acceptName, setAcceptName] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Decline form
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineName, setDeclineName] = useState('');
+  const [declineReason, setDeclineReason] = useState('');
+  const [declining, setDeclining] = useState(false);
+
 
   useEffect(() => {
     document.title = 'Din offert · SmartKlimat N3prenad';
