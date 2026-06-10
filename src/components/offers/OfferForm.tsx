@@ -39,7 +39,8 @@ function defaultValidUntil(): string {
 }
 
 export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, onSaved, onClose }: OfferFormProps) {
-  const isEdit = !!offer?.id;
+  const [currentId, setCurrentId] = useState<string | null>(offer?.id ?? null);
+  const isEdit = !!currentId;
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
