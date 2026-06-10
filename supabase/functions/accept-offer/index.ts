@@ -41,15 +41,29 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Offerten hittades inte' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // Lazy expiry: offer valid through end of valid_until day
+    if (offer.status === 'sent' && offer.valid_until) {
+      const end = new Date(offer.valid_until);
+      end.setHours(23, 59, 59, 999);
+      if (Date.now() > end.getTime()) {
+        await admin.from('offers').update({ status: 'expired' }).eq('id', offer.id);
+        return new Response(JSON.stringify({ ok: true, expired: true }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Idempotent: if not in 'sent' state, return current state without changes
     if (offer.status !== 'sent') {
       return new Response(JSON.stringify({
         ok: true,
         already: true,
+        status: offer.status,
         accept_name: offer.accept_name,
         accepted_at: offer.accepted_at,
       }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
 
     const xff = req.headers.get('x-forwarded-for') || '';
     const ip = (xff.split(',')[0] || '').trim() || req.headers.get('cf-connecting-ip') || null;
