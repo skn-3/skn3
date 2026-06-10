@@ -648,6 +648,89 @@ export function EconomyView() {
           items={missingSheetInvoice}
         />
       </div>
+
+      {/* Entreprenad (CaseFlow) */}
+      <div className="pt-6 border-t-2 border-border">
+        <h2 className="text-2xl font-semibold mb-1">Entreprenad</h2>
+        <div className="text-sm text-muted-foreground mb-4">
+          Offerter och uppdrag i CaseFlow — separat från Mockfjärds-ärenden.
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="p-4">
+            <div className="text-xs text-muted-foreground">Offererat</div>
+            <div className="text-2xl font-semibold mt-1">{fmtKr(entreprenad.offeredSum)}</div>
+            <div className="text-xs text-muted-foreground mt-1">{entreprenad.offeredCount} st</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-xs text-muted-foreground">Träffprocent</div>
+            <div className="text-2xl font-semibold mt-1">
+              {entreprenad.hitRate == null ? '–' : fmtPct(entreprenad.hitRate)}
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-xs text-muted-foreground">Marginal</div>
+            <div className={`text-2xl font-semibold mt-1 ${entreprenad.marginSum < 0 ? 'text-destructive' : ''}`}>
+              {fmtKr(entreprenad.marginSum)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              ({entreprenad.marginPct == null ? '–' : fmtPct(entreprenad.marginPct)})
+            </div>
+          </Card>
+          <Card className={`p-4 ${entreprenad.unbilledCount > 0 ? 'border-orange-400 bg-orange-50/60 dark:bg-orange-950/20' : ''}`}>
+            <div className="text-xs text-muted-foreground">Ofakturerat</div>
+            <div className={`text-2xl font-semibold mt-1 ${entreprenad.unbilledCount > 0 ? 'text-orange-600 dark:text-orange-400' : ''}`}>
+              {entreprenad.unbilledCount} st
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">{fmtKr(entreprenad.unbilledSum)}</div>
+          </Card>
+        </div>
+
+        <Card className="p-0 overflow-hidden mt-4">
+          <div className="p-4 border-b">
+            <div className="text-sm font-medium">Uppdrag</div>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Uppdragsnr</TableHead>
+                <TableHead>Kund</TableHead>
+                <TableHead>Titel</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Intäkt ex moms</TableHead>
+                <TableHead>Kostnad</TableHead>
+                <TableHead>Marginal</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entreprenad.uppdragSorted.length === 0 && (
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Inga uppdrag i vald period</TableCell></TableRow>
+              )}
+              {entreprenad.uppdragSorted.map(u => {
+                const rev = Number(u.revenue_ex_vat || 0);
+                const hasCost = u.cost_ex_vat != null;
+                const cost = Number(u.cost_ex_vat || 0);
+                const margin = hasCost ? rev - cost : null;
+                const marginPct = hasCost && rev > 0 ? (rev - cost) / rev : null;
+                const negative = margin != null && margin < 0;
+                return (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-mono text-xs">{u.uppdrag_number || '—'}</TableCell>
+                    <TableCell>{u.customer_name || '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{u.title || '—'}</TableCell>
+                    <TableCell>{uppdragStatusBadge(u.status)}</TableCell>
+                    <TableCell>{fmtKr(rev)}</TableCell>
+                    <TableCell>{hasCost ? fmtKr(cost) : '—'}</TableCell>
+                    <TableCell className={negative ? 'text-destructive font-medium' : ''}>
+                      {margin == null ? '—' : `${fmtKr(margin)}${marginPct != null ? ` (${fmtPct(marginPct)})` : ''}`}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      </div>
     </div>
   );
 }
