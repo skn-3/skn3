@@ -71,7 +71,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const [internalNotes, setInternalNotes] = useState<string>(offer?.internal_notes || '');
 
   // ── UE-import state ──
-  type UeSummaryRow = { id: string; label: string; amount: number };
+  type UeSummaryRow = { id: string; label: string; amount: number; is_labor: boolean };
   type UeDetailRow = { address: string | null; category: string | null; description: string | null; amount: number | null };
   const [ueOpen, setUeOpen] = useState<boolean>(false);
   const [ueLoading, setUeLoading] = useState(false);
@@ -268,8 +268,8 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
       setUeOfferNumber(d.offer_number || null);
       setUeTotalExcl(d.total_excl_vat != null ? Number(d.total_excl_vat) : null);
       const sum: UeSummaryRow[] = Array.isArray(d.summary) && d.summary.length
-        ? d.summary.map((s: any) => ({ id: makeId(), label: String(s.label || ''), amount: Number(s.amount || 0) }))
-        : [{ id: makeId(), label: 'Entreprenad enligt offert', amount: Number(d.total_excl_vat || 0) }];
+        ? d.summary.map((s: any) => ({ id: makeId(), label: String(s.label || ''), amount: Number(s.amount || 0), is_labor: !!s.is_labor }))
+        : [{ id: makeId(), label: 'Entreprenad enligt offert', amount: Number(d.total_excl_vat || 0), is_labor: false }];
       setUeSummary(sum);
       setUeDetails(Array.isArray(d.line_items) ? d.line_items.map((li: any) => ({
         address: li.address ?? null, category: li.category ?? null, description: li.description ?? null, amount: li.amount != null ? Number(li.amount) : null,
@@ -288,7 +288,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     if (!ueSummary.length) return;
     const newItems: OfferLineItem[] = ueSummary.map(r => {
       const price = ueCustomerPrice(Number(r.amount || 0));
-      return { id: makeId(), description: r.label, is_labor: false, qty: 1, unit: 'st', unit_price: price, amount: price };
+      return { id: makeId(), description: r.label, is_labor: !!r.is_labor, qty: 1, unit: 'st', unit_price: price, amount: price };
     });
     setItems(newItems);
     setUeSourceLoaded(true);
@@ -299,7 +299,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const updateUeRow = (id: string, patch: Partial<UeSummaryRow>) => {
     setUeSummary(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
   };
-  const addUeRow = () => setUeSummary(prev => [...prev, { id: makeId(), label: '', amount: 0 }]);
+  const addUeRow = () => setUeSummary(prev => [...prev, { id: makeId(), label: '', amount: 0, is_labor: false }]);
   const removeUeRow = (id: string) => setUeSummary(prev => prev.filter(r => r.id !== id));
 
 
@@ -452,19 +452,25 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
                     <div className="col-span-1"></div>
                   </div>
                   {ueSummary.map((r) => (
-                    <div key={r.id} className="grid grid-cols-12 gap-2 px-3 py-2 items-center">
-                      <div className="col-span-6">
-                        <Input value={r.label} onChange={e => updateUeRow(r.id, { label: e.target.value })} />
+                    <div key={r.id} className="px-3 py-2 space-y-1.5">
+                      <div className="grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-6">
+                          <Input value={r.label} onChange={e => updateUeRow(r.id, { label: e.target.value })} />
+                        </div>
+                        <div className="col-span-2">
+                          <Input type="number" step="any" className="text-right" value={r.amount} onChange={e => updateUeRow(r.id, { amount: Number(e.target.value) })} />
+                        </div>
+                        <div className="col-span-3 text-right font-medium tabular-nums">{fmtKr(ueCustomerPrice(r.amount))}</div>
+                        <div className="col-span-1 flex justify-end">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removeUeRow(r.id)} title="Ta bort">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="col-span-2">
-                        <Input type="number" step="any" className="text-right" value={r.amount} onChange={e => updateUeRow(r.id, { amount: Number(e.target.value) })} />
-                      </div>
-                      <div className="col-span-3 text-right font-medium tabular-nums">{fmtKr(ueCustomerPrice(r.amount))}</div>
-                      <div className="col-span-1 flex justify-end">
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeUeRow(r.id)} title="Ta bort">
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground pl-1 cursor-pointer">
+                        <Checkbox checked={r.is_labor} onCheckedChange={v => updateUeRow(r.id, { is_labor: !!v })} />
+                        <span>Arbetskostnad (ingår i ROT-underlag)</span>
+                      </label>
                     </div>
                   ))}
                 </div>
