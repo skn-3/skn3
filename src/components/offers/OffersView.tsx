@@ -114,6 +114,17 @@ export function OffersView({ currentUser }: OffersViewProps) {
     onError: (e: any) => toast.error(e?.message || 'Kunde inte skicka offert'),
   });
 
+  const createUppdrag = useMutation({
+    mutationFn: async (offer: OfferRow) => createUppdragFromOffer(offer, currentUser),
+    onSuccess: (res) => {
+      toast.success(`Uppdrag ${res.uppdrag_number || ''} skapat`);
+      qc.invalidateQueries({ queryKey: ['uppdrag'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Kunde inte skapa uppdrag'),
+  });
+
+
+
   return (
     <div className="px-3 md:px-4 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
