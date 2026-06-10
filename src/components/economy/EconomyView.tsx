@@ -28,6 +28,31 @@ type DocRow = {
 type CostRow = { id: string; case_id: string; amount: number };
 type SmoRow = { id: string; case_id: string };
 
+type OfferRow = {
+  id: string;
+  offer_number: string | null;
+  status: string;
+  customer_name: string | null;
+  title: string | null;
+  total_incl_vat: number | null;
+  total_after_rot: number | null;
+  rot_enabled: boolean | null;
+  created_at: string;
+};
+
+type UppdragRow = {
+  id: string;
+  uppdrag_number: string | null;
+  customer_name: string | null;
+  title: string | null;
+  status: string;
+  revenue_ex_vat: number | null;
+  cost_ex_vat: number | null;
+  slutfaktura_amount: number | null;
+  slutfaktura_sent_at: string | null;
+  created_at: string;
+};
+
 type Period = 'month' | 'quarter' | 'year' | 'all';
 
 function fmtKr(n: number): string {
@@ -72,6 +97,8 @@ export function EconomyView() {
   const [costs, setCosts] = useState<CostRow[]>([]);
   const [smos, setSmos] = useState<SmoRow[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [offers, setOffers] = useState<OfferRow[]>([]);
+  const [uppdragList, setUppdragList] = useState<UppdragRow[]>([]);
   const [period, setPeriod] = useState<Period>('all');
   const [sortBy, setSortBy] = useState<'profit' | 'margin' | 'revenue' | 'cost'>('profit');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -81,11 +108,13 @@ export function EconomyView() {
     let cancel = false;
     (async () => {
       setLoading(true);
-      const [cRes, dRes, ccRes, smRes] = await Promise.all([
+      const [cRes, dRes, ccRes, smRes, oRes, uRes] = await Promise.all([
         supabase.from('cases').select('*'),
         supabase.from('case_documents').select('id, case_id, doc_type, total_amount, invoice_number, created_at'),
         supabase.from('case_costs').select('id, case_id, amount'),
         supabase.from('sheet_metal_orders').select('id, case_id'),
+        supabase.from('offers').select('id, offer_number, status, customer_name, title, total_incl_vat, total_after_rot, rot_enabled, created_at'),
+        supabase.from('uppdrag').select('id, uppdrag_number, customer_name, title, status, revenue_ex_vat, cost_ex_vat, slutfaktura_amount, slutfaktura_sent_at, created_at'),
       ]);
       if (cancel) return;
       const allCases = (cRes.data || []) as CaseRow[];
@@ -93,6 +122,8 @@ export function EconomyView() {
       setDocs((dRes.data || []) as DocRow[]);
       setCosts((ccRes.data || []) as CostRow[]);
       setSmos((smRes.data || []) as SmoRow[]);
+      setOffers((oRes.data || []) as OfferRow[]);
+      setUppdragList((uRes.data || []) as UppdragRow[]);
       const ids = allCases.map(c => c.id);
       const ord = await listOrdersByCaseIds(ids);
       if (cancel) return;
@@ -278,6 +309,63 @@ export function EconomyView() {
     if (sortBy === col) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortBy(col); setSortDir('asc'); }
   };
+
+  // Entreprenad (CaseFlow) — separat från Mockfjärds
+  const entreprenad = useMemo(() => {
+    const start = periodStart(period);
+    const inPeriod = <T extends { created_at: string }>(r: T) =>
+      !start || new Date(r.created_at) >= start;
+    const offersF = offers.filter(inPeriod);
+    const uppdragF = uppdragList.filter(inPeriod);
+
+    const offerAmount = (o: OfferRow) =>
+      Number((o.rot_enabled ? o.total_after_rot : o.total_incl_vat) ?? 0);
+
+    const sentOrLater = offersF.filter(o => o.status !== 'draft');
+    const offeredSum = sentOrLater.reduce((s, o) => s + offerAmount(o), 0);
+    const offeredCount = sentOrLater.length;
+
+    const accepted = offersF.filter(o => o.status === 'accepted').length;
+    const declined = offersF.filter(o => o.status === 'declined').length;
+    const expired = offersF.filter(o => o.status === 'expired').length;
+    const decided = accepted + declined + expired;
+    const hitRate = decided > 0 ? accepted / decided : null;
+
+    const withCost = uppdragF.filter(u => u.cost_ex_vat != null);
+    const marginSum = withCost.reduce(
+      (s, u) => s + (Number(u.revenue_ex_vat || 0) - Number(u.cost_ex_vat || 0)),
+      0,
+    );
+    const marginRev = withCost.reduce((s, u) => s + Number(u.revenue_ex_vat || 0), 0);
+    const marginPct = marginRev > 0 ? marginSum / marginRev : null;
+
+    const unbilled = uppdragF.filter(u => u.status === 'klar' && !u.slutfaktura_sent_at);
+    const unbilledCount = unbilled.length;
+    const unbilledSum = unbilled.reduce((s, u) => s + Number(u.slutfaktura_amount || 0), 0);
+
+    const uppdragSorted = [...uppdragF].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+
+    return {
+      offeredSum, offeredCount, hitRate,
+      marginSum, marginPct,
+      unbilledCount, unbilledSum,
+      uppdragSorted,
+    };
+  }, [offers, uppdragList, period]);
+
+  const uppdragStatusBadge = (s: string) => {
+    const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+      ej_paborjad: { label: 'Ej påbörjad', variant: 'outline' },
+      pagar: { label: 'Pågår', variant: 'secondary' },
+      klar: { label: 'Klar', variant: 'default' },
+      fakturerad: { label: 'Fakturerad', variant: 'default' },
+    };
+    const m = map[s] || { label: s, variant: 'outline' as const };
+    return <Badge variant={m.variant} className="text-xs">{m.label}</Badge>;
+  };
+
 
   if (loading) {
     return (
@@ -559,6 +647,89 @@ export function EconomyView() {
           desc="Plåtorder skickad men ingen faktura kopplad"
           items={missingSheetInvoice}
         />
+      </div>
+
+      {/* Entreprenad (CaseFlow) */}
+      <div className="pt-6 border-t-2 border-border">
+        <h2 className="text-2xl font-semibold mb-1">Entreprenad</h2>
+        <div className="text-sm text-muted-foreground mb-4">
+          Offerter och uppdrag i CaseFlow — separat från Mockfjärds-ärenden.
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="p-4">
+            <div className="text-xs text-muted-foreground">Offererat</div>
+            <div className="text-2xl font-semibold mt-1">{fmtKr(entreprenad.offeredSum)}</div>
+            <div className="text-xs text-muted-foreground mt-1">{entreprenad.offeredCount} st</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-xs text-muted-foreground">Träffprocent</div>
+            <div className="text-2xl font-semibold mt-1">
+              {entreprenad.hitRate == null ? '–' : fmtPct(entreprenad.hitRate)}
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-xs text-muted-foreground">Marginal</div>
+            <div className={`text-2xl font-semibold mt-1 ${entreprenad.marginSum < 0 ? 'text-destructive' : ''}`}>
+              {fmtKr(entreprenad.marginSum)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              ({entreprenad.marginPct == null ? '–' : fmtPct(entreprenad.marginPct)})
+            </div>
+          </Card>
+          <Card className={`p-4 ${entreprenad.unbilledCount > 0 ? 'border-orange-400 bg-orange-50/60 dark:bg-orange-950/20' : ''}`}>
+            <div className="text-xs text-muted-foreground">Ofakturerat</div>
+            <div className={`text-2xl font-semibold mt-1 ${entreprenad.unbilledCount > 0 ? 'text-orange-600 dark:text-orange-400' : ''}`}>
+              {entreprenad.unbilledCount} st
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">{fmtKr(entreprenad.unbilledSum)}</div>
+          </Card>
+        </div>
+
+        <Card className="p-0 overflow-hidden mt-4">
+          <div className="p-4 border-b">
+            <div className="text-sm font-medium">Uppdrag</div>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Uppdragsnr</TableHead>
+                <TableHead>Kund</TableHead>
+                <TableHead>Titel</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Intäkt ex moms</TableHead>
+                <TableHead>Kostnad</TableHead>
+                <TableHead>Marginal</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entreprenad.uppdragSorted.length === 0 && (
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Inga uppdrag i vald period</TableCell></TableRow>
+              )}
+              {entreprenad.uppdragSorted.map(u => {
+                const rev = Number(u.revenue_ex_vat || 0);
+                const hasCost = u.cost_ex_vat != null;
+                const cost = Number(u.cost_ex_vat || 0);
+                const margin = hasCost ? rev - cost : null;
+                const marginPct = hasCost && rev > 0 ? (rev - cost) / rev : null;
+                const negative = margin != null && margin < 0;
+                return (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-mono text-xs">{u.uppdrag_number || '—'}</TableCell>
+                    <TableCell>{u.customer_name || '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{u.title || '—'}</TableCell>
+                    <TableCell>{uppdragStatusBadge(u.status)}</TableCell>
+                    <TableCell>{fmtKr(rev)}</TableCell>
+                    <TableCell>{hasCost ? fmtKr(cost) : '—'}</TableCell>
+                    <TableCell className={negative ? 'text-destructive font-medium' : ''}>
+                      {margin == null ? '—' : `${fmtKr(margin)}${marginPct != null ? ` (${fmtPct(marginPct)})` : ''}`}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchVisits, fetchCases, fetchAllDeviations, fetchInsightHistory, recordInsightsShown, type CaseRow, type VisitRow } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { formatAmount } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, TrendingUp, Flame, Calendar, Target, Sparkles, CheckCircle2, AlertTriangle, Wrench, MapPin, Clock, Volume2, VolumeX } from 'lucide-react';
@@ -182,20 +183,53 @@ function SellerDashboard({ name }: { name: string }) {
     queryFn: () => fetchCases({ seller: name }) as Promise<CaseRow[]>,
   });
 
-  // [DIAG-WELCOME] tillfällig diagnos — ta bort när vi vet roten
-  const { data: allVisits } = useQuery({
-    queryKey: ['diag-all-visits'],
-    queryFn: () => fetchVisits() as Promise<VisitRow[]>,
+  const { data: offerOverview } = useQuery({
+    queryKey: ['welcome-offers-overview', name],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('offers')
+        .select('id, status, valid_until, created_by')
+        .eq('status', 'sent')
+        .eq('created_by', name);
+      return (data || []) as Array<{ id: string; status: string; valid_until: string | null; created_by: string | null }>;
+    },
+    staleTime: 60_000,
   });
-  useEffect(() => {
-    if (!allVisits) return;
-    console.log('[DIAG-WELCOME] name (inloggad säljare):', JSON.stringify(name));
-    console.log('[DIAG-WELCOME] antal visits från fetchVisits({seller:name}):', visits.length);
-    console.log('[DIAG-WELCOME] totalt antal visits i systemet:', allVisits.length);
-    console.log('[DIAG-WELCOME] unika seller-värden:', [...new Set(allVisits.map(v => v.seller))]);
-    console.log('[DIAG-WELCOME] visits som BORDE matcha name:', allVisits.filter(v => v.seller === name).length);
-    console.log('[DIAG-WELCOME] datum på senaste 5 visits:', allVisits.slice(0, 5).map(v => ({ seller: v.seller, date: v.date })));
-  }, [allVisits, visits.length, name]);
+  const { data: uppdragReady } = useQuery({
+    queryKey: ['welcome-uppdrag-klar'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('uppdrag')
+        .select('id, status, slutfaktura_sent_at')
+        .eq('status', 'klar')
+        .is('slutfaktura_sent_at', null);
+      return (data || []) as Array<{ id: string }>;
+    },
+    staleTime: 60_000,
+  });
+
+  const offerStats = useMemo(() => {
+    const list = offerOverview || [];
+    const now = Date.now();
+    const in3 = now + 3 * 86400000;
+    const isExpired = (vu: string | null) => {
+      if (!vu) return false;
+      const end = new Date(vu); end.setHours(23, 59, 59, 999);
+      return end.getTime() < now;
+    };
+    const waiting = list.filter(o => !isExpired(o.valid_until));
+    const expiringSoon = waiting.filter(o => {
+      if (!o.valid_until) return false;
+      const end = new Date(o.valid_until); end.setHours(23, 59, 59, 999);
+      return end.getTime() <= in3;
+    });
+    return {
+      waitingCount: waiting.length,
+      expiringSoonCount: expiringSoon.length,
+      readyToInvoiceCount: (uppdragReady || []).length,
+    };
+  }, [offerOverview, uppdragReady]);
+
 
 
   const stats = useMemo(() => {
@@ -385,6 +419,29 @@ function SellerDashboard({ name }: { name: string }) {
               </div>
             </Card>
           </div>
+
+          {(offerStats.waitingCount > 0 || offerStats.expiringSoonCount > 0 || offerStats.readyToInvoiceCount > 0) && (
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Offerter & uppdrag</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card>
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Väntar på svar</div>
+                  <div className="text-3xl font-bold mt-2 text-foreground"><CountUp value={offerStats.waitingCount} /></div>
+                </Card>
+                <Card className={offerStats.expiringSoonCount > 0 ? 'border-orange-300 bg-orange-50/50 dark:bg-orange-950/20' : ''}>
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Går ut inom 3 dagar</div>
+                  <div className={`text-3xl font-bold mt-2 ${offerStats.expiringSoonCount > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-foreground'}`}>
+                    <CountUp value={offerStats.expiringSoonCount} />
+                  </div>
+                </Card>
+                <Card>
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Klara att fakturera</div>
+                  <div className="text-3xl font-bold mt-2 text-foreground"><CountUp value={offerStats.readyToInvoiceCount} /></div>
+                </Card>
+              </div>
+            </div>
+          )}
+
 
           {zeroNudge && (
             <Card className="border-primary/40 bg-primary/5">
