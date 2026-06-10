@@ -28,6 +28,31 @@ type DocRow = {
 type CostRow = { id: string; case_id: string; amount: number };
 type SmoRow = { id: string; case_id: string };
 
+type OfferRow = {
+  id: string;
+  offer_number: string | null;
+  status: string;
+  customer_name: string | null;
+  title: string | null;
+  total_incl_vat: number | null;
+  total_after_rot: number | null;
+  rot_enabled: boolean | null;
+  created_at: string;
+};
+
+type UppdragRow = {
+  id: string;
+  uppdrag_number: string | null;
+  customer_name: string | null;
+  title: string | null;
+  status: string;
+  revenue_ex_vat: number | null;
+  cost_ex_vat: number | null;
+  slutfaktura_amount: number | null;
+  slutfaktura_sent_at: string | null;
+  created_at: string;
+};
+
 type Period = 'month' | 'quarter' | 'year' | 'all';
 
 function fmtKr(n: number): string {
