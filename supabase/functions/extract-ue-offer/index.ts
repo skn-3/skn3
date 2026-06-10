@@ -15,25 +15,31 @@ const SYSTEM_PROMPT = `Du extraherar data ur en svensk OFFERT från en underentr
 Det är ett anbud, vanligtvis ex moms (B2B). Jobbet kan röra EN eller FLERA fastigheter/adresser och flera
 arbetsmoment (rivning, tak, plåt, ställning, måleri, fönster m.m.).
 
+KLASSIFICERING is_labor (per rad och per summary-rad):
+- is_labor = true  → ARBETSKOSTNAD (ROT-grundande): montage, målning, rivning, installation, "arbete", "arbetskostnad".
+- is_labor = false → MATERIAL/ÖVRIGT (EJ ROT): material, förbrukningsmaterial, ställning/ställningshyra,
+  servicebil, transport/resor, frakt, sophantering/bortforsling, städning, maskinhyra.
+
 För VARJE prisrad, plocka ut: address (gata + nummer om raden hör till en specifik fastighet, annars null),
 category (kort arbetsmoment om det framgår, annars null), description (benämning, gärna utan adressen),
-qty, unit, unit_price, amount (tal om de finns, annars null; amount = radens summa ex moms).
+qty, unit, unit_price, amount (tal om de finns, annars null; amount = radens summa ex moms), is_labor (boolean enligt ovan).
 
-Skapa DESSUTOM en SAMMANFATTNING (summary) med FÅ rader (helst 2–6) som vi kan visa kunden: gruppera i
-första hand per adress om raderna har adresser, annars per arbetsmoment, annars slå ihop till några få
-logiska poster. Varje summary-rad: { label: kort text (t.ex. 'Takbyte – Storgatan 1' eller 'Plåtarbeten'),
-amount: summan ex moms av de rader som ingår }. Summary-beloppen ska tillsammans motsvara total_excl_vat
-(UE:s pris EX moms, UTAN påslag).
+Skapa DESSUTOM en SAMMANFATTNING (summary) med få rader vi kan visa kunden: gruppera per arbetsmoment/adress.
+För varje grupp ska du skapa SEPARATA rader för ARBETE (is_labor: true) och MATERIAL/ÖVRIGT (is_labor: false)
+när båda förekommer (t.ex. "Takbyte – Storgatan 1, arbete" + "Takbyte – Storgatan 1, material"). Om gruppen
+bara innehåller en typ räcker en rad. Varje summary-rad: { label: kort text, amount: summa ex moms av ingående
+rader, is_labor: boolean }. Summan av alla summary-rader ska motsvara total_excl_vat.
 
 Returnera ENBART ett JSON-objekt (ingen text/markdown/kodblock):
 { "supplier_name": string|null, "offer_number": string|null, "offer_date": "YYYY-MM-DD"|null,
   "currency": "SEK", "total_excl_vat": number|null, "total_incl_vat": number|null,
   "line_items": [ { "address": string|null, "category": string|null, "description": string|null,
-    "qty": number|null, "unit": string|null, "unit_price": number|null, "amount": number|null } ],
-  "summary": [ { "label": string, "amount": number } ] }
+    "qty": number|null, "unit": string|null, "unit_price": number|null, "amount": number|null, "is_labor": boolean } ],
+  "summary": [ { "label": string, "amount": number, "is_labor": boolean } ] }
 
 Regler: belopp = tal (punkt som decimaltecken), tolka svenska tusentalsmellanslag. total_excl_vat = UE:s
-summa EXKL moms. supplier_name = UE-bolagets namn (avsändaren), INTE vårt bolag. offer_date ISO. Saknas → null.`;
+summa EXKL moms. supplier_name = UE-bolagets namn (avsändaren), INTE vårt bolag. offer_date ISO. Saknas → null.
+is_labor är alltid boolean (default false vid osäkerhet).`;
 
 interface ExtractRequest {
   file_base64: string;
