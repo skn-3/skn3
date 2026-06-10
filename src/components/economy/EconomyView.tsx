@@ -310,6 +310,63 @@ export function EconomyView() {
     else { setSortBy(col); setSortDir('asc'); }
   };
 
+  // Entreprenad (CaseFlow) — separat från Mockfjärds
+  const entreprenad = useMemo(() => {
+    const start = periodStart(period);
+    const inPeriod = <T extends { created_at: string }>(r: T) =>
+      !start || new Date(r.created_at) >= start;
+    const offersF = offers.filter(inPeriod);
+    const uppdragF = uppdragList.filter(inPeriod);
+
+    const offerAmount = (o: OfferRow) =>
+      Number((o.rot_enabled ? o.total_after_rot : o.total_incl_vat) ?? 0);
+
+    const sentOrLater = offersF.filter(o => o.status !== 'draft');
+    const offeredSum = sentOrLater.reduce((s, o) => s + offerAmount(o), 0);
+    const offeredCount = sentOrLater.length;
+
+    const accepted = offersF.filter(o => o.status === 'accepted').length;
+    const declined = offersF.filter(o => o.status === 'declined').length;
+    const expired = offersF.filter(o => o.status === 'expired').length;
+    const decided = accepted + declined + expired;
+    const hitRate = decided > 0 ? accepted / decided : null;
+
+    const withCost = uppdragF.filter(u => u.cost_ex_vat != null);
+    const marginSum = withCost.reduce(
+      (s, u) => s + (Number(u.revenue_ex_vat || 0) - Number(u.cost_ex_vat || 0)),
+      0,
+    );
+    const marginRev = withCost.reduce((s, u) => s + Number(u.revenue_ex_vat || 0), 0);
+    const marginPct = marginRev > 0 ? marginSum / marginRev : null;
+
+    const unbilled = uppdragF.filter(u => u.status === 'klar' && !u.slutfaktura_sent_at);
+    const unbilledCount = unbilled.length;
+    const unbilledSum = unbilled.reduce((s, u) => s + Number(u.slutfaktura_amount || 0), 0);
+
+    const uppdragSorted = [...uppdragF].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+
+    return {
+      offeredSum, offeredCount, hitRate,
+      marginSum, marginPct,
+      unbilledCount, unbilledSum,
+      uppdragSorted,
+    };
+  }, [offers, uppdragList, period]);
+
+  const uppdragStatusBadge = (s: string) => {
+    const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+      ej_paborjad: { label: 'Ej påbörjad', variant: 'outline' },
+      pagar: { label: 'Pågår', variant: 'secondary' },
+      klar: { label: 'Klar', variant: 'default' },
+      fakturerad: { label: 'Fakturerad', variant: 'default' },
+    };
+    const m = map[s] || { label: s, variant: 'outline' as const };
+    return <Badge variant={m.variant} className="text-xs">{m.label}</Badge>;
+  };
+
+
   if (loading) {
     return (
       <div className="px-3 md:px-0 py-12 text-center text-muted-foreground">Laddar ekonomi...</div>
