@@ -169,6 +169,7 @@ export function UppdragView() {
           </tbody>
         </table>
       </div>
+      <UppdragDetail uppdragId={openId} onClose={() => setOpenId(null)} />
     </div>
   );
 }
