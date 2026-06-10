@@ -182,20 +182,53 @@ function SellerDashboard({ name }: { name: string }) {
     queryFn: () => fetchCases({ seller: name }) as Promise<CaseRow[]>,
   });
 
-  // [DIAG-WELCOME] tillfällig diagnos — ta bort när vi vet roten
-  const { data: allVisits } = useQuery({
-    queryKey: ['diag-all-visits'],
-    queryFn: () => fetchVisits() as Promise<VisitRow[]>,
+  const { data: offerOverview } = useQuery({
+    queryKey: ['welcome-offers-overview', name],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('offers')
+        .select('id, status, valid_until, created_by')
+        .eq('status', 'sent')
+        .eq('created_by', name);
+      return (data || []) as Array<{ id: string; status: string; valid_until: string | null; created_by: string | null }>;
+    },
+    staleTime: 60_000,
   });
-  useEffect(() => {
-    if (!allVisits) return;
-    console.log('[DIAG-WELCOME] name (inloggad säljare):', JSON.stringify(name));
-    console.log('[DIAG-WELCOME] antal visits från fetchVisits({seller:name}):', visits.length);
-    console.log('[DIAG-WELCOME] totalt antal visits i systemet:', allVisits.length);
-    console.log('[DIAG-WELCOME] unika seller-värden:', [...new Set(allVisits.map(v => v.seller))]);
-    console.log('[DIAG-WELCOME] visits som BORDE matcha name:', allVisits.filter(v => v.seller === name).length);
-    console.log('[DIAG-WELCOME] datum på senaste 5 visits:', allVisits.slice(0, 5).map(v => ({ seller: v.seller, date: v.date })));
-  }, [allVisits, visits.length, name]);
+  const { data: uppdragReady } = useQuery({
+    queryKey: ['welcome-uppdrag-klar'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('uppdrag')
+        .select('id, status, slutfaktura_sent_at')
+        .eq('status', 'klar')
+        .is('slutfaktura_sent_at', null);
+      return (data || []) as Array<{ id: string }>;
+    },
+    staleTime: 60_000,
+  });
+
+  const offerStats = useMemo(() => {
+    const list = offerOverview || [];
+    const now = Date.now();
+    const in3 = now + 3 * 86400000;
+    const isExpired = (vu: string | null) => {
+      if (!vu) return false;
+      const end = new Date(vu); end.setHours(23, 59, 59, 999);
+      return end.getTime() < now;
+    };
+    const waiting = list.filter(o => !isExpired(o.valid_until));
+    const expiringSoon = waiting.filter(o => {
+      if (!o.valid_until) return false;
+      const end = new Date(o.valid_until); end.setHours(23, 59, 59, 999);
+      return end.getTime() <= in3;
+    });
+    return {
+      waitingCount: waiting.length,
+      expiringSoonCount: expiringSoon.length,
+      readyToInvoiceCount: (uppdragReady || []).length,
+    };
+  }, [offerOverview, uppdragReady]);
+
 
 
   const stats = useMemo(() => {
