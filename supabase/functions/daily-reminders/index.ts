@@ -6,7 +6,7 @@ const corsHeaders = {
 }
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
-const APP_URL = 'https://id-preview--6c43e886-ddf2-476f-9c1f-255522ad4ec0.lovable.app';
+const APP_URL = 'https://smartklimatentreprenad.com';
 const LOGO_URL = `${APP_URL}/logo.png`;
 
 const EMAIL_MAP: Record<string, string> = {
@@ -294,7 +294,110 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ===================== PÅMINNELSE 4: Ärenden som fastnat (koordinator) =====================
+    // ===================== PÅMINNELSE 4: Offerter (säljare) =====================
+    {
+      const { data: offers } = await supabase
+        .from('offers')
+        .select('*')
+        .eq('status', 'sent');
+
+      if (offers && offers.length > 0) {
+        const now = Date.now();
+        const MS_DAY = 1000 * 60 * 60 * 24;
+
+        const isExpiredPast = (validUntil: string | null | undefined) => {
+          if (!validUntil) return false;
+          const end = new Date(validUntil);
+          end.setHours(23, 59, 59, 999);
+          return now > end.getTime();
+        };
+        const daysUntil = (validUntil: string) => {
+          const end = new Date(validUntil);
+          end.setHours(23, 59, 59, 999);
+          return Math.ceil((end.getTime() - now) / MS_DAY);
+        };
+
+        const fmtKr = (n: number | null | undefined) =>
+          `${Math.round(Number(n || 0)).toLocaleString('sv-SE')} kr`;
+        const fmtDate = (s: string | null | undefined) =>
+          s ? new Date(s).toLocaleDateString('sv-SE') : '—';
+
+        type OfferRow = any;
+        const grouped: Record<string, { expiring: OfferRow[]; waiting: OfferRow[] }> = {};
+
+        for (const o of offers as OfferRow[]) {
+          const seller = o.created_by || 'Okänd';
+          const expired = isExpiredPast(o.valid_until);
+
+          // A: Going to expire within 3 days (incl. today), not already expired
+          let inA = false;
+          if (o.valid_until && !expired) {
+            const d = daysUntil(o.valid_until);
+            if (d >= 0 && d <= 3) inA = true;
+          }
+
+          // B: Sent 7 or 14 days ago exactly; exclude already-expired
+          let inB = false;
+          if (o.sent_at && !expired) {
+            const ds = daysSince(o.sent_at);
+            if (ds === 7 || ds === 14) inB = true;
+          }
+
+          if (!inA && !inB) continue;
+          if (!grouped[seller]) grouped[seller] = { expiring: [], waiting: [] };
+          if (inA) grouped[seller].expiring.push(o);
+          if (inB) grouped[seller].waiting.push(o);
+        }
+
+        for (const [seller, { expiring, waiting }] of Object.entries(grouped)) {
+          const total = expiring.length + waiting.length;
+          if (total === 0) continue;
+
+          const email = EMAIL_MAP[seller] || 'n3prenad@smartklimat.org';
+
+          const sections: string[] = [];
+
+          if (expiring.length > 0) {
+            const rows = expiring.map(o => [
+              o.offer_number || '—',
+              o.customer_name || '—',
+              fmtKr(o.rot_enabled ? o.total_after_rot : o.total_incl_vat),
+              fmtDate(o.valid_until),
+            ]);
+            sections.push(
+              `<h2 style="margin:16px 0 8px 0;font-size:16px;color:#1a1a1a;">Går ut snart</h2>` +
+              buildListTable(['Offertnr', 'Kund', 'Belopp', 'Giltig t.o.m.'], rows)
+            );
+          }
+
+          if (waiting.length > 0) {
+            const rows = waiting.map(o => [
+              o.offer_number || '—',
+              o.customer_name || '—',
+              fmtKr(o.rot_enabled ? o.total_after_rot : o.total_incl_vat),
+              `${fmtDate(o.sent_at)} (${daysSince(o.sent_at)} dagar sedan)`,
+            ]);
+            sections.push(
+              `<h2 style="margin:16px 0 8px 0;font-size:16px;color:#1a1a1a;">Väntar på svar</h2>` +
+              buildListTable(['Offertnr', 'Kund', 'Belopp', 'Skickad'], rows)
+            );
+          }
+
+          const subject = `PÅMINNELSE — Offerter som behöver din uppmärksamhet (${total} st)`;
+          const html = wrapInTemplate(
+            'Dina offerter',
+            `<p style="margin:0 0 16px 0;">Hej ${seller}! Du har <strong>${total}</strong> offert(er) att se över:</p>${sections.join('')}`,
+            buildCtaButton('Öppna CaseFlow', '#22C55E')
+          );
+
+          await sendEmail(LOVABLE_API_KEY, RESEND_API_KEY, email, subject, html);
+          results.push(`Reminder 4 (offers): Sent to ${seller} (${total} offers)`);
+        }
+      }
+    }
+
+    // ===================== PÅMINNELSE 5: Ärenden som fastnat (koordinator) =====================
+
     {
       const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
       const { data: stuckCases } = await supabase
