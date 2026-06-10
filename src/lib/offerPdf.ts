@@ -21,7 +21,7 @@ const MUTED = '#6B7280';
 const BORDER = '#E5E7EB';
 
 let logoCache: string | null = null;
-async function loadLogoDataUrl(): Promise<string | null> {
+export async function loadLogoDataUrl(): Promise<string | null> {
   if (logoCache) return logoCache;
   try {
     const res = await fetch('/logo.png');
@@ -39,12 +39,13 @@ async function loadLogoDataUrl(): Promise<string | null> {
   }
 }
 
-function fmtDate(d: string | Date | null | undefined) {
+export function fmtDate(d: string | Date | null | undefined) {
   if (!d) return '';
   const dt = typeof d === 'string' ? new Date(d) : d;
   if (isNaN(dt.getTime())) return String(d);
   return dt.toLocaleDateString('sv-SE');
 }
+
 
 export interface OfferForPdf {
   offer_number?: string | null;
