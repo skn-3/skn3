@@ -268,8 +268,8 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
       setUeOfferNumber(d.offer_number || null);
       setUeTotalExcl(d.total_excl_vat != null ? Number(d.total_excl_vat) : null);
       const sum: UeSummaryRow[] = Array.isArray(d.summary) && d.summary.length
-        ? d.summary.map((s: any) => ({ id: makeId(), label: String(s.label || ''), amount: Number(s.amount || 0) }))
-        : [{ id: makeId(), label: 'Entreprenad enligt offert', amount: Number(d.total_excl_vat || 0) }];
+        ? d.summary.map((s: any) => ({ id: makeId(), label: String(s.label || ''), amount: Number(s.amount || 0), is_labor: !!s.is_labor }))
+        : [{ id: makeId(), label: 'Entreprenad enligt offert', amount: Number(d.total_excl_vat || 0), is_labor: false }];
       setUeSummary(sum);
       setUeDetails(Array.isArray(d.line_items) ? d.line_items.map((li: any) => ({
         address: li.address ?? null, category: li.category ?? null, description: li.description ?? null, amount: li.amount != null ? Number(li.amount) : null,
