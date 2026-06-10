@@ -381,6 +381,20 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
               )}
             </div>
           )}
+          {currentStatus === 'accepted' && (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {uppdragInfo ? (
+                <span className="inline-flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-1.5">
+                  <Briefcase className="h-3.5 w-3.5" />
+                  Uppdrag skapat: <strong>{uppdragInfo.uppdrag_number || uppdragInfo.id.slice(0, 8)}</strong>
+                </span>
+              ) : (
+                <Button type="button" size="sm" onClick={handleCreateUppdrag} disabled={creatingUppdrag} className="gap-1">
+                  <Briefcase className="h-3.5 w-3.5" /> {creatingUppdrag ? 'Skapar…' : 'Skapa uppdrag'}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
       {/* UE-import */}
