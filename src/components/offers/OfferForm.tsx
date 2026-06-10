@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Trash2, Plus, Save, FileDown, ChevronDown, ChevronRight, AlertTriangle, Send, Copy, Upload, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -85,6 +85,8 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const [ueDetails, setUeDetails] = useState<UeDetailRow[]>([]);
   const [ueDetailsOpen, setUeDetailsOpen] = useState(false);
   const [ueSourceLoaded, setUeSourceLoaded] = useState<boolean>(offer?.source === 'ue_offer');
+  const [ueDragActive, setUeDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
   const caseId = offer?.case_id || prefillCaseId || null;
