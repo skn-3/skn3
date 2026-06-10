@@ -420,6 +420,29 @@ function SellerDashboard({ name }: { name: string }) {
             </Card>
           </div>
 
+          {(offerStats.waitingCount > 0 || offerStats.expiringSoonCount > 0 || offerStats.readyToInvoiceCount > 0) && (
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Offerter & uppdrag</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card>
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Väntar på svar</div>
+                  <div className="text-3xl font-bold mt-2 text-foreground"><CountUp value={offerStats.waitingCount} /></div>
+                </Card>
+                <Card className={offerStats.expiringSoonCount > 0 ? 'border-orange-300 bg-orange-50/50 dark:bg-orange-950/20' : ''}>
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Går ut inom 3 dagar</div>
+                  <div className={`text-3xl font-bold mt-2 ${offerStats.expiringSoonCount > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-foreground'}`}>
+                    <CountUp value={offerStats.expiringSoonCount} />
+                  </div>
+                </Card>
+                <Card>
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Klara att fakturera</div>
+                  <div className="text-3xl font-bold mt-2 text-foreground"><CountUp value={offerStats.readyToInvoiceCount} /></div>
+                </Card>
+              </div>
+            </div>
+          )}
+
+
           {zeroNudge && (
             <Card className="border-primary/40 bg-primary/5">
               <div className="flex items-center gap-3">
