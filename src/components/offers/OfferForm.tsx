@@ -299,7 +299,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const updateUeRow = (id: string, patch: Partial<UeSummaryRow>) => {
     setUeSummary(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
   };
-  const addUeRow = () => setUeSummary(prev => [...prev, { id: makeId(), label: '', amount: 0 }]);
+  const addUeRow = () => setUeSummary(prev => [...prev, { id: makeId(), label: '', amount: 0, is_labor: false }]);
   const removeUeRow = (id: string) => setUeSummary(prev => prev.filter(r => r.id !== id));
 
 
