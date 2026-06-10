@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Trash2, Plus, Save, FileDown, ChevronDown, ChevronRight, AlertTriangle, Send, Copy, Upload, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Save, FileDown, ChevronDown, ChevronRight, AlertTriangle, Send, Copy, Upload, Loader2, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { DEFAULT_OFFER_TERMS } from '@/lib/offerTerms';
 import { calcOfferTotals, fmtKr, type OfferLineItem } from '@/lib/offerCalc';
 import { buildOfferPdfBlob } from '@/lib/offerPdf';
+import { createUppdragFromOffer, findUppdragForOffer } from '@/lib/uppdrag';
 
 type OfferRow = any;
 
