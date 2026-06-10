@@ -202,6 +202,16 @@ export function OffersView({ currentUser }: OffersViewProps) {
                     >
                       <Send className="h-3 w-3" /> Skicka
                     </button>
+                    {o.status === 'accepted' && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); createUppdrag.mutate(o); }}
+                        disabled={createUppdrag.isPending}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 mr-3 disabled:opacity-40"
+                        title="Skapa uppdrag från denna offert"
+                      >
+                        <Briefcase className="h-3 w-3" /> Skapa uppdrag
+                      </button>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(o); }}
