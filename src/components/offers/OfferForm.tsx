@@ -370,30 +370,57 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="px-4 pb-4 space-y-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleUeUpload(f);
-                    e.target.value = '';
-                  }}
-                  disabled={ueLoading}
-                />
-                <span className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-md hover:bg-muted">
-                  <Upload className="h-4 w-4" /> Välj UE-offert (PDF)
-                </span>
-              </label>
-              {ueLoading && (
-                <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Läser offerten…
-                </span>
-              )}
-              {ueError && <span className="text-sm text-destructive">{ueError}</span>}
+            <div
+              className={`rounded-lg border-2 border-dashed p-6 text-center transition-colors cursor-pointer ${
+                ueDragActive
+                  ? 'border-primary bg-primary/10'
+                  : 'border-muted-foreground/30 bg-muted/20 hover:bg-muted/40'
+              }`}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setUeDragActive(true);
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                setUeDragActive(true);
+              }}
+              onDragLeave={() => setUeDragActive(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setUeDragActive(false);
+                const f = e.dataTransfer.files?.[0];
+                if (!f) return;
+                if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
+                  handleUeUpload(f);
+                } else {
+                  toast.error('Endast PDF-filer är tillåtna');
+                }
+              }}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleUeUpload(f);
+                  e.target.value = '';
+                }}
+                disabled={ueLoading}
+              />
+              <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">
+                Dra och släpp UE-offerten (PDF) här – eller klicka för att välja fil
+              </p>
             </div>
+            {ueLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Läser offerten…
+              </div>
+            )}
+            {ueError && <span className="text-sm text-destructive">{ueError}</span>}
 
             {ueSummary.length > 0 && (
               <>
