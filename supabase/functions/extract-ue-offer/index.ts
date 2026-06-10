@@ -125,11 +125,13 @@ Deno.serve(async (req) => {
       unit: li?.unit ?? null,
       unit_price: num(li?.unit_price),
       amount: num(li?.amount),
+      is_labor: li?.is_labor === true,
     })) : [];
 
     const summary = Array.isArray(parsed.summary) ? parsed.summary.map((s: any) => ({
       label: String(s?.label ?? ''),
       amount: Number(s?.amount ?? 0),
+      is_labor: s?.is_labor === true,
     })).filter((s: any) => s.label) : [];
 
     return json({
