@@ -434,6 +434,16 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
                   <Input type="number" className="w-24" value={markupPercent} onChange={e => setMarkupPercent(Number(e.target.value))} />
                 </div>
 
+                {ueTotalExcl != null && Math.abs(ueSumExcl - ueTotalExcl) > 1 && (
+                  <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                      Raderna summerar till {fmtKr(ueSumExcl)}, men UE-offerten anger {fmtKr(ueTotalExcl)}
+                      (diff {fmtKr(Math.abs(ueSumExcl - ueTotalExcl))}). Justera raderna för rätt vinst.
+                    </span>
+                  </div>
+                )}
+
                 <div className="rounded-md border divide-y bg-background">
                   <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/40">
                     <div className="col-span-6">Benämning (visas för kunden)</div>
@@ -464,6 +474,13 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
                   </Button>
                   <div className="text-xs text-muted-foreground">
                     UE ex moms <span className="font-medium text-foreground tabular-nums">{fmtKr(ueSumExcl)}</span> · påslag {markupPercent}% · ditt pris ex moms <span className="font-medium text-foreground tabular-nums">{fmtKr(ueSumCustomer)}</span>
+                    {' · '}
+                    <span className="font-semibold text-green-600">
+                      vår vinst {fmtKr(ueSumCustomer - ueSumExcl)} kr
+                    </span>
+                    <span className="text-muted-foreground">
+                      {' '}(marginal {ueSumCustomer > 0 ? ((ueSumCustomer - ueSumExcl) / ueSumCustomer * 100).toFixed(1) : '0.0'} %)
+                    </span>
                   </div>
                 </div>
 
