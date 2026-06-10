@@ -105,8 +105,6 @@ Deno.serve(async (req) => {
     const { error: insErr } = await admin.from("profiles").insert({
       id: authUserId,
       name: u.name,
-      role: u.role,
-      is_admin: u.is_admin,
       login_email: email,
       must_change_pin: true,
     });
@@ -114,8 +112,19 @@ Deno.serve(async (req) => {
       result.push({ name: u.name, status: `profile error: ${insErr.message}` });
       continue;
     }
+
+    const { error: roleErr } = await admin.from("user_roles").insert({
+      user_id: authUserId,
+      role: u.role,
+      is_admin: u.is_admin,
+    });
+    if (roleErr) {
+      result.push({ name: u.name, status: `role error: ${roleErr.message}` });
+      continue;
+    }
     result.push({ name: u.name, status: "created" });
   }
+
 
   return new Response(JSON.stringify({ ok: true, result }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },

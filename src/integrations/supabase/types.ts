@@ -579,29 +579,23 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          is_admin: boolean
           login_email: string
           must_change_pin: boolean
           name: string
-          role: string
         }
         Insert: {
           created_at?: string
           id: string
-          is_admin?: boolean
           login_email: string
           must_change_pin?: boolean
           name: string
-          role: string
         }
         Update: {
           created_at?: string
           id?: string
-          is_admin?: boolean
           login_email?: string
           must_change_pin?: boolean
           name?: string
-          role?: string
         }
         Relationships: []
       }
@@ -780,6 +774,27 @@ export type Database = {
           created_at?: string
           token?: string
           user_name?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          is_admin: boolean
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_admin?: boolean
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          is_admin?: boolean
+          role?: string
+          user_id?: string
         }
         Relationships: []
       }
