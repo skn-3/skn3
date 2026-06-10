@@ -154,14 +154,15 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     setSaving(true);
     try {
       const payload = buildPayload();
-      let savedId = offer?.id || null;
+      let savedId = currentId;
       if (isEdit) {
-        const { error } = await (supabase as any).from('offers').update(payload).eq('id', offer.id);
+        const { error } = await (supabase as any).from('offers').update(payload).eq('id', currentId);
         if (error) throw error;
       } else {
         const { data, error } = await (supabase as any).from('offers').insert({ ...payload, created_by: currentUser }).select('id').single();
         if (error) throw error;
         savedId = data?.id || null;
+        if (savedId) setCurrentId(savedId);
       }
       toast.success(isEdit ? 'Offert uppdaterad' : 'Offert sparad');
       onSaved();
