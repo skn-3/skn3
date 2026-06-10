@@ -39,7 +39,8 @@ function defaultValidUntil(): string {
 }
 
 export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, onSaved, onClose }: OfferFormProps) {
-  const isEdit = !!offer?.id;
+  const [currentId, setCurrentId] = useState<string | null>(offer?.id ?? null);
+  const isEdit = !!currentId;
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
@@ -153,14 +154,15 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     setSaving(true);
     try {
       const payload = buildPayload();
-      let savedId = offer?.id || null;
+      let savedId = currentId;
       if (isEdit) {
-        const { error } = await (supabase as any).from('offers').update(payload).eq('id', offer.id);
+        const { error } = await (supabase as any).from('offers').update(payload).eq('id', currentId);
         if (error) throw error;
       } else {
         const { data, error } = await (supabase as any).from('offers').insert({ ...payload, created_by: currentUser }).select('id').single();
         if (error) throw error;
         savedId = data?.id || null;
+        if (savedId) setCurrentId(savedId);
       }
       toast.success(isEdit ? 'Offert uppdaterad' : 'Offert sparad');
       onSaved();
@@ -204,7 +206,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   };
 
   const handleSendToCustomer = async () => {
-    const id = offer?.id;
+    const id = currentId;
     if (!id) { toast.error('Spara offerten först'); return; }
     if (!email) { toast.error('Kunden saknar e-post'); return; }
     if (!pdfPath) { toast.error('Generera PDF först'); return; }
