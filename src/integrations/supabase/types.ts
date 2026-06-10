@@ -435,6 +435,8 @@ export type Database = {
           customer_personnummer: string | null
           customer_phone: string | null
           customer_type: string
+          decline_name: string | null
+          decline_reason: string | null
           declined_at: string | null
           description: string | null
           fastighetsbeteckning: string | null
@@ -483,6 +485,8 @@ export type Database = {
           customer_personnummer?: string | null
           customer_phone?: string | null
           customer_type?: string
+          decline_name?: string | null
+          decline_reason?: string | null
           declined_at?: string | null
           description?: string | null
           fastighetsbeteckning?: string | null
@@ -531,6 +535,8 @@ export type Database = {
           customer_personnummer?: string | null
           customer_phone?: string | null
           customer_type?: string
+          decline_name?: string | null
+          decline_reason?: string | null
           declined_at?: string | null
           description?: string | null
           fastighetsbeteckning?: string | null

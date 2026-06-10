@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Download, ChevronDown, ChevronRight, FileText, Loader2, CheckCircle2 } from 'lucide-react';
+import { Download, ChevronDown, ChevronRight, FileText, Loader2, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +37,8 @@ type PublicOfferData = {
   status: string;
   accepted_at: string | null;
   accept_name: string | null;
+  declined_at?: string | null;
+
   customer_personnummer?: string | null;
   fastighetsbeteckning?: string | null;
   signed_url: string | null;       // unsigned offer PDF (signed download URL)
@@ -50,7 +54,10 @@ const fmtDateTime = (s: string | null) => (s ? new Date(s).toLocaleString('sv-SE
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   sent: { text: 'Skickad', cls: 'bg-blue-100 text-blue-800' },
   accepted: { text: 'Accepterad', cls: 'bg-green-100 text-green-800' },
+  expired: { text: 'Utgången', cls: 'bg-yellow-100 text-yellow-800' },
+  declined: { text: 'Avböjd', cls: 'bg-muted text-muted-foreground' },
 };
+
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -76,6 +83,13 @@ export default function PublicOffer() {
   const [acceptName, setAcceptName] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Decline form
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineName, setDeclineName] = useState('');
+  const [declineReason, setDeclineReason] = useState('');
+  const [declining, setDeclining] = useState(false);
+
 
   useEffect(() => {
     document.title = 'Din offert · SmartKlimat N3prenad';
@@ -128,7 +142,12 @@ export default function PublicOffer() {
       if (invErr || !res || (res as any).error) {
         throw new Error((res as any)?.error || 'Kunde inte registrera accept');
       }
-      const out = res as { ok: boolean; accepted_at?: string; accept_name?: string; already?: boolean };
+      const out = res as { ok: boolean; accepted_at?: string; accept_name?: string; already?: boolean; expired?: boolean };
+      if (out.expired) {
+        setData(prev => prev ? { ...prev, status: 'expired' } : prev);
+        toast.error('Offerten har gått ut');
+        return;
+      }
       // Re-fetch fresh state (gives us signed_pdf_url etc.)
       const { data: res2 } = await supabase.functions.invoke('public-offer', { body: { token } });
       if (res2 && !(res2 as any).error) {
@@ -143,6 +162,32 @@ export default function PublicOffer() {
       setSubmitting(false);
     }
   };
+
+  const handleDecline = async () => {
+    if (!data || !token) return;
+    setDeclining(true);
+    try {
+      const { data: res, error: invErr } = await supabase.functions.invoke('decline-offer', {
+        body: { token, name: declineName.trim() || undefined, reason: declineReason.trim() || undefined },
+      });
+      if (invErr || !res || (res as any).error) {
+        throw new Error((res as any)?.error || 'Kunde inte registrera beskedet');
+      }
+      const out = res as { ok: boolean; expired?: boolean; status?: string; declined_at?: string };
+      if (out.expired) {
+        setData(prev => prev ? { ...prev, status: 'expired' } : prev);
+        toast.error('Offerten har gått ut');
+        return;
+      }
+      setData(prev => prev ? { ...prev, status: 'declined', declined_at: out.declined_at || new Date().toISOString() } : prev);
+      toast.success('Tack för ditt besked.');
+    } catch (e: any) {
+      toast.error(e?.message || 'Något gick fel');
+    } finally {
+      setDeclining(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -363,41 +408,116 @@ export default function PublicOffer() {
               </div>
             )}
           </section>
-        ) : data.status === 'sent' ? (
-          <section className="bg-card rounded-xl border shadow-sm p-5 md:p-6 space-y-4">
-            <div>
-              <h2 className="text-base font-semibold">Acceptera offerten</h2>
-              <p className="text-sm text-muted-foreground mt-1">När du accepterar registreras tidpunkt och IP-adress, och du får en bekräftelse på e-post.</p>
-            </div>
-            <div className="flex items-start gap-3">
-              <Checkbox id="accept-terms" checked={acceptedTerms} onCheckedChange={(v) => setAcceptedTerms(v === true)} className="mt-1" />
-              <Label htmlFor="accept-terms" className="text-sm font-normal leading-relaxed cursor-pointer">
-                Jag har läst och accepterar offerten samt de allmänna villkoren.
-              </Label>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="accept-name">Ditt namn *</Label>
-                <Input
-                  id="accept-name"
-                  value={acceptName}
-                  onChange={(e) => setAcceptName(e.target.value)}
-                  placeholder="För- och efternamn"
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            <Button
-              type="button"
-              onClick={handleAccept}
-              disabled={!acceptedTerms || !acceptName.trim() || submitting}
-              className="bg-[#22C55E] hover:bg-[#16A34A] gap-2"
-            >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              {submitting ? 'Registrerar…' : 'Acceptera offert'}
-            </Button>
+        ) : data.status === 'expired' ? (
+          <section className="bg-yellow-50 border border-yellow-200 rounded-xl shadow-sm p-6 text-center">
+            <Clock className="h-10 w-10 text-yellow-700 mx-auto mb-2" />
+            <h2 className="text-lg font-bold text-yellow-900">Offerten har gått ut</h2>
+            {data.valid_until && (
+              <p className="text-sm text-yellow-900/90 mt-1">Giltig t.o.m. {fmtDate(data.valid_until)}</p>
+            )}
+            <p className="text-sm text-yellow-900/90 mt-3">
+              Vill du gå vidare? Kontakta oss så tar vi fram en uppdaterad offert.
+            </p>
+            <p className="text-xs text-yellow-900/80 mt-2">070-719 72 35 · n3prenad@smartklimat.org</p>
           </section>
+        ) : data.status === 'declined' ? (
+          <section className="bg-muted/40 border rounded-xl shadow-sm p-6 text-center">
+            <XCircle className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+            <h2 className="text-lg font-semibold">Tack för ditt besked.</h2>
+            <p className="text-sm text-muted-foreground mt-1">Offerten är nu avböjd.</p>
+            {data.declined_at && (
+              <p className="text-xs text-muted-foreground mt-2">{fmtDateTime(data.declined_at)}</p>
+            )}
+          </section>
+        ) : data.status === 'sent' ? (
+          <>
+            <section className="bg-card rounded-xl border shadow-sm p-5 md:p-6 space-y-4">
+              <div>
+                <h2 className="text-base font-semibold">Acceptera offerten</h2>
+                <p className="text-sm text-muted-foreground mt-1">När du accepterar registreras tidpunkt och IP-adress, och du får en bekräftelse på e-post.</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <Checkbox id="accept-terms" checked={acceptedTerms} onCheckedChange={(v) => setAcceptedTerms(v === true)} className="mt-1" />
+                <Label htmlFor="accept-terms" className="text-sm font-normal leading-relaxed cursor-pointer">
+                  Jag har läst och accepterar offerten samt de allmänna villkoren.
+                </Label>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="accept-name">Ditt namn *</Label>
+                  <Input
+                    id="accept-name"
+                    value={acceptName}
+                    onChange={(e) => setAcceptName(e.target.value)}
+                    placeholder="För- och efternamn"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              <Button
+                type="button"
+                onClick={handleAccept}
+                disabled={!acceptedTerms || !acceptName.trim() || submitting}
+                className="bg-[#22C55E] hover:bg-[#16A34A] gap-2"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                {submitting ? 'Registrerar…' : 'Acceptera offert'}
+              </Button>
+            </section>
+
+            <section className="bg-card/60 rounded-xl border border-dashed p-4 md:p-5">
+              <Collapsible open={declineOpen} onOpenChange={setDeclineOpen}>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    {declineOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    Tacka nej till offerten
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3 space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Du kan lämna ett kort meddelande om varför, så vet vi hur vi kan bli bättre. Båda fälten är frivilliga.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="decline-name" className="text-xs">Namn (frivilligt)</Label>
+                      <Input
+                        id="decline-name"
+                        value={declineName}
+                        onChange={(e) => setDeclineName(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="decline-reason" className="text-xs">Orsak (frivilligt)</Label>
+                    <Textarea
+                      id="decline-reason"
+                      value={declineReason}
+                      onChange={(e) => setDeclineReason(e.target.value)}
+                      rows={3}
+                      className="mt-1"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDecline}
+                    disabled={declining}
+                    className="gap-2"
+                  >
+                    {declining ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Skicka besked
+                  </Button>
+                </CollapsibleContent>
+              </Collapsible>
+            </section>
+          </>
         ) : null}
+
 
         <footer className="text-center text-xs text-muted-foreground pt-4">
           SmartKlimat N3prenad AB · Org.nr 559026-6630

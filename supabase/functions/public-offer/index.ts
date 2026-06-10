@@ -11,8 +11,16 @@ const PUBLIC_FIELDS = [
   'title', 'description', 'line_items',
   'vat_mode', 'rot_enabled', 'rot_percent', 'total_ex_vat', 'total_vat', 'total_incl_vat',
   'rot_base', 'rot_amount', 'total_after_rot', 'handpenning_percent', 'terms_text', 'status', 'accepted_at',
-  'accept_name',
+  'accept_name', 'declined_at',
 ] as const;
+
+function isExpired(validUntil: string | null | undefined): boolean {
+  if (!validUntil) return false;
+  // Offer valid through end of valid_until day
+  const end = new Date(validUntil);
+  end.setHours(23, 59, 59, 999);
+  return Date.now() > end.getTime();
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -37,7 +45,14 @@ Deno.serve(async (req) => {
     if (error || !offer) {
       return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    if (!['sent', 'accepted'].includes(offer.status)) {
+
+    // Lazy expiry: if sent and past valid_until, flip to expired
+    if (offer.status === 'sent' && isExpired(offer.valid_until)) {
+      const { error: upErr } = await admin.from('offers').update({ status: 'expired' }).eq('id', offer.id);
+      if (!upErr) offer.status = 'expired';
+    }
+
+    if (!['sent', 'accepted', 'expired', 'declined'].includes(offer.status)) {
       return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
