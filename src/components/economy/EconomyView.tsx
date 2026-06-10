@@ -97,6 +97,8 @@ export function EconomyView() {
   const [costs, setCosts] = useState<CostRow[]>([]);
   const [smos, setSmos] = useState<SmoRow[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [offers, setOffers] = useState<OfferRow[]>([]);
+  const [uppdragList, setUppdragList] = useState<UppdragRow[]>([]);
   const [period, setPeriod] = useState<Period>('all');
   const [sortBy, setSortBy] = useState<'profit' | 'margin' | 'revenue' | 'cost'>('profit');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
