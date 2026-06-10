@@ -452,19 +452,25 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
                     <div className="col-span-1"></div>
                   </div>
                   {ueSummary.map((r) => (
-                    <div key={r.id} className="grid grid-cols-12 gap-2 px-3 py-2 items-center">
-                      <div className="col-span-6">
-                        <Input value={r.label} onChange={e => updateUeRow(r.id, { label: e.target.value })} />
+                    <div key={r.id} className="px-3 py-2 space-y-1.5">
+                      <div className="grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-6">
+                          <Input value={r.label} onChange={e => updateUeRow(r.id, { label: e.target.value })} />
+                        </div>
+                        <div className="col-span-2">
+                          <Input type="number" step="any" className="text-right" value={r.amount} onChange={e => updateUeRow(r.id, { amount: Number(e.target.value) })} />
+                        </div>
+                        <div className="col-span-3 text-right font-medium tabular-nums">{fmtKr(ueCustomerPrice(r.amount))}</div>
+                        <div className="col-span-1 flex justify-end">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removeUeRow(r.id)} title="Ta bort">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="col-span-2">
-                        <Input type="number" step="any" className="text-right" value={r.amount} onChange={e => updateUeRow(r.id, { amount: Number(e.target.value) })} />
-                      </div>
-                      <div className="col-span-3 text-right font-medium tabular-nums">{fmtKr(ueCustomerPrice(r.amount))}</div>
-                      <div className="col-span-1 flex justify-end">
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeUeRow(r.id)} title="Ta bort">
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground pl-1 cursor-pointer">
+                        <Checkbox checked={r.is_labor} onCheckedChange={v => updateUeRow(r.id, { is_labor: !!v })} />
+                        <span>Arbetskostnad (ingår i ROT-underlag)</span>
+                      </label>
                     </div>
                   ))}
                 </div>
