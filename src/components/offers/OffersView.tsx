@@ -167,11 +167,25 @@ export function OffersView({ currentUser }: OffersViewProps) {
             )}
             {filtered.map(o => {
               const amount = o.rot_enabled && o.total_after_rot != null ? o.total_after_rot : o.total_incl_vat;
-              const meta = STATUS_META[o.status] || STATUS_META.draft;
+              // Computed expiry: offer valid through end of valid_until day
+              let effectiveStatus = o.status;
+              if (effectiveStatus === 'sent' && o.valid_until) {
+                const end = new Date(o.valid_until);
+                end.setHours(23, 59, 59, 999);
+                if (Date.now() > end.getTime()) effectiveStatus = 'expired';
+              }
+              const meta = STATUS_META[effectiveStatus] || STATUS_META.draft;
               return (
                 <tr key={o.id} className="border-t hover:bg-muted/30 cursor-pointer" onClick={() => handleOpenEdit(o)}>
                   <td className="px-3 py-2 font-medium">{o.offer_number || '—'}</td>
-                  <td className="px-3 py-2">{o.customer_name || '—'}</td>
+                  <td className="px-3 py-2">
+                    {o.customer_name || '—'}
+                    {o.status === 'declined' && o.declined_at && (
+                      <div className="text-[10px] text-muted-foreground mt-1">
+                        Avböjd {new Date(o.declined_at).toLocaleDateString('sv-SE')}{o.decline_reason ? ` · ${o.decline_reason}` : ''}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-3 py-2 max-w-xs truncate">{o.title || '—'}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{amount != null ? fmtKr(amount) : '—'}</td>
                   <td className="px-3 py-2">
@@ -182,6 +196,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
                       </div>
                     )}
                   </td>
+
                   <td className="px-3 py-2 text-muted-foreground">{new Date(o.created_at).toLocaleDateString('sv-SE')}</td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <button
