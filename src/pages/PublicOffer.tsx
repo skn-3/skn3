@@ -142,7 +142,12 @@ export default function PublicOffer() {
       if (invErr || !res || (res as any).error) {
         throw new Error((res as any)?.error || 'Kunde inte registrera accept');
       }
-      const out = res as { ok: boolean; accepted_at?: string; accept_name?: string; already?: boolean };
+      const out = res as { ok: boolean; accepted_at?: string; accept_name?: string; already?: boolean; expired?: boolean };
+      if (out.expired) {
+        setData(prev => prev ? { ...prev, status: 'expired' } : prev);
+        toast.error('Offerten har gått ut');
+        return;
+      }
       // Re-fetch fresh state (gives us signed_pdf_url etc.)
       const { data: res2 } = await supabase.functions.invoke('public-offer', { body: { token } });
       if (res2 && !(res2 as any).error) {
@@ -157,6 +162,32 @@ export default function PublicOffer() {
       setSubmitting(false);
     }
   };
+
+  const handleDecline = async () => {
+    if (!data || !token) return;
+    setDeclining(true);
+    try {
+      const { data: res, error: invErr } = await supabase.functions.invoke('decline-offer', {
+        body: { token, name: declineName.trim() || undefined, reason: declineReason.trim() || undefined },
+      });
+      if (invErr || !res || (res as any).error) {
+        throw new Error((res as any)?.error || 'Kunde inte registrera beskedet');
+      }
+      const out = res as { ok: boolean; expired?: boolean; status?: string; declined_at?: string };
+      if (out.expired) {
+        setData(prev => prev ? { ...prev, status: 'expired' } : prev);
+        toast.error('Offerten har gått ut');
+        return;
+      }
+      setData(prev => prev ? { ...prev, status: 'declined', declined_at: out.declined_at || new Date().toISOString() } : prev);
+      toast.success('Tack för ditt besked.');
+    } catch (e: any) {
+      toast.error(e?.message || 'Något gick fel');
+    } finally {
+      setDeclining(false);
+    }
+  };
+
 
   if (loading) {
     return (
