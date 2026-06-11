@@ -137,7 +137,7 @@ export default function PublicOffer() {
 
     try {
       const { data: res, error: invErr } = await supabase.functions.invoke('accept-offer', {
-        body: { token, name: acceptName.trim(), signed_pdf_base64: signedPdfBase64 },
+        body: { token, name: acceptName.trim(), signed_pdf_base64: signedPdfBase64, origin: window.location.origin },
       });
       if (invErr || !res || (res as any).error) {
         throw new Error((res as any)?.error || 'Kunde inte registrera accept');

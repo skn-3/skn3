@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy } from 'lucide-react';
+import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy, FileCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ export type OfferRow = {
   total_after_rot: number | null;
   rot_enabled: boolean;
   pdf_path: string | null;
+  signed_pdf_path?: string | null;
   case_id: string | null;
   created_at: string;
   updated_at: string;
@@ -121,6 +122,16 @@ export function OffersView({ currentUser }: OffersViewProps) {
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     },
     onError: (e: any) => toast.error(e?.message || 'Kunde inte öppna PDF'),
+  });
+
+  const openSignedPdf = useMutation({
+    mutationFn: async (offer: OfferRow) => {
+      if (!offer.signed_pdf_path) throw new Error('Signerat avtal saknas');
+      const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path, 3600);
+      if (error || !data?.signedUrl) throw new Error('Kunde inte öppna avtal');
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Kunde inte öppna avtal'),
   });
 
   const sendOffer = useMutation({
@@ -249,15 +260,26 @@ export function OffersView({ currentUser }: OffersViewProps) {
 
                   <td className="px-3 py-2 text-muted-foreground">{new Date(o.created_at).toLocaleDateString('sv-SE')}</td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); openPdf.mutate(o); }}
-                      className="text-xs text-primary hover:underline inline-flex items-center gap-1 mr-3"
-                      title={o.pdf_path ? 'Öppna sparad PDF' : 'Generera & öppna PDF'}
-                    >
-                      {o.pdf_path ? <ExternalLink className="h-3 w-3" /> : <Download className="h-3 w-3" />}
-                      PDF
-                    </button>
+                    {o.status === 'accepted' && o.signed_pdf_path ? (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openSignedPdf.mutate(o); }}
+                        className="text-xs text-green-700 hover:underline inline-flex items-center gap-1 mr-3"
+                        title="Öppna signerat avtal"
+                      >
+                        <FileCheck className="h-3 w-3" /> Avtal
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openPdf.mutate(o); }}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 mr-3"
+                        title={o.pdf_path ? 'Öppna sparad PDF' : 'Generera & öppna PDF'}
+                      >
+                        {o.pdf_path ? <ExternalLink className="h-3 w-3" /> : <Download className="h-3 w-3" />}
+                        PDF
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); sendOffer.mutate(o); }}

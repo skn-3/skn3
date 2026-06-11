@@ -6,6 +6,8 @@ const corsHeaders = {
 };
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
+const FALLBACK_APP_URL = 'https://smartklimatentreprenad.com';
+const isUrl = (s: unknown): s is string => typeof s === 'string' && /^https?:\/\//.test(s);
 
 function fmtKr(n: number | null | undefined): string {
   const v = Number(n || 0);
@@ -31,7 +33,7 @@ Deno.serve(async (req) => {
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
     const body = await req.json().catch(() => ({}));
-    const { token, name, signed_pdf_base64 } = body || {};
+    const { token, name, signed_pdf_base64, origin } = body || {};
     if (!token || typeof token !== 'string' || token.length < 16) {
       return new Response(JSON.stringify({ error: 'Ogiltig länk' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -108,6 +110,9 @@ Deno.serve(async (req) => {
       const amountValue = offer.rot_enabled && offer.total_after_rot != null ? offer.total_after_rot : offer.total_incl_vat;
       const amountStr = fmtKr(amountValue);
       const acceptedFmt = new Date(acceptedAt).toLocaleString('sv-SE');
+      const envUrl = Deno.env.get('PUBLIC_APP_URL');
+      const base = (isUrl(origin) ? origin : (isUrl(envUrl) ? envUrl! : FALLBACK_APP_URL)).replace(/\/$/, '');
+      const offerUrl = `${base}/offert/${offer.public_token}`;
 
       const customerHtml = `<!DOCTYPE html><html lang="sv"><body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;"><tr><td align="center" style="padding:32px 16px;">
@@ -117,6 +122,8 @@ Deno.serve(async (req) => {
 <h1 style="margin:0 0 12px;font-size:20px;">Tack ${acceptName}!</h1>
 <p style="margin:0 0 12px;">Vi har tagit emot din accept av offert <strong>${offerNumber}</strong>.</p>
 <p style="margin:0 0 12px;">Bekräftelse: ${acceptedFmt}</p>
+<p style="margin:20px 0;"><a href="${offerUrl}" style="display:inline-block;background:#22C55E;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:bold;">Öppna ditt signerade avtal</a></p>
+<p style="margin:0 0 12px;color:#6b7280;font-size:13px;">På sidan kan du ladda ner den signerade PDF:en med verifikat. Spara gärna en kopia.</p>
 <p style="margin:0 0 12px;">Vi återkommer inom kort med nästa steg. Har du frågor, svara på detta mejl eller ring 070-719 72 35.</p>
 <p style="margin:24px 0 0;color:#6b7280;font-size:12px;">SmartKlimat N3prenad AB · n3prenad@smartklimat.org</p>
 </td></tr></table></td></tr></table></body></html>`;
@@ -131,7 +138,9 @@ Deno.serve(async (req) => {
 <tr><td style="color:#6b7280;">Belopp</td><td><strong>${amountStr}</strong>${offer.rot_enabled ? ' (efter ROT)' : ''}</td></tr>
 <tr><td style="color:#6b7280;">Datum/tid</td><td>${acceptedFmt}</td></tr>
 <tr><td style="color:#6b7280;">IP</td><td>${ip || '—'}</td></tr>
-</table></body></html>`;
+</table>
+<p style="margin-top:16px;"><a href="${offerUrl}" style="color:#15803D;font-weight:bold;">Öppna avtalet</a></p>
+</body></html>`;
 
       const sendMail = async (to: string, subject: string, html: string) => {
         try {
