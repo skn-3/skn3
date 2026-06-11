@@ -643,7 +643,9 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   <div className="font-medium text-card-foreground flex items-center gap-2">
                     <span>{c.description}</span>
                     {c.category === 'reklamation' && (
-                      <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 text-[10px] px-1.5 py-0">Reklamation</Badge>
+                      <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 text-[10px] px-1.5 py-0">
+                        Reklamation{c.responsible ? ` · ${DEVIATION_RESPONSIBLE.find(r => r.value === c.responsible)?.label || c.responsible}` : ''}
+                      </Badge>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('sv-SE')} — {c.created_by}</div>
