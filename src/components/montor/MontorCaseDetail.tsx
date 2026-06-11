@@ -317,6 +317,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: costDesc,
         amount: Number(costAmount),
         created_by: currentUser,
+        category: costCategory,
       });
       if (costFile) {
         const url = await uploadReceiptImage(caseData.id, cost.id, costFile);
@@ -324,18 +325,19 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         const { supabase } = await import('@/integrations/supabase/client');
         await supabase.from('case_costs').update({ receipt_url: url }).eq('id', cost.id);
       }
+      const catLabel = costCategory === 'reklamation' ? ' [Reklamation]' : '';
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'cost',
-        description: `Kostnad tillagd: ${costDesc} — ${Number(costAmount).toLocaleString('sv-SE')} kr`,
+        description: `Kostnad tillagd${catLabel}: ${costDesc} — ${Number(costAmount).toLocaleString('sv-SE')} kr ex moms`,
         created_by: currentUser,
       });
       logActivity({
         category: 'case',
         action: 'cost_added',
-        description: `Registrerade kostnad (${Number(costAmount).toLocaleString('sv-SE')} kr) för ${caseData.address}`,
+        description: `Registrerade kostnad${catLabel} (${Number(costAmount).toLocaleString('sv-SE')} kr) för ${caseData.address}`,
         case_id: caseData.id,
-        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile },
+        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile, category: costCategory },
       });
     },
     onSuccess: () => {
@@ -343,6 +345,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       setCostDesc('');
       setCostAmount('');
       setCostFile(null);
+      setCostCategory('ovrigt');
       invalidate();
       toast.success('Kostnad sparad');
     },
