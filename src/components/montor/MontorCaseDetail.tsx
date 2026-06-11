@@ -637,15 +637,20 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
               <Receipt className="h-4 w-4" /> Kostnader ({costs.length})
             </h3>
-            {costs.map(c => (
-              <div key={c.id} className="rounded-lg border p-3 text-sm flex justify-between items-start">
+            {costs.map(c => {
+              const isFabrik = c.category === 'reklamation' && c.responsible === 'fabrik';
+              return (
+              <div key={c.id} className={`rounded-lg border p-3 text-sm flex justify-between items-start ${isFabrik ? 'opacity-60' : ''}`}>
                 <div>
-                  <div className="font-medium text-card-foreground flex items-center gap-2">
+                  <div className="font-medium text-card-foreground flex items-center gap-2 flex-wrap">
                     <span>{c.description}</span>
                     {c.category === 'reklamation' && (
                       <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 text-[10px] px-1.5 py-0">
                         Reklamation{c.responsible ? ` · ${DEVIATION_RESPONSIBLE.find(r => r.value === c.responsible)?.label || c.responsible}` : ''}
                       </Badge>
+                    )}
+                    {isFabrik && (
+                      <span className="text-[10px] text-muted-foreground italic">(ersätts)</span>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('sv-SE')} — {c.created_by}</div>
@@ -659,7 +664,8 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
             <div className="text-right font-semibold text-sm text-card-foreground">
               Totalt: {totalCosts.toLocaleString('sv-SE')} kr
             </div>
