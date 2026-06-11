@@ -521,6 +521,7 @@ function CostSheet({
           description: `Reklamation: ${desc.trim()}`,
           amount: num,
           created_by: coordinatorName,
+          category: 'reklamation',
         });
       }
       await createCaseEvent({
