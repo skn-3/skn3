@@ -770,16 +770,21 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       }
 
       qc.invalidateQueries({ queryKey: ['cases-all'] });
-      if (isMontorInvoice && skippedList.length > 0) {
+      const totalSkipped = userSkippedList.length + dupSkipped.length;
+      if (isMontorInvoice && userSkippedList.length > 0) {
         try {
           await logActivity({
             action: 'montor_invoice_partial_skip',
             category: 'case',
-            description: `Montörsfaktura ${inv}: ${skippedList.length} adress${skippedList.length === 1 ? '' : 'er'} hoppades över (${skippedList.map(g => g.order_number).join(', ')})`,
-            metadata: { invoice_number: inv, skipped_addresses: skippedList.map(g => g.order_number), skipped_total: skippedList.reduce((s, g) => s + g.subtotal, 0) },
+            description: `Montörsfaktura ${inv}: ${userSkippedList.length} adress${userSkippedList.length === 1 ? '' : 'er'} hoppades över (${userSkippedList.map(g => g.order_number).join(', ')})`,
+            metadata: { invoice_number: inv, skipped_addresses: userSkippedList.map(g => g.order_number), skipped_total: userSkippedList.reduce((s, g) => s + g.subtotal, 0) },
           });
         } catch (e) { console.warn(e); }
-        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden (${skippedList.length} hoppades över)`);
+      }
+      if (dupSkipped.length > 0) {
+        toast.success(`${groupsToInsert.length} rader sparade · ${dupSkipped.length} hoppades över (fakturanumret fanns redan på ärendet)`);
+      } else if (isMontorInvoice && userSkippedList.length > 0) {
+        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden (${userSkippedList.length} hoppades över)`);
       } else {
         toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden`);
       }
