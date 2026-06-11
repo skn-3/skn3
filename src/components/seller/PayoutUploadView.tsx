@@ -542,22 +542,15 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setLineItems(items => items.map((li, i) => (i === lineIdx ? { ...li, order_number: on || null } : li)));
   };
 
-  const handleSubmitSingle = async () => {
-    if (!file) { toast.error('Välj en PDF'); return; }
-    if (!isSheet && !orderNumber.trim()) { toast.error('Ange ordernummer'); return; }
-    if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
-    if (!totalAmount.trim() || isNaN(Number(totalAmount))) { toast.error('Ange totalbelopp'); return; }
-    if (!effectiveCase) { toast.error('Välj ett ärende att koppla till'); return; }
-
+  const performSingleInsert = async (caseId: string) => {
     setSubmitting(true);
     try {
-      const caseId = effectiveCase.id;
-      const safe = sanitizeFileName(file.name);
+      const safe = sanitizeFileName(file!.name);
       const folder = isSheet ? 'sheet-invoices' : 'payouts';
       const path = `${caseId}/${folder}/${Date.now()}_${safe}`;
       const { error: upErr } = await supabase.storage
         .from('case-documents')
-        .upload(path, file, { upsert: false, contentType: file.type || 'application/pdf' });
+        .upload(path, file!, { upsert: false, contentType: file!.type || 'application/pdf' });
       if (upErr) throw upErr;
 
       const amountNum = Number(totalAmount);
@@ -569,7 +562,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         case_id: caseId,
         doc_type: docType,
         file_path: path,
-        file_name: file.name,
+        file_name: file!.name,
         order_number: isSheet ? (jobAddress || null) : orderNumber.trim(),
         invoice_number: invoiceNumber.trim(),
         customer_name: customerName.trim() || null,
@@ -600,7 +593,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       logActivity({
         action: isSheet ? 'sheet_invoice_uploaded' : (isCost ? 'cost_doc_uploaded' : 'payout_uploaded'),
         category: 'case',
-        description: `Laddade upp ${shortLabel.toLowerCase()} (faktura ${invoiceNumber.trim()}) för ${effectiveCase.address}`,
+        description: `Laddade upp ${shortLabel.toLowerCase()} (faktura ${invoiceNumber.trim()}) för ${effectiveCase!.address}`,
         case_id: caseId,
         metadata: { doc_type: docType, invoice_number: invoiceNumber.trim(), total_amount: amountNum, order_number: isSheet ? null : orderNumber.trim(), job_address: isSheet ? jobAddress || null : null },
       });
@@ -615,6 +608,51 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmitSingle = async () => {
+    if (!file) { toast.error('Välj en PDF'); return; }
+    if (!isSheet && !orderNumber.trim()) { toast.error('Ange ordernummer'); return; }
+    if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
+    if (!totalAmount.trim() || isNaN(Number(totalAmount))) { toast.error('Ange totalbelopp'); return; }
+    if (!effectiveCase) { toast.error('Välj ett ärende att koppla till'); return; }
+
+    const caseId = effectiveCase.id;
+    const inv = invoiceNumber.trim();
+
+    // Duplicate check
+    try {
+      const { data: existing } = await (supabase as any)
+        .from('case_documents')
+        .select('id, case_id, total_amount, created_at, doc_type, invoice_number')
+        .eq('doc_type', docType)
+        .eq('invoice_number', inv);
+      const rows: any[] = existing || [];
+      const sameCaseHit = rows.find(r => r.case_id === caseId);
+      const otherHits = rows.filter(r => r.case_id !== caseId);
+      if (sameCaseHit) {
+        const otherCases = otherHits.map(r => {
+          const c = (cases as CaseRow[]).find(cc => cc.id === r.case_id);
+          return { case_id: r.case_id, case_label: c ? (c.address || c.customer_name || r.case_id.slice(0, 8)) : r.case_id.slice(0, 8) };
+        });
+        setDupConfirm({
+          info: { sameCase: sameCaseHit, otherCases },
+          proceed: async () => { setDupConfirm(null); await performSingleInsert(caseId); },
+        });
+        return;
+      }
+      if (otherHits.length > 0) {
+        const labels = otherHits.map(r => {
+          const c = (cases as CaseRow[]).find(cc => cc.id === r.case_id);
+          return c ? (c.address || c.customer_name || r.case_id.slice(0, 8)) : r.case_id.slice(0, 8);
+        }).join(', ');
+        toast.warning(`Obs: fakturanr ${inv} finns även på: ${labels}`);
+      }
+    } catch (e) {
+      console.warn('Dubblettkontroll misslyckades, fortsätter ändå', e);
+    }
+
+    await performSingleInsert(caseId);
   };
 
   const handleSubmitMulti = async () => {
