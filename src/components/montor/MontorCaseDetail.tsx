@@ -804,7 +804,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <DrawerFooter>
             <Button
               className="min-h-[48px]"
-              disabled={!costDesc.trim() || !costAmount || costMutation.isPending}
+              disabled={!costDesc.trim() || !costAmount || (costCategory === 'reklamation' && !costResponsible) || costMutation.isPending}
               onClick={() => costMutation.mutate()}
             >
               {costMutation.isPending ? 'Sparar...' : 'Spara kostnad'}
