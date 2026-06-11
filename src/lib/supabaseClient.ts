@@ -187,6 +187,7 @@ export interface CaseCost {
   amount: number;
   receipt_url: string | null;
   created_by: string;
+  category: 'ovrigt' | 'reklamation';
 }
 
 export async function fetchCaseCosts(caseId: string): Promise<CaseCost[]> {
@@ -199,8 +200,9 @@ export async function fetchCaseCosts(caseId: string): Promise<CaseCost[]> {
   return data as CaseCost[];
 }
 
-export async function createCaseCost(cost: { case_id: string; description: string; amount: number; receipt_url?: string; created_by: string }): Promise<CaseCost> {
-  const { data, error } = await supabase.from('case_costs').insert(cost).select().single();
+export async function createCaseCost(cost: { case_id: string; description: string; amount: number; receipt_url?: string; created_by: string; category?: 'ovrigt' | 'reklamation' }): Promise<CaseCost> {
+  const payload: any = { ...cost, category: cost.category ?? 'ovrigt' };
+  const { data, error } = await (supabase as any).from('case_costs').insert(payload).select().single();
   if (error) throw error;
   return data as CaseCost;
 }
