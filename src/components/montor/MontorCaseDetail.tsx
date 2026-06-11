@@ -55,6 +55,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [costDesc, setCostDesc] = useState('');
   const [costAmount, setCostAmount] = useState('');
   const [costFile, setCostFile] = useState<File | null>(null);
+  const [costCategory, setCostCategory] = useState<'ovrigt' | 'reklamation'>('ovrigt');
 
   const { data: events } = useQuery({
     queryKey: ['case_events', caseData.id],
