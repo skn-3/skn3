@@ -23,6 +23,7 @@ export type OfferRow = {
   total_after_rot: number | null;
   rot_enabled: boolean;
   pdf_path: string | null;
+  signed_pdf_path?: string | null;
   case_id: string | null;
   created_at: string;
   updated_at: string;
