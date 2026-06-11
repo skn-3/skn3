@@ -119,17 +119,21 @@ export function UppdragView() {
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <select
+                    <Select
                       value={r.status}
-                      onChange={(e) => update.mutate({ id: r.id, patch: { status: e.target.value as UppdragStatus } })}
-                      className="text-xs border rounded px-2 py-1 bg-background"
+                      onValueChange={(v) => update.mutate({ id: r.id, patch: { status: v as UppdragStatus } })}
                     >
-                      {STATUS_OPTIONS.map(s => (
-                        <option key={s} value={s}>{UPPDRAG_STATUS_META[s].label}</option>
-                      ))}
-                    </select>
-                    <div className="mt-1"><Badge variant="secondary" className={meta.cls}>{meta.label}</Badge></div>
+                      <SelectTrigger className={`h-8 text-xs min-w-[130px] border-0 ${meta.cls}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTIONS.map(s => (
+                          <SelectItem key={s} value={s} className="text-xs">{UPPDRAG_STATUS_META[s].label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </td>
+
                   <td className="px-3 py-2 text-xs whitespace-nowrap">
                     <div>Intäkt (ex moms) <span className="tabular-nums font-medium">{fmtKr(rev)}</span></div>
                     {cost != null ? (
