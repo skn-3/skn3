@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
     const body = await req.json().catch(() => ({}));
-    const { token, name, signed_pdf_base64 } = body || {};
+    const { token, name, signed_pdf_base64, origin } = body || {};
     if (!token || typeof token !== 'string' || token.length < 16) {
       return new Response(JSON.stringify({ error: 'Ogiltig länk' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
