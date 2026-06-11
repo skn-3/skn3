@@ -69,6 +69,7 @@ export type Database = {
           description: string
           id: string
           receipt_url: string | null
+          responsible: string | null
         }
         Insert: {
           amount: number
@@ -79,6 +80,7 @@ export type Database = {
           description: string
           id?: string
           receipt_url?: string | null
+          responsible?: string | null
         }
         Update: {
           amount?: number
@@ -89,6 +91,7 @@ export type Database = {
           description?: string
           id?: string
           receipt_url?: string | null
+          responsible?: string | null
         }
         Relationships: [
           {

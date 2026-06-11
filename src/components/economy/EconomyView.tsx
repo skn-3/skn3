@@ -25,7 +25,7 @@ type DocRow = {
   created_at: string;
 };
 
-type CostRow = { id: string; case_id: string; amount: number; category: 'ovrigt' | 'reklamation' };
+type CostRow = { id: string; case_id: string; amount: number; category: 'ovrigt' | 'reklamation'; responsible: string | null };
 type SmoRow = { id: string; case_id: string };
 
 type OfferRow = {
@@ -84,7 +84,7 @@ interface CaseEconomy {
   cost: number;
   profit: number;
   margin: number | null;
-  costBreakdown: { montor: number; caseCosts: number; reklamation: number; sheet: number; montorInvoice: number };
+  costBreakdown: { montor: number; caseCosts: number; reklamation: number; reklamationMontor: number; sheet: number; montorInvoice: number };
   hasRevenue: boolean;
   hasCost: boolean;
   complete: boolean;
@@ -111,7 +111,7 @@ export function EconomyView() {
       const [cRes, dRes, ccRes, smRes, oRes, uRes] = await Promise.all([
         supabase.from('cases').select('*'),
         supabase.from('case_documents').select('id, case_id, doc_type, total_amount, invoice_number, created_at'),
-        supabase.from('case_costs').select('id, case_id, amount, category'),
+        supabase.from('case_costs').select('id, case_id, amount, category, responsible'),
         supabase.from('sheet_metal_orders').select('id, case_id'),
         supabase.from('offers').select('id, offer_number, status, customer_name, title, total_incl_vat, total_after_rot, rot_enabled, created_at'),
         supabase.from('uppdrag').select('id, uppdrag_number, customer_name, title, status, revenue_ex_vat, cost_ex_vat, slutfaktura_amount, slutfaktura_sent_at, created_at'),
@@ -140,12 +140,16 @@ export function EconomyView() {
       arr.push(d);
       docsByCase.set(d.case_id, arr);
     });
-    const costsByCase = new Map<string, { ovrigt: number; reklamation: number }>();
+    const costsByCase = new Map<string, { ovrigt: number; reklamation: number; reklamationMontor: number }>();
     costs.forEach(c => {
-      const cur = costsByCase.get(c.case_id) || { ovrigt: 0, reklamation: 0 };
+      const cur = costsByCase.get(c.case_id) || { ovrigt: 0, reklamation: 0, reklamationMontor: 0 };
       const amt = Number(c.amount) || 0;
-      if (c.category === 'reklamation') cur.reklamation += amt;
-      else cur.ovrigt += amt;
+      if (c.category === 'reklamation') {
+        cur.reklamation += amt;
+        if (c.responsible === 'montor') cur.reklamationMontor += amt;
+      } else {
+        cur.ovrigt += amt;
+      }
       costsByCase.set(c.case_id, cur);
     });
     const orderByCase = new Map<string, OrderRow>();
@@ -164,7 +168,7 @@ export function EconomyView() {
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
       const montorInvoiceCost = cd.filter(d => d.doc_type === 'montor_invoice')
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
-      const ccBuckets = costsByCase.get(c.id) || { ovrigt: 0, reklamation: 0 };
+      const ccBuckets = costsByCase.get(c.id) || { ovrigt: 0, reklamation: 0, reklamationMontor: 0 };
       const cost = montorCost + ccBuckets.ovrigt + ccBuckets.reklamation + sheetCost + montorInvoiceCost;
       const profit = revenue - cost;
       const hasRevenue = revenue > 0;
@@ -172,7 +176,7 @@ export function EconomyView() {
       return {
         c, revenue, cost, profit,
         margin: revenue > 0 ? profit / revenue : null,
-        costBreakdown: { montor: montorCost, caseCosts: ccBuckets.ovrigt, reklamation: ccBuckets.reklamation, sheet: sheetCost, montorInvoice: montorInvoiceCost },
+        costBreakdown: { montor: montorCost, caseCosts: ccBuckets.ovrigt, reklamation: ccBuckets.reklamation, reklamationMontor: ccBuckets.reklamationMontor, sheet: sheetCost, montorInvoice: montorInvoiceCost },
         hasRevenue,
         hasCost: hasMontor,
         complete,
@@ -254,10 +258,16 @@ export function EconomyView() {
     const stats: TeamStat[] = [];
     map.forEach((arr, team) => {
       const revenue = arr.reduce((s, e) => s + e.revenue, 0);
-      const cost = arr.reduce((s, e) => s + e.cost, 0);
+      const rawCost = arr.reduce((s, e) => s + e.cost, 0);
+      // Exkludera reklamationskostnader som inte är montörsansvar
+      const nonMontorReklamation = arr.reduce(
+        (s, e) => s + (e.costBreakdown.reklamation - e.costBreakdown.reklamationMontor),
+        0,
+      );
+      const cost = rawCost - nonMontorReklamation;
       const profit = revenue - cost;
       const montorCost = arr.reduce((s, e) => s + e.costBreakdown.montor, 0);
-      const reklCost = arr.reduce((s, e) => s + e.costBreakdown.reklamation, 0);
+      const reklCost = arr.reduce((s, e) => s + e.costBreakdown.reklamationMontor, 0);
       const units = arr.reduce((s, e) => s + (e.c.units || 0), 0);
       stats.push({
         team, count: arr.length, revenue, cost, profit,
@@ -508,6 +518,9 @@ export function EconomyView() {
                             {e.costBreakdown.reklamation > 0 && (
                               <div className="text-amber-700 dark:text-amber-400 font-medium">
                                 Reklamationskostnader: {fmtKr(e.costBreakdown.reklamation)}
+                                {e.costBreakdown.reklamationMontor > 0 && e.costBreakdown.reklamationMontor !== e.costBreakdown.reklamation && (
+                                  <span className="ml-1 text-xs font-normal">(varav montörsansvar: {fmtKr(e.costBreakdown.reklamationMontor)})</span>
+                                )}
                               </div>
                             )}
                             <div>Plåtfakturor: {fmtKr(e.costBreakdown.sheet)}</div>
@@ -634,6 +647,9 @@ export function EconomyView() {
             })}
           </TableBody>
         </Table>
+        <div className="p-3 text-xs text-muted-foreground border-t">
+          Reklamationskostnader belastar teamet endast när ansvar = Montör.
+        </div>
       </Card>
 
 

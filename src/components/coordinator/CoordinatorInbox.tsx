@@ -522,6 +522,7 @@ function CostSheet({
           amount: num,
           created_by: coordinatorName,
           category: 'reklamation',
+          responsible: (dev as any).responsible || null,
         });
       }
       await createCaseEvent({

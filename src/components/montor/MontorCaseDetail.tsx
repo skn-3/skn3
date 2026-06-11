@@ -56,6 +56,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [costAmount, setCostAmount] = useState('');
   const [costFile, setCostFile] = useState<File | null>(null);
   const [costCategory, setCostCategory] = useState<'ovrigt' | 'reklamation'>('ovrigt');
+  const [costResponsible, setCostResponsible] = useState<string>('');
 
   const { data: events } = useQuery({
     queryKey: ['case_events', caseData.id],
@@ -318,6 +319,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         amount: Number(costAmount),
         created_by: currentUser,
         category: costCategory,
+        responsible: costCategory === 'reklamation' ? (costResponsible || null) : null,
       });
       if (costFile) {
         const url = await uploadReceiptImage(caseData.id, cost.id, costFile);
@@ -325,7 +327,10 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         const { supabase } = await import('@/integrations/supabase/client');
         await supabase.from('case_costs').update({ receipt_url: url }).eq('id', cost.id);
       }
-      const catLabel = costCategory === 'reklamation' ? ' [Reklamation]' : '';
+      const respLabel = costCategory === 'reklamation' && costResponsible
+        ? ` (ansvar: ${DEVIATION_RESPONSIBLE.find(r => r.value === costResponsible)?.label || costResponsible})`
+        : '';
+      const catLabel = costCategory === 'reklamation' ? ` [Reklamation${respLabel}]` : '';
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'cost',
@@ -337,7 +342,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         action: 'cost_added',
         description: `Registrerade kostnad${catLabel} (${Number(costAmount).toLocaleString('sv-SE')} kr) för ${caseData.address}`,
         case_id: caseData.id,
-        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile, category: costCategory },
+        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile, category: costCategory, responsible: costCategory === 'reklamation' ? costResponsible : null },
       });
     },
     onSuccess: () => {
@@ -346,6 +351,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       setCostAmount('');
       setCostFile(null);
       setCostCategory('ovrigt');
+      setCostResponsible('');
       invalidate();
       toast.success('Kostnad sparad');
     },
@@ -637,7 +643,9 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   <div className="font-medium text-card-foreground flex items-center gap-2">
                     <span>{c.description}</span>
                     {c.category === 'reklamation' && (
-                      <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 text-[10px] px-1.5 py-0">Reklamation</Badge>
+                      <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 text-[10px] px-1.5 py-0">
+                        Reklamation{c.responsible ? ` · ${DEVIATION_RESPONSIBLE.find(r => r.value === c.responsible)?.label || c.responsible}` : ''}
+                      </Badge>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('sv-SE')} — {c.created_by}</div>
@@ -753,6 +761,21 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                 <option value="reklamation">Reklamation</option>
               </select>
             </div>
+            {costCategory === 'reklamation' && (
+              <div>
+                <Label className="mb-1 block">Ansvar *</Label>
+                <select
+                  value={costResponsible}
+                  onChange={e => setCostResponsible(e.target.value)}
+                  className="w-full min-h-[48px] rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Välj ansvar...</option>
+                  {DEVIATION_RESPONSIBLE.map(r => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <Label className="mb-1 block">Belopp (ex moms) *</Label>
               <Input type="number" value={costAmount} onChange={e => setCostAmount(e.target.value)} placeholder="0" className="min-h-[48px]" />
@@ -781,7 +804,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <DrawerFooter>
             <Button
               className="min-h-[48px]"
-              disabled={!costDesc.trim() || !costAmount || costMutation.isPending}
+              disabled={!costDesc.trim() || !costAmount || (costCategory === 'reklamation' && !costResponsible) || costMutation.isPending}
               onClick={() => costMutation.mutate()}
             >
               {costMutation.isPending ? 'Sparar...' : 'Spara kostnad'}
