@@ -598,13 +598,14 @@ export function EconomyView() {
               <TableHead>Kostnad</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleTeamSort('profit')}>Vinst</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleTeamSort('margin')}>Marginal</TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleTeamSort('reklamation')}>Reklamation</TableHead>
               <TableHead>Snittvinst/jobb</TableHead>
               <TableHead>Kostnad/enhet</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {teamStats.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Ingen data</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Ingen data</TableCell></TableRow>
             )}
             {teamStats.map(t => {
               const isBest = t.team === bestTeam;
@@ -623,6 +624,9 @@ export function EconomyView() {
                   <TableCell>{fmtKr(t.cost)}</TableCell>
                   <TableCell className={t.profit < 0 ? 'text-destructive font-medium' : ''}>{fmtKr(t.profit)}</TableCell>
                   <TableCell>{t.margin == null ? '—' : fmtPct(t.margin)}</TableCell>
+                  <TableCell className={t.reklCost > 0 ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                    {t.reklCost > 0 ? fmtKr(t.reklCost) : '–'}
+                  </TableCell>
                   <TableCell>{fmtKr(t.avgProfit)}</TableCell>
                   <TableCell>{t.costPerUnit == null ? '—' : fmtKr(t.costPerUnit)}</TableCell>
                 </TableRow>
