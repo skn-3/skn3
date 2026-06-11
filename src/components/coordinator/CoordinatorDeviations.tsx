@@ -25,6 +25,7 @@ import {
   DEVIATION_STATUS_META,
   type DeviationStatus,
 } from '@/components/deviations/DeviationActionPanel';
+import { CaseCombobox } from '@/components/shared/CaseCombobox';
 
 interface Props {
   coordinatorName: string;
@@ -220,12 +221,12 @@ function NewDeviationSheet({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Ärende</Label>
-            <Select value={caseId} onValueChange={setCaseId}>
-              <SelectTrigger><SelectValue placeholder="Välj ärende..." /></SelectTrigger>
-              <SelectContent>
-                {sortedCases.map(c => <SelectItem key={c.id} value={c.id}>{c.address}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <CaseCombobox
+              cases={sortedCases}
+              value={caseId}
+              onChange={setCaseId}
+              placeholder="Välj ärende..."
+            />
           </div>
           <div className="space-y-2">
             <Label>Typ</Label>
