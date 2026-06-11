@@ -63,6 +63,7 @@ export type Database = {
         Row: {
           amount: number
           case_id: string
+          category: string
           created_at: string
           created_by: string
           description: string
@@ -72,6 +73,7 @@ export type Database = {
         Insert: {
           amount: number
           case_id: string
+          category?: string
           created_at?: string
           created_by: string
           description: string
@@ -81,6 +83,7 @@ export type Database = {
         Update: {
           amount?: number
           case_id?: string
+          category?: string
           created_at?: string
           created_by?: string
           description?: string

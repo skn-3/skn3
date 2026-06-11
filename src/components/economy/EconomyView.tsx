@@ -25,7 +25,7 @@ type DocRow = {
   created_at: string;
 };
 
-type CostRow = { id: string; case_id: string; amount: number };
+type CostRow = { id: string; case_id: string; amount: number; category: 'ovrigt' | 'reklamation' };
 type SmoRow = { id: string; case_id: string };
 
 type OfferRow = {
@@ -84,7 +84,7 @@ interface CaseEconomy {
   cost: number;
   profit: number;
   margin: number | null;
-  costBreakdown: { montor: number; caseCosts: number; sheet: number; montorInvoice: number };
+  costBreakdown: { montor: number; caseCosts: number; reklamation: number; sheet: number; montorInvoice: number };
   hasRevenue: boolean;
   hasCost: boolean;
   complete: boolean;
@@ -111,7 +111,7 @@ export function EconomyView() {
       const [cRes, dRes, ccRes, smRes, oRes, uRes] = await Promise.all([
         supabase.from('cases').select('*'),
         supabase.from('case_documents').select('id, case_id, doc_type, total_amount, invoice_number, created_at'),
-        supabase.from('case_costs').select('id, case_id, amount'),
+        supabase.from('case_costs').select('id, case_id, amount, category'),
         supabase.from('sheet_metal_orders').select('id, case_id'),
         supabase.from('offers').select('id, offer_number, status, customer_name, title, total_incl_vat, total_after_rot, rot_enabled, created_at'),
         supabase.from('uppdrag').select('id, uppdrag_number, customer_name, title, status, revenue_ex_vat, cost_ex_vat, slutfaktura_amount, slutfaktura_sent_at, created_at'),
@@ -140,9 +140,13 @@ export function EconomyView() {
       arr.push(d);
       docsByCase.set(d.case_id, arr);
     });
-    const costsByCase = new Map<string, number>();
+    const costsByCase = new Map<string, { ovrigt: number; reklamation: number }>();
     costs.forEach(c => {
-      costsByCase.set(c.case_id, (costsByCase.get(c.case_id) || 0) + (Number(c.amount) || 0));
+      const cur = costsByCase.get(c.case_id) || { ovrigt: 0, reklamation: 0 };
+      const amt = Number(c.amount) || 0;
+      if (c.category === 'reklamation') cur.reklamation += amt;
+      else cur.ovrigt += amt;
+      costsByCase.set(c.case_id, cur);
     });
     const orderByCase = new Map<string, OrderRow>();
     orders.forEach(o => { if (o.case_id) orderByCase.set(o.case_id, o); });
@@ -160,15 +164,15 @@ export function EconomyView() {
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
       const montorInvoiceCost = cd.filter(d => d.doc_type === 'montor_invoice')
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
-      const cc = costsByCase.get(c.id) || 0;
-      const cost = montorCost + cc + sheetCost + montorInvoiceCost;
+      const ccBuckets = costsByCase.get(c.id) || { ovrigt: 0, reklamation: 0 };
+      const cost = montorCost + ccBuckets.ovrigt + ccBuckets.reklamation + sheetCost + montorInvoiceCost;
       const profit = revenue - cost;
       const hasRevenue = revenue > 0;
       const complete = hasRevenue && hasMontor;
       return {
         c, revenue, cost, profit,
         margin: revenue > 0 ? profit / revenue : null,
-        costBreakdown: { montor: montorCost, caseCosts: cc, sheet: sheetCost, montorInvoice: montorInvoiceCost },
+        costBreakdown: { montor: montorCost, caseCosts: ccBuckets.ovrigt, reklamation: ccBuckets.reklamation, sheet: sheetCost, montorInvoice: montorInvoiceCost },
         hasRevenue,
         hasCost: hasMontor,
         complete,
@@ -233,10 +237,11 @@ export function EconomyView() {
     margin: number | null;
     avgProfit: number;
     montorCost: number;
+    reklCost: number;
     units: number;
     costPerUnit: number | null;
   };
-  const [teamSortBy, setTeamSortBy] = useState<'profit' | 'margin'>('profit');
+  const [teamSortBy, setTeamSortBy] = useState<'profit' | 'margin' | 'reklamation'>('profit');
   const [teamSortDir, setTeamSortDir] = useState<'asc' | 'desc'>('desc');
   const teamStats = useMemo<TeamStat[]>(() => {
     const map = new Map<string, CaseEconomy[]>();
@@ -252,18 +257,21 @@ export function EconomyView() {
       const cost = arr.reduce((s, e) => s + e.cost, 0);
       const profit = revenue - cost;
       const montorCost = arr.reduce((s, e) => s + e.costBreakdown.montor, 0);
+      const reklCost = arr.reduce((s, e) => s + e.costBreakdown.reklamation, 0);
       const units = arr.reduce((s, e) => s + (e.c.units || 0), 0);
       stats.push({
         team, count: arr.length, revenue, cost, profit,
         margin: revenue > 0 ? profit / revenue : null,
         avgProfit: arr.length > 0 ? profit / arr.length : 0,
-        montorCost, units,
+        montorCost, reklCost, units,
         costPerUnit: units > 0 ? montorCost / units : null,
       });
     });
     stats.sort((a, b) => {
-      const av = teamSortBy === 'profit' ? a.profit : (a.margin ?? -Infinity);
-      const bv = teamSortBy === 'profit' ? b.profit : (b.margin ?? -Infinity);
+      let av: number; let bv: number;
+      if (teamSortBy === 'profit') { av = a.profit; bv = b.profit; }
+      else if (teamSortBy === 'reklamation') { av = a.reklCost; bv = b.reklCost; }
+      else { av = a.margin ?? -Infinity; bv = b.margin ?? -Infinity; }
       return teamSortDir === 'asc' ? av - bv : bv - av;
     });
     return stats;
@@ -280,7 +288,7 @@ export function EconomyView() {
     return [...ranked].sort((a, b) => b.costPerUnit! - a.costPerUnit!)[0].team;
   }, [teamStats]);
 
-  const toggleTeamSort = (col: 'profit' | 'margin') => {
+  const toggleTeamSort = (col: 'profit' | 'margin' | 'reklamation') => {
     if (teamSortBy === col) setTeamSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
     else { setTeamSortBy(col); setTeamSortDir('desc'); }
   };
@@ -497,6 +505,11 @@ export function EconomyView() {
                             <div className="font-medium mb-2">Kostnadsmix</div>
                             <div>Montörsbetalning: {fmtKr(e.costBreakdown.montor)}</div>
                             <div>Egna kostnader (case_costs): {fmtKr(e.costBreakdown.caseCosts)}</div>
+                            {e.costBreakdown.reklamation > 0 && (
+                              <div className="text-amber-700 dark:text-amber-400 font-medium">
+                                Reklamationskostnader: {fmtKr(e.costBreakdown.reklamation)}
+                              </div>
+                            )}
                             <div>Plåtfakturor: {fmtKr(e.costBreakdown.sheet)}</div>
                             <div>Montörsfaktura (extra): {fmtKr(e.costBreakdown.montorInvoice)}</div>
                           </div>
@@ -585,13 +598,14 @@ export function EconomyView() {
               <TableHead>Kostnad</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleTeamSort('profit')}>Vinst</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleTeamSort('margin')}>Marginal</TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleTeamSort('reklamation')}>Reklamation</TableHead>
               <TableHead>Snittvinst/jobb</TableHead>
               <TableHead>Kostnad/enhet</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {teamStats.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Ingen data</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">Ingen data</TableCell></TableRow>
             )}
             {teamStats.map(t => {
               const isBest = t.team === bestTeam;
@@ -610,6 +624,9 @@ export function EconomyView() {
                   <TableCell>{fmtKr(t.cost)}</TableCell>
                   <TableCell className={t.profit < 0 ? 'text-destructive font-medium' : ''}>{fmtKr(t.profit)}</TableCell>
                   <TableCell>{t.margin == null ? '—' : fmtPct(t.margin)}</TableCell>
+                  <TableCell className={t.reklCost > 0 ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                    {t.reklCost > 0 ? fmtKr(t.reklCost) : '–'}
+                  </TableCell>
                   <TableCell>{fmtKr(t.avgProfit)}</TableCell>
                   <TableCell>{t.costPerUnit == null ? '—' : fmtKr(t.costPerUnit)}</TableCell>
                 </TableRow>

@@ -2097,7 +2097,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               {costs.map(c => (
                 <div key={c.id} className="rounded-lg border p-2 text-sm flex justify-between items-start">
                   <div>
-                    <div className="font-medium text-card-foreground">{c.description}</div>
+                    <div className="font-medium text-card-foreground flex items-center gap-2">
+                      <span>{c.description}</span>
+                      {(c as any).category === 'reklamation' && (
+                        <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 text-[10px] px-1.5 py-0">Reklamation</Badge>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('sv-SE')} — {c.created_by}</div>
                   </div>
                   <div className="flex items-center gap-2">

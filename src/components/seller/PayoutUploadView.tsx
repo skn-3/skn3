@@ -9,6 +9,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Upload, FileText, Search, Check, Loader2, AlertTriangle, Sparkles, Trash2, Plus, ChevronDown, Layers } from 'lucide-react';
 import { logActivity } from '@/lib/activityLog';
@@ -219,6 +223,13 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState(false);
+
+  // Duplicate detection state (single mode)
+  type DupInfo = {
+    sameCase: { id: string; total_amount: number | null; created_at: string };
+    otherCases: Array<{ case_id: string; case_label: string }>;
+  };
+  const [dupConfirm, setDupConfirm] = useState<null | { info: DupInfo; proceed: () => Promise<void> }>(null);
 
   const isSheet = docType === 'sheet_metal_invoice';
   const isMontorInvoice = docType === 'montor_invoice';
@@ -531,22 +542,15 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setLineItems(items => items.map((li, i) => (i === lineIdx ? { ...li, order_number: on || null } : li)));
   };
 
-  const handleSubmitSingle = async () => {
-    if (!file) { toast.error('Välj en PDF'); return; }
-    if (!isSheet && !orderNumber.trim()) { toast.error('Ange ordernummer'); return; }
-    if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
-    if (!totalAmount.trim() || isNaN(Number(totalAmount))) { toast.error('Ange totalbelopp'); return; }
-    if (!effectiveCase) { toast.error('Välj ett ärende att koppla till'); return; }
-
+  const performSingleInsert = async (caseId: string) => {
     setSubmitting(true);
     try {
-      const caseId = effectiveCase.id;
-      const safe = sanitizeFileName(file.name);
+      const safe = sanitizeFileName(file!.name);
       const folder = isSheet ? 'sheet-invoices' : 'payouts';
       const path = `${caseId}/${folder}/${Date.now()}_${safe}`;
       const { error: upErr } = await supabase.storage
         .from('case-documents')
-        .upload(path, file, { upsert: false, contentType: file.type || 'application/pdf' });
+        .upload(path, file!, { upsert: false, contentType: file!.type || 'application/pdf' });
       if (upErr) throw upErr;
 
       const amountNum = Number(totalAmount);
@@ -558,7 +562,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         case_id: caseId,
         doc_type: docType,
         file_path: path,
-        file_name: file.name,
+        file_name: file!.name,
         order_number: isSheet ? (jobAddress || null) : orderNumber.trim(),
         invoice_number: invoiceNumber.trim(),
         customer_name: customerName.trim() || null,
@@ -589,7 +593,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       logActivity({
         action: isSheet ? 'sheet_invoice_uploaded' : (isCost ? 'cost_doc_uploaded' : 'payout_uploaded'),
         category: 'case',
-        description: `Laddade upp ${shortLabel.toLowerCase()} (faktura ${invoiceNumber.trim()}) för ${effectiveCase.address}`,
+        description: `Laddade upp ${shortLabel.toLowerCase()} (faktura ${invoiceNumber.trim()}) för ${effectiveCase!.address}`,
         case_id: caseId,
         metadata: { doc_type: docType, invoice_number: invoiceNumber.trim(), total_amount: amountNum, order_number: isSheet ? null : orderNumber.trim(), job_address: isSheet ? jobAddress || null : null },
       });
@@ -604,6 +608,51 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmitSingle = async () => {
+    if (!file) { toast.error('Välj en PDF'); return; }
+    if (!isSheet && !orderNumber.trim()) { toast.error('Ange ordernummer'); return; }
+    if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
+    if (!totalAmount.trim() || isNaN(Number(totalAmount))) { toast.error('Ange totalbelopp'); return; }
+    if (!effectiveCase) { toast.error('Välj ett ärende att koppla till'); return; }
+
+    const caseId = effectiveCase.id;
+    const inv = invoiceNumber.trim();
+
+    // Duplicate check
+    try {
+      const { data: existing } = await (supabase as any)
+        .from('case_documents')
+        .select('id, case_id, total_amount, created_at, doc_type, invoice_number')
+        .eq('doc_type', docType)
+        .eq('invoice_number', inv);
+      const rows: any[] = existing || [];
+      const sameCaseHit = rows.find(r => r.case_id === caseId);
+      const otherHits = rows.filter(r => r.case_id !== caseId);
+      if (sameCaseHit) {
+        const otherCases = otherHits.map(r => {
+          const c = (cases as CaseRow[]).find(cc => cc.id === r.case_id);
+          return { case_id: r.case_id, case_label: c ? (c.address || c.customer_name || r.case_id.slice(0, 8)) : r.case_id.slice(0, 8) };
+        });
+        setDupConfirm({
+          info: { sameCase: sameCaseHit, otherCases },
+          proceed: async () => { setDupConfirm(null); await performSingleInsert(caseId); },
+        });
+        return;
+      }
+      if (otherHits.length > 0) {
+        const labels = otherHits.map(r => {
+          const c = (cases as CaseRow[]).find(cc => cc.id === r.case_id);
+          return c ? (c.address || c.customer_name || r.case_id.slice(0, 8)) : r.case_id.slice(0, 8);
+        }).join(', ');
+        toast.warning(`Obs: fakturanr ${inv} finns även på: ${labels}`);
+      }
+    } catch (e) {
+      console.warn('Dubblettkontroll misslyckades, fortsätter ändå', e);
+    }
+
+    await performSingleInsert(caseId);
   };
 
   const handleSubmitMulti = async () => {
@@ -642,12 +691,34 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
       const inv = invoiceNumber.trim();
 
-      const groupsToInsert = isMontorInvoice
+      let groupsToInsert = isMontorInvoice
         ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
         : groups;
-      const skippedList = isMontorInvoice
+      const userSkippedList = isMontorInvoice
         ? groups.filter(g => isSkipped(g.order_number))
         : [];
+
+      // Dubblettkontroll: hämta befintliga (case_id, invoice_number) för doc_type på berörda ärenden
+      const caseIds = Array.from(new Set(groupsToInsert.map(g => g.effectiveCase!.id)));
+      let dupSkipped: typeof groupsToInsert = [];
+      if (caseIds.length > 0) {
+        try {
+          const { data: existing } = await (supabase as any)
+            .from('case_documents')
+            .select('case_id, invoice_number')
+            .eq('doc_type', docType)
+            .eq('invoice_number', inv)
+            .in('case_id', caseIds);
+          const dupSet = new Set((existing || []).map((r: any) => r.case_id));
+          if (dupSet.size > 0) {
+            dupSkipped = groupsToInsert.filter(g => dupSet.has(g.effectiveCase!.id));
+            groupsToInsert = groupsToInsert.filter(g => !dupSet.has(g.effectiveCase!.id));
+          }
+        } catch (e) {
+          console.warn('Dubblettkontroll multi misslyckades', e);
+        }
+      }
+
 
       for (const g of groupsToInsert) {
         const c = g.effectiveCase!;
@@ -699,16 +770,21 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       }
 
       qc.invalidateQueries({ queryKey: ['cases-all'] });
-      if (isMontorInvoice && skippedList.length > 0) {
+      const totalSkipped = userSkippedList.length + dupSkipped.length;
+      if (isMontorInvoice && userSkippedList.length > 0) {
         try {
           await logActivity({
             action: 'montor_invoice_partial_skip',
             category: 'case',
-            description: `Montörsfaktura ${inv}: ${skippedList.length} adress${skippedList.length === 1 ? '' : 'er'} hoppades över (${skippedList.map(g => g.order_number).join(', ')})`,
-            metadata: { invoice_number: inv, skipped_addresses: skippedList.map(g => g.order_number), skipped_total: skippedList.reduce((s, g) => s + g.subtotal, 0) },
+            description: `Montörsfaktura ${inv}: ${userSkippedList.length} adress${userSkippedList.length === 1 ? '' : 'er'} hoppades över (${userSkippedList.map(g => g.order_number).join(', ')})`,
+            metadata: { invoice_number: inv, skipped_addresses: userSkippedList.map(g => g.order_number), skipped_total: userSkippedList.reduce((s, g) => s + g.subtotal, 0) },
           });
         } catch (e) { console.warn(e); }
-        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden (${skippedList.length} hoppades över)`);
+      }
+      if (dupSkipped.length > 0) {
+        toast.success(`${groupsToInsert.length} rader sparade · ${dupSkipped.length} hoppades över (fakturanumret fanns redan på ärendet)`);
+      } else if (isMontorInvoice && userSkippedList.length > 0) {
+        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden (${userSkippedList.length} hoppades över)`);
       } else {
         toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden`);
       }
@@ -741,6 +817,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       : !effectiveCase);
 
   return (
+    <>
     <div className="px-3 md:px-0 max-w-4xl mx-auto space-y-4">
       <Card>
         <CardHeader>
@@ -1417,5 +1494,36 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         </CardContent>
       </Card>
     </div>
+    <AlertDialog open={!!dupConfirm} onOpenChange={(o) => { if (!o) setDupConfirm(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Möjlig dubblett</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2">
+              <div>
+                Fakturanummer <strong>{invoiceNumber.trim()}</strong> finns redan på detta ärende
+                {dupConfirm?.info.sameCase.total_amount != null && (
+                  <> ({Number(dupConfirm.info.sameCase.total_amount).toLocaleString('sv-SE')} kr</>
+                )}
+                {dupConfirm?.info.sameCase.created_at && (
+                  <>, uppladdad {new Date(dupConfirm.info.sameCase.created_at).toLocaleDateString('sv-SE')}</>
+                )}
+                {dupConfirm?.info.sameCase.total_amount != null && <>)</>}. Vill du spara ändå?
+              </div>
+              {dupConfirm && dupConfirm.info.otherCases.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  Obs: numret finns även på ärende {dupConfirm.info.otherCases.map(o => o.case_label).join(', ')}.
+                </div>
+              )}
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setDupConfirm(null)}>Avbryt</AlertDialogCancel>
+          <AlertDialogAction onClick={() => dupConfirm?.proceed()}>Spara ändå</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

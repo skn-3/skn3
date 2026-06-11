@@ -55,6 +55,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [costDesc, setCostDesc] = useState('');
   const [costAmount, setCostAmount] = useState('');
   const [costFile, setCostFile] = useState<File | null>(null);
+  const [costCategory, setCostCategory] = useState<'ovrigt' | 'reklamation'>('ovrigt');
 
   const { data: events } = useQuery({
     queryKey: ['case_events', caseData.id],
@@ -316,6 +317,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         description: costDesc,
         amount: Number(costAmount),
         created_by: currentUser,
+        category: costCategory,
       });
       if (costFile) {
         const url = await uploadReceiptImage(caseData.id, cost.id, costFile);
@@ -323,18 +325,19 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         const { supabase } = await import('@/integrations/supabase/client');
         await supabase.from('case_costs').update({ receipt_url: url }).eq('id', cost.id);
       }
+      const catLabel = costCategory === 'reklamation' ? ' [Reklamation]' : '';
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'cost',
-        description: `Kostnad tillagd: ${costDesc} — ${Number(costAmount).toLocaleString('sv-SE')} kr`,
+        description: `Kostnad tillagd${catLabel}: ${costDesc} — ${Number(costAmount).toLocaleString('sv-SE')} kr ex moms`,
         created_by: currentUser,
       });
       logActivity({
         category: 'case',
         action: 'cost_added',
-        description: `Registrerade kostnad (${Number(costAmount).toLocaleString('sv-SE')} kr) för ${caseData.address}`,
+        description: `Registrerade kostnad${catLabel} (${Number(costAmount).toLocaleString('sv-SE')} kr) för ${caseData.address}`,
         case_id: caseData.id,
-        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile },
+        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile, category: costCategory },
       });
     },
     onSuccess: () => {
@@ -342,6 +345,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       setCostDesc('');
       setCostAmount('');
       setCostFile(null);
+      setCostCategory('ovrigt');
       invalidate();
       toast.success('Kostnad sparad');
     },
@@ -630,7 +634,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             {costs.map(c => (
               <div key={c.id} className="rounded-lg border p-3 text-sm flex justify-between items-start">
                 <div>
-                  <div className="font-medium text-card-foreground">{c.description}</div>
+                  <div className="font-medium text-card-foreground flex items-center gap-2">
+                    <span>{c.description}</span>
+                    {c.category === 'reklamation' && (
+                      <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 text-[10px] px-1.5 py-0">Reklamation</Badge>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('sv-SE')} — {c.created_by}</div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -734,7 +743,18 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               <Input value={costDesc} onChange={e => setCostDesc(e.target.value)} placeholder="t.ex. Inköp skruv Byggmax" className="min-h-[48px]" />
             </div>
             <div>
-              <Label className="mb-1 block">Belopp (kr) *</Label>
+              <Label className="mb-1 block">Kategori</Label>
+              <select
+                value={costCategory}
+                onChange={e => setCostCategory(e.target.value as 'ovrigt' | 'reklamation')}
+                className="w-full min-h-[48px] rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="ovrigt">Övrigt</option>
+                <option value="reklamation">Reklamation</option>
+              </select>
+            </div>
+            <div>
+              <Label className="mb-1 block">Belopp (ex moms) *</Label>
               <Input type="number" value={costAmount} onChange={e => setCostAmount(e.target.value)} placeholder="0" className="min-h-[48px]" />
             </div>
             <div>
