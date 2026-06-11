@@ -1,0 +1,1 @@
+ALTER TABLE public.case_costs ADD COLUMN IF NOT EXISTS responsible text;
