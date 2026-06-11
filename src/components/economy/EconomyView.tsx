@@ -25,7 +25,7 @@ type DocRow = {
   created_at: string;
 };
 
-type CostRow = { id: string; case_id: string; amount: number; category: 'ovrigt' | 'reklamation' };
+type CostRow = { id: string; case_id: string; amount: number; category: 'ovrigt' | 'reklamation'; responsible: string | null };
 type SmoRow = { id: string; case_id: string };
 
 type OfferRow = {
