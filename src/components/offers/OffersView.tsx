@@ -280,11 +280,20 @@ export function OffersView({ currentUser }: OffersViewProps) {
                     )}
                     <button
                       type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDuplicate(o); }}
+                      className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mr-3"
+                      title="Duplicera"
+                    >
+                      <Copy className="h-3 w-3" /> Duplicera
+                    </button>
+                    <button
+                      type="button"
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(o); }}
                       className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                     >
                       <Pencil className="h-3 w-3" /> Öppna
                     </button>
+
                   </td>
                 </tr>
               );
