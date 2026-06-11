@@ -260,15 +260,26 @@ export function OffersView({ currentUser }: OffersViewProps) {
 
                   <td className="px-3 py-2 text-muted-foreground">{new Date(o.created_at).toLocaleDateString('sv-SE')}</td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); openPdf.mutate(o); }}
-                      className="text-xs text-primary hover:underline inline-flex items-center gap-1 mr-3"
-                      title={o.pdf_path ? 'Öppna sparad PDF' : 'Generera & öppna PDF'}
-                    >
-                      {o.pdf_path ? <ExternalLink className="h-3 w-3" /> : <Download className="h-3 w-3" />}
-                      PDF
-                    </button>
+                    {o.status === 'accepted' && o.signed_pdf_path ? (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openSignedPdf.mutate(o); }}
+                        className="text-xs text-green-700 hover:underline inline-flex items-center gap-1 mr-3"
+                        title="Öppna signerat avtal"
+                      >
+                        <FileCheck className="h-3 w-3" /> Avtal
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openPdf.mutate(o); }}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 mr-3"
+                        title={o.pdf_path ? 'Öppna sparad PDF' : 'Generera & öppna PDF'}
+                      >
+                        {o.pdf_path ? <ExternalLink className="h-3 w-3" /> : <Download className="h-3 w-3" />}
+                        PDF
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); sendOffer.mutate(o); }}
