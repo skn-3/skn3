@@ -647,6 +647,9 @@ export function EconomyView() {
             })}
           </TableBody>
         </Table>
+        <div className="p-3 text-xs text-muted-foreground border-t">
+          Reklamationskostnader belastar teamet endast när ansvar = Montör.
+        </div>
       </Card>
 
 
