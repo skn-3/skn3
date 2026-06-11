@@ -5,6 +5,7 @@ import { ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { fmtKr } from '@/lib/offerCalc';
 import { UPPDRAG_STATUS_META, type UppdragStatus } from '@/lib/uppdrag';
 import { UppdragDetail } from './UppdragDetail';
