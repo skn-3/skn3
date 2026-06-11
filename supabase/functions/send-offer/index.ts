@@ -23,8 +23,7 @@ function buildHtml(opts: {
   offerNumber: string;
   customerName: string;
   validUntil: string | null;
-  amountLabel: string;
-  amount: string;
+  amountRowsHtml: string;
   publicUrl: string;
   logoUrl: string;
 }): string {
@@ -45,9 +44,10 @@ function buildHtml(opts: {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:12px 0;">
 <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#6b7280;width:160px;">Offertnummer</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600;">${opts.offerNumber}</td></tr>
 ${opts.validUntil ? `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#6b7280;">Giltig t.o.m.</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${opts.validUntil}</td></tr>` : ''}
-<tr><td style="padding:8px 0;color:#6b7280;">${opts.amountLabel}</td><td style="padding:8px 0;font-weight:600;">${opts.amount}</td></tr>
+${opts.amountRowsHtml}
 </table>
 </td></tr>
+
 <tr><td style="padding:0 28px 8px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 8px;">
 <a href="${opts.publicUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 36px;background:#22C55E;color:#ffffff;font-weight:bold;font-size:15px;text-decoration:none;border-radius:6px;"><span style="color:#ffffff;text-decoration:none;">Öppna din offert</span></a>
