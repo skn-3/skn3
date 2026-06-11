@@ -166,6 +166,26 @@ export function OffersView({ currentUser }: OffersViewProps) {
         </Button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        {(['all', 'draft', 'sent', 'accepted', 'declined', 'expired'] as const).map(key => {
+          const isActive = statusFilter === key;
+          const label = key === 'all' ? 'Alla' : STATUS_META[key].label;
+          const cls = key === 'all'
+            ? (isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80')
+            : `${STATUS_META[key].cls} ${isActive ? 'ring-2 ring-offset-1 ring-primary' : 'opacity-70 hover:opacity-100'}`;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setStatusFilter(key)}
+              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold transition ${cls}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="max-w-sm">
         <Input
           placeholder="Sök offertnr, kund eller titel…"
@@ -173,6 +193,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
           onChange={e => setSearch(e.target.value)}
         />
       </div>
+
 
       <div className="rounded-md border bg-card overflow-x-auto">
         <table className="w-full text-sm">
