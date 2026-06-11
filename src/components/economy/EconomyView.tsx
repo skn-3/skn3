@@ -84,7 +84,7 @@ interface CaseEconomy {
   cost: number;
   profit: number;
   margin: number | null;
-  costBreakdown: { montor: number; caseCosts: number; reklamation: number; reklamationMontor: number; sheet: number; montorInvoice: number };
+  costBreakdown: { montor: number; caseCosts: number; reklMontor: number; reklOvrig: number; reklFabrik: number; sheet: number; montorInvoice: number };
   hasRevenue: boolean;
   hasCost: boolean;
   complete: boolean;
@@ -140,13 +140,14 @@ export function EconomyView() {
       arr.push(d);
       docsByCase.set(d.case_id, arr);
     });
-    const costsByCase = new Map<string, { ovrigt: number; reklamation: number; reklamationMontor: number }>();
+    const costsByCase = new Map<string, { ovrigt: number; reklMontor: number; reklOvrig: number; reklFabrik: number }>();
     costs.forEach(c => {
-      const cur = costsByCase.get(c.case_id) || { ovrigt: 0, reklamation: 0, reklamationMontor: 0 };
+      const cur = costsByCase.get(c.case_id) || { ovrigt: 0, reklMontor: 0, reklOvrig: 0, reklFabrik: 0 };
       const amt = Number(c.amount) || 0;
       if (c.category === 'reklamation') {
-        cur.reklamation += amt;
-        if (c.responsible === 'montor') cur.reklamationMontor += amt;
+        if (c.responsible === 'montor') cur.reklMontor += amt;
+        else if (c.responsible === 'fabrik') cur.reklFabrik += amt;
+        else cur.reklOvrig += amt;
       } else {
         cur.ovrigt += amt;
       }
@@ -168,15 +169,16 @@ export function EconomyView() {
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
       const montorInvoiceCost = cd.filter(d => d.doc_type === 'montor_invoice')
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
-      const ccBuckets = costsByCase.get(c.id) || { ovrigt: 0, reklamation: 0, reklamationMontor: 0 };
-      const cost = montorCost + ccBuckets.ovrigt + ccBuckets.reklamation + sheetCost + montorInvoiceCost;
+      const ccBuckets = costsByCase.get(c.id) || { ovrigt: 0, reklMontor: 0, reklOvrig: 0, reklFabrik: 0 };
+      // Fabrik exkluderas helt (ersätts av fabrik)
+      const cost = montorCost + ccBuckets.ovrigt + ccBuckets.reklMontor + ccBuckets.reklOvrig + sheetCost + montorInvoiceCost;
       const profit = revenue - cost;
       const hasRevenue = revenue > 0;
       const complete = hasRevenue && hasMontor;
       return {
         c, revenue, cost, profit,
         margin: revenue > 0 ? profit / revenue : null,
-        costBreakdown: { montor: montorCost, caseCosts: ccBuckets.ovrigt, reklamation: ccBuckets.reklamation, reklamationMontor: ccBuckets.reklamationMontor, sheet: sheetCost, montorInvoice: montorInvoiceCost },
+        costBreakdown: { montor: montorCost, caseCosts: ccBuckets.ovrigt, reklMontor: ccBuckets.reklMontor, reklOvrig: ccBuckets.reklOvrig, reklFabrik: ccBuckets.reklFabrik, sheet: sheetCost, montorInvoice: montorInvoiceCost },
         hasRevenue,
         hasCost: hasMontor,
         complete,
@@ -259,15 +261,16 @@ export function EconomyView() {
     map.forEach((arr, team) => {
       const revenue = arr.reduce((s, e) => s + e.revenue, 0);
       const rawCost = arr.reduce((s, e) => s + e.cost, 0);
-      // Exkludera reklamationskostnader som inte är montörsansvar
+      // Fabrik är redan exkluderad ur cost. Här plockar vi bort övriga reklamationer
+      // (säljare/okänt/utan ansvar) så att teamet endast belastas av montörsansvar.
       const nonMontorReklamation = arr.reduce(
-        (s, e) => s + (e.costBreakdown.reklamation - e.costBreakdown.reklamationMontor),
+        (s, e) => s + e.costBreakdown.reklOvrig,
         0,
       );
       const cost = rawCost - nonMontorReklamation;
       const profit = revenue - cost;
       const montorCost = arr.reduce((s, e) => s + e.costBreakdown.montor, 0);
-      const reklCost = arr.reduce((s, e) => s + e.costBreakdown.reklamationMontor, 0);
+      const reklCost = arr.reduce((s, e) => s + e.costBreakdown.reklMontor, 0);
       const units = arr.reduce((s, e) => s + (e.c.units || 0), 0);
       stats.push({
         team, count: arr.length, revenue, cost, profit,
@@ -515,12 +518,15 @@ export function EconomyView() {
                             <div className="font-medium mb-2">Kostnadsmix</div>
                             <div>Montörsbetalning: {fmtKr(e.costBreakdown.montor)}</div>
                             <div>Egna kostnader (case_costs): {fmtKr(e.costBreakdown.caseCosts)}</div>
-                            {e.costBreakdown.reklamation > 0 && (
+                            {(e.costBreakdown.reklMontor + e.costBreakdown.reklOvrig) > 0 && (
                               <div className="text-amber-700 dark:text-amber-400 font-medium">
-                                Reklamationskostnader: {fmtKr(e.costBreakdown.reklamation)}
-                                {e.costBreakdown.reklamationMontor > 0 && e.costBreakdown.reklamationMontor !== e.costBreakdown.reklamation && (
-                                  <span className="ml-1 text-xs font-normal">(varav montörsansvar: {fmtKr(e.costBreakdown.reklamationMontor)})</span>
-                                )}
+                                Reklamationskostnader: {fmtKr(e.costBreakdown.reklMontor + e.costBreakdown.reklOvrig)}
+                                <span className="ml-1 text-xs font-normal">(varav montörsansvar: {fmtKr(e.costBreakdown.reklMontor)})</span>
+                              </div>
+                            )}
+                            {e.costBreakdown.reklFabrik > 0 && (
+                              <div className="text-muted-foreground italic">
+                                Reklamation fabrik (ersätts – belastar ej): {fmtKr(e.costBreakdown.reklFabrik)}
                               </div>
                             )}
                             <div>Plåtfakturor: {fmtKr(e.costBreakdown.sheet)}</div>
