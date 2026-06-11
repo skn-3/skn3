@@ -140,13 +140,14 @@ export function EconomyView() {
       arr.push(d);
       docsByCase.set(d.case_id, arr);
     });
-    const costsByCase = new Map<string, { ovrigt: number; reklamation: number; reklamationMontor: number }>();
+    const costsByCase = new Map<string, { ovrigt: number; reklMontor: number; reklOvrig: number; reklFabrik: number }>();
     costs.forEach(c => {
-      const cur = costsByCase.get(c.case_id) || { ovrigt: 0, reklamation: 0, reklamationMontor: 0 };
+      const cur = costsByCase.get(c.case_id) || { ovrigt: 0, reklMontor: 0, reklOvrig: 0, reklFabrik: 0 };
       const amt = Number(c.amount) || 0;
       if (c.category === 'reklamation') {
-        cur.reklamation += amt;
-        if (c.responsible === 'montor') cur.reklamationMontor += amt;
+        if (c.responsible === 'montor') cur.reklMontor += amt;
+        else if (c.responsible === 'fabrik') cur.reklFabrik += amt;
+        else cur.reklOvrig += amt;
       } else {
         cur.ovrigt += amt;
       }
@@ -168,15 +169,16 @@ export function EconomyView() {
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
       const montorInvoiceCost = cd.filter(d => d.doc_type === 'montor_invoice')
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
-      const ccBuckets = costsByCase.get(c.id) || { ovrigt: 0, reklamation: 0, reklamationMontor: 0 };
-      const cost = montorCost + ccBuckets.ovrigt + ccBuckets.reklamation + sheetCost + montorInvoiceCost;
+      const ccBuckets = costsByCase.get(c.id) || { ovrigt: 0, reklMontor: 0, reklOvrig: 0, reklFabrik: 0 };
+      // Fabrik exkluderas helt (ersätts av fabrik)
+      const cost = montorCost + ccBuckets.ovrigt + ccBuckets.reklMontor + ccBuckets.reklOvrig + sheetCost + montorInvoiceCost;
       const profit = revenue - cost;
       const hasRevenue = revenue > 0;
       const complete = hasRevenue && hasMontor;
       return {
         c, revenue, cost, profit,
         margin: revenue > 0 ? profit / revenue : null,
-        costBreakdown: { montor: montorCost, caseCosts: ccBuckets.ovrigt, reklamation: ccBuckets.reklamation, reklamationMontor: ccBuckets.reklamationMontor, sheet: sheetCost, montorInvoice: montorInvoiceCost },
+        costBreakdown: { montor: montorCost, caseCosts: ccBuckets.ovrigt, reklMontor: ccBuckets.reklMontor, reklOvrig: ccBuckets.reklOvrig, reklFabrik: ccBuckets.reklFabrik, sheet: sheetCost, montorInvoice: montorInvoiceCost },
         hasRevenue,
         hasCost: hasMontor,
         complete,
