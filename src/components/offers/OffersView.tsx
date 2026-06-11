@@ -47,6 +47,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const [search, setSearch] = useState('');
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<OfferRow | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const { data: offers, isLoading } = useQuery({
     queryKey: ['offers'],
@@ -60,13 +61,24 @@ export function OffersView({ currentUser }: OffersViewProps) {
     },
   });
 
+  const effectiveStatusOf = (o: OfferRow): string => {
+    let s = o.status;
+    if (s === 'sent' && o.valid_until) {
+      const end = new Date(o.valid_until);
+      end.setHours(23, 59, 59, 999);
+      if (Date.now() > end.getTime()) s = 'expired';
+    }
+    return s;
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return offers || [];
-    return (offers || []).filter(o =>
-      [o.offer_number, o.customer_name, o.title].some(v => (v || '').toLowerCase().includes(q))
-    );
-  }, [offers, search]);
+    return (offers || []).filter(o => {
+      if (statusFilter !== 'all' && effectiveStatusOf(o) !== statusFilter) return false;
+      if (q && ![o.offer_number, o.customer_name, o.title].some(v => (v || '').toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }, [offers, search, statusFilter]);
 
   const handleOpenNew = () => {
     setEditing(null);
@@ -74,6 +86,23 @@ export function OffersView({ currentUser }: OffersViewProps) {
   };
   const handleOpenEdit = (o: OfferRow) => {
     setEditing(o);
+    setOpenForm(true);
+  };
+
+  const handleDuplicate = (o: OfferRow) => {
+    const omit = new Set([
+      'id', 'offer_number', 'status', 'public_token', 'sent_at', 'pdf_path',
+      'accepted_at', 'accept_name', 'accept_ip', 'accept_user_agent',
+      'declined_at', 'decline_name', 'decline_reason',
+    ]);
+    const tmpl: any = {};
+    for (const [k, v] of Object.entries(o)) {
+      if (!omit.has(k)) tmpl[k] = v;
+    }
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    tmpl.valid_until = d.toISOString().slice(0, 10);
+    setEditing(tmpl);
     setOpenForm(true);
   };
 
