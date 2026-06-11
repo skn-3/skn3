@@ -319,6 +319,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         amount: Number(costAmount),
         created_by: currentUser,
         category: costCategory,
+        responsible: costCategory === 'reklamation' ? (costResponsible || null) : null,
       });
       if (costFile) {
         const url = await uploadReceiptImage(caseData.id, cost.id, costFile);
@@ -326,7 +327,10 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         const { supabase } = await import('@/integrations/supabase/client');
         await supabase.from('case_costs').update({ receipt_url: url }).eq('id', cost.id);
       }
-      const catLabel = costCategory === 'reklamation' ? ' [Reklamation]' : '';
+      const respLabel = costCategory === 'reklamation' && costResponsible
+        ? ` (ansvar: ${DEVIATION_RESPONSIBLE.find(r => r.value === costResponsible)?.label || costResponsible})`
+        : '';
+      const catLabel = costCategory === 'reklamation' ? ` [Reklamation${respLabel}]` : '';
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'cost',
@@ -338,7 +342,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         action: 'cost_added',
         description: `Registrerade kostnad${catLabel} (${Number(costAmount).toLocaleString('sv-SE')} kr) för ${caseData.address}`,
         case_id: caseData.id,
-        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile, category: costCategory },
+        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile, category: costCategory, responsible: costCategory === 'reklamation' ? costResponsible : null },
       });
     },
     onSuccess: () => {
@@ -347,6 +351,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       setCostAmount('');
       setCostFile(null);
       setCostCategory('ovrigt');
+      setCostResponsible('');
       invalidate();
       toast.success('Kostnad sparad');
     },
