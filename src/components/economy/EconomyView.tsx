@@ -505,6 +505,11 @@ export function EconomyView() {
                             <div className="font-medium mb-2">Kostnadsmix</div>
                             <div>Montörsbetalning: {fmtKr(e.costBreakdown.montor)}</div>
                             <div>Egna kostnader (case_costs): {fmtKr(e.costBreakdown.caseCosts)}</div>
+                            {e.costBreakdown.reklamation > 0 && (
+                              <div className="text-amber-700 dark:text-amber-400 font-medium">
+                                Reklamationskostnader: {fmtKr(e.costBreakdown.reklamation)}
+                              </div>
+                            )}
                             <div>Plåtfakturor: {fmtKr(e.costBreakdown.sheet)}</div>
                             <div>Montörsfaktura (extra): {fmtKr(e.costBreakdown.montorInvoice)}</div>
                           </div>
