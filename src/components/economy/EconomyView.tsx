@@ -258,10 +258,16 @@ export function EconomyView() {
     const stats: TeamStat[] = [];
     map.forEach((arr, team) => {
       const revenue = arr.reduce((s, e) => s + e.revenue, 0);
-      const cost = arr.reduce((s, e) => s + e.cost, 0);
+      const rawCost = arr.reduce((s, e) => s + e.cost, 0);
+      // Exkludera reklamationskostnader som inte är montörsansvar
+      const nonMontorReklamation = arr.reduce(
+        (s, e) => s + (e.costBreakdown.reklamation - e.costBreakdown.reklamationMontor),
+        0,
+      );
+      const cost = rawCost - nonMontorReklamation;
       const profit = revenue - cost;
       const montorCost = arr.reduce((s, e) => s + e.costBreakdown.montor, 0);
-      const reklCost = arr.reduce((s, e) => s + e.costBreakdown.reklamation, 0);
+      const reklCost = arr.reduce((s, e) => s + e.costBreakdown.reklamationMontor, 0);
       const units = arr.reduce((s, e) => s + (e.c.units || 0), 0);
       stats.push({
         team, count: arr.length, revenue, cost, profit,
