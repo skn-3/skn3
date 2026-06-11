@@ -84,7 +84,7 @@ interface CaseEconomy {
   cost: number;
   profit: number;
   margin: number | null;
-  costBreakdown: { montor: number; caseCosts: number; reklamation: number; sheet: number; montorInvoice: number };
+  costBreakdown: { montor: number; caseCosts: number; reklamation: number; reklamationMontor: number; sheet: number; montorInvoice: number };
   hasRevenue: boolean;
   hasCost: boolean;
   complete: boolean;
