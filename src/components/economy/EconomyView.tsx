@@ -237,10 +237,11 @@ export function EconomyView() {
     margin: number | null;
     avgProfit: number;
     montorCost: number;
+    reklCost: number;
     units: number;
     costPerUnit: number | null;
   };
-  const [teamSortBy, setTeamSortBy] = useState<'profit' | 'margin'>('profit');
+  const [teamSortBy, setTeamSortBy] = useState<'profit' | 'margin' | 'reklamation'>('profit');
   const [teamSortDir, setTeamSortDir] = useState<'asc' | 'desc'>('desc');
   const teamStats = useMemo<TeamStat[]>(() => {
     const map = new Map<string, CaseEconomy[]>();
@@ -256,18 +257,21 @@ export function EconomyView() {
       const cost = arr.reduce((s, e) => s + e.cost, 0);
       const profit = revenue - cost;
       const montorCost = arr.reduce((s, e) => s + e.costBreakdown.montor, 0);
+      const reklCost = arr.reduce((s, e) => s + e.costBreakdown.reklamation, 0);
       const units = arr.reduce((s, e) => s + (e.c.units || 0), 0);
       stats.push({
         team, count: arr.length, revenue, cost, profit,
         margin: revenue > 0 ? profit / revenue : null,
         avgProfit: arr.length > 0 ? profit / arr.length : 0,
-        montorCost, units,
+        montorCost, reklCost, units,
         costPerUnit: units > 0 ? montorCost / units : null,
       });
     });
     stats.sort((a, b) => {
-      const av = teamSortBy === 'profit' ? a.profit : (a.margin ?? -Infinity);
-      const bv = teamSortBy === 'profit' ? b.profit : (b.margin ?? -Infinity);
+      let av: number; let bv: number;
+      if (teamSortBy === 'profit') { av = a.profit; bv = b.profit; }
+      else if (teamSortBy === 'reklamation') { av = a.reklCost; bv = b.reklCost; }
+      else { av = a.margin ?? -Infinity; bv = b.margin ?? -Infinity; }
       return teamSortDir === 'asc' ? av - bv : bv - av;
     });
     return stats;
