@@ -224,6 +224,13 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState(false);
 
+  // Duplicate detection state (single mode)
+  type DupInfo = {
+    sameCase: { id: string; total_amount: number | null; created_at: string };
+    otherCases: Array<{ case_id: string; case_label: string }>;
+  };
+  const [dupConfirm, setDupConfirm] = useState<null | { info: DupInfo; proceed: () => Promise<void> }>(null);
+
   const isSheet = docType === 'sheet_metal_invoice';
   const isMontorInvoice = docType === 'montor_invoice';
   const isCost = docType === 'a_order' || isSheet || isMontorInvoice;
