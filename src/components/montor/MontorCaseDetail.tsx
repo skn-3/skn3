@@ -743,7 +743,18 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               <Input value={costDesc} onChange={e => setCostDesc(e.target.value)} placeholder="t.ex. Inköp skruv Byggmax" className="min-h-[48px]" />
             </div>
             <div>
-              <Label className="mb-1 block">Belopp (kr) *</Label>
+              <Label className="mb-1 block">Kategori</Label>
+              <select
+                value={costCategory}
+                onChange={e => setCostCategory(e.target.value as 'ovrigt' | 'reklamation')}
+                className="w-full min-h-[48px] rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="ovrigt">Övrigt</option>
+                <option value="reklamation">Reklamation</option>
+              </select>
+            </div>
+            <div>
+              <Label className="mb-1 block">Belopp (ex moms) *</Label>
               <Input type="number" value={costAmount} onChange={e => setCostAmount(e.target.value)} placeholder="0" className="min-h-[48px]" />
             </div>
             <div>
