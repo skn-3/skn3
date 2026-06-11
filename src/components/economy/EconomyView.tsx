@@ -518,6 +518,9 @@ export function EconomyView() {
                             {e.costBreakdown.reklamation > 0 && (
                               <div className="text-amber-700 dark:text-amber-400 font-medium">
                                 Reklamationskostnader: {fmtKr(e.costBreakdown.reklamation)}
+                                {e.costBreakdown.reklamationMontor > 0 && e.costBreakdown.reklamationMontor !== e.costBreakdown.reklamation && (
+                                  <span className="ml-1 text-xs font-normal">(varav montörsansvar: {fmtKr(e.costBreakdown.reklamationMontor)})</span>
+                                )}
                               </div>
                             )}
                             <div>Plåtfakturor: {fmtKr(e.costBreakdown.sheet)}</div>
