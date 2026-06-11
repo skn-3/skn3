@@ -6,6 +6,8 @@ const corsHeaders = {
 };
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
+const FALLBACK_APP_URL = 'https://smartklimatentreprenad.com';
+const isUrl = (s: unknown): s is string => typeof s === 'string' && /^https?:\/\//.test(s);
 
 function fmtKr(n: number | null | undefined): string {
   const v = Number(n || 0);
