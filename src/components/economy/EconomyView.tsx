@@ -288,7 +288,7 @@ export function EconomyView() {
     return [...ranked].sort((a, b) => b.costPerUnit! - a.costPerUnit!)[0].team;
   }, [teamStats]);
 
-  const toggleTeamSort = (col: 'profit' | 'margin') => {
+  const toggleTeamSort = (col: 'profit' | 'margin' | 'reklamation') => {
     if (teamSortBy === col) setTeamSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
     else { setTeamSortBy(col); setTeamSortDir('desc'); }
   };
