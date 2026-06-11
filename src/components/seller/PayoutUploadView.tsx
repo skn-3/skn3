@@ -691,12 +691,34 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
       const inv = invoiceNumber.trim();
 
-      const groupsToInsert = isMontorInvoice
+      let groupsToInsert = isMontorInvoice
         ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
         : groups;
-      const skippedList = isMontorInvoice
+      const userSkippedList = isMontorInvoice
         ? groups.filter(g => isSkipped(g.order_number))
         : [];
+
+      // Dubblettkontroll: hämta befintliga (case_id, invoice_number) för doc_type på berörda ärenden
+      const caseIds = Array.from(new Set(groupsToInsert.map(g => g.effectiveCase!.id)));
+      let dupSkipped: typeof groupsToInsert = [];
+      if (caseIds.length > 0) {
+        try {
+          const { data: existing } = await (supabase as any)
+            .from('case_documents')
+            .select('case_id, invoice_number')
+            .eq('doc_type', docType)
+            .eq('invoice_number', inv)
+            .in('case_id', caseIds);
+          const dupSet = new Set((existing || []).map((r: any) => r.case_id));
+          if (dupSet.size > 0) {
+            dupSkipped = groupsToInsert.filter(g => dupSet.has(g.effectiveCase!.id));
+            groupsToInsert = groupsToInsert.filter(g => !dupSet.has(g.effectiveCase!.id));
+          }
+        } catch (e) {
+          console.warn('Dubblettkontroll multi misslyckades', e);
+        }
+      }
+
 
       for (const g of groupsToInsert) {
         const c = g.effectiveCase!;
