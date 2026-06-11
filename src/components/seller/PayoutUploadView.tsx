@@ -1493,5 +1493,36 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         </CardContent>
       </Card>
     </div>
+    <AlertDialog open={!!dupConfirm} onOpenChange={(o) => { if (!o) setDupConfirm(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Möjlig dubblett</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2">
+              <div>
+                Fakturanummer <strong>{invoiceNumber.trim()}</strong> finns redan på detta ärende
+                {dupConfirm?.info.sameCase.total_amount != null && (
+                  <> ({Number(dupConfirm.info.sameCase.total_amount).toLocaleString('sv-SE')} kr</>
+                )}
+                {dupConfirm?.info.sameCase.created_at && (
+                  <>, uppladdad {new Date(dupConfirm.info.sameCase.created_at).toLocaleDateString('sv-SE')}</>
+                )}
+                {dupConfirm?.info.sameCase.total_amount != null && <>)</>}. Vill du spara ändå?
+              </div>
+              {dupConfirm && dupConfirm.info.otherCases.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  Obs: numret finns även på ärende {dupConfirm.info.otherCases.map(o => o.case_label).join(', ')}.
+                </div>
+              )}
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setDupConfirm(null)}>Avbryt</AlertDialogCancel>
+          <AlertDialogAction onClick={() => dupConfirm?.proceed()}>Spara ändå</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
