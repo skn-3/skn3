@@ -774,6 +774,11 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
                 </select>
+                {costResponsible === 'fabrik' && (
+                  <p className="mt-1 text-xs text-muted-foreground italic">
+                    Ersätts av fabrik – belastar inte ekonomin.
+                  </p>
+                )}
               </div>
             )}
             <div>
