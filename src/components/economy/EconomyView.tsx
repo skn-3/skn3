@@ -518,12 +518,15 @@ export function EconomyView() {
                             <div className="font-medium mb-2">Kostnadsmix</div>
                             <div>Montörsbetalning: {fmtKr(e.costBreakdown.montor)}</div>
                             <div>Egna kostnader (case_costs): {fmtKr(e.costBreakdown.caseCosts)}</div>
-                            {e.costBreakdown.reklamation > 0 && (
+                            {(e.costBreakdown.reklMontor + e.costBreakdown.reklOvrig) > 0 && (
                               <div className="text-amber-700 dark:text-amber-400 font-medium">
-                                Reklamationskostnader: {fmtKr(e.costBreakdown.reklamation)}
-                                {e.costBreakdown.reklamationMontor > 0 && e.costBreakdown.reklamationMontor !== e.costBreakdown.reklamation && (
-                                  <span className="ml-1 text-xs font-normal">(varav montörsansvar: {fmtKr(e.costBreakdown.reklamationMontor)})</span>
-                                )}
+                                Reklamationskostnader: {fmtKr(e.costBreakdown.reklMontor + e.costBreakdown.reklOvrig)}
+                                <span className="ml-1 text-xs font-normal">(varav montörsansvar: {fmtKr(e.costBreakdown.reklMontor)})</span>
+                              </div>
+                            )}
+                            {e.costBreakdown.reklFabrik > 0 && (
+                              <div className="text-muted-foreground italic">
+                                Reklamation fabrik (ersätts – belastar ej): {fmtKr(e.costBreakdown.reklFabrik)}
                               </div>
                             )}
                             <div>Plåtfakturor: {fmtKr(e.costBreakdown.sheet)}</div>
