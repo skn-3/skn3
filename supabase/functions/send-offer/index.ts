@@ -128,16 +128,38 @@ Deno.serve(async (req) => {
     const publicUrl = `${base}/offert/${publicToken}`;
     const logoUrl = `${base}/logo.png`;
 
-    const amountValue = offer.rot_enabled && offer.total_after_rot != null ? offer.total_after_rot : offer.total_incl_vat;
-    const amountLabel = offer.rot_enabled ? 'Att betala efter ROT' : 'Summa inkl moms';
+    const totalInclVat = Number(offer.total_incl_vat || 0);
+    const totalAfterRot = offer.total_after_rot != null ? Number(offer.total_after_rot) : totalInclVat;
+    const rotAmount = Number(offer.rot_amount || 0);
+    const handpenningPct = Number(offer.handpenning_percent ?? 25);
+    const payable = offer.rot_enabled ? totalAfterRot : totalInclVat;
+    const handpenning = Math.round(payable * handpenningPct / 100);
+    const slutfaktura = payable - handpenning;
+
+    const rowCell = 'padding:8px 0;border-bottom:1px solid #eee;';
+    const rowLbl = `${rowCell}color:#6b7280;width:160px;`;
+    const rowVal = rowCell;
+    const mkRow = (label: string, value: string, opts?: { valueStyle?: string; labelStyle?: string }) =>
+      `<tr><td style="${opts?.labelStyle || rowLbl}">${label}</td><td style="${opts?.valueStyle || rowVal}">${value}</td></tr>`;
+
+    let amountRowsHtml = '';
+    if (offer.rot_enabled) {
+      amountRowsHtml += mkRow('Ordersumma innan avdrag', fmtKr(totalInclVat));
+      amountRowsHtml += mkRow('Preliminärt ROT-avdrag', `−${fmtKr(rotAmount)}`, { valueStyle: `${rowCell}color:#16a34a;` });
+      amountRowsHtml += mkRow('Total ordersumma efter ROT', fmtKr(totalAfterRot), { valueStyle: `${rowCell}font-weight:700;font-size:15px;` });
+    } else {
+      amountRowsHtml += mkRow('Summa inkl moms', fmtKr(totalInclVat), { valueStyle: `${rowCell}font-weight:600;` });
+    }
+    amountRowsHtml += mkRow(`Handpenning ${handpenningPct}%`, fmtKr(handpenning));
+    amountRowsHtml += mkRow('Slutfaktura', fmtKr(slutfaktura), { valueStyle: `padding:8px 0;font-weight:600;` });
 
     const html = buildHtml({
       offerNumber: offer.offer_number || '—',
       customerName: offer.customer_name || 'kund',
       validUntil: offer.valid_until || null,
-      amountLabel,
-      amount: fmtKr(amountValue),
+      amountRowsHtml,
       publicUrl,
+
       logoUrl,
     });
 
