@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase } from 'lucide-react';
+import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
