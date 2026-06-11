@@ -261,15 +261,16 @@ export function EconomyView() {
     map.forEach((arr, team) => {
       const revenue = arr.reduce((s, e) => s + e.revenue, 0);
       const rawCost = arr.reduce((s, e) => s + e.cost, 0);
-      // Exkludera reklamationskostnader som inte är montörsansvar
+      // Fabrik är redan exkluderad ur cost. Här plockar vi bort övriga reklamationer
+      // (säljare/okänt/utan ansvar) så att teamet endast belastas av montörsansvar.
       const nonMontorReklamation = arr.reduce(
-        (s, e) => s + (e.costBreakdown.reklamation - e.costBreakdown.reklamationMontor),
+        (s, e) => s + e.costBreakdown.reklOvrig,
         0,
       );
       const cost = rawCost - nonMontorReklamation;
       const profit = revenue - cost;
       const montorCost = arr.reduce((s, e) => s + e.costBreakdown.montor, 0);
-      const reklCost = arr.reduce((s, e) => s + e.costBreakdown.reklamationMontor, 0);
+      const reklCost = arr.reduce((s, e) => s + e.costBreakdown.reklMontor, 0);
       const units = arr.reduce((s, e) => s + (e.c.units || 0), 0);
       stats.push({
         team, count: arr.length, revenue, cost, profit,
