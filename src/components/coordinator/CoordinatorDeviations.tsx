@@ -25,6 +25,7 @@ import {
   DEVIATION_STATUS_META,
   type DeviationStatus,
 } from '@/components/deviations/DeviationActionPanel';
+import { CaseCombobox } from '@/components/shared/CaseCombobox';
 
 interface Props {
   coordinatorName: string;
