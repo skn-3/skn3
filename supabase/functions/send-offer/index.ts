@@ -23,8 +23,7 @@ function buildHtml(opts: {
   offerNumber: string;
   customerName: string;
   validUntil: string | null;
-  amountLabel: string;
-  amount: string;
+  amountRowsHtml: string;
   publicUrl: string;
   logoUrl: string;
 }): string {
@@ -45,9 +44,10 @@ function buildHtml(opts: {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:12px 0;">
 <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#6b7280;width:160px;">Offertnummer</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600;">${opts.offerNumber}</td></tr>
 ${opts.validUntil ? `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#6b7280;">Giltig t.o.m.</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${opts.validUntil}</td></tr>` : ''}
-<tr><td style="padding:8px 0;color:#6b7280;">${opts.amountLabel}</td><td style="padding:8px 0;font-weight:600;">${opts.amount}</td></tr>
+${opts.amountRowsHtml}
 </table>
 </td></tr>
+
 <tr><td style="padding:0 28px 8px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 8px;">
 <a href="${opts.publicUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 36px;background:#22C55E;color:#ffffff;font-weight:bold;font-size:15px;text-decoration:none;border-radius:6px;"><span style="color:#ffffff;text-decoration:none;">Öppna din offert</span></a>
@@ -128,16 +128,38 @@ Deno.serve(async (req) => {
     const publicUrl = `${base}/offert/${publicToken}`;
     const logoUrl = `${base}/logo.png`;
 
-    const amountValue = offer.rot_enabled && offer.total_after_rot != null ? offer.total_after_rot : offer.total_incl_vat;
-    const amountLabel = offer.rot_enabled ? 'Att betala efter ROT' : 'Summa inkl moms';
+    const totalInclVat = Number(offer.total_incl_vat || 0);
+    const totalAfterRot = offer.total_after_rot != null ? Number(offer.total_after_rot) : totalInclVat;
+    const rotAmount = Number(offer.rot_amount || 0);
+    const handpenningPct = Number(offer.handpenning_percent ?? 25);
+    const payable = offer.rot_enabled ? totalAfterRot : totalInclVat;
+    const handpenning = Math.round(payable * handpenningPct / 100);
+    const slutfaktura = payable - handpenning;
+
+    const rowCell = 'padding:8px 0;border-bottom:1px solid #eee;';
+    const rowLbl = `${rowCell}color:#6b7280;width:160px;`;
+    const rowVal = rowCell;
+    const mkRow = (label: string, value: string, opts?: { valueStyle?: string; labelStyle?: string }) =>
+      `<tr><td style="${opts?.labelStyle || rowLbl}">${label}</td><td style="${opts?.valueStyle || rowVal}">${value}</td></tr>`;
+
+    let amountRowsHtml = '';
+    if (offer.rot_enabled) {
+      amountRowsHtml += mkRow('Ordersumma innan avdrag', fmtKr(totalInclVat));
+      amountRowsHtml += mkRow('Preliminärt ROT-avdrag', `−${fmtKr(rotAmount)}`, { valueStyle: `${rowCell}color:#16a34a;` });
+      amountRowsHtml += mkRow('Total ordersumma efter ROT', fmtKr(totalAfterRot), { valueStyle: `${rowCell}font-weight:700;font-size:15px;` });
+    } else {
+      amountRowsHtml += mkRow('Summa inkl moms', fmtKr(totalInclVat), { valueStyle: `${rowCell}font-weight:600;` });
+    }
+    amountRowsHtml += mkRow(`Handpenning ${handpenningPct}%`, fmtKr(handpenning));
+    amountRowsHtml += mkRow('Slutfaktura', fmtKr(slutfaktura), { valueStyle: `padding:8px 0;font-weight:600;` });
 
     const html = buildHtml({
       offerNumber: offer.offer_number || '—',
       customerName: offer.customer_name || 'kund',
       validUntil: offer.valid_until || null,
-      amountLabel,
-      amount: fmtKr(amountValue),
+      amountRowsHtml,
       publicUrl,
+
       logoUrl,
     });
 

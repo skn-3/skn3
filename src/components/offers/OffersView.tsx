@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase } from 'lucide-react';
+import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const [search, setSearch] = useState('');
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<OfferRow | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const { data: offers, isLoading } = useQuery({
     queryKey: ['offers'],
@@ -60,13 +61,24 @@ export function OffersView({ currentUser }: OffersViewProps) {
     },
   });
 
+  const effectiveStatusOf = (o: OfferRow): string => {
+    let s = o.status;
+    if (s === 'sent' && o.valid_until) {
+      const end = new Date(o.valid_until);
+      end.setHours(23, 59, 59, 999);
+      if (Date.now() > end.getTime()) s = 'expired';
+    }
+    return s;
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return offers || [];
-    return (offers || []).filter(o =>
-      [o.offer_number, o.customer_name, o.title].some(v => (v || '').toLowerCase().includes(q))
-    );
-  }, [offers, search]);
+    return (offers || []).filter(o => {
+      if (statusFilter !== 'all' && effectiveStatusOf(o) !== statusFilter) return false;
+      if (q && ![o.offer_number, o.customer_name, o.title].some(v => (v || '').toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }, [offers, search, statusFilter]);
 
   const handleOpenNew = () => {
     setEditing(null);
@@ -74,6 +86,23 @@ export function OffersView({ currentUser }: OffersViewProps) {
   };
   const handleOpenEdit = (o: OfferRow) => {
     setEditing(o);
+    setOpenForm(true);
+  };
+
+  const handleDuplicate = (o: OfferRow) => {
+    const omit = new Set([
+      'id', 'offer_number', 'status', 'public_token', 'sent_at', 'pdf_path',
+      'accepted_at', 'accept_name', 'accept_ip', 'accept_user_agent',
+      'declined_at', 'decline_name', 'decline_reason',
+    ]);
+    const tmpl: any = {};
+    for (const [k, v] of Object.entries(o)) {
+      if (!omit.has(k)) tmpl[k] = v;
+    }
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    tmpl.valid_until = d.toISOString().slice(0, 10);
+    setEditing(tmpl);
     setOpenForm(true);
   };
 
@@ -137,6 +166,26 @@ export function OffersView({ currentUser }: OffersViewProps) {
         </Button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        {(['all', 'draft', 'sent', 'accepted', 'declined', 'expired'] as const).map(key => {
+          const isActive = statusFilter === key;
+          const label = key === 'all' ? 'Alla' : STATUS_META[key].label;
+          const cls = key === 'all'
+            ? (isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80')
+            : `${STATUS_META[key].cls} ${isActive ? 'ring-2 ring-offset-1 ring-primary' : 'opacity-70 hover:opacity-100'}`;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setStatusFilter(key)}
+              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold transition ${cls}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="max-w-sm">
         <Input
           placeholder="Sök offertnr, kund eller titel…"
@@ -144,6 +193,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
           onChange={e => setSearch(e.target.value)}
         />
       </div>
+
 
       <div className="rounded-md border bg-card overflow-x-auto">
         <table className="w-full text-sm">
@@ -230,11 +280,20 @@ export function OffersView({ currentUser }: OffersViewProps) {
                     )}
                     <button
                       type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDuplicate(o); }}
+                      className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mr-3"
+                      title="Duplicera"
+                    >
+                      <Copy className="h-3 w-3" /> Duplicera
+                    </button>
+                    <button
+                      type="button"
                       onClick={(e) => { e.stopPropagation(); handleOpenEdit(o); }}
                       className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                     >
                       <Pencil className="h-3 w-3" /> Öppna
                     </button>
+
                   </td>
                 </tr>
               );
