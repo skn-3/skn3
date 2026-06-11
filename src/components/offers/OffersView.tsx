@@ -124,6 +124,16 @@ export function OffersView({ currentUser }: OffersViewProps) {
     onError: (e: any) => toast.error(e?.message || 'Kunde inte öppna PDF'),
   });
 
+  const openSignedPdf = useMutation({
+    mutationFn: async (offer: OfferRow) => {
+      if (!offer.signed_pdf_path) throw new Error('Signerat avtal saknas');
+      const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path, 3600);
+      if (error || !data?.signedUrl) throw new Error('Kunde inte öppna avtal');
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Kunde inte öppna avtal'),
+  });
+
   const sendOffer = useMutation({
     mutationFn: async (offer: OfferRow) => {
       if (!offer.customer_email) throw new Error('Kunden saknar e-post');
