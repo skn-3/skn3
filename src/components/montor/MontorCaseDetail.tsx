@@ -761,6 +761,21 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                 <option value="reklamation">Reklamation</option>
               </select>
             </div>
+            {costCategory === 'reklamation' && (
+              <div>
+                <Label className="mb-1 block">Ansvar *</Label>
+                <select
+                  value={costResponsible}
+                  onChange={e => setCostResponsible(e.target.value)}
+                  className="w-full min-h-[48px] rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Välj ansvar...</option>
+                  {DEVIATION_RESPONSIBLE.map(r => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <Label className="mb-1 block">Belopp (ex moms) *</Label>
               <Input type="number" value={costAmount} onChange={e => setCostAmount(e.target.value)} placeholder="0" className="min-h-[48px]" />
