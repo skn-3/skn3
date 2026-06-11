@@ -2094,15 +2094,20 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                 <Receipt className="h-4 w-4" /> Kostnader ({costs.length})
               </h3>
-              {costs.map(c => (
-                <div key={c.id} className="rounded-lg border p-2 text-sm flex justify-between items-start">
+              {costs.map(c => {
+                const isFabrik = (c as any).category === 'reklamation' && (c as any).responsible === 'fabrik';
+                return (
+                <div key={c.id} className={`rounded-lg border p-2 text-sm flex justify-between items-start ${isFabrik ? 'opacity-60' : ''}`}>
                   <div>
-                    <div className="font-medium text-card-foreground flex items-center gap-2">
+                    <div className="font-medium text-card-foreground flex items-center gap-2 flex-wrap">
                       <span>{c.description}</span>
                       {(c as any).category === 'reklamation' && (
                         <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 text-[10px] px-1.5 py-0">
                           Reklamation{(c as any).responsible ? ` · ${DEVIATION_RESPONSIBLE.find(r => r.value === (c as any).responsible)?.label || (c as any).responsible}` : ''}
                         </Badge>
+                      )}
+                      {isFabrik && (
+                        <span className="text-[10px] text-muted-foreground italic">(ersätts)</span>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('sv-SE')} — {c.created_by}</div>
@@ -2116,7 +2121,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
               <div className="text-right font-semibold text-sm text-card-foreground">
                 Totalt: {costs.reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString('sv-SE')} kr
               </div>
