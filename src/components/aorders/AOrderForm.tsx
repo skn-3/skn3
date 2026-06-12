@@ -510,7 +510,29 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
           {/* Internal block */}
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
-            <div className="text-xs font-semibold text-amber-900 uppercase">Internt — visas EJ för montör</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold text-amber-900 uppercase">Internt — visas EJ för montör</div>
+              {effectiveCaseId && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-xs"
+                  onClick={async () => {
+                    const { data, error } = await (supabase as any)
+                      .from('cases')
+                      .select('extra_hours_sold, extra_hours_approved')
+                      .eq('id', effectiveCaseId)
+                      .maybeSingle();
+                    if (error) { toast.error('Kunde inte hämta ärendet'); return; }
+                    applyCaseExtraHours(data as any, { force: true });
+                    toast.success('Extra timmar uppdaterade från ärendet');
+                  }}
+                >
+                  Hämta från ärendet
+                </Button>
+              )}
+            </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <Label className="text-xs">Extra timmar</Label>
@@ -527,6 +549,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
             </div>
             <div className="text-sm text-amber-900">Internt värde: <span className="font-semibold">{fmt(internalValue)}</span></div>
           </div>
+
 
           {/* Team */}
           <div>
