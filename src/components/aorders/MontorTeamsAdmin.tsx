@@ -64,8 +64,10 @@ export function MontorTeamsAdmin() {
     if (!newTeam.name?.trim()) { toast.error('Namn krävs'); return; }
     const { error } = await (supabase as any).from('montor_teams').insert({
       name: newTeam.name, company_name: newTeam.company_name || null, org_nr: newTeam.org_nr || null,
-      address: newTeam.address || null, email: newTeam.email || null, bankgiro: newTeam.bankgiro || null,
-      invoice_prefix: newTeam.invoice_prefix || null, is_active: newTeam.is_active,
+      address: newTeam.address || null, email: newTeam.email || null, invoice_email: newTeam.invoice_email || null,
+      bankgiro: newTeam.bankgiro || null, invoice_prefix: newTeam.invoice_prefix || null,
+      next_invoice_number: Math.max(1, Number(newTeam.next_invoice_number) || 1),
+      is_active: newTeam.is_active,
     });
     if (error) { toast.error(error.message); return; }
     toast.success('Team tillagt');
