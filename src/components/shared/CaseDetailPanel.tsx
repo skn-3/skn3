@@ -20,7 +20,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { logActivity } from '@/lib/activityLog';
 import { DeviationActionSheet, DEVIATION_STATUS_META, type DeviationStatus, canActOnDeviations } from '@/components/deviations/DeviationActionPanel';
 import type { DeviationRow } from '@/lib/supabaseClient';
-import { getOrderByCaseId, listUnlinkedOrders, linkCase as gwLinkCase, unlinkCase as gwUnlinkCase, updateOrderDate } from '@/integrations/orderGateway';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { celebrateInvoiced } from '@/lib/celebrate';
@@ -222,29 +221,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
       await updateCase(caseData.id, updates as any);
 
-      // Sync to n3prenad if montage date/time changed
-      const montageDateChanged = (caseData.montage_date || '') !== (editForm.montage_date || '');
-      const montageTimeChanged = ((caseData as any).montage_time || '') !== editForm.montage_time;
-      if (montageDateChanged || montageTimeChanged) {
-        try {
-          const order = await getOrderByCaseId(caseData.id);
-          const newDate = editForm.montage_date || null;
-          if (order && newDate && order.date !== newDate) {
-            const ok = await updateOrderDate(order.id, newDate);
-            if (!ok) throw new Error('gateway update_date failed');
-            await createCaseEvent({
-              case_id: caseData.id,
-              event_type: 'sync',
-              description: `Montagedatum synkat till n3prenad: ${newDate}`,
-              created_by: currentUser,
-            });
-            toast.info('Datum uppdaterat även i orderssystemet');
-          }
-        } catch (syncErr) {
-          console.warn('n3prenad sync failed', syncErr);
-          toast.warning('Kunde inte synka till n3prenad — manuell uppdatering behövs');
-        }
-      }
+      // (n3prenad-synken är borttagen — A-ordrar bor lokalt nu.)
+
 
       if (changes.length > 0) {
         await createCaseEvent({
@@ -274,22 +252,18 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryFn: () => fetchCaseCosts(caseData.id),
   });
 
-  const { data: linkedOrders } = useQuery({
+  // Lokala a_orders kopplade till ärendet (källan; ersätter tidigare n3prenad-gateway-läs).
+  const { data: linkedOrders, refetch: refetchLinkedOrders } = useQuery({
     queryKey: ['linked-orders', caseData.id],
     queryFn: async () => {
-      const o = await getOrderByCaseId(caseData.id);
-      return o ? [o] : [];
-    },
-  });
-
-  const { data: internalAOrders, refetch: refetchInternalAOrders } = useQuery({
-    queryKey: ['internal-a-orders', caseData.id],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).from('a_orders').select('id, order_number, total_amount, status, team_id, montor_teams(name)').eq('case_id', caseData.id).order('created_at', { ascending: false });
+      const { data, error } = await (supabase as any)
+        .from('a_orders')
+        .select('id, order_number, total_amount, status, team_id, invoice_number, date, line_items, window_count, door_count, roof_window_count, montor_teams(name)')
+        .eq('case_id', caseData.id)
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as any[];
+      return (data || []) as any[];
     },
-    enabled: isSeller,
   });
 
   const { data: caseDocs } = useQuery({
