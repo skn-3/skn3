@@ -132,11 +132,11 @@ export function RolePicker() {
                 <Input
                   type="password"
                   inputMode="numeric"
-                  maxLength={4}
-                  placeholder="Ange PIN-kod (4 siffror)"
+                  maxLength={6}
+                  placeholder="Ange PIN-kod (4–6 siffror)"
                   value={pin}
-                  onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setPinError(null); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && pin.length === 4 && !isLocked) handleLogin(); }}
+                  onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 6)); setPinError(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && pin.length >= 4 && pin.length <= 6 && !isLocked) handleLogin(); }}
                   className="h-12 text-center text-lg tracking-[0.5em]"
                   disabled={isLocked || loading}
                 />
@@ -149,7 +149,7 @@ export function RolePicker() {
               </div>
               <Button
                 className="w-full h-12"
-                disabled={pin.length !== 4 || isLocked || loading}
+                disabled={pin.length < 4 || pin.length > 6 || isLocked || loading}
                 onClick={handleLogin}
               >
                 {loading ? 'Loggar in…' : 'Logga in'}
