@@ -17,6 +17,8 @@ export interface AOrderPdfTeam {
   name?: string | null;
 }
 
+export type AOrderPdfVariant = 'a-order' | 'invoice' | 'credit';
+
 export interface BuildAOrderPdfArgs {
   date: string;
   orderNumber: number | string;
@@ -26,6 +28,9 @@ export interface BuildAOrderPdfArgs {
   description?: string | null;
   team?: AOrderPdfTeam | null;
   logoDataUrl?: string | null;
+  variant?: AOrderPdfVariant;
+  /** Optional subtitle row shown above the table (e.g. "Kreditering av faktura XXX-001") */
+  subNote?: string | null;
 }
 
 const GREEN: [number, number, number] = [34, 197, 94];
