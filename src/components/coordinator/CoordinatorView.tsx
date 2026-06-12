@@ -12,8 +12,7 @@ import { Pipeline } from '@/components/seller/Pipeline';
 import { CalendarView } from '@/components/calendar/CalendarView';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { EconomyView } from '@/components/economy/EconomyView';
-import { OffersView } from '@/components/offers/OffersView';
-import { UppdragView } from '@/components/uppdrag/UppdragView';
+import { OffersHub } from '@/components/offers/OffersHub';
 import { AOrdersView } from '@/components/aorders/AOrdersView';
 
 interface Props {
@@ -69,8 +68,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
         {tab === 'deviations' && (
           <CoordinatorDeviations coordinatorName={role.name} onSelectCase={setSelectedCase} />
         )}
-        {tab === 'offers' && <OffersView currentUser={role.name} />}
-        {tab === 'uppdrag' && <UppdragView />}
+        {tab === 'offers' && <OffersHub currentUser={role.name} />}
         {tab === 'aorders' && <AOrdersView currentUser={role.name} />}
         {tab === 'economy' && <EconomyView />}
       </main>

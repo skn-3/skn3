@@ -10,8 +10,7 @@ import { SellerDashboard } from './SellerDashboard';
 import { VisitForm } from './VisitForm';
 import { AdminView } from './AdminView';
 import { EconomyView } from '@/components/economy/EconomyView';
-import { OffersView } from '@/components/offers/OffersView';
-import { UppdragView } from '@/components/uppdrag/UppdragView';
+import { OffersHub } from '@/components/offers/OffersHub';
 import { AOrdersView } from '@/components/aorders/AOrdersView';
 
 
@@ -88,10 +87,7 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
           <EconomyView />
         )}
         {tab === 'offers' && (
-          <OffersView currentUser={role.name} />
-        )}
-        {tab === 'uppdrag' && (
-          <UppdragView />
+          <OffersHub currentUser={role.name} />
         )}
         {tab === 'aorders' && (
           <AOrdersView currentUser={role.name} />
