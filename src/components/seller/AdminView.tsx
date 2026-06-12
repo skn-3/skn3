@@ -65,6 +65,9 @@ export function AdminView({ currentUser }: AdminViewProps) {
         <TabsContent value="prices" className="mt-4">
           <AOrderPricesAdmin />
         </TabsContent>
+        <TabsContent value="pin-campaign" className="mt-4">
+          <PinCampaignAdmin />
+        </TabsContent>
         <TabsContent value="activity-log" className="mt-4">
           <ActivityLogView />
         </TabsContent>
