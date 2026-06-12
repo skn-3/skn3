@@ -1079,6 +1079,7 @@ export type Database = {
       auth_is_my_team_case: { Args: { p_case_id: string }; Returns: boolean }
       auth_user_name: { Args: never; Returns: string }
       auth_user_role: { Args: never; Returns: string }
+      fix_a_order_sequence: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
