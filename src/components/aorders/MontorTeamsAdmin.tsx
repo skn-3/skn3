@@ -87,8 +87,10 @@ export function MontorTeamsAdmin() {
         <td className="p-2"><Input className="h-8" value={v.org_nr || ''} onChange={e => patch(id, { org_nr: e.target.value })} /></td>
         <td className="p-2"><Input className="h-8" value={v.address || ''} onChange={e => patch(id, { address: e.target.value })} /></td>
         <td className="p-2"><Input className="h-8" value={v.email || ''} onChange={e => patch(id, { email: e.target.value })} /></td>
+        <td className="p-2"><Input className="h-8" value={v.invoice_email || ''} onChange={e => patch(id, { invoice_email: e.target.value })} placeholder="(samma)" /></td>
         <td className="p-2"><Input className="h-8" value={v.bankgiro || ''} onChange={e => patch(id, { bankgiro: e.target.value })} /></td>
         <td className="p-2"><Input className="h-8 w-20" value={v.invoice_prefix || ''} onChange={e => patch(id, { invoice_prefix: e.target.value })} /></td>
+        <td className="p-2"><Input className="h-8 w-20" type="number" min={1} value={v.next_invoice_number ?? 1} onChange={e => patch(id, { next_invoice_number: Number(e.target.value) || 1 })} /></td>
         <td className="p-2 text-center"><Switch checked={v.is_active} onCheckedChange={c => patch(id, { is_active: c })} /></td>
         <td className="p-2 text-right">
           <Button size="sm" variant={dirty ? 'default' : 'ghost'} disabled={!dirty} onClick={() => save(id)} className="gap-1">
