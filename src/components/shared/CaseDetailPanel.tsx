@@ -454,24 +454,24 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const linkOrderMutation = useMutation({
     mutationFn: async (order: any) => {
-      const ok = await gwLinkCase(order.id, caseData.id);
-      if (!ok) throw new Error('gateway link_case failed');
-      const label = order.order_number || order.invoice_number || order.id.slice(0, 8);
-      const desc = order._orphan
-        ? `A-order ${label} omkopplad (tidigare felaktigt case_id: ${order._orphanCaseId})`
-        : `A-order ${label} kopplad manuellt`;
+      const { error } = await (supabase as any)
+        .from('a_orders')
+        .update({ case_id: caseData.id })
+        .eq('id', order.id);
+      if (error) throw error;
+      const label = order.order_number || order.invoice_number || String(order.id).slice(0, 8);
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'order_link',
-        description: desc,
+        description: `A-order ${label} kopplad manuellt`,
         created_by: currentUser,
       });
       logActivity({
         category: 'system',
         action: 'order_linked',
-        description: `Kopplade order ${label} till ${caseData.address}`,
+        description: `Kopplade A-order ${label} till ${caseData.address}`,
         case_id: caseData.id,
-        metadata: { order_id: order.id, order_label: label, was_orphan: !!order._orphan },
+        metadata: { order_id: order.id, order_label: label },
       });
     },
     onSuccess: () => {
@@ -483,15 +483,18 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
     onError: (e: any) => {
       console.warn('link order failed', e);
-      toast.error('Kunde inte uppdatera A-order i n3prenad');
+      toast.error('Kunde inte koppla A-order');
     },
   });
 
   const unlinkOrderMutation = useMutation({
     mutationFn: async (order: any) => {
-      const ok = await gwUnlinkCase(order.id);
-      if (!ok) throw new Error('gateway unlink_case failed');
-      const label = order.order_number || order.invoice_number || order.id.slice(0, 8);
+      const { error } = await (supabase as any)
+        .from('a_orders')
+        .update({ case_id: null })
+        .eq('id', order.id);
+      if (error) throw error;
+      const label = order.order_number || order.invoice_number || String(order.id).slice(0, 8);
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'order_link',
@@ -506,8 +509,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
     onError: (e: any) => {
       console.warn('unlink order failed', e);
-      toast.error('Kunde inte uppdatera A-order i n3prenad');
+      toast.error('Kunde inte koppla isär A-order');
     },
+
   });
 
 
