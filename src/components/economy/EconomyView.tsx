@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { listOrdersByCaseIds, type OrderRow } from '@/integrations/orderGateway';
+// orderGateway-importen är borttagen — montörskostnaden läses nu från lokala a_orders.
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -96,7 +96,7 @@ export function EconomyView() {
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [costs, setCosts] = useState<CostRow[]>([]);
   const [smos, setSmos] = useState<SmoRow[]>([]);
-  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [aOrderSumByCase, setAOrderSumByCase] = useState<Map<string, number>>(new Map());
   const [offers, setOffers] = useState<OfferRow[]>([]);
   const [uppdragList, setUppdragList] = useState<UppdragRow[]>([]);
   const [period, setPeriod] = useState<Period>('all');
@@ -125,9 +125,22 @@ export function EconomyView() {
       setOffers((oRes.data || []) as OfferRow[]);
       setUppdragList((uRes.data || []) as UppdragRow[]);
       const ids = allCases.map(c => c.id);
-      const ord = await listOrdersByCaseIds(ids);
+      // Lokala a_orders summerade per case_id (krediter har negativa belopp → tar ut sina original).
+      const sumByCase = new Map<string, number>();
+      if (ids.length > 0) {
+        const { data: aRows, error: aErr } = await supabase
+          .from('a_orders')
+          .select('case_id, total_amount')
+          .not('case_id', 'is', null)
+          .in('case_id', ids);
+        if (aErr) console.error('[economy] a_orders fetch error:', aErr);
+        for (const row of (aRows || []) as any[]) {
+          if (!row.case_id) continue;
+          sumByCase.set(row.case_id, (sumByCase.get(row.case_id) || 0) + (Number(row.total_amount) || 0));
+        }
+      }
       if (cancel) return;
-      setOrders(ord);
+      setAOrderSumByCase(sumByCase);
       setLoading(false);
     })();
     return () => { cancel = true; };
@@ -160,11 +173,12 @@ export function EconomyView() {
       const cd = docsByCase.get(c.id) || [];
       const revenue = cd.filter(d => d.doc_type === 'mockfjards_payout')
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
-      const order = orderByCase.get(c.id);
-      const aOrderSum = cd.filter(d => d.doc_type === 'a_order')
+      const aOrderLocalSum = aOrderSumByCase.get(c.id);
+      const aOrderDocSum = cd.filter(d => d.doc_type === 'a_order')
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
-      const montorCost = order?.total_amount != null ? Number(order.total_amount) : aOrderSum;
-      const hasMontor = order?.total_amount != null || aOrderSum > 0;
+      // Primärt: lokala a_orders. Fallback: a_order-dokumentsumman.
+      const montorCost = aOrderLocalSum != null ? aOrderLocalSum : aOrderDocSum;
+      const hasMontor = (aOrderLocalSum != null && aOrderLocalSum !== 0) || aOrderDocSum > 0;
       const sheetCost = cd.filter(d => d.doc_type === 'sheet_metal_invoice')
         .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
       const montorInvoiceCost = cd.filter(d => d.doc_type === 'montor_invoice')
@@ -184,7 +198,7 @@ export function EconomyView() {
         complete,
       };
     });
-  }, [cases, docs, costs, orders]);
+  }, [cases, docs, costs, aOrderSumByCase]);
 
   const filteredEconomy = useMemo(() => {
     const start = periodStart(period);
