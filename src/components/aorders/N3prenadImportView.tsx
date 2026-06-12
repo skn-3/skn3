@@ -479,6 +479,27 @@ export function N3prenadImportView() {
           </Button>
         </div>
       </div>
+
+      {/* Backfyllnad av interna vinsttimmar */}
+      <div className="rounded-md border p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium">Fyll interna timmar från ärenden</div>
+            <div className="text-sm text-muted-foreground">
+              För importerade A-ordrar utan interna värden: sätter internal_extra_hours = sold − approved (när &gt; 0) och timpris {HOUR_RATE}. Rör inte line_items eller totalsumma. Idempotent.
+            </div>
+            {backfillReport && (
+              <div className="text-sm mt-1">
+                Uppdaterade: <b>{backfillReport.updated}</b> · Hoppade (hade redan värden): <b>{backfillReport.skipped}</b> · Utan ärendekoppling: <b>{backfillReport.noCase}</b> · Ärenden utan vinsttimmar: <b>{backfillReport.noProfit}</b>
+              </div>
+            )}
+          </div>
+          <Button variant="outline" onClick={backfillInternalHours} disabled={backfilling} className="gap-2">
+            {backfilling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Fyll interna timmar från ärenden
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
