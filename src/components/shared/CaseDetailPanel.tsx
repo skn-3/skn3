@@ -2269,7 +2269,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           case_id: caseData.id,
         }}
         currentUser={currentUser}
-        onSaved={() => { refetchInternalAOrders(); }}
+        onSaved={() => { refetchLinkedOrders(); }}
       />
 
     </div>
