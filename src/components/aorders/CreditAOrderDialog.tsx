@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
+import { normalizeLines } from '@/lib/aOrderLines';
 
 interface Props {
   open: boolean;
@@ -31,12 +32,13 @@ export function CreditAOrderDialog({ open, onOpenChange, order, currentUser }: P
   const origNo = order?.invoice_number || '';
 
   const negLines = useMemo(() => {
-    const src: any[] = Array.isArray(order?.line_items) ? order.line_items : [];
+    const src = normalizeLines(order?.line_items);
     return src.map(l => ({
-      name: String(l.name || ''),
-      unit_price: -Math.abs(Number(l.unit_price) || 0),
-      qty: Number(l.qty) || 0,
-      amount: -Math.abs(Math.round((Number(l.unit_price) || 0) * (Number(l.qty) || 0))),
+      id: l.id,
+      name: l.name,
+      unit_price: -Math.abs(l.unit_price),
+      qty: l.qty,
+      amount: -Math.abs(Math.round(l.unit_price * l.qty)),
     }));
   }, [order]);
   const total = negLines.reduce((s, l) => s + l.amount, 0);

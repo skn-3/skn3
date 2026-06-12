@@ -65,7 +65,9 @@ export async function loadAOrderLogo(): Promise<string | null> {
 }
 
 export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
-  const { date, orderNumber, customerAddress, lines, description, team, logoDataUrl, variant = 'a-order', subNote } = args;
+  const { date, orderNumber, customerAddress, lines: rawLines, description, team, logoDataUrl, variant = 'a-order', subNote } = args;
+  // Defensive: normalize line items (handles camelCase / missing amount from legacy/imported rows)
+  const lines = normalizeLines(rawLines);
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   const margin = 15;
   const pageW = 210;

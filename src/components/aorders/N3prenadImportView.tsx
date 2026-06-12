@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { listAllOrders } from '@/integrations/orderGateway';
+import { normalizeLines } from '@/lib/aOrderLines';
 
 type Team = {
   id: string;
@@ -167,7 +168,7 @@ export function N3prenadImportView() {
           door_count: Number(o.doors_count || 0),
           roof_window_count: 0,
           km_distance: Number(o.distance_km || 0),
-          line_items: o.line_items || [],
+          line_items: normalizeLines(o.line_items),
           description: o.description || '',
           total_amount: Number(o.total_amount || 0),
           status: o.status || 'order',

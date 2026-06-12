@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
+import { normalizeLines } from '@/lib/aOrderLines';
 
 type Line = { id?: string; name: string; unit_price: number; qty: number; amount: number };
 
@@ -27,14 +28,7 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
 
   useEffect(() => {
     if (!open || !order) return;
-    const src: any[] = Array.isArray(order.line_items) ? order.line_items : [];
-    setLines(src.map(l => ({
-      id: l.id || newId(),
-      name: String(l.name || ''),
-      unit_price: Number(l.unit_price) || 0,
-      qty: Number(l.qty) || 0,
-      amount: Math.round((Number(l.unit_price) || 0) * (Number(l.qty) || 0)),
-    })));
+    setLines(normalizeLines(order.line_items));
   }, [open, order]);
 
   const team = order?.montor_teams || null;
