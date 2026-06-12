@@ -34,6 +34,7 @@ export interface BuildAOrderPdfArgs {
 }
 
 const GREEN: [number, number, number] = [34, 197, 94];
+const RED: [number, number, number] = [220, 38, 38];
 const DARK: [number, number, number] = [51, 51, 51];
 const LIGHT: [number, number, number] = [245, 245, 245];
 const HEADER_BG: [number, number, number] = [55, 65, 81];
