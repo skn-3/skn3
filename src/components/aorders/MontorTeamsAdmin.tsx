@@ -14,12 +14,14 @@ type Team = {
   org_nr?: string | null;
   address?: string | null;
   email?: string | null;
+  invoice_email?: string | null;
   bankgiro?: string | null;
   invoice_prefix?: string | null;
+  next_invoice_number?: number | null;
   is_active: boolean;
 };
 
-const EMPTY: Team = { name: '', company_name: '', org_nr: '', address: '', email: '', bankgiro: '', invoice_prefix: '', is_active: true };
+const EMPTY: Team = { name: '', company_name: '', org_nr: '', address: '', email: '', invoice_email: '', bankgiro: '', invoice_prefix: '', next_invoice_number: 1, is_active: true };
 
 export function MontorTeamsAdmin() {
   const qc = useQueryClient();
@@ -45,8 +47,10 @@ export function MontorTeamsAdmin() {
     if (!d.name?.trim()) { toast.error('Namn krävs'); return; }
     const { error } = await (supabase as any).from('montor_teams').update({
       name: d.name, company_name: d.company_name || null, org_nr: d.org_nr || null,
-      address: d.address || null, email: d.email || null, bankgiro: d.bankgiro || null,
-      invoice_prefix: d.invoice_prefix || null, is_active: d.is_active,
+      address: d.address || null, email: d.email || null, invoice_email: d.invoice_email || null,
+      bankgiro: d.bankgiro || null, invoice_prefix: d.invoice_prefix || null,
+      next_invoice_number: Math.max(1, Number(d.next_invoice_number) || 1),
+      is_active: d.is_active,
     }).eq('id', id);
     if (error) { toast.error(error.message); return; }
     toast.success('Sparat');
@@ -60,8 +64,10 @@ export function MontorTeamsAdmin() {
     if (!newTeam.name?.trim()) { toast.error('Namn krävs'); return; }
     const { error } = await (supabase as any).from('montor_teams').insert({
       name: newTeam.name, company_name: newTeam.company_name || null, org_nr: newTeam.org_nr || null,
-      address: newTeam.address || null, email: newTeam.email || null, bankgiro: newTeam.bankgiro || null,
-      invoice_prefix: newTeam.invoice_prefix || null, is_active: newTeam.is_active,
+      address: newTeam.address || null, email: newTeam.email || null, invoice_email: newTeam.invoice_email || null,
+      bankgiro: newTeam.bankgiro || null, invoice_prefix: newTeam.invoice_prefix || null,
+      next_invoice_number: Math.max(1, Number(newTeam.next_invoice_number) || 1),
+      is_active: newTeam.is_active,
     });
     if (error) { toast.error(error.message); return; }
     toast.success('Team tillagt');
@@ -81,8 +87,10 @@ export function MontorTeamsAdmin() {
         <td className="p-2"><Input className="h-8" value={v.org_nr || ''} onChange={e => patch(id, { org_nr: e.target.value })} /></td>
         <td className="p-2"><Input className="h-8" value={v.address || ''} onChange={e => patch(id, { address: e.target.value })} /></td>
         <td className="p-2"><Input className="h-8" value={v.email || ''} onChange={e => patch(id, { email: e.target.value })} /></td>
+        <td className="p-2"><Input className="h-8" value={v.invoice_email || ''} onChange={e => patch(id, { invoice_email: e.target.value })} placeholder="(samma)" /></td>
         <td className="p-2"><Input className="h-8" value={v.bankgiro || ''} onChange={e => patch(id, { bankgiro: e.target.value })} /></td>
         <td className="p-2"><Input className="h-8 w-20" value={v.invoice_prefix || ''} onChange={e => patch(id, { invoice_prefix: e.target.value })} /></td>
+        <td className="p-2"><Input className="h-8 w-20" type="number" min={1} value={v.next_invoice_number ?? 1} onChange={e => patch(id, { next_invoice_number: Number(e.target.value) || 1 })} /></td>
         <td className="p-2 text-center"><Switch checked={v.is_active} onCheckedChange={c => patch(id, { is_active: c })} /></td>
         <td className="p-2 text-right">
           <Button size="sm" variant={dirty ? 'default' : 'ghost'} disabled={!dirty} onClick={() => save(id)} className="gap-1">
@@ -109,14 +117,16 @@ export function MontorTeamsAdmin() {
               <th className="p-2 text-left">Org.nr</th>
               <th className="p-2 text-left">Adress</th>
               <th className="p-2 text-left">E-post</th>
+              <th className="p-2 text-left">Faktura-e-post</th>
               <th className="p-2 text-left">Bankgiro</th>
               <th className="p-2 text-left">Prefix</th>
+              <th className="p-2 text-left">Nästa fakturanr</th>
               <th className="p-2 text-center">Aktiv</th>
               <th className="p-2"></th>
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={9} className="p-4 text-center text-muted-foreground">Laddar...</td></tr>}
+            {isLoading && <tr><td colSpan={11} className="p-4 text-center text-muted-foreground">Laddar...</td></tr>}
             {!isLoading && teams.map(row)}
             {newTeam && (
               <tr className="border-t bg-amber-50">
@@ -125,8 +135,10 @@ export function MontorTeamsAdmin() {
                 <td className="p-2"><Input className="h-8" value={newTeam.org_nr || ''} onChange={e => setNewTeam({ ...newTeam, org_nr: e.target.value })} /></td>
                 <td className="p-2"><Input className="h-8" value={newTeam.address || ''} onChange={e => setNewTeam({ ...newTeam, address: e.target.value })} /></td>
                 <td className="p-2"><Input className="h-8" value={newTeam.email || ''} onChange={e => setNewTeam({ ...newTeam, email: e.target.value })} /></td>
+                <td className="p-2"><Input className="h-8" value={newTeam.invoice_email || ''} onChange={e => setNewTeam({ ...newTeam, invoice_email: e.target.value })} placeholder="(samma)" /></td>
                 <td className="p-2"><Input className="h-8" value={newTeam.bankgiro || ''} onChange={e => setNewTeam({ ...newTeam, bankgiro: e.target.value })} /></td>
                 <td className="p-2"><Input className="h-8 w-20" value={newTeam.invoice_prefix || ''} onChange={e => setNewTeam({ ...newTeam, invoice_prefix: e.target.value })} /></td>
+                <td className="p-2"><Input className="h-8 w-20" type="number" min={1} value={newTeam.next_invoice_number ?? 1} onChange={e => setNewTeam({ ...newTeam, next_invoice_number: Number(e.target.value) || 1 })} /></td>
                 <td className="p-2 text-center"><Switch checked={newTeam.is_active} onCheckedChange={c => setNewTeam({ ...newTeam, is_active: c })} /></td>
                 <td className="p-2 text-right space-x-1">
                   <Button size="sm" variant="ghost" onClick={() => setNewTeam(null)}>Avbryt</Button>

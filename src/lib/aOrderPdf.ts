@@ -17,6 +17,8 @@ export interface AOrderPdfTeam {
   name?: string | null;
 }
 
+export type AOrderPdfVariant = 'a-order' | 'invoice' | 'credit';
+
 export interface BuildAOrderPdfArgs {
   date: string;
   orderNumber: number | string;
@@ -26,9 +28,13 @@ export interface BuildAOrderPdfArgs {
   description?: string | null;
   team?: AOrderPdfTeam | null;
   logoDataUrl?: string | null;
+  variant?: AOrderPdfVariant;
+  /** Optional subtitle row shown above the table (e.g. "Kreditering av faktura XXX-001") */
+  subNote?: string | null;
 }
 
 const GREEN: [number, number, number] = [34, 197, 94];
+const RED: [number, number, number] = [220, 38, 38];
 const DARK: [number, number, number] = [51, 51, 51];
 const LIGHT: [number, number, number] = [245, 245, 245];
 const HEADER_BG: [number, number, number] = [55, 65, 81];
@@ -58,10 +64,14 @@ export async function loadAOrderLogo(): Promise<string | null> {
 }
 
 export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
-  const { date, orderNumber, customerAddress, lines, description, team, logoDataUrl } = args;
+  const { date, orderNumber, customerAddress, lines, description, team, logoDataUrl, variant = 'a-order', subNote } = args;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   const margin = 15;
   const pageW = 210;
+
+  const titleText = variant === 'invoice' ? 'FAKTURA' : variant === 'credit' ? 'KREDITFAKTURA' : 'A-ORDER';
+  const titleColor: [number, number, number] = variant === 'credit' ? RED : GREEN;
+  const totalColor: [number, number, number] = variant === 'credit' ? RED : GREEN;
 
   // HEADER
   if (logoDataUrl) {
@@ -85,9 +95,9 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
   doc.setTextColor(120, 120, 120);
   doc.text(date, pageW - margin, 14, { align: 'right' });
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(36);
-  doc.setTextColor(...GREEN);
-  doc.text('A-ORDER', pageW - margin, 30, { align: 'right' });
+  doc.setFontSize(variant === 'credit' ? 28 : 36);
+  doc.setTextColor(...titleColor);
+  doc.text(titleText, pageW - margin, 30, { align: 'right' });
   doc.setFontSize(14);
   doc.setTextColor(...DARK);
   doc.text(`#${orderNumber}`, pageW - margin, 38, { align: 'right' });
@@ -153,6 +163,15 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
     });
   }
 
+  if (subNote && subNote.trim()) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...(variant === 'credit' ? RED : DARK));
+    if (y > 250) { doc.addPage(); y = 20; }
+    doc.text(subNote, margin, y + 4);
+    y += 6;
+  }
+
   // FOOTER block
   let fy = Math.max(y + 10, 225);
   doc.setFont('helvetica', 'bold');
@@ -161,7 +180,7 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
   doc.text(customerAddress || '', margin, fy);
 
   doc.setFontSize(18);
-  doc.setTextColor(...GREEN);
+  doc.setTextColor(...totalColor);
   doc.text(`Totalt: ${fmtKr(total)}`, pageW - margin, fy, { align: 'right' });
   doc.setFontSize(9);
   doc.setTextColor(...DARK);
