@@ -64,10 +64,14 @@ export async function loadAOrderLogo(): Promise<string | null> {
 }
 
 export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
-  const { date, orderNumber, customerAddress, lines, description, team, logoDataUrl } = args;
+  const { date, orderNumber, customerAddress, lines, description, team, logoDataUrl, variant = 'a-order', subNote } = args;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   const margin = 15;
   const pageW = 210;
+
+  const titleText = variant === 'invoice' ? 'FAKTURA' : variant === 'credit' ? 'KREDITFAKTURA' : 'A-ORDER';
+  const titleColor: [number, number, number] = variant === 'credit' ? RED : GREEN;
+  const totalColor: [number, number, number] = variant === 'credit' ? RED : GREEN;
 
   // HEADER
   if (logoDataUrl) {
@@ -91,9 +95,9 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
   doc.setTextColor(120, 120, 120);
   doc.text(date, pageW - margin, 14, { align: 'right' });
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(36);
-  doc.setTextColor(...GREEN);
-  doc.text('A-ORDER', pageW - margin, 30, { align: 'right' });
+  doc.setFontSize(variant === 'credit' ? 28 : 36);
+  doc.setTextColor(...titleColor);
+  doc.text(titleText, pageW - margin, 30, { align: 'right' });
   doc.setFontSize(14);
   doc.setTextColor(...DARK);
   doc.text(`#${orderNumber}`, pageW - margin, 38, { align: 'right' });
