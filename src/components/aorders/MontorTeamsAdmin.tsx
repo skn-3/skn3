@@ -126,7 +126,7 @@ export function MontorTeamsAdmin() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={9} className="p-4 text-center text-muted-foreground">Laddar...</td></tr>}
+            {isLoading && <tr><td colSpan={11} className="p-4 text-center text-muted-foreground">Laddar...</td></tr>}
             {!isLoading && teams.map(row)}
             {newTeam && (
               <tr className="border-t bg-amber-50">
@@ -135,8 +135,10 @@ export function MontorTeamsAdmin() {
                 <td className="p-2"><Input className="h-8" value={newTeam.org_nr || ''} onChange={e => setNewTeam({ ...newTeam, org_nr: e.target.value })} /></td>
                 <td className="p-2"><Input className="h-8" value={newTeam.address || ''} onChange={e => setNewTeam({ ...newTeam, address: e.target.value })} /></td>
                 <td className="p-2"><Input className="h-8" value={newTeam.email || ''} onChange={e => setNewTeam({ ...newTeam, email: e.target.value })} /></td>
+                <td className="p-2"><Input className="h-8" value={newTeam.invoice_email || ''} onChange={e => setNewTeam({ ...newTeam, invoice_email: e.target.value })} placeholder="(samma)" /></td>
                 <td className="p-2"><Input className="h-8" value={newTeam.bankgiro || ''} onChange={e => setNewTeam({ ...newTeam, bankgiro: e.target.value })} /></td>
                 <td className="p-2"><Input className="h-8 w-20" value={newTeam.invoice_prefix || ''} onChange={e => setNewTeam({ ...newTeam, invoice_prefix: e.target.value })} /></td>
+                <td className="p-2"><Input className="h-8 w-20" type="number" min={1} value={newTeam.next_invoice_number ?? 1} onChange={e => setNewTeam({ ...newTeam, next_invoice_number: Number(e.target.value) || 1 })} /></td>
                 <td className="p-2 text-center"><Switch checked={newTeam.is_active} onCheckedChange={c => setNewTeam({ ...newTeam, is_active: c })} /></td>
                 <td className="p-2 text-right space-x-1">
                   <Button size="sm" variant="ghost" onClick={() => setNewTeam(null)}>Avbryt</Button>
