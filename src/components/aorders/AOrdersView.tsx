@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw } from 'lucide-react';
+import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,22 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AOrderForm } from './AOrderForm';
 import { InvoiceAOrderDialog } from './InvoiceAOrderDialog';
 import { CreditAOrderDialog } from './CreditAOrderDialog';
 import { ImportInvoicesView } from './ImportInvoicesView';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
+import { useRole } from '@/hooks/useRole';
 
 interface Props { currentUser: string }
 
@@ -26,6 +37,7 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 export function AOrdersView({ currentUser }: Props) {
+  const { role } = useRole();
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -34,6 +46,8 @@ export function AOrdersView({ currentUser }: Props) {
   const [search, setSearch] = useState('');
   const [invoiceFor, setInvoiceFor] = useState<any | null>(null);
   const [creditFor, setCreditFor] = useState<any | null>(null);
+  const [deleteFor, setDeleteFor] = useState<any | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['a_orders_all'],
@@ -146,6 +160,47 @@ export function AOrdersView({ currentUser }: Props) {
       toast.error(e?.message || 'Kunde inte skicka');
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function handleDelete(o: any) {
+    setDeletingId(o.id);
+    try {
+      const pathsToDelete: string[] = [];
+      if (o.pdf_path) {
+        pathsToDelete.push(o.pdf_path);
+      }
+      
+      // List and delete files under a-orders/{id}
+      const { data: files, error: listError } = await supabase.storage
+        .from('case-documents')
+        .list(`a-orders/${o.id}`);
+        
+      if (!listError && files && files.length > 0) {
+        for (const file of files) {
+          pathsToDelete.push(`a-orders/${o.id}/${file.name}`);
+        }
+      }
+
+      if (pathsToDelete.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from('case-documents')
+          .remove(pathsToDelete);
+        if (storageError) {
+          console.error('Kunde inte radera filer från lagring:', storageError);
+        }
+      }
+
+      const { error } = await supabase.from('a_orders').delete().eq('id', o.id);
+      if (error) throw error;
+
+      toast.success(`A-order #${o.order_number || ''} raderades framgångsrikt`);
+      qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte radera A-order');
+    } finally {
+      setDeletingId(null);
+      setDeleteFor(null);
     }
   }
 
@@ -282,7 +337,7 @@ export function AOrdersView({ currentUser }: Props) {
                               <Receipt className="h-3 w-3" />
                             </Button>
                           )}
-                          {o.status === 'invoiced' && (
+                           {o.status === 'invoiced' && (
                             <Button size="sm" variant="ghost" onClick={() => setCreditFor(o)} title="Kreditera" className="text-red-600">
                               <RotateCcw className="h-3 w-3" />
                             </Button>
@@ -290,6 +345,11 @@ export function AOrdersView({ currentUser }: Props) {
                           {o.status === 'order' && (
                             <Button size="sm" variant="ghost" onClick={() => rowSend(o)} disabled={busyId === o.id || !o.team_id} title="Skicka A-order till montör">
                               <Send className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {role?.isAdmin && o.status === 'order' && (
+                            <Button size="sm" variant="ghost" onClick={() => setDeleteFor(o)} title="Radera A-order" className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           )}
                           <Button size="sm" variant="ghost" onClick={() => openEdit(o)}>Öppna</Button>
@@ -349,6 +409,30 @@ export function AOrdersView({ currentUser }: Props) {
         onOpenChange={(v) => { if (!v) setCreditFor(null); }}
         currentUser={currentUser}
       />
+
+      <AlertDialog open={!!deleteFor} onOpenChange={(v) => { if (!v) setDeleteFor(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Radera A-order #{deleteFor?.order_number}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Detta går inte att ångra. Kopplade filer tas också bort.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingId === deleteFor?.id}>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={deletingId === deleteFor?.id}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete(deleteFor);
+              }}
+            >
+              {deletingId === deleteFor?.id ? 'Raderar...' : 'Radera'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
