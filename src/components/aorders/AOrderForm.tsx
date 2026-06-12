@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, Save, Loader2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, Trash2, Save, Loader2, Download, Send, X, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { generateAutoLines, sumLines, type AOrderLine, type FacadeType } from '@/lib/aOrderLines';
+import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
+import { SignedImage } from '@/components/shared/SignedImage';
 
 type AOrder = any;
 
@@ -56,6 +59,14 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
   const [lines, setLines] = useState<AOrderLine[]>(order?.line_items?.length ? order.line_items : []);
   const [autoLocked, setAutoLocked] = useState<boolean>(!!order?.id); // when editing existing, don't auto-regenerate
+
+  // Images: existing paths in storage + pending uploads (compressed data URLs)
+  const [imagePaths, setImagePaths] = useState<string[]>(Array.isArray(order?.images) ? order.images : []);
+  const [pendingImages, setPendingImages] = useState<{ id: string; name: string; dataUrl: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [confirmSend, setConfirmSend] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   // Regenerate lines live when not edited / not locked
   useEffect(() => {
@@ -126,11 +137,69 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     setLines(prev => [...prev, { id: newId(), name: p.name, unit_price: Number(p.price), qty: 1, amount: Math.round(Number(p.price)) }]);
   }
 
-  async function save() {
-    if (!customerAddress.trim()) { toast.error('Adress krävs'); return; }
+  async function compressImage(file: File): Promise<string> {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = dataUrl;
+    });
+    const maxW = 1200;
+    const scale = img.width > maxW ? maxW / img.width : 1;
+    const w = Math.round(img.width * scale);
+    const h = Math.round(img.height * scale);
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d')!.drawImage(img, 0, 0, w, h);
+    return c.toDataURL('image/jpeg', 0.75);
+  }
+
+  async function handleFiles(files: FileList | File[]) {
+    const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
+    for (const f of arr) {
+      try {
+        const dataUrl = await compressImage(f);
+        setPendingImages(prev => [...prev, { id: 'p_' + Math.random().toString(36).slice(2, 9), name: f.name, dataUrl }]);
+      } catch (e) {
+        console.error(e);
+        toast.error(`Kunde inte läsa ${f.name}`);
+      }
+    }
+  }
+
+  function dataUrlToBlob(dataUrl: string): Blob {
+    const [meta, b64] = dataUrl.split(',');
+    const mime = /data:(.*?);/.exec(meta)?.[1] || 'image/jpeg';
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+
+  async function uploadPendingImages(orderId: string): Promise<string[]> {
+    const newPaths: string[] = [];
+    for (let i = 0; i < pendingImages.length; i++) {
+      const img = pendingImages[i];
+      const path = `a-orders/${orderId}/img-${Date.now()}-${i}.jpg`;
+      const blob = dataUrlToBlob(img.dataUrl);
+      const { error } = await supabase.storage.from('case-documents').upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+      if (error) { toast.error(`Bilduppladdning misslyckades: ${error.message}`); continue; }
+      newPaths.push(path);
+    }
+    return newPaths;
+  }
+
+  async function save(opts?: { silent?: boolean }): Promise<string | null> {
+    if (!customerAddress.trim()) { toast.error('Adress krävs'); return null; }
     setSaving(true);
     try {
-      const payload: any = {
+      const basePayload: any = {
         date,
         customer_name: customerName || null,
         customer_address: customerAddress,
@@ -151,24 +220,109 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         internal_hour_rate: internalHourRate || 0,
         internal_extra_amount: internalExtraAmount || 0,
       };
-      if (isEdit) {
-        const { error } = await (supabase as any).from('a_orders').update(payload).eq('id', order.id);
+      let orderId = order?.id as string | undefined;
+      if (isEdit && orderId) {
+        const { error } = await (supabase as any).from('a_orders').update({ ...basePayload, images: imagePaths }).eq('id', orderId);
         if (error) throw error;
-        toast.success('A-order uppdaterad');
       } else {
-        const { error } = await (supabase as any).from('a_orders').insert(payload);
+        const { data, error } = await (supabase as any).from('a_orders').insert({ ...basePayload, images: imagePaths }).select('id').single();
         if (error) throw error;
-        toast.success(teamId && teamId !== '__none__' ? 'A-order sparad' : 'A-order sparad som utestående');
+        orderId = data.id;
+      }
+      // Upload pending images and update images column
+      if (pendingImages.length && orderId) {
+        const newPaths = await uploadPendingImages(orderId);
+        if (newPaths.length) {
+          const merged = [...imagePaths, ...newPaths];
+          await (supabase as any).from('a_orders').update({ images: merged }).eq('id', orderId);
+          setImagePaths(merged);
+          setPendingImages([]);
+        }
+      }
+      if (!opts?.silent) {
+        toast.success(isEdit ? 'A-order uppdaterad' : (teamId && teamId !== '__none__' ? 'A-order sparad' : 'A-order sparad som utestående'));
       }
       onSaved?.();
-      onOpenChange(false);
+      return orderId || null;
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Kunde inte spara');
+      return null;
     } finally {
       setSaving(false);
     }
   }
+
+  async function fetchSavedOrder(orderId: string) {
+    const { data, error } = await (supabase as any).from('a_orders').select('*, montor_teams(*)').eq('id', orderId).maybeSingle();
+    if (error || !data) throw error || new Error('Kunde inte hämta ordern');
+    return data;
+  }
+
+  async function downloadPdf() {
+    if (!teamId || teamId === '__none__') { toast.error('Tilldela montör först'); return; }
+    const orderId = await save({ silent: true });
+    if (!orderId) return;
+    const o = await fetchSavedOrder(orderId);
+    const logo = await loadAOrderLogo();
+    const doc = buildAOrderPdf({
+      date: o.date,
+      orderNumber: o.order_number,
+      customerAddress: o.customer_address || '',
+      customerName: o.customer_name,
+      lines: o.line_items || [],
+      description: o.description,
+      team: o.montor_teams,
+      logoDataUrl: logo,
+    });
+    const addrSafe = String(o.customer_address || 'adress').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
+    doc.save(`A-ORDER-${o.order_number}-${addrSafe}.pdf`);
+  }
+
+  async function doSend() {
+    setSending(true);
+    try {
+      const orderId = await save({ silent: true });
+      if (!orderId) return;
+      const o = await fetchSavedOrder(orderId);
+      if (!o.team_id || !o.montor_teams?.email) {
+        toast.error('Tilldela montör med e-post först');
+        return;
+      }
+      const logo = await loadAOrderLogo();
+      const doc = buildAOrderPdf({
+        date: o.date,
+        orderNumber: o.order_number,
+        customerAddress: o.customer_address || '',
+        customerName: o.customer_name,
+        lines: o.line_items || [],
+        description: o.description,
+        team: o.montor_teams,
+        logoDataUrl: logo,
+      });
+      // datauristring -> base64
+      const dataUri = doc.output('datauristring');
+      const pdf_base64 = dataUri.split(',')[1] || '';
+      const { error } = await supabase.functions.invoke('send-a-order', {
+        body: { a_order_id: orderId, pdf_base64 },
+      });
+      if (error) throw error;
+      toast.success('A-order skickad till montör');
+      setConfirmSend(false);
+      onSaved?.();
+      onOpenChange(false);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Kunde inte skicka');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const hasTeam = teamId && teamId !== '__none__';
+  const selectedTeam = teams.find(t => t.id === teamId);
+  const teamEmail = selectedTeam?.email || null;
+  const totalImages = imagePaths.length + pendingImages.length;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -275,9 +429,9 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               )}
               {lines.map(l => (
                 <div key={l.id} className="grid grid-cols-12 gap-2 items-center px-3 py-2">
-                  <Input className="col-span-6 h-8" value={l.name} onChange={e => updateLine(l.id, { name: e.target.value })} placeholder="Beskrivning" />
+                  <Input className="col-span-5 h-8" value={l.name} onChange={e => updateLine(l.id, { name: e.target.value })} placeholder="Beskrivning" />
                   <Input className="col-span-2 h-8" type="number" step="0.01" value={l.unit_price} onChange={e => updateLine(l.id, { unit_price: Number(e.target.value) || 0 })} />
-                  <Input className="col-span-1 h-8" type="number" step="0.01" value={l.qty} onChange={e => updateLine(l.id, { qty: Number(e.target.value) || 0 })} />
+                  <Input className="col-span-2 h-8" type="number" step="0.01" value={l.qty} onChange={e => updateLine(l.id, { qty: Number(e.target.value) || 0 })} />
                   <div className="col-span-2 text-right text-sm font-medium">{fmt(l.amount)}</div>
                   <button className="col-span-1 justify-self-end text-muted-foreground hover:text-destructive" onClick={() => removeLine(l.id)}>
                     <Trash2 className="h-4 w-4" />
@@ -330,13 +484,75 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
             </Select>
           </div>
 
-          <div className="flex justify-end gap-2 pb-6">
+          {/* Images */}
+          <div className="space-y-2">
+            <Label>Bilder ({totalImages})</Label>
+            <div
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files) handleFiles(e.dataTransfer.files); }}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-md p-4 text-center text-sm cursor-pointer ${dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 hover:border-muted-foreground/60'}`}
+            >
+              <Upload className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+              Klicka eller dra hit bilder (JPG/PNG)
+              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => { if (e.target.files) handleFiles(e.target.files); e.target.value = ''; }} />
+            </div>
+            {totalImages > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {imagePaths.map(p => (
+                  <div key={p} className="relative group rounded-md overflow-hidden border">
+                    <SignedImage value={p} bucket="case-documents" className="w-full h-24 object-cover" />
+                    <button type="button" onClick={() => setImagePaths(prev => prev.filter(x => x !== p))} className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {pendingImages.map(p => (
+                  <div key={p.id} className="relative group rounded-md overflow-hidden border">
+                    <img src={p.dataUrl} alt={p.name} className="w-full h-24 object-cover" />
+                    <span className="absolute bottom-1 left-1 bg-amber-500 text-white text-[10px] px-1 rounded">ny</span>
+                    <button type="button" onClick={() => setPendingImages(prev => prev.filter(x => x.id !== p.id))} className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">Bilderna bifogas mejlet som separata bilagor (bäddas inte in i PDF:en).</p>
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-2 pb-6">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Avbryt</Button>
-            <Button onClick={save} disabled={saving} className="gap-2">
+            <Button variant="outline" onClick={downloadPdf} disabled={!hasTeam || saving} className="gap-2" title={!hasTeam ? 'Tilldela montör först' : undefined}>
+              <Download className="h-4 w-4" /> Ladda ner PDF
+            </Button>
+            <Button variant="default" onClick={() => setConfirmSend(true)} disabled={!hasTeam || !teamEmail || saving || sending} className="gap-2 bg-green-600 hover:bg-green-700" title={!hasTeam ? 'Tilldela montör först' : (!teamEmail ? 'Montörsteamet saknar e-post' : undefined)}>
+              <Send className="h-4 w-4" /> Skicka till montör
+            </Button>
+            <Button onClick={() => save()} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {teamId && teamId !== '__none__' ? 'Spara' : 'Spara som utestående'}
+              {hasTeam ? 'Spara' : 'Spara som utestående'}
             </Button>
           </div>
+
+          <AlertDialog open={confirmSend} onOpenChange={setConfirmSend}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Skicka A-order?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Mottagare: <strong>{teamEmail || '—'}</strong><br />
+                  Bifogas: PDF + {totalImages} {totalImages === 1 ? 'bild' : 'bilder'}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={sending}>Avbryt</AlertDialogCancel>
+                <AlertDialogAction onClick={(e) => { e.preventDefault(); doSend(); }} disabled={sending}>
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Skicka'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </SheetContent>
     </Sheet>

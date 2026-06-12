@@ -6,6 +6,8 @@ import { CleanAddressesView } from './CleanAddressesView';
 import { PayoutUploadView } from './PayoutUploadView';
 import { ActivityLogView } from './ActivityLogView';
 import { LinkOrdersView } from './LinkOrdersView';
+import { MontorTeamsAdmin } from '@/components/aorders/MontorTeamsAdmin';
+import { AOrderPricesAdmin } from '@/components/aorders/AOrderPricesAdmin';
 
 interface AdminViewProps {
   currentUser: string;
@@ -17,6 +19,8 @@ const ADMIN_SUBTABS = [
   { value: 'clean-addresses', label: 'Städa adresser' },
   { value: 'payouts', label: 'Ladda upp utbetalning' },
   { value: 'link-orders', label: 'Koppla ordrar' },
+  { value: 'teams', label: 'Montörsteam' },
+  { value: 'prices', label: 'Prislista A-order' },
   { value: 'activity-log', label: 'Aktivitetslogg' },
 ] as const;
 
@@ -50,6 +54,12 @@ export function AdminView({ currentUser }: AdminViewProps) {
         </TabsContent>
         <TabsContent value="link-orders" className="mt-4">
           <LinkOrdersView currentUser={currentUser} />
+        </TabsContent>
+        <TabsContent value="teams" className="mt-4">
+          <MontorTeamsAdmin />
+        </TabsContent>
+        <TabsContent value="prices" className="mt-4">
+          <AOrderPricesAdmin />
         </TabsContent>
         <TabsContent value="activity-log" className="mt-4">
           <ActivityLogView />
