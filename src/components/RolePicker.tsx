@@ -36,7 +36,7 @@ export function RolePicker() {
     roleType === 'coordinator' ? COORDINATORS : [];
 
   const handleLogin = async () => {
-    if (isLocked || !name || pin.length !== 4 || loading) return;
+    if (isLocked || !name || pin.length < 4 || pin.length > 6 || loading) return;
     setLoading(true);
     setPinError(null);
 
