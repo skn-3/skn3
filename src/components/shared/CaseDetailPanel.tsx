@@ -1739,23 +1739,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 <FileText className="h-4 w-4" /> A-ORDER & Faktura
               </h3>
               {isSeller && (
-                internalAOrders && internalAOrders.length > 0 ? (
-                  <Button type="button" size="sm" variant="outline" className="gap-1 h-8" onClick={() => { setEditingAOrder(internalAOrders[0]); setAOrderFormOpen(true); }}>
-                    Öppna A-order #{internalAOrders[0].order_number}
-                  </Button>
-                ) : (
-                  <Button type="button" size="sm" variant="outline" className="gap-1 h-8" onClick={() => { setEditingAOrder(null); setAOrderFormOpen(true); }}>
-                    <Plus className="h-3.5 w-3.5" /> Skapa A-order
-                  </Button>
-                )
+                <Button type="button" size="sm" variant="outline" className="gap-1 h-8" onClick={() => { setEditingAOrder(null); setAOrderFormOpen(true); }}>
+                  <Plus className="h-3.5 w-3.5" /> Skapa A-order
+                </Button>
               )}
             </div>
-            {internalAOrders && internalAOrders.length > 0 && (
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm flex items-center justify-between">
-                <span>A-order #{internalAOrders[0].order_number} skapad{internalAOrders[0].montor_teams?.name ? ` · Montör: ${internalAOrders[0].montor_teams.name}` : ' · Utestående'}</span>
-                <span className="font-medium">{Math.round(Number(internalAOrders[0].total_amount || 0)).toLocaleString('sv-SE')} kr</span>
-              </div>
-            )}
             {linkedOrders && linkedOrders.length > 0 ? (
               <div className="space-y-2">
                 {linkedOrders.map((order: any, idx: number) => {
@@ -1766,17 +1754,29 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     : <Badge className="bg-yellow-500 hover:bg-yellow-500/90 text-white">A-ORDER</Badge>;
                   return (
                     <div key={order.id} className="rounded-md border p-3 space-y-1 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">Order #{order.order_number ?? idx + 1}</span>
-                        {statusBadge}
-                      </div>
-                      {order.total_amount != null && (
-                        <div className="text-muted-foreground">
-                          Totalt: <span className="text-foreground font-medium">{Number(order.total_amount).toLocaleString('sv-SE')} kr</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">A-order #{order.order_number ?? idx + 1}</span>
+                        <div className="flex items-center gap-2">
+                          {statusBadge}
+                          {isSeller && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => { setEditingAOrder(order); setAOrderFormOpen(true); }}
+                            >
+                              Öppna
+                            </Button>
+                          )}
                         </div>
-                      )}
+                      </div>
+                      <div className="text-muted-foreground">
+                        Summa: <span className="text-foreground font-semibold">{Math.round(Number(order.total_amount || 0)).toLocaleString('sv-SE')} kr</span>
+                        {order.montor_teams?.name && <> · Montör: {order.montor_teams.name}</>}
+                      </div>
                       {order.invoice_number && (
-                        <div className="text-muted-foreground">Fakturanr: {order.invoice_number}</div>
+                        <div className="text-muted-foreground text-xs">Fakturanr: {order.invoice_number}</div>
                       )}
                       {order.date && (
                         <div className="text-muted-foreground text-xs">{order.date}</div>
@@ -1797,6 +1797,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 <Info className="h-4 w-4" /> Ingen A-ORDER kopplad ännu
               </div>
             )}
+
             <Popover open={linkOpen} onOpenChange={setLinkOpen}>
               <PopoverTrigger asChild>
                 {hasLinked ? (
