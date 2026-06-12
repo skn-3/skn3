@@ -409,6 +409,30 @@ export function AOrdersView({ currentUser }: Props) {
         onOpenChange={(v) => { if (!v) setCreditFor(null); }}
         currentUser={currentUser}
       />
+
+      <AlertDialog open={!!deleteFor} onOpenChange={(v) => { if (!v) setDeleteFor(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Radera A-order #{deleteFor?.order_number}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Detta går inte att ångra. Kopplade filer tas också bort.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingId === deleteFor?.id}>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={deletingId === deleteFor?.id}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete(deleteFor);
+              }}
+            >
+              {deletingId === deleteFor?.id ? 'Raderar...' : 'Radera'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
