@@ -70,3 +70,26 @@ export const FACADE_LABEL: Record<FacadeType, string> = {
   sten: 'Sten/Betong',
   puts: 'Puts',
 };
+
+/** Normalize a single line item from any source (camelCase, snake_case, missing amount, etc.). */
+export function normalizeLine(l: any): AOrderLine {
+  const unit_price = Number(l?.unit_price ?? l?.unitPrice ?? 0) || 0;
+  const qty = Number(l?.qty ?? l?.quantity ?? 0) || 0;
+  const rawAmount = l?.amount ?? l?.sum;
+  const amount = Math.round(Number(rawAmount ?? unit_price * qty) || 0);
+  return {
+    id: l?.id ?? makeId(),
+    name: String(l?.name ?? ''),
+    unit_price,
+    qty,
+    amount,
+  };
+}
+
+/** Normalize an array of line items; filters out fully empty rows. */
+export function normalizeLines(arr: any): AOrderLine[] {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map(normalizeLine)
+    .filter(l => l.name.trim() !== '' || l.unit_price !== 0 || l.qty !== 0 || l.amount !== 0);
+}
