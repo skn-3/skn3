@@ -429,9 +429,9 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               )}
               {lines.map(l => (
                 <div key={l.id} className="grid grid-cols-12 gap-2 items-center px-3 py-2">
-                  <Input className="col-span-6 h-8" value={l.name} onChange={e => updateLine(l.id, { name: e.target.value })} placeholder="Beskrivning" />
+                  <Input className="col-span-5 h-8" value={l.name} onChange={e => updateLine(l.id, { name: e.target.value })} placeholder="Beskrivning" />
                   <Input className="col-span-2 h-8" type="number" step="0.01" value={l.unit_price} onChange={e => updateLine(l.id, { unit_price: Number(e.target.value) || 0 })} />
-                  <Input className="col-span-1 h-8" type="number" step="0.01" value={l.qty} onChange={e => updateLine(l.id, { qty: Number(e.target.value) || 0 })} />
+                  <Input className="col-span-2 h-8" type="number" step="0.01" value={l.qty} onChange={e => updateLine(l.id, { qty: Number(e.target.value) || 0 })} />
                   <div className="col-span-2 text-right text-sm font-medium">{fmt(l.amount)}</div>
                   <button className="col-span-1 justify-self-end text-muted-foreground hover:text-destructive" onClick={() => removeLine(l.id)}>
                     <Trash2 className="h-4 w-4" />
