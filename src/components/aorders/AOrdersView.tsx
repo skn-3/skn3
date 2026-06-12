@@ -242,23 +242,33 @@ export function AOrdersView({ currentUser }: Props) {
                 )}
                 {filteredHistory.map(o => {
                   const intern = internalOf(o);
+                  const isCredit = o.status === 'credited';
                   const meta = STATUS_BADGE[o.status] || STATUS_BADGE.order;
                   return (
                     <tr key={o.id} className="hover:bg-muted/30">
-                      <td className="px-3 py-2 font-mono">#{o.order_number}</td>
+                      <td className="px-3 py-2 font-mono">{o.order_number ? `#${o.order_number}` : <span className="text-muted-foreground">—</span>}</td>
                       <td className="px-3 py-2">{o.date}</td>
                       <td className="px-3 py-2">{o.customer_name || '—'}</td>
                       <td className="px-3 py-2">{o.customer_address}</td>
                       <td className="px-3 py-2">
                         {o.montor_teams?.name ? o.montor_teams.name : <Badge className="bg-yellow-500 hover:bg-yellow-500/90 text-white">Ej tilldelad</Badge>}
                       </td>
-                      <td className="px-3 py-2 text-right">
+                      <td className={`px-3 py-2 text-right ${isCredit ? 'text-red-600' : ''}`}>
                         {fmt(o.total_amount)}
                         {intern > 0 && <div className="text-[10px] text-muted-foreground">internt {fmt(intern)}</div>}
                       </td>
                       <td className="px-3 py-2">
-                        <Badge className={meta.cls}>{meta.label}</Badge>
-                        {o.order_sent_at && (
+                        <Badge className={meta.cls}>{isCredit ? 'Kreditfaktura' : meta.label}</Badge>
+                        {o.invoice_number && (
+                          <div className="text-[10px] text-muted-foreground mt-1">
+                            {isCredit ? 'Kreditnr' : 'Fakturanr'}: {o.invoice_number}
+                            {o.invoice_sent_at && ` · ${new Date(o.invoice_sent_at).toLocaleDateString('sv-SE')}`}
+                          </div>
+                        )}
+                        {isCredit && o.credited_from_order_id && (
+                          <div className="text-[10px] text-red-600 mt-0.5">avser tidigare faktura</div>
+                        )}
+                        {o.order_sent_at && !o.invoice_number && (
                           <div className="text-[10px] text-muted-foreground mt-1">Skickad {new Date(o.order_sent_at).toLocaleDateString('sv-SE')}</div>
                         )}
                       </td>
@@ -267,9 +277,21 @@ export function AOrdersView({ currentUser }: Props) {
                           <Button size="sm" variant="ghost" onClick={() => rowPdf(o)} disabled={busyId === o.id} title="PDF">
                             {busyId === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => rowSend(o)} disabled={busyId === o.id || !o.team_id} title="Skicka till montör">
-                            <Send className="h-3 w-3" />
-                          </Button>
+                          {o.status === 'order' && o.team_id && (
+                            <Button size="sm" variant="ghost" onClick={() => setInvoiceFor(o)} title="Fakturera" className="text-green-700">
+                              <Receipt className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {o.status === 'invoiced' && (
+                            <Button size="sm" variant="ghost" onClick={() => setCreditFor(o)} title="Kreditera" className="text-red-600">
+                              <RotateCcw className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {o.status === 'order' && (
+                            <Button size="sm" variant="ghost" onClick={() => rowSend(o)} disabled={busyId === o.id || !o.team_id} title="Skicka A-order till montör">
+                              <Send className="h-3 w-3" />
+                            </Button>
+                          )}
                           <Button size="sm" variant="ghost" onClick={() => openEdit(o)}>Öppna</Button>
                         </div>
                       </td>
@@ -279,6 +301,10 @@ export function AOrdersView({ currentUser }: Props) {
               </tbody>
             </table>
           </div>
+        </TabsContent>
+
+        <TabsContent value="import">
+          <ImportInvoicesView />
         </TabsContent>
       </Tabs>
 
