@@ -327,10 +327,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   };
 
 
-  // Auto-fyll order_number från n3prenad-ordern om ärendet saknar det
+  // Auto-fyll order_number från ärendets lokala a_order om ärendet saknar det.
   useEffect(() => {
     const existing = ((caseData as any).order_number || '').toString().trim();
-    const fromOrder = linkedOrder?.order_number != null ? String(linkedOrder.order_number).trim() : '';
+    const first = linkedOrders && linkedOrders[0];
+    const fromOrder = first?.order_number != null ? String(first.order_number).trim() : '';
     if (!existing && fromOrder) {
       (async () => {
         try {
@@ -338,7 +339,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           await createCaseEvent({
             case_id: caseData.id,
             event_type: 'update',
-            description: `Ordernummer auto-fyllt från n3prenad: ${fromOrder}`,
+            description: `Ordernummer auto-fyllt från A-order: ${fromOrder}`,
             created_by: currentUser,
           });
           queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
@@ -350,17 +351,19 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkedOrder?.order_number, (caseData as any).order_number, caseData.id]);
+  }, [linkedOrders?.[0]?.order_number, (caseData as any).order_number, caseData.id]);
 
-  // Auto-fyll antal enheter (units) från n3prenad: windows_count + doors_count.
+  // Auto-fyll antal enheter (units) från ärendets lokala a_order: window+door+roof_window.
   // Skriver ALDRIG över ett manuellt ifyllt värde — fyller bara där units saknas.
   useEffect(() => {
     const existingUnits = (caseData as any).units;
     if (existingUnits != null) return;
-    if (!linkedOrder) return;
-    const w = Number(linkedOrder.windows_count ?? 0) || 0;
-    const d = Number(linkedOrder.doors_count ?? 0) || 0;
-    const sum = w + d;
+    const first = linkedOrders && linkedOrders[0];
+    if (!first) return;
+    const w = Number(first.window_count ?? 0) || 0;
+    const d = Number(first.door_count ?? 0) || 0;
+    const r = Number(first.roof_window_count ?? 0) || 0;
+    const sum = w + d + r;
     if (sum <= 0) return;
     (async () => {
       try {
@@ -368,7 +371,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         await createCaseEvent({
           case_id: caseData.id,
           event_type: 'update',
-          description: `Antal enheter auto-fyllt från n3prenad: ${sum} (fönster ${w} + dörrar ${d})`,
+          description: `Antal enheter auto-fyllt från A-order: ${sum} (fönster ${w} + dörrar ${d}${r > 0 ? ` + takfönster ${r}` : ''})`,
           created_by: currentUser,
         });
         queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
@@ -379,7 +382,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkedOrder?.windows_count, linkedOrder?.doors_count, (caseData as any).units, caseData.id]);
+  }, [linkedOrders?.[0]?.window_count, linkedOrders?.[0]?.door_count, linkedOrders?.[0]?.roof_window_count, (caseData as any).units, caseData.id]);
+
 
 
 
@@ -387,19 +391,20 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkSearch, setLinkSearch] = useState('');
 
+  // Lokala okopplade a_orders (case_id IS NULL). Filtreras vidare klient-sidan i popovern.
   const { data: unlinkedOrders = [] } = useQuery({
     queryKey: ['unlinked-orders'],
     queryFn: async () => {
-      const { data: validCases, error: casesErr } = await supabase
-        .from('cases')
-        .select('id');
-      if (casesErr) {
-        console.error('[unlinkedOrders] caseflow cases error:', casesErr);
+      const { data, error } = await (supabase as any)
+        .from('a_orders')
+        .select('id, order_number, invoice_number, customer_name, customer_address, total_amount, status, date, created_at')
+        .is('case_id', null)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('[unlinkedOrders] local query error:', error);
+        return [];
       }
-      const knownIds = (validCases || []).map((c: any) => c.id as string);
-      const orders = await listUnlinkedOrders(knownIds);
-      console.log('[unlinkedOrders] gateway returned:', orders.length);
-      return orders;
+      return data || [];
     },
     enabled: linkOpen,           // hämta först när "Koppla"-popovern öppnas
     staleTime: 30_000,           // cacha 30s
