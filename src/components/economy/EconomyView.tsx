@@ -166,8 +166,8 @@ export function EconomyView() {
       }
       costsByCase.set(c.case_id, cur);
     });
-    const orderByCase = new Map<string, OrderRow>();
-    orders.forEach(o => { if (o.case_id) orderByCase.set(o.case_id, o); });
+
+
 
     return cases.map(c => {
       const cd = docsByCase.get(c.id) || [];
