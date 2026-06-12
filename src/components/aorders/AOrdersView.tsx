@@ -389,6 +389,7 @@ export function AOrdersView({ currentUser }: Props) {
       </Dialog>
 
       <AOrderForm
+        key={editing?.id ?? 'new'}
         open={formOpen}
         onOpenChange={(v) => { setFormOpen(v); if (!v) setEditing(null); }}
         order={editing}

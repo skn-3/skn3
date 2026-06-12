@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { listAllOrders } from '@/integrations/orderGateway';
+import { normalizeLines } from '@/lib/aOrderLines';
 
 type Team = {
   id: string;
@@ -39,6 +40,42 @@ export function N3prenadImportView() {
   const [report, setReport] = useState<Report | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [repairing, setRepairing] = useState(false);
+  const [repairReport, setRepairReport] = useState<{ scanned: number; repaired: number } | null>(null);
+
+  async function repairImportedLines() {
+    setRepairing(true);
+    setRepairReport(null);
+    try {
+      const { data, error } = await (supabase as any)
+        .from('a_orders')
+        .select('id, line_items')
+        .not('source_n3prenad_id', 'is', null);
+      if (error) throw error;
+      const rows = (data || []) as Array<{ id: string; line_items: any }>;
+      let repaired = 0;
+      for (const r of rows) {
+        const normalized = normalizeLines(r.line_items);
+        const before = JSON.stringify(Array.isArray(r.line_items) ? r.line_items : []);
+        const after = JSON.stringify(normalized);
+        if (before !== after) {
+          const { error: uErr } = await (supabase as any)
+            .from('a_orders')
+            .update({ line_items: normalized })
+            .eq('id', r.id);
+          if (!uErr) repaired += 1;
+        }
+      }
+      setRepairReport({ scanned: rows.length, repaired });
+      toast.success(`Reparerade ${repaired} av ${rows.length} rader`);
+      qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Reparation misslyckades');
+    } finally {
+      setRepairing(false);
+    }
+  }
+
 
   const { data: testOrders = [], refetch: refetchTest } = useQuery({
     queryKey: ['a_orders_test_only'],
@@ -167,7 +204,7 @@ export function N3prenadImportView() {
           door_count: Number(o.doors_count || 0),
           roof_window_count: 0,
           km_distance: Number(o.distance_km || 0),
-          line_items: o.line_items || [],
+          line_items: normalizeLines(o.line_items),
           description: o.description || '',
           total_amount: Number(o.total_amount || 0),
           status: o.status || 'order',
@@ -369,6 +406,25 @@ export function N3prenadImportView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reparation av importerade rader */}
+      <div className="rounded-md border p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium">Reparera importerade rader</div>
+            <div className="text-sm text-muted-foreground">
+              Normaliserar line_items för alla importerade A-ordrar (camelCase → snake_case, räknar om amount). Idempotent.
+            </div>
+            {repairReport && (
+              <div className="text-sm mt-1">Reparerade <b>{repairReport.repaired}</b> av <b>{repairReport.scanned}</b> rader</div>
+            )}
+          </div>
+          <Button variant="outline" onClick={repairImportedLines} disabled={repairing} className="gap-2">
+            {repairing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Reparera importerade rader
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
