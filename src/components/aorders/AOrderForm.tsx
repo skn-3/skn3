@@ -484,13 +484,75 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
             </Select>
           </div>
 
-          <div className="flex justify-end gap-2 pb-6">
+          {/* Images */}
+          <div className="space-y-2">
+            <Label>Bilder ({totalImages})</Label>
+            <div
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files) handleFiles(e.dataTransfer.files); }}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-md p-4 text-center text-sm cursor-pointer ${dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 hover:border-muted-foreground/60'}`}
+            >
+              <Upload className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+              Klicka eller dra hit bilder (JPG/PNG)
+              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => { if (e.target.files) handleFiles(e.target.files); e.target.value = ''; }} />
+            </div>
+            {totalImages > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {imagePaths.map(p => (
+                  <div key={p} className="relative group rounded-md overflow-hidden border">
+                    <SignedImage value={p} bucket="case-documents" className="w-full h-24 object-cover" />
+                    <button type="button" onClick={() => setImagePaths(prev => prev.filter(x => x !== p))} className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {pendingImages.map(p => (
+                  <div key={p.id} className="relative group rounded-md overflow-hidden border">
+                    <img src={p.dataUrl} alt={p.name} className="w-full h-24 object-cover" />
+                    <span className="absolute bottom-1 left-1 bg-amber-500 text-white text-[10px] px-1 rounded">ny</span>
+                    <button type="button" onClick={() => setPendingImages(prev => prev.filter(x => x.id !== p.id))} className="absolute top-1 right-1 bg-black/70 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">Bilderna bifogas mejlet som separata bilagor (bäddas inte in i PDF:en).</p>
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-2 pb-6">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Avbryt</Button>
-            <Button onClick={save} disabled={saving} className="gap-2">
+            <Button variant="outline" onClick={downloadPdf} disabled={!hasTeam || saving} className="gap-2" title={!hasTeam ? 'Tilldela montör först' : undefined}>
+              <Download className="h-4 w-4" /> Ladda ner PDF
+            </Button>
+            <Button variant="default" onClick={() => setConfirmSend(true)} disabled={!hasTeam || !teamEmail || saving || sending} className="gap-2 bg-green-600 hover:bg-green-700" title={!hasTeam ? 'Tilldela montör först' : (!teamEmail ? 'Montörsteamet saknar e-post' : undefined)}>
+              <Send className="h-4 w-4" /> Skicka till montör
+            </Button>
+            <Button onClick={() => save()} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {teamId && teamId !== '__none__' ? 'Spara' : 'Spara som utestående'}
+              {hasTeam ? 'Spara' : 'Spara som utestående'}
             </Button>
           </div>
+
+          <AlertDialog open={confirmSend} onOpenChange={setConfirmSend}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Skicka A-order?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Mottagare: <strong>{teamEmail || '—'}</strong><br />
+                  Bifogas: PDF + {totalImages} {totalImages === 1 ? 'bild' : 'bilder'}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={sending}>Avbryt</AlertDialogCancel>
+                <AlertDialogAction onClick={(e) => { e.preventDefault(); doSend(); }} disabled={sending}>
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Skicka'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </SheetContent>
     </Sheet>
