@@ -2,6 +2,7 @@
 // förekomma i PDF, mejl eller bilagor som skickas till montör. Denna generator
 // tar EJ emot några internal-fält. Lägg aldrig till dem här.
 import jsPDF from 'jspdf';
+import { normalizeLines } from './aOrderLines';
 
 export interface AOrderPdfLine {
   name: string;

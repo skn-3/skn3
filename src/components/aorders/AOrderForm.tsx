@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { generateAutoLines, sumLines, type AOrderLine, type FacadeType } from '@/lib/aOrderLines';
+import { generateAutoLines, normalizeLines, sumLines, type AOrderLine, type FacadeType } from '@/lib/aOrderLines';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { SignedImage } from '@/components/shared/SignedImage';
 
@@ -57,7 +57,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [internalHourRate, setInternalHourRate] = useState<number>(order?.internal_hour_rate ?? 0);
   const [internalExtraAmount, setInternalExtraAmount] = useState<number>(order?.internal_extra_amount ?? 0);
 
-  const [lines, setLines] = useState<AOrderLine[]>(order?.line_items?.length ? order.line_items : []);
+  const [lines, setLines] = useState<AOrderLine[]>(normalizeLines(order?.line_items));
   const [autoLocked, setAutoLocked] = useState<boolean>(!!order?.id); // when editing existing, don't auto-regenerate
 
   // Images: existing paths in storage + pending uploads (compressed data URLs)
