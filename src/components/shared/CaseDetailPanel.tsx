@@ -337,6 +337,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [editingOffer, setEditingOffer] = useState<any | null>(null);
   const openNewOffer = () => { setEditingOffer(null); setOfferSheetOpen(true); };
   const openEditOffer = (o: any) => { setEditingOffer(o); setOfferSheetOpen(true); };
+  const [aOrderFormOpen, setAOrderFormOpen] = useState(false);
+  const [editingAOrder, setEditingAOrder] = useState<any | null>(null);
   const [economyOpsOpen, setEconomyOpsOpen] = useState(false);
 
   const openPayoutPdf = async (path: string) => {
