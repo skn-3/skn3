@@ -40,6 +40,42 @@ export function N3prenadImportView() {
   const [report, setReport] = useState<Report | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [repairing, setRepairing] = useState(false);
+  const [repairReport, setRepairReport] = useState<{ scanned: number; repaired: number } | null>(null);
+
+  async function repairImportedLines() {
+    setRepairing(true);
+    setRepairReport(null);
+    try {
+      const { data, error } = await (supabase as any)
+        .from('a_orders')
+        .select('id, line_items')
+        .not('source_n3prenad_id', 'is', null);
+      if (error) throw error;
+      const rows = (data || []) as Array<{ id: string; line_items: any }>;
+      let repaired = 0;
+      for (const r of rows) {
+        const normalized = normalizeLines(r.line_items);
+        const before = JSON.stringify(Array.isArray(r.line_items) ? r.line_items : []);
+        const after = JSON.stringify(normalized);
+        if (before !== after) {
+          const { error: uErr } = await (supabase as any)
+            .from('a_orders')
+            .update({ line_items: normalized })
+            .eq('id', r.id);
+          if (!uErr) repaired += 1;
+        }
+      }
+      setRepairReport({ scanned: rows.length, repaired });
+      toast.success(`Reparerade ${repaired} av ${rows.length} rader`);
+      qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Reparation misslyckades');
+    } finally {
+      setRepairing(false);
+    }
+  }
+
 
   const { data: testOrders = [], refetch: refetchTest } = useQuery({
     queryKey: ['a_orders_test_only'],
