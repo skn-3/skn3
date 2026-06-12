@@ -163,6 +163,15 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
     });
   }
 
+  if (subNote && subNote.trim()) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...(variant === 'credit' ? RED : DARK));
+    if (y > 250) { doc.addPage(); y = 20; }
+    doc.text(subNote, margin, y + 4);
+    y += 6;
+  }
+
   // FOOTER block
   let fy = Math.max(y + 10, 225);
   doc.setFont('helvetica', 'bold');
