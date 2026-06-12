@@ -79,6 +79,71 @@ export function AOrdersView({ currentUser }: Props) {
     return Math.round(Number(o.internal_extra_hours || 0) * Number(o.internal_hour_rate || 0) + Number(o.internal_extra_amount || 0));
   }
 
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function fetchOrder(id: string) {
+    const { data, error } = await (supabase as any).from('a_orders').select('*, montor_teams(*)').eq('id', id).maybeSingle();
+    if (error || !data) throw error || new Error('Hittades inte');
+    return data;
+  }
+
+  async function rowPdf(o: any) {
+    setBusyId(o.id);
+    try {
+      if (o.pdf_path) {
+        const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(o.pdf_path, 600);
+        if (!error && data?.signedUrl) { window.open(data.signedUrl, '_blank'); return; }
+      }
+      const full = await fetchOrder(o.id);
+      const logo = await loadAOrderLogo();
+      const doc = buildAOrderPdf({
+        date: full.date,
+        orderNumber: full.order_number,
+        customerAddress: full.customer_address || '',
+        customerName: full.customer_name,
+        lines: full.line_items || [],
+        description: full.description,
+        team: full.montor_teams,
+        logoDataUrl: logo,
+      });
+      const addrSafe = String(full.customer_address || 'adress').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
+      doc.save(`A-ORDER-${full.order_number}-${addrSafe}.pdf`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte hämta PDF');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function rowSend(o: any) {
+    if (!o.team_id) { toast.error('Tilldela montör först'); return; }
+    setBusyId(o.id);
+    try {
+      const full = await fetchOrder(o.id);
+      if (!full.montor_teams?.email) { toast.error('Montörsteamet saknar e-post'); return; }
+      const logo = await loadAOrderLogo();
+      const doc = buildAOrderPdf({
+        date: full.date,
+        orderNumber: full.order_number,
+        customerAddress: full.customer_address || '',
+        customerName: full.customer_name,
+        lines: full.line_items || [],
+        description: full.description,
+        team: full.montor_teams,
+        logoDataUrl: logo,
+      });
+      const pdf_base64 = (doc.output('datauristring').split(',')[1]) || '';
+      const { error } = await supabase.functions.invoke('send-a-order', { body: { a_order_id: o.id, pdf_base64 } });
+      if (error) throw error;
+      toast.success('A-order skickad');
+      qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte skicka');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="px-3 md:px-6 space-y-4">
       <div className="flex items-center justify-between">
