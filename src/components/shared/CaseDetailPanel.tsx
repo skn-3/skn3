@@ -2346,6 +2346,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         </SheetContent>
       </Sheet>
 
+      {/* A-order sheet */}
+      <AOrderForm
+        open={aOrderFormOpen}
+        onOpenChange={(v) => { setAOrderFormOpen(v); if (!v) setEditingAOrder(null); }}
+        order={editingAOrder}
+        prefill={editingAOrder ? null : {
+          customer_name: caseData.customer_name || '',
+          customer_address: caseData.address || '',
+          customer_phone: caseData.customer_phone || '',
+          case_id: caseData.id,
+        }}
+        currentUser={currentUser}
+        onSaved={() => { refetchInternalAOrders(); }}
+      />
+
     </div>
   );
 }
