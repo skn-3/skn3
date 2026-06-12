@@ -14,6 +14,147 @@ export type Database = {
   }
   public: {
     Tables: {
+      a_order_products: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          price: number
+          sort_order: number
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          price: number
+          sort_order?: number
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          price?: number
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      a_orders: {
+        Row: {
+          case_id: string | null
+          created_at: string
+          created_by: string | null
+          credited_from_order_id: string | null
+          customer_address: string
+          customer_name: string | null
+          customer_phone: string | null
+          date: string
+          delivery_time: string | null
+          description: string | null
+          door_count: number
+          facade_type: string
+          id: string
+          internal_extra_amount: number | null
+          internal_extra_hours: number | null
+          internal_hour_rate: number | null
+          invoice_number: string | null
+          invoice_sent_at: string | null
+          km_distance: number
+          line_items: Json
+          order_number: number
+          pdf_path: string | null
+          roof_window_count: number
+          scheduled_delivery: boolean | null
+          source_n3prenad_id: string | null
+          status: string
+          team_id: string | null
+          total_amount: number
+          window_count: number
+        }
+        Insert: {
+          case_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          credited_from_order_id?: string | null
+          customer_address: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          date?: string
+          delivery_time?: string | null
+          description?: string | null
+          door_count?: number
+          facade_type?: string
+          id?: string
+          internal_extra_amount?: number | null
+          internal_extra_hours?: number | null
+          internal_hour_rate?: number | null
+          invoice_number?: string | null
+          invoice_sent_at?: string | null
+          km_distance?: number
+          line_items?: Json
+          order_number: number
+          pdf_path?: string | null
+          roof_window_count?: number
+          scheduled_delivery?: boolean | null
+          source_n3prenad_id?: string | null
+          status?: string
+          team_id?: string | null
+          total_amount?: number
+          window_count?: number
+        }
+        Update: {
+          case_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          credited_from_order_id?: string | null
+          customer_address?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          date?: string
+          delivery_time?: string | null
+          description?: string | null
+          door_count?: number
+          facade_type?: string
+          id?: string
+          internal_extra_amount?: number | null
+          internal_extra_hours?: number | null
+          internal_hour_rate?: number | null
+          invoice_number?: string | null
+          invoice_sent_at?: string | null
+          km_distance?: number
+          line_items?: Json
+          order_number?: number
+          pdf_path?: string | null
+          roof_window_count?: number
+          scheduled_delivery?: boolean | null
+          source_n3prenad_id?: string | null
+          status?: string
+          team_id?: string | null
+          total_amount?: number
+          window_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "a_orders_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "a_orders_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "montor_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_log: {
         Row: {
           action: string
@@ -423,6 +564,45 @@ export type Database = {
           insight_id?: string
           shown_at?: string
           user_name?: string
+        }
+        Relationships: []
+      }
+      montor_teams: {
+        Row: {
+          address: string | null
+          bankgiro: string | null
+          company_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          invoice_prefix: string | null
+          is_active: boolean
+          name: string
+          org_nr: string | null
+        }
+        Insert: {
+          address?: string | null
+          bankgiro?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          invoice_prefix?: string | null
+          is_active?: boolean
+          name: string
+          org_nr?: string | null
+        }
+        Update: {
+          address?: string | null
+          bankgiro?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          invoice_prefix?: string | null
+          is_active?: boolean
+          name?: string
+          org_nr?: string | null
         }
         Relationships: []
       }

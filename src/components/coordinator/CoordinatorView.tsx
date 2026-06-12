@@ -14,6 +14,7 @@ import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { EconomyView } from '@/components/economy/EconomyView';
 import { OffersView } from '@/components/offers/OffersView';
 import { UppdragView } from '@/components/uppdrag/UppdragView';
+import { AOrdersView } from '@/components/aorders/AOrdersView';
 
 interface Props {
   role: UserRole;
@@ -70,6 +71,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
         )}
         {tab === 'offers' && <OffersView currentUser={role.name} />}
         {tab === 'uppdrag' && <UppdragView />}
+        {tab === 'aorders' && <AOrdersView currentUser={role.name} />}
         {tab === 'economy' && <EconomyView />}
       </main>
 

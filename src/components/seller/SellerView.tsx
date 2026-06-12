@@ -12,6 +12,7 @@ import { AdminView } from './AdminView';
 import { EconomyView } from '@/components/economy/EconomyView';
 import { OffersView } from '@/components/offers/OffersView';
 import { UppdragView } from '@/components/uppdrag/UppdragView';
+import { AOrdersView } from '@/components/aorders/AOrdersView';
 
 
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
@@ -91,6 +92,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         )}
         {tab === 'uppdrag' && (
           <UppdragView />
+        )}
+        {tab === 'aorders' && (
+          <AOrdersView currentUser={role.name} />
         )}
         {tab === 'admin' && isAdmin && (
           <AdminView currentUser={role.name} />

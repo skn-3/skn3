@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench, Pencil, Check, Wallet, ChevronDown } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench, Pencil, Check, Wallet, ChevronDown, Plus } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { logActivity } from '@/lib/activityLog';
 import { DeviationActionSheet, DEVIATION_STATUS_META, type DeviationStatus, canActOnDeviations } from '@/components/deviations/DeviationActionPanel';
@@ -37,6 +37,7 @@ import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrde
 import { SignedImage } from '@/components/shared/SignedImage';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { OfferForm } from '@/components/offers/OfferForm';
+import { AOrderForm } from '@/components/aorders/AOrderForm';
 import { fmtKr as fmtOfferKr } from '@/lib/offerCalc';
 
 interface CaseDetailPanelProps {
@@ -281,6 +282,16 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
   });
 
+  const { data: internalAOrders, refetch: refetchInternalAOrders } = useQuery({
+    queryKey: ['internal-a-orders', caseData.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('a_orders').select('id, order_number, total_amount, status, team_id, montor_teams(name)').eq('case_id', caseData.id).order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: isSeller,
+  });
+
   const { data: caseDocs } = useQuery({
     queryKey: ['case-documents', caseData.id],
     queryFn: async () => {
@@ -326,6 +337,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [editingOffer, setEditingOffer] = useState<any | null>(null);
   const openNewOffer = () => { setEditingOffer(null); setOfferSheetOpen(true); };
   const openEditOffer = (o: any) => { setEditingOffer(o); setOfferSheetOpen(true); };
+  const [aOrderFormOpen, setAOrderFormOpen] = useState(false);
+  const [editingAOrder, setEditingAOrder] = useState<any | null>(null);
   const [economyOpsOpen, setEconomyOpsOpen] = useState(false);
 
   const openPayoutPdf = async (path: string) => {
@@ -1812,9 +1825,28 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
           {/* A-ORDER & Faktura */}
           <section className="p-4 space-y-3 border-t">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <FileText className="h-4 w-4" /> A-ORDER & Faktura
-            </h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <FileText className="h-4 w-4" /> A-ORDER & Faktura
+              </h3>
+              {isSeller && (
+                internalAOrders && internalAOrders.length > 0 ? (
+                  <Button type="button" size="sm" variant="outline" className="gap-1 h-8" onClick={() => { setEditingAOrder(internalAOrders[0]); setAOrderFormOpen(true); }}>
+                    Öppna A-order #{internalAOrders[0].order_number}
+                  </Button>
+                ) : (
+                  <Button type="button" size="sm" variant="outline" className="gap-1 h-8" onClick={() => { setEditingAOrder(null); setAOrderFormOpen(true); }}>
+                    <Plus className="h-3.5 w-3.5" /> Skapa A-order
+                  </Button>
+                )
+              )}
+            </div>
+            {internalAOrders && internalAOrders.length > 0 && (
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm flex items-center justify-between">
+                <span>A-order #{internalAOrders[0].order_number} skapad{internalAOrders[0].montor_teams?.name ? ` · Montör: ${internalAOrders[0].montor_teams.name}` : ' · Utestående'}</span>
+                <span className="font-medium">{Math.round(Number(internalAOrders[0].total_amount || 0)).toLocaleString('sv-SE')} kr</span>
+              </div>
+            )}
             {linkedOrders && linkedOrders.length > 0 ? (
               <div className="space-y-2">
                 {linkedOrders.map((order: any, idx: number) => {
@@ -2313,6 +2345,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* A-order sheet */}
+      <AOrderForm
+        open={aOrderFormOpen}
+        onOpenChange={(v) => { setAOrderFormOpen(v); if (!v) setEditingAOrder(null); }}
+        order={editingAOrder}
+        prefill={editingAOrder ? null : {
+          customer_name: caseData.customer_name || '',
+          customer_address: caseData.address || '',
+          customer_phone: caseData.customer_phone || '',
+          case_id: caseData.id,
+        }}
+        currentUser={currentUser}
+        onSaved={() => { refetchInternalAOrders(); }}
+      />
 
     </div>
   );
