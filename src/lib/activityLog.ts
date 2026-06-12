@@ -40,9 +40,13 @@ export interface LogActivityParams {
  */
 export async function logActivity(params: LogActivityParams): Promise<void> {
   try {
-    const user = getCurrentUser();
-    const actorName = params.actor?.name ?? user?.name ?? 'anonymous';
-    const actorRole = params.actor?.role ?? user?.type ?? 'unknown';
+    // Bind actor_name to authenticated identity (matches public.auth_user_name()).
+    // RLS-policyn på activity_log kräver actor_name = auth_user_name().
+    // För händelser innan inloggning (t.ex. login_failed) faller vi tillbaka på params.actor.name —
+    // den raden blockeras av RLS och loggas inte, vilket är acceptabelt (fire-and-forget).
+    const authName = getCurrentAuthName();
+    const actorName = authName ?? params.actor?.name ?? 'anonymous';
+    const actorRole = params.actor?.role ?? getStoredRoleType() ?? 'unknown';
 
     await supabase.from('activity_log').insert({
       actor_name: actorName,
