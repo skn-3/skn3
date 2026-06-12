@@ -20,7 +20,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { logActivity } from '@/lib/activityLog';
 import { DeviationActionSheet, DEVIATION_STATUS_META, type DeviationStatus, canActOnDeviations } from '@/components/deviations/DeviationActionPanel';
 import type { DeviationRow } from '@/lib/supabaseClient';
-import { getOrderByCaseId, listUnlinkedOrders, linkCase as gwLinkCase, unlinkCase as gwUnlinkCase, updateOrderDate } from '@/integrations/orderGateway';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { celebrateInvoiced } from '@/lib/celebrate';
@@ -222,29 +221,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
       await updateCase(caseData.id, updates as any);
 
-      // Sync to n3prenad if montage date/time changed
-      const montageDateChanged = (caseData.montage_date || '') !== (editForm.montage_date || '');
-      const montageTimeChanged = ((caseData as any).montage_time || '') !== editForm.montage_time;
-      if (montageDateChanged || montageTimeChanged) {
-        try {
-          const order = await getOrderByCaseId(caseData.id);
-          const newDate = editForm.montage_date || null;
-          if (order && newDate && order.date !== newDate) {
-            const ok = await updateOrderDate(order.id, newDate);
-            if (!ok) throw new Error('gateway update_date failed');
-            await createCaseEvent({
-              case_id: caseData.id,
-              event_type: 'sync',
-              description: `Montagedatum synkat till n3prenad: ${newDate}`,
-              created_by: currentUser,
-            });
-            toast.info('Datum uppdaterat även i orderssystemet');
-          }
-        } catch (syncErr) {
-          console.warn('n3prenad sync failed', syncErr);
-          toast.warning('Kunde inte synka till n3prenad — manuell uppdatering behövs');
-        }
-      }
+      // (n3prenad-synken är borttagen — A-ordrar bor lokalt nu.)
+
 
       if (changes.length > 0) {
         await createCaseEvent({
@@ -274,22 +252,18 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryFn: () => fetchCaseCosts(caseData.id),
   });
 
-  const { data: linkedOrders } = useQuery({
+  // Lokala a_orders kopplade till ärendet (källan; ersätter tidigare n3prenad-gateway-läs).
+  const { data: linkedOrders, refetch: refetchLinkedOrders } = useQuery({
     queryKey: ['linked-orders', caseData.id],
     queryFn: async () => {
-      const o = await getOrderByCaseId(caseData.id);
-      return o ? [o] : [];
-    },
-  });
-
-  const { data: internalAOrders, refetch: refetchInternalAOrders } = useQuery({
-    queryKey: ['internal-a-orders', caseData.id],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).from('a_orders').select('id, order_number, total_amount, status, team_id, montor_teams(name)').eq('case_id', caseData.id).order('created_at', { ascending: false });
+      const { data, error } = await (supabase as any)
+        .from('a_orders')
+        .select('id, order_number, total_amount, status, team_id, invoice_number, date, line_items, window_count, door_count, roof_window_count, montor_teams(name)')
+        .eq('case_id', caseData.id)
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as any[];
+      return (data || []) as any[];
     },
-    enabled: isSeller,
   });
 
   const { data: caseDocs } = useQuery({
@@ -353,10 +327,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   };
 
 
-  // Auto-fyll order_number från n3prenad-ordern om ärendet saknar det
+  // Auto-fyll order_number från ärendets lokala a_order om ärendet saknar det.
   useEffect(() => {
     const existing = ((caseData as any).order_number || '').toString().trim();
-    const fromOrder = linkedOrder?.order_number != null ? String(linkedOrder.order_number).trim() : '';
+    const first = linkedOrders && linkedOrders[0];
+    const fromOrder = first?.order_number != null ? String(first.order_number).trim() : '';
     if (!existing && fromOrder) {
       (async () => {
         try {
@@ -364,7 +339,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           await createCaseEvent({
             case_id: caseData.id,
             event_type: 'update',
-            description: `Ordernummer auto-fyllt från n3prenad: ${fromOrder}`,
+            description: `Ordernummer auto-fyllt från A-order: ${fromOrder}`,
             created_by: currentUser,
           });
           queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
@@ -376,17 +351,19 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkedOrder?.order_number, (caseData as any).order_number, caseData.id]);
+  }, [linkedOrders?.[0]?.order_number, (caseData as any).order_number, caseData.id]);
 
-  // Auto-fyll antal enheter (units) från n3prenad: windows_count + doors_count.
+  // Auto-fyll antal enheter (units) från ärendets lokala a_order: window+door+roof_window.
   // Skriver ALDRIG över ett manuellt ifyllt värde — fyller bara där units saknas.
   useEffect(() => {
     const existingUnits = (caseData as any).units;
     if (existingUnits != null) return;
-    if (!linkedOrder) return;
-    const w = Number(linkedOrder.windows_count ?? 0) || 0;
-    const d = Number(linkedOrder.doors_count ?? 0) || 0;
-    const sum = w + d;
+    const first = linkedOrders && linkedOrders[0];
+    if (!first) return;
+    const w = Number(first.window_count ?? 0) || 0;
+    const d = Number(first.door_count ?? 0) || 0;
+    const r = Number(first.roof_window_count ?? 0) || 0;
+    const sum = w + d + r;
     if (sum <= 0) return;
     (async () => {
       try {
@@ -394,7 +371,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         await createCaseEvent({
           case_id: caseData.id,
           event_type: 'update',
-          description: `Antal enheter auto-fyllt från n3prenad: ${sum} (fönster ${w} + dörrar ${d})`,
+          description: `Antal enheter auto-fyllt från A-order: ${sum} (fönster ${w} + dörrar ${d}${r > 0 ? ` + takfönster ${r}` : ''})`,
           created_by: currentUser,
         });
         queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
@@ -405,7 +382,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkedOrder?.windows_count, linkedOrder?.doors_count, (caseData as any).units, caseData.id]);
+  }, [linkedOrders?.[0]?.window_count, linkedOrders?.[0]?.door_count, linkedOrders?.[0]?.roof_window_count, (caseData as any).units, caseData.id]);
+
 
 
 
@@ -413,19 +391,20 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkSearch, setLinkSearch] = useState('');
 
+  // Lokala okopplade a_orders (case_id IS NULL). Filtreras vidare klient-sidan i popovern.
   const { data: unlinkedOrders = [] } = useQuery({
     queryKey: ['unlinked-orders'],
     queryFn: async () => {
-      const { data: validCases, error: casesErr } = await supabase
-        .from('cases')
-        .select('id');
-      if (casesErr) {
-        console.error('[unlinkedOrders] caseflow cases error:', casesErr);
+      const { data, error } = await (supabase as any)
+        .from('a_orders')
+        .select('id, order_number, invoice_number, customer_name, customer_address, total_amount, status, date, created_at')
+        .is('case_id', null)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('[unlinkedOrders] local query error:', error);
+        return [];
       }
-      const knownIds = (validCases || []).map((c: any) => c.id as string);
-      const orders = await listUnlinkedOrders(knownIds);
-      console.log('[unlinkedOrders] gateway returned:', orders.length);
-      return orders;
+      return data || [];
     },
     enabled: linkOpen,           // hämta först när "Koppla"-popovern öppnas
     staleTime: 30_000,           // cacha 30s
@@ -475,24 +454,24 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const linkOrderMutation = useMutation({
     mutationFn: async (order: any) => {
-      const ok = await gwLinkCase(order.id, caseData.id);
-      if (!ok) throw new Error('gateway link_case failed');
-      const label = order.order_number || order.invoice_number || order.id.slice(0, 8);
-      const desc = order._orphan
-        ? `A-order ${label} omkopplad (tidigare felaktigt case_id: ${order._orphanCaseId})`
-        : `A-order ${label} kopplad manuellt`;
+      const { error } = await (supabase as any)
+        .from('a_orders')
+        .update({ case_id: caseData.id })
+        .eq('id', order.id);
+      if (error) throw error;
+      const label = order.order_number || order.invoice_number || String(order.id).slice(0, 8);
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'order_link',
-        description: desc,
+        description: `A-order ${label} kopplad manuellt`,
         created_by: currentUser,
       });
       logActivity({
         category: 'system',
         action: 'order_linked',
-        description: `Kopplade order ${label} till ${caseData.address}`,
+        description: `Kopplade A-order ${label} till ${caseData.address}`,
         case_id: caseData.id,
-        metadata: { order_id: order.id, order_label: label, was_orphan: !!order._orphan },
+        metadata: { order_id: order.id, order_label: label },
       });
     },
     onSuccess: () => {
@@ -504,15 +483,18 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
     onError: (e: any) => {
       console.warn('link order failed', e);
-      toast.error('Kunde inte uppdatera A-order i n3prenad');
+      toast.error('Kunde inte koppla A-order');
     },
   });
 
   const unlinkOrderMutation = useMutation({
     mutationFn: async (order: any) => {
-      const ok = await gwUnlinkCase(order.id);
-      if (!ok) throw new Error('gateway unlink_case failed');
-      const label = order.order_number || order.invoice_number || order.id.slice(0, 8);
+      const { error } = await (supabase as any)
+        .from('a_orders')
+        .update({ case_id: null })
+        .eq('id', order.id);
+      if (error) throw error;
+      const label = order.order_number || order.invoice_number || String(order.id).slice(0, 8);
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'order_link',
@@ -527,8 +509,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
     onError: (e: any) => {
       console.warn('unlink order failed', e);
-      toast.error('Kunde inte uppdatera A-order i n3prenad');
+      toast.error('Kunde inte koppla isär A-order');
     },
+
   });
 
 
@@ -1477,84 +1460,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             )}
           </section>
 
-          {/* EKONOMI (från n3prenad) */}
+          {/* EKONOMI (intäkt / kostnad / vinst) — A-ordrarna listas i A-ORDER-sektionen nedan. */}
           {!isCoordinator && (
           <section className="p-4 space-y-3 border-t">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
               <Wallet className="h-4 w-4" /> Ekonomi
             </h3>
-            {linkedOrder ? (
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Ordernummer</span>
-                  <span className="font-medium">
-                    {linkedOrder.order_number != null && String(linkedOrder.order_number).trim() !== ''
-                      ? `#${linkedOrder.order_number}`
-                      : '—'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Montörskostnad</span>
-                  <span className="font-semibold">
-                    {linkedOrder.total_amount != null
-                      ? `${Number(linkedOrder.total_amount).toLocaleString('sv-SE')} kr`
-                      : '—'}
-                  </span>
-                </div>
-                {Array.isArray(linkedOrder.line_items) && linkedOrder.line_items.length > 0 && (
-                  <Collapsible open={economyOpsOpen} onOpenChange={setEconomyOpsOpen}>
-                    <CollapsibleTrigger asChild>
-                      <button
-                        type="button"
-                        className="w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-muted/40 transition-colors"
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          <Wrench className="h-3.5 w-3.5" />
-                          Operationer ({linkedOrder.line_items.length})
-                        </span>
-                        <ChevronDown className={`h-4 w-4 transition-transform ${economyOpsOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="pt-2">
-                      <ul className="divide-y rounded-md border">
-                        {linkedOrder.line_items.map((li: any, i: number) => {
-                          const title = li.name || li.description || `Rad ${i + 1}`;
-                          const qty = li.quantity != null ? Number(li.quantity) : null;
-                          const unit = li.unit || 'st';
-                          const amount = li.amount != null
-                            ? Number(li.amount)
-                            : (li.unit_price != null && qty != null ? Number(li.unit_price) * qty : null);
-                          return (
-                            <li key={li.id ?? i} className="flex items-start justify-between gap-3 px-3 py-2 text-sm">
-                              <div className="min-w-0">
-                                <div className="truncate">{title}</div>
-                                {qty != null && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {qty} {unit}
-                                    {li.unit_price != null && (
-                                      <> · {Number(li.unit_price).toLocaleString('sv-SE')} kr/{unit}</>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                              {amount != null && (
-                                <div className="text-right font-medium whitespace-nowrap">
-                                  {amount.toLocaleString('sv-SE')} kr
-                                </div>
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Info className="h-4 w-4" /> Ingen kopplad order i n3prenad ännu
-              </div>
-            )}
 
             {/* Intäkt / Vinst */}
             {(() => {
@@ -1566,18 +1477,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               const hasSheet = (sheetInvoices || []).length > 0;
               const montorInvoiceCost = (montorInvoices || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
               const hasMontorInvoice = (montorInvoices || []).length > 0;
-              const orderCost = linkedOrder?.total_amount != null ? Number(linkedOrder.total_amount) : null;
+              // Montörskostnad = summan av total_amount över alla kopplade lokala a_orders.
+              // Krediter (status='credited') har negativa belopp och tar ut sina original.
+              const aOrderSum = (linkedOrders || []).reduce((s: number, o: any) => s + (Number(o.total_amount) || 0), 0);
+              const hasAOrders = !!(linkedOrders && linkedOrders.length > 0);
+              const orderCost = hasAOrders ? aOrderSum : null;
               const baseCost = orderCost != null ? orderCost : (hasCostDocs ? costFromDocs : null);
               const cost = (baseCost != null || hasSheet || hasMontorInvoice)
                 ? (baseCost ?? 0) + sheetCost + montorInvoiceCost
                 : null;
               const costSource: 'order' | 'docs' | 'sheet' | 'montor_invoice' | null =
                 orderCost != null ? 'order' : (hasCostDocs ? 'docs' : (hasSheet ? 'sheet' : (hasMontorInvoice ? 'montor_invoice' : null)));
-              const possibleDuplicate = orderCost != null && hasCostDocs;
               const profit = hasRevenue && cost != null ? revenue - cost : null;
               const margin = profit != null && revenue > 0 ? (profit / revenue) * 100 : null;
               return (
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t">
+                <div className="grid grid-cols-3 gap-2 pt-2">
                   <div className="rounded-md border p-2">
                     <div className="text-[11px] uppercase text-muted-foreground tracking-wider">Intäkt</div>
                     <div className="text-sm font-semibold">
@@ -1591,8 +1505,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     </div>
                     {costSource && (
                       <div className="text-[10px] text-muted-foreground mt-0.5">
-                        {costSource === 'order' && `n3prenad${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
-                        {costSource === 'docs' && `egna A-ordrar${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
+                        {costSource === 'order' && `A-ordrar${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
+                        {costSource === 'docs' && `uppladdade A-ordrar${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
                         {costSource === 'sheet' && `endast plåtfakturor${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
                         {costSource === 'montor_invoice' && 'endast montörsfaktura'}
                       </div>
@@ -1612,15 +1526,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       Ingen utbetalning kopplad än
                     </div>
                   )}
-                  {possibleDuplicate && (
-                    <div className="col-span-3 text-xs text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      Ärendet har både n3prenad-order och uppladdade A-ordrar — n3prenad-ordern används som kostnad. Kontrollera dubbletter nedan.
-                    </div>
-                  )}
                 </div>
               );
             })()}
+
 
             {/* Kopplade utbetalningar (intäkt) */}
             {payouts && payouts.length > 0 && (
@@ -1830,23 +1739,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 <FileText className="h-4 w-4" /> A-ORDER & Faktura
               </h3>
               {isSeller && (
-                internalAOrders && internalAOrders.length > 0 ? (
-                  <Button type="button" size="sm" variant="outline" className="gap-1 h-8" onClick={() => { setEditingAOrder(internalAOrders[0]); setAOrderFormOpen(true); }}>
-                    Öppna A-order #{internalAOrders[0].order_number}
-                  </Button>
-                ) : (
-                  <Button type="button" size="sm" variant="outline" className="gap-1 h-8" onClick={() => { setEditingAOrder(null); setAOrderFormOpen(true); }}>
-                    <Plus className="h-3.5 w-3.5" /> Skapa A-order
-                  </Button>
-                )
+                <Button type="button" size="sm" variant="outline" className="gap-1 h-8" onClick={() => { setEditingAOrder(null); setAOrderFormOpen(true); }}>
+                  <Plus className="h-3.5 w-3.5" /> Skapa A-order
+                </Button>
               )}
             </div>
-            {internalAOrders && internalAOrders.length > 0 && (
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm flex items-center justify-between">
-                <span>A-order #{internalAOrders[0].order_number} skapad{internalAOrders[0].montor_teams?.name ? ` · Montör: ${internalAOrders[0].montor_teams.name}` : ' · Utestående'}</span>
-                <span className="font-medium">{Math.round(Number(internalAOrders[0].total_amount || 0)).toLocaleString('sv-SE')} kr</span>
-              </div>
-            )}
             {linkedOrders && linkedOrders.length > 0 ? (
               <div className="space-y-2">
                 {linkedOrders.map((order: any, idx: number) => {
@@ -1857,17 +1754,29 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     : <Badge className="bg-yellow-500 hover:bg-yellow-500/90 text-white">A-ORDER</Badge>;
                   return (
                     <div key={order.id} className="rounded-md border p-3 space-y-1 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">Order #{order.order_number ?? idx + 1}</span>
-                        {statusBadge}
-                      </div>
-                      {order.total_amount != null && (
-                        <div className="text-muted-foreground">
-                          Totalt: <span className="text-foreground font-medium">{Number(order.total_amount).toLocaleString('sv-SE')} kr</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">A-order #{order.order_number ?? idx + 1}</span>
+                        <div className="flex items-center gap-2">
+                          {statusBadge}
+                          {isSeller && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => { setEditingAOrder(order); setAOrderFormOpen(true); }}
+                            >
+                              Öppna
+                            </Button>
+                          )}
                         </div>
-                      )}
+                      </div>
+                      <div className="text-muted-foreground">
+                        Summa: <span className="text-foreground font-semibold">{Math.round(Number(order.total_amount || 0)).toLocaleString('sv-SE')} kr</span>
+                        {order.montor_teams?.name && <> · Montör: {order.montor_teams.name}</>}
+                      </div>
                       {order.invoice_number && (
-                        <div className="text-muted-foreground">Fakturanr: {order.invoice_number}</div>
+                        <div className="text-muted-foreground text-xs">Fakturanr: {order.invoice_number}</div>
                       )}
                       {order.date && (
                         <div className="text-muted-foreground text-xs">{order.date}</div>
@@ -1888,6 +1797,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 <Info className="h-4 w-4" /> Ingen A-ORDER kopplad ännu
               </div>
             )}
+
             <Popover open={linkOpen} onOpenChange={setLinkOpen}>
               <PopoverTrigger asChild>
                 {hasLinked ? (
@@ -2359,7 +2269,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           case_id: caseData.id,
         }}
         currentUser={currentUser}
-        onSaved={() => { refetchInternalAOrders(); }}
+        onSaved={() => { refetchLinkedOrders(); }}
       />
 
     </div>

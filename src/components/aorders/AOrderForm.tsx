@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { generateAutoLines, normalizeLines, sumLines, type AOrderLine, type FacadeType } from '@/lib/aOrderLines';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { SignedImage } from '@/components/shared/SignedImage';
+import { HOUR_RATE } from '@/lib/constants';
 
 type AOrder = any;
 
@@ -59,6 +60,63 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
   const [lines, setLines] = useState<AOrderLine[]>(normalizeLines(order?.line_items));
   const [autoLocked, setAutoLocked] = useState<boolean>(!!order?.id); // when editing existing, don't auto-regenerate
+
+  // Effective case_id: existing order.case_id or prefill.case_id
+  const effectiveCaseId: string | null = (order?.case_id ?? prefill?.case_id) ?? null;
+
+  // Fetch case extra_hours for prefilling (new order with case_id).
+  const { data: caseExtra } = useQuery({
+    queryKey: ['a_order_case_hours', effectiveCaseId],
+    queryFn: async () => {
+      if (!effectiveCaseId) return null;
+      const { data, error } = await (supabase as any)
+        .from('cases')
+        .select('extra_hours_sold, extra_hours_approved')
+        .eq('id', effectiveCaseId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { extra_hours_sold: number | null; extra_hours_approved: number | null } | null;
+    },
+    enabled: open && !!effectiveCaseId,
+  });
+
+  // Apply extra-hours prefill EXACTLY ONCE per opening for a new order.
+  const extraHoursAppliedRef = useRef(false);
+  function applyCaseExtraHours(extra: { extra_hours_sold: number | null; extra_hours_approved: number | null } | null | undefined, opts?: { force?: boolean }) {
+    if (!extra) return;
+    const sold = Number(extra.extra_hours_sold ?? 0) || 0;
+    const approved = Number(extra.extra_hours_approved ?? 0) || 0;
+    setInternalExtraHours(Math.max(sold - approved, 0));
+    setInternalHourRate(HOUR_RATE);
+    if (approved > 0) {
+      setAutoLocked(true);
+      setLines(prev => {
+        // Ta bort tidigare "Extra Montagetimme"-rad (om vi byter värden) innan vi lägger till
+        const cleaned = prev.filter(l => (l.name || '').trim() !== 'Extra Montagetimme');
+        const newLine: AOrderLine = {
+          id: 'al_' + Math.random().toString(36).slice(2, 10),
+          name: 'Extra Montagetimme',
+          unit_price: HOUR_RATE,
+          qty: approved,
+          amount: Math.round(HOUR_RATE * approved),
+        };
+        return [...cleaned, newLine];
+      });
+    } else if (opts?.force) {
+      setLines(prev => prev.filter(l => (l.name || '').trim() !== 'Extra Montagetimme'));
+    }
+  }
+
+  useEffect(() => {
+    if (!open) { extraHoursAppliedRef.current = false; return; }
+    if (isEdit) return;
+    if (extraHoursAppliedRef.current) return;
+    if (!caseExtra) return;
+    extraHoursAppliedRef.current = true;
+    applyCaseExtraHours(caseExtra);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, caseExtra]);
+
 
   // Images: existing paths in storage + pending uploads (compressed data URLs)
   const [imagePaths, setImagePaths] = useState<string[]>(Array.isArray(order?.images) ? order.images : []);
@@ -452,7 +510,29 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
           {/* Internal block */}
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
-            <div className="text-xs font-semibold text-amber-900 uppercase">Internt — visas EJ för montör</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold text-amber-900 uppercase">Internt — visas EJ för montör</div>
+              {effectiveCaseId && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-xs"
+                  onClick={async () => {
+                    const { data, error } = await (supabase as any)
+                      .from('cases')
+                      .select('extra_hours_sold, extra_hours_approved')
+                      .eq('id', effectiveCaseId)
+                      .maybeSingle();
+                    if (error) { toast.error('Kunde inte hämta ärendet'); return; }
+                    applyCaseExtraHours(data as any, { force: true });
+                    toast.success('Extra timmar uppdaterade från ärendet');
+                  }}
+                >
+                  Hämta från ärendet
+                </Button>
+              )}
+            </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <Label className="text-xs">Extra timmar</Label>
@@ -469,6 +549,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
             </div>
             <div className="text-sm text-amber-900">Internt värde: <span className="font-semibold">{fmt(internalValue)}</span></div>
           </div>
+
 
           {/* Team */}
           <div>
