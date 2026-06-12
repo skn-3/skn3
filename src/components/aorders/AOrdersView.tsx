@@ -32,6 +32,8 @@ export function AOrdersView({ currentUser }: Props) {
   const [assignFor, setAssignFor] = useState<any | null>(null);
   const [assignTeam, setAssignTeam] = useState<string>('');
   const [search, setSearch] = useState('');
+  const [invoiceFor, setInvoiceFor] = useState<any | null>(null);
+  const [creditFor, setCreditFor] = useState<any | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['a_orders_all'],
