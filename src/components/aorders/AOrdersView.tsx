@@ -160,6 +160,7 @@ export function AOrdersView({ currentUser }: Props) {
         <TabsList>
           <TabsTrigger value="pending">Utestående ({pending.length})</TabsTrigger>
           <TabsTrigger value="history">Historik</TabsTrigger>
+          <TabsTrigger value="import">Importera fakturor</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending" className="space-y-4">
