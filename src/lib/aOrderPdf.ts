@@ -180,7 +180,7 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
   doc.text(customerAddress || '', margin, fy);
 
   doc.setFontSize(18);
-  doc.setTextColor(...GREEN);
+  doc.setTextColor(...totalColor);
   doc.text(`Totalt: ${fmtKr(total)}`, pageW - margin, fy, { align: 'right' });
   doc.setFontSize(9);
   doc.setTextColor(...DARK);
