@@ -337,7 +337,7 @@ export function AOrdersView({ currentUser }: Props) {
                               <Receipt className="h-3 w-3" />
                             </Button>
                           )}
-                          {o.status === 'invoiced' && (
+                           {o.status === 'invoiced' && (
                             <Button size="sm" variant="ghost" onClick={() => setCreditFor(o)} title="Kreditera" className="text-red-600">
                               <RotateCcw className="h-3 w-3" />
                             </Button>
@@ -345,6 +345,11 @@ export function AOrdersView({ currentUser }: Props) {
                           {o.status === 'order' && (
                             <Button size="sm" variant="ghost" onClick={() => rowSend(o)} disabled={busyId === o.id || !o.team_id} title="Skicka A-order till montör">
                               <Send className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {role?.isAdmin && o.status === 'order' && (
+                            <Button size="sm" variant="ghost" onClick={() => setDeleteFor(o)} title="Radera A-order" className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           )}
                           <Button size="sm" variant="ghost" onClick={() => openEdit(o)}>Öppna</Button>
