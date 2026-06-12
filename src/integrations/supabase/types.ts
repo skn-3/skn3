@@ -67,7 +67,7 @@ export type Database = {
           invoice_sent_at: string | null
           km_distance: number
           line_items: Json
-          order_number: number
+          order_number: number | null
           order_sent_at: string | null
           pdf_path: string | null
           roof_window_count: number
@@ -100,7 +100,7 @@ export type Database = {
           invoice_sent_at?: string | null
           km_distance?: number
           line_items?: Json
-          order_number: number
+          order_number?: number | null
           order_sent_at?: string | null
           pdf_path?: string | null
           roof_window_count?: number
@@ -133,7 +133,7 @@ export type Database = {
           invoice_sent_at?: string | null
           km_distance?: number
           line_items?: Json
-          order_number?: number
+          order_number?: number | null
           order_sent_at?: string | null
           pdf_path?: string | null
           roof_window_count?: number
@@ -581,9 +581,11 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          invoice_email: string | null
           invoice_prefix: string | null
           is_active: boolean
           name: string
+          next_invoice_number: number
           org_nr: string | null
         }
         Insert: {
@@ -593,9 +595,11 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          invoice_email?: string | null
           invoice_prefix?: string | null
           is_active?: boolean
           name: string
+          next_invoice_number?: number
           org_nr?: string | null
         }
         Update: {
@@ -605,9 +609,11 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          invoice_email?: string | null
           invoice_prefix?: string | null
           is_active?: boolean
           name?: string
+          next_invoice_number?: number
           org_nr?: string | null
         }
         Relationships: []
