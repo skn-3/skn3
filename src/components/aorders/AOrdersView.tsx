@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw } from 'lucide-react';
+import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,22 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AOrderForm } from './AOrderForm';
 import { InvoiceAOrderDialog } from './InvoiceAOrderDialog';
 import { CreditAOrderDialog } from './CreditAOrderDialog';
 import { ImportInvoicesView } from './ImportInvoicesView';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
+import { useRole } from '@/hooks/useRole';
 
 interface Props { currentUser: string }
 
@@ -26,6 +37,7 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 export function AOrdersView({ currentUser }: Props) {
+  const { role } = useRole();
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -34,6 +46,8 @@ export function AOrdersView({ currentUser }: Props) {
   const [search, setSearch] = useState('');
   const [invoiceFor, setInvoiceFor] = useState<any | null>(null);
   const [creditFor, setCreditFor] = useState<any | null>(null);
+  const [deleteFor, setDeleteFor] = useState<any | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['a_orders_all'],
