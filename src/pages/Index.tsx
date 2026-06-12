@@ -6,6 +6,8 @@ import { SellerView } from '@/components/seller/SellerView';
 import { MontorView } from '@/components/montor/MontorView';
 import { CoordinatorView } from '@/components/coordinator/CoordinatorView';
 import { WelcomeDashboard } from '@/components/WelcomeDashboard';
+import { ForcePinChangeGate } from '@/components/ForcePinChangeGate';
+import { supabase } from '@/integrations/supabase/client';
 
 const WELCOME_KEY_PREFIX = 'smartklimat_welcome_shown_';
 
@@ -30,21 +32,54 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const [initialCaseId, setInitialCaseId] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [mustChangePin, setMustChangePin] = useState<boolean | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const cid = searchParams.get('case');
     if (cid) setInitialCaseId(cid);
   }, [searchParams]);
 
+  // Hämta must_change_pin från profilen för inloggad user
+  useEffect(() => {
+    let cancelled = false;
+    if (!role) { setMustChangePin(null); setUserId(null); return; }
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id ?? null;
+      if (!uid) return;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('must_change_pin')
+        .eq('id', uid)
+        .maybeSingle();
+      if (cancelled) return;
+      setUserId(uid);
+      setMustChangePin(!!profile?.must_change_pin);
+    })();
+    return () => { cancelled = true; };
+  }, [role]);
+
   // Show welcome once per day per user (skip if deep-linking to a case)
   useEffect(() => {
-    if (role && role.type !== 'coordinator' && !initialCaseId && shouldShowWelcome(role.name)) {
+    if (role && role.type !== 'coordinator' && !initialCaseId && shouldShowWelcome(role.name) && mustChangePin === false) {
       setShowWelcome(true);
     }
-  }, [role, initialCaseId]);
+  }, [role, initialCaseId, mustChangePin]);
 
   if (!role) {
     return <RolePicker />;
+  }
+
+  // Blockera all åtkomst tills 6-siffrig PIN är vald
+  if (mustChangePin && userId) {
+    return (
+      <ForcePinChangeGate
+        userId={userId}
+        userName={role.name}
+        onCompleted={() => setMustChangePin(false)}
+      />
+    );
   }
 
   if (showWelcome) {

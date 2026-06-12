@@ -9,6 +9,7 @@ import { LinkOrdersView } from './LinkOrdersView';
 import { MontorTeamsAdmin } from '@/components/aorders/MontorTeamsAdmin';
 import { AOrderPricesAdmin } from '@/components/aorders/AOrderPricesAdmin';
 import { N3prenadImportView } from '@/components/aorders/N3prenadImportView';
+import { PinCampaignAdmin } from './PinCampaignAdmin';
 
 interface AdminViewProps {
   currentUser: string;
@@ -22,6 +23,7 @@ const ADMIN_SUBTABS = [
   { value: 'link-orders', label: 'Koppla ordrar' },
   { value: 'teams', label: 'Montörsteam' },
   { value: 'prices', label: 'Prislista A-order' },
+  { value: 'pin-campaign', label: 'PIN-byte' },
   { value: 'activity-log', label: 'Aktivitetslogg' },
 ] as const;
 
@@ -62,6 +64,9 @@ export function AdminView({ currentUser }: AdminViewProps) {
         </TabsContent>
         <TabsContent value="prices" className="mt-4">
           <AOrderPricesAdmin />
+        </TabsContent>
+        <TabsContent value="pin-campaign" className="mt-4">
+          <PinCampaignAdmin />
         </TabsContent>
         <TabsContent value="activity-log" className="mt-4">
           <ActivityLogView />

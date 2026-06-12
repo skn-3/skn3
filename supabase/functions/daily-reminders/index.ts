@@ -443,6 +443,66 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ===================== PÅMINNELSE 5: PIN-byte (användare + admin-sammanfattning) =====================
+    {
+      const { data: pending } = await supabase
+        .from('profiles')
+        .select('id, name, must_change_pin, pin_change_requested_at')
+        .eq('must_change_pin', true)
+        .not('pin_change_requested_at', 'is', null);
+
+      const list = pending || [];
+
+      // Roll-uppslag för admin-rapporten
+      let rolesById: Record<string, string> = {};
+      if (list.length > 0) {
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .in('user_id', list.map((p: any) => p.id));
+        rolesById = Object.fromEntries((roles || []).map((r: any) => [r.user_id, r.role]));
+      }
+
+      const overdueForAdmin: Array<{ name: string; role: string }> = [];
+
+      for (const p of list) {
+        const d = daysSince(p.pin_change_requested_at as string);
+        const firstName = String(p.name).split(' ')[0] || p.name;
+        const email = EMAIL_MAP[p.name as string];
+        if (d === 2 || d === 4 || d === 6 || d === 8 || d === 10) {
+          if (!email) continue;
+          const last = d === 10;
+          const intro = `Hej ${firstName}! Du har inte valt din nya 6-siffriga PIN-kod i N3prenad ännu. Klicka nedan och logga in med din nuvarande kod så guidas du direkt — det tar under en minut.`;
+          const tail = last ? `<p style="margin:12px 0 0 0;font-weight:bold;color:#DC2626;">Detta är sista påminnelsen.</p>` : '';
+          const html = wrapInTemplate(
+            'Påminnelse: byt din PIN-kod',
+            `<p style="margin:0;">${intro}</p>${tail}`,
+            buildCtaButton('Öppna N3prenad', '#22C55E'),
+          );
+          await sendEmail(LOVABLE_API_KEY, RESEND_API_KEY, email, 'Påminnelse: byt din PIN-kod', html);
+          results.push(`PIN-påminnelse dag ${d}: ${p.name}`);
+        } else if (d === 11) {
+          overdueForAdmin.push({ name: p.name as string, role: rolesById[p.id] || '—' });
+        }
+      }
+
+      if (overdueForAdmin.length > 0) {
+        const adminEmail = EMAIL_MAP['Daniel Malke'];
+        if (adminEmail) {
+          const rows = overdueForAdmin.map(o => [o.name, o.role]);
+          const table = buildListTable(['Namn', 'Roll'], rows);
+          const subject = `PIN-byte: ${overdueForAdmin.length} användare har inte bytt efter 10 dagar`;
+          const html = wrapInTemplate(
+            subject,
+            `<p style="margin:0 0 16px 0;">Följande användare har inte bytt sin PIN-kod trots påminnelser. Tvångsdialogen vid inloggning gäller fortfarande — inga fler automatiska mejl skickas.</p>${table}`,
+            buildCtaButton('Öppna N3prenad', '#DC2626'),
+          );
+          await sendEmail(LOVABLE_API_KEY, RESEND_API_KEY, adminEmail, subject, html);
+          results.push(`PIN-rapport till admin (${overdueForAdmin.length} st)`);
+        }
+      }
+    }
+
     console.log('Daily reminders completed:', results);
     return new Response(JSON.stringify({ success: true, results }), {
       status: 200,

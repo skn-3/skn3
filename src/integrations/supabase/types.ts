@@ -786,6 +786,7 @@ export type Database = {
           login_email: string
           must_change_pin: boolean
           name: string
+          pin_change_requested_at: string | null
         }
         Insert: {
           created_at?: string
@@ -793,6 +794,7 @@ export type Database = {
           login_email: string
           must_change_pin?: boolean
           name: string
+          pin_change_requested_at?: string | null
         }
         Update: {
           created_at?: string
@@ -800,6 +802,7 @@ export type Database = {
           login_email?: string
           must_change_pin?: boolean
           name?: string
+          pin_change_requested_at?: string | null
         }
         Relationships: []
       }
