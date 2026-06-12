@@ -2348,6 +2348,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
       {/* A-order sheet */}
       <AOrderForm
+        key={editingAOrder?.id ?? `new-${caseData.id}`}
         open={aOrderFormOpen}
         onOpenChange={(v) => { setAOrderFormOpen(v); if (!v) setEditingAOrder(null); }}
         order={editingAOrder}

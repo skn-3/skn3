@@ -406,6 +406,25 @@ export function N3prenadImportView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reparation av importerade rader */}
+      <div className="rounded-md border p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium">Reparera importerade rader</div>
+            <div className="text-sm text-muted-foreground">
+              Normaliserar line_items för alla importerade A-ordrar (camelCase → snake_case, räknar om amount). Idempotent.
+            </div>
+            {repairReport && (
+              <div className="text-sm mt-1">Reparerade <b>{repairReport.repaired}</b> av <b>{repairReport.scanned}</b> rader</div>
+            )}
+          </div>
+          <Button variant="outline" onClick={repairImportedLines} disabled={repairing} className="gap-2">
+            {repairing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Reparera importerade rader
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
