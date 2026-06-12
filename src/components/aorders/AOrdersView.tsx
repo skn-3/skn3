@@ -163,6 +163,47 @@ export function AOrdersView({ currentUser }: Props) {
     }
   }
 
+  async function handleDelete(o: any) {
+    setDeletingId(o.id);
+    try {
+      const pathsToDelete: string[] = [];
+      if (o.pdf_path) {
+        pathsToDelete.push(o.pdf_path);
+      }
+      
+      // List and delete files under a-orders/{id}
+      const { data: files, error: listError } = await supabase.storage
+        .from('case-documents')
+        .list(`a-orders/${o.id}`);
+        
+      if (!listError && files && files.length > 0) {
+        for (const file of files) {
+          pathsToDelete.push(`a-orders/${o.id}/${file.name}`);
+        }
+      }
+
+      if (pathsToDelete.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from('case-documents')
+          .remove(pathsToDelete);
+        if (storageError) {
+          console.error('Kunde inte radera filer från lagring:', storageError);
+        }
+      }
+
+      const { error } = await supabase.from('a_orders').delete().eq('id', o.id);
+      if (error) throw error;
+
+      toast.success(`A-order #${o.order_number || ''} raderades framgångsrikt`);
+      qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte radera A-order');
+    } finally {
+      setDeletingId(null);
+      setDeleteFor(null);
+    }
+  }
+
   return (
     <div className="px-3 md:px-6 space-y-4">
       <div className="flex items-center justify-between">
