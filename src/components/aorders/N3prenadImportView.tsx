@@ -43,6 +43,59 @@ export function N3prenadImportView() {
   const [deleting, setDeleting] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [repairReport, setRepairReport] = useState<{ scanned: number; repaired: number } | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillReport, setBackfillReport] = useState<{ updated: number; skipped: number; noCase: number; noProfit: number } | null>(null);
+
+  async function backfillInternalHours() {
+    setBackfilling(true);
+    setBackfillReport(null);
+    try {
+      const { data: orders, error } = await (supabase as any)
+        .from('a_orders')
+        .select('id, case_id, internal_extra_hours, internal_extra_amount, status')
+        .not('case_id', 'is', null)
+        .neq('status', 'credited')
+        .eq('internal_extra_hours', 0)
+        .eq('internal_extra_amount', 0);
+      if (error) throw error;
+      const rows = (orders || []) as Array<{ id: string; case_id: string }>;
+      let updated = 0, skipped = 0, noCase = 0, noProfit = 0;
+      const caseIds = Array.from(new Set(rows.map(r => r.case_id).filter(Boolean)));
+      const caseMap = new Map<string, { sold: number; approved: number }>();
+      if (caseIds.length > 0) {
+        const { data: cases, error: cErr } = await (supabase as any)
+          .from('cases')
+          .select('id, extra_hours_sold, extra_hours_approved')
+          .in('id', caseIds);
+        if (cErr) throw cErr;
+        for (const c of (cases || [])) {
+          caseMap.set(c.id, {
+            sold: Number(c.extra_hours_sold || 0),
+            approved: Number(c.extra_hours_approved || 0),
+          });
+        }
+      }
+      for (const r of rows) {
+        const c = caseMap.get(r.case_id);
+        if (!c) { noCase += 1; continue; }
+        const profit = c.sold - c.approved;
+        if (profit <= 0) { noProfit += 1; continue; }
+        const { error: uErr } = await (supabase as any)
+          .from('a_orders')
+          .update({ internal_extra_hours: profit, internal_hour_rate: HOUR_RATE })
+          .eq('id', r.id);
+        if (uErr) skipped += 1;
+        else updated += 1;
+      }
+      setBackfillReport({ updated, skipped, noCase, noProfit });
+      toast.success(`Uppdaterade ${updated} ordrar`);
+      qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Backfyllning misslyckades');
+    } finally {
+      setBackfilling(false);
+    }
+  }
 
   async function repairImportedLines() {
     setRepairing(true);
