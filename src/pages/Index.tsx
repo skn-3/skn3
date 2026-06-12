@@ -6,6 +6,8 @@ import { SellerView } from '@/components/seller/SellerView';
 import { MontorView } from '@/components/montor/MontorView';
 import { CoordinatorView } from '@/components/coordinator/CoordinatorView';
 import { WelcomeDashboard } from '@/components/WelcomeDashboard';
+import { ForcePinChangeGate } from '@/components/ForcePinChangeGate';
+import { supabase } from '@/integrations/supabase/client';
 
 const WELCOME_KEY_PREFIX = 'smartklimat_welcome_shown_';
 
