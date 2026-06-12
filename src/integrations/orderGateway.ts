@@ -132,3 +132,20 @@ export async function searchOrders(term: string): Promise<OrderRow[]> {
   const res = await callGateway('search', { term });
   return unwrap(res);
 }
+
+/** Hämta ALLA ordrar från n3prenad (för engångsimport). Paginerar defensivt. */
+export async function listAllOrders(): Promise<any[]> {
+  const pageSize = 500;
+  let offset = 0;
+  const all: any[] = [];
+  // Skydd mot oändlig loop
+  for (let i = 0; i < 200; i++) {
+    const res = await callGateway('list', { limit: pageSize, offset });
+    const batch = unwrap(res);
+    if (batch.length === 0) break;
+    all.push(...batch);
+    if (batch.length < pageSize) break;
+    offset += batch.length;
+  }
+  return all;
+}
