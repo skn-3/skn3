@@ -14,12 +14,14 @@ type Team = {
   org_nr?: string | null;
   address?: string | null;
   email?: string | null;
+  invoice_email?: string | null;
   bankgiro?: string | null;
   invoice_prefix?: string | null;
+  next_invoice_number?: number | null;
   is_active: boolean;
 };
 
-const EMPTY: Team = { name: '', company_name: '', org_nr: '', address: '', email: '', bankgiro: '', invoice_prefix: '', is_active: true };
+const EMPTY: Team = { name: '', company_name: '', org_nr: '', address: '', email: '', invoice_email: '', bankgiro: '', invoice_prefix: '', next_invoice_number: 1, is_active: true };
 
 export function MontorTeamsAdmin() {
   const qc = useQueryClient();
