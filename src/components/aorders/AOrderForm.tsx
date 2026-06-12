@@ -60,6 +60,14 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [lines, setLines] = useState<AOrderLine[]>(order?.line_items?.length ? order.line_items : []);
   const [autoLocked, setAutoLocked] = useState<boolean>(!!order?.id); // when editing existing, don't auto-regenerate
 
+  // Images: existing paths in storage + pending uploads (compressed data URLs)
+  const [imagePaths, setImagePaths] = useState<string[]>(Array.isArray(order?.images) ? order.images : []);
+  const [pendingImages, setPendingImages] = useState<{ id: string; name: string; dataUrl: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [confirmSend, setConfirmSend] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
   // Regenerate lines live when not edited / not locked
   useEffect(() => {
     if (autoLocked) return;
