@@ -250,9 +250,22 @@ export function AOrdersView({ currentUser }: Props) {
                         {fmt(o.total_amount)}
                         {intern > 0 && <div className="text-[10px] text-muted-foreground">internt {fmt(intern)}</div>}
                       </td>
-                      <td className="px-3 py-2"><Badge className={meta.cls}>{meta.label}</Badge></td>
+                      <td className="px-3 py-2">
+                        <Badge className={meta.cls}>{meta.label}</Badge>
+                        {o.order_sent_at && (
+                          <div className="text-[10px] text-muted-foreground mt-1">Skickad {new Date(o.order_sent_at).toLocaleDateString('sv-SE')}</div>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right">
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(o)}>Öppna</Button>
+                        <div className="inline-flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => rowPdf(o)} disabled={busyId === o.id} title="PDF">
+                            {busyId === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => rowSend(o)} disabled={busyId === o.id || !o.team_id} title="Skicka till montör">
+                            <Send className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => openEdit(o)}>Öppna</Button>
+                        </div>
                       </td>
                     </tr>
                   );
