@@ -37,6 +37,7 @@ import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrde
 import { SignedImage } from '@/components/shared/SignedImage';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { OfferForm } from '@/components/offers/OfferForm';
+import { AOrderForm } from '@/components/aorders/AOrderForm';
 import { fmtKr as fmtOfferKr } from '@/lib/offerCalc';
 
 interface CaseDetailPanelProps {
