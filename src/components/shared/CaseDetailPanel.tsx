@@ -1460,84 +1460,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             )}
           </section>
 
-          {/* EKONOMI (från n3prenad) */}
+          {/* EKONOMI (intäkt / kostnad / vinst) — A-ordrarna listas i A-ORDER-sektionen nedan. */}
           {!isCoordinator && (
           <section className="p-4 space-y-3 border-t">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
               <Wallet className="h-4 w-4" /> Ekonomi
             </h3>
-            {linkedOrder ? (
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Ordernummer</span>
-                  <span className="font-medium">
-                    {linkedOrder.order_number != null && String(linkedOrder.order_number).trim() !== ''
-                      ? `#${linkedOrder.order_number}`
-                      : '—'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Montörskostnad</span>
-                  <span className="font-semibold">
-                    {linkedOrder.total_amount != null
-                      ? `${Number(linkedOrder.total_amount).toLocaleString('sv-SE')} kr`
-                      : '—'}
-                  </span>
-                </div>
-                {Array.isArray(linkedOrder.line_items) && linkedOrder.line_items.length > 0 && (
-                  <Collapsible open={economyOpsOpen} onOpenChange={setEconomyOpsOpen}>
-                    <CollapsibleTrigger asChild>
-                      <button
-                        type="button"
-                        className="w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-muted/40 transition-colors"
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          <Wrench className="h-3.5 w-3.5" />
-                          Operationer ({linkedOrder.line_items.length})
-                        </span>
-                        <ChevronDown className={`h-4 w-4 transition-transform ${economyOpsOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="pt-2">
-                      <ul className="divide-y rounded-md border">
-                        {linkedOrder.line_items.map((li: any, i: number) => {
-                          const title = li.name || li.description || `Rad ${i + 1}`;
-                          const qty = li.quantity != null ? Number(li.quantity) : null;
-                          const unit = li.unit || 'st';
-                          const amount = li.amount != null
-                            ? Number(li.amount)
-                            : (li.unit_price != null && qty != null ? Number(li.unit_price) * qty : null);
-                          return (
-                            <li key={li.id ?? i} className="flex items-start justify-between gap-3 px-3 py-2 text-sm">
-                              <div className="min-w-0">
-                                <div className="truncate">{title}</div>
-                                {qty != null && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {qty} {unit}
-                                    {li.unit_price != null && (
-                                      <> · {Number(li.unit_price).toLocaleString('sv-SE')} kr/{unit}</>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                              {amount != null && (
-                                <div className="text-right font-medium whitespace-nowrap">
-                                  {amount.toLocaleString('sv-SE')} kr
-                                </div>
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </CollapsibleContent>
-                  </Collapsible>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Info className="h-4 w-4" /> Ingen kopplad order i n3prenad ännu
-              </div>
-            )}
 
             {/* Intäkt / Vinst */}
             {(() => {
@@ -1549,18 +1477,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               const hasSheet = (sheetInvoices || []).length > 0;
               const montorInvoiceCost = (montorInvoices || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
               const hasMontorInvoice = (montorInvoices || []).length > 0;
-              const orderCost = linkedOrder?.total_amount != null ? Number(linkedOrder.total_amount) : null;
+              // Montörskostnad = summan av total_amount över alla kopplade lokala a_orders.
+              // Krediter (status='credited') har negativa belopp och tar ut sina original.
+              const aOrderSum = (linkedOrders || []).reduce((s: number, o: any) => s + (Number(o.total_amount) || 0), 0);
+              const hasAOrders = !!(linkedOrders && linkedOrders.length > 0);
+              const orderCost = hasAOrders ? aOrderSum : null;
               const baseCost = orderCost != null ? orderCost : (hasCostDocs ? costFromDocs : null);
               const cost = (baseCost != null || hasSheet || hasMontorInvoice)
                 ? (baseCost ?? 0) + sheetCost + montorInvoiceCost
                 : null;
               const costSource: 'order' | 'docs' | 'sheet' | 'montor_invoice' | null =
                 orderCost != null ? 'order' : (hasCostDocs ? 'docs' : (hasSheet ? 'sheet' : (hasMontorInvoice ? 'montor_invoice' : null)));
-              const possibleDuplicate = orderCost != null && hasCostDocs;
               const profit = hasRevenue && cost != null ? revenue - cost : null;
               const margin = profit != null && revenue > 0 ? (profit / revenue) * 100 : null;
               return (
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t">
+                <div className="grid grid-cols-3 gap-2 pt-2">
                   <div className="rounded-md border p-2">
                     <div className="text-[11px] uppercase text-muted-foreground tracking-wider">Intäkt</div>
                     <div className="text-sm font-semibold">
@@ -1574,8 +1505,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     </div>
                     {costSource && (
                       <div className="text-[10px] text-muted-foreground mt-0.5">
-                        {costSource === 'order' && `n3prenad${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
-                        {costSource === 'docs' && `egna A-ordrar${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
+                        {costSource === 'order' && `A-ordrar${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
+                        {costSource === 'docs' && `uppladdade A-ordrar${hasSheet ? ' + plåt' : ''}${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
                         {costSource === 'sheet' && `endast plåtfakturor${hasMontorInvoice ? ' + montörsfaktura' : ''}`}
                         {costSource === 'montor_invoice' && 'endast montörsfaktura'}
                       </div>
@@ -1595,15 +1526,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       Ingen utbetalning kopplad än
                     </div>
                   )}
-                  {possibleDuplicate && (
-                    <div className="col-span-3 text-xs text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      Ärendet har både n3prenad-order och uppladdade A-ordrar — n3prenad-ordern används som kostnad. Kontrollera dubbletter nedan.
-                    </div>
-                  )}
                 </div>
               );
             })()}
+
 
             {/* Kopplade utbetalningar (intäkt) */}
             {payouts && payouts.length > 0 && (
