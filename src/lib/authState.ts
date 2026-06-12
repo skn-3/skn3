@@ -15,3 +15,7 @@ export function isCurrentUserAdmin(name?: string): boolean {
   if (name && currentName && name !== currentName) return false;
   return currentIsAdmin;
 }
+
+export function getCurrentAuthName(): string | null {
+  return currentName;
+}
