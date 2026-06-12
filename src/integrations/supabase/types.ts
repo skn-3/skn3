@@ -59,6 +59,7 @@ export type Database = {
           door_count: number
           facade_type: string
           id: string
+          images: Json
           internal_extra_amount: number | null
           internal_extra_hours: number | null
           internal_hour_rate: number | null
@@ -67,6 +68,7 @@ export type Database = {
           km_distance: number
           line_items: Json
           order_number: number
+          order_sent_at: string | null
           pdf_path: string | null
           roof_window_count: number
           scheduled_delivery: boolean | null
@@ -90,6 +92,7 @@ export type Database = {
           door_count?: number
           facade_type?: string
           id?: string
+          images?: Json
           internal_extra_amount?: number | null
           internal_extra_hours?: number | null
           internal_hour_rate?: number | null
@@ -98,6 +101,7 @@ export type Database = {
           km_distance?: number
           line_items?: Json
           order_number: number
+          order_sent_at?: string | null
           pdf_path?: string | null
           roof_window_count?: number
           scheduled_delivery?: boolean | null
@@ -121,6 +125,7 @@ export type Database = {
           door_count?: number
           facade_type?: string
           id?: string
+          images?: Json
           internal_extra_amount?: number | null
           internal_extra_hours?: number | null
           internal_hour_rate?: number | null
@@ -129,6 +134,7 @@ export type Database = {
           km_distance?: number
           line_items?: Json
           order_number?: number
+          order_sent_at?: string | null
           pdf_path?: string | null
           roof_window_count?: number
           scheduled_delivery?: boolean | null
