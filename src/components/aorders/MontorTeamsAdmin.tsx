@@ -47,8 +47,10 @@ export function MontorTeamsAdmin() {
     if (!d.name?.trim()) { toast.error('Namn krävs'); return; }
     const { error } = await (supabase as any).from('montor_teams').update({
       name: d.name, company_name: d.company_name || null, org_nr: d.org_nr || null,
-      address: d.address || null, email: d.email || null, bankgiro: d.bankgiro || null,
-      invoice_prefix: d.invoice_prefix || null, is_active: d.is_active,
+      address: d.address || null, email: d.email || null, invoice_email: d.invoice_email || null,
+      bankgiro: d.bankgiro || null, invoice_prefix: d.invoice_prefix || null,
+      next_invoice_number: Math.max(1, Number(d.next_invoice_number) || 1),
+      is_active: d.is_active,
     }).eq('id', id);
     if (error) { toast.error(error.message); return; }
     toast.success('Sparat');
