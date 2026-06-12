@@ -117,8 +117,10 @@ export function MontorTeamsAdmin() {
               <th className="p-2 text-left">Org.nr</th>
               <th className="p-2 text-left">Adress</th>
               <th className="p-2 text-left">E-post</th>
+              <th className="p-2 text-left">Faktura-e-post</th>
               <th className="p-2 text-left">Bankgiro</th>
               <th className="p-2 text-left">Prefix</th>
+              <th className="p-2 text-left">Nästa fakturanr</th>
               <th className="p-2 text-center">Aktiv</th>
               <th className="p-2"></th>
             </tr>
