@@ -281,6 +281,16 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     },
   });
 
+  const { data: internalAOrders, refetch: refetchInternalAOrders } = useQuery({
+    queryKey: ['internal-a-orders', caseData.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('a_orders').select('id, order_number, total_amount, status, team_id, montor_teams(name)').eq('case_id', caseData.id).order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: isSeller,
+  });
+
   const { data: caseDocs } = useQuery({
     queryKey: ['case-documents', caseData.id],
     queryFn: async () => {
