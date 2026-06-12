@@ -1,15 +1,16 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { UserRole } from '@/lib/constants';
+import { getCurrentAuthName } from '@/lib/authState';
 
 // GDPR-NOT: activity_log innehåller medarbetares handlingar (vem gjorde vad och när).
 // Måste ingå i bolagets GDPR-dokumentation. Överväg retention-policy (12 mån).
 
 const STORAGE_KEY = 'smartklimat_role';
 
-function getCurrentUser(): UserRole | null {
+function getStoredRoleType(): string | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as UserRole) : null;
+    return stored ? ((JSON.parse(stored) as UserRole)?.type ?? null) : null;
   } catch {
     return null;
   }
@@ -39,9 +40,13 @@ export interface LogActivityParams {
  */
 export async function logActivity(params: LogActivityParams): Promise<void> {
   try {
-    const user = getCurrentUser();
-    const actorName = params.actor?.name ?? user?.name ?? 'anonymous';
-    const actorRole = params.actor?.role ?? user?.type ?? 'unknown';
+    // Bind actor_name to authenticated identity (matches public.auth_user_name()).
+    // RLS-policyn på activity_log kräver actor_name = auth_user_name().
+    // För händelser innan inloggning (t.ex. login_failed) faller vi tillbaka på params.actor.name —
+    // den raden blockeras av RLS och loggas inte, vilket är acceptabelt (fire-and-forget).
+    const authName = getCurrentAuthName();
+    const actorName = authName ?? params.actor?.name ?? 'anonymous';
+    const actorRole = params.actor?.role ?? getStoredRoleType() ?? 'unknown';
 
     await supabase.from('activity_log').insert({
       actor_name: actorName,
