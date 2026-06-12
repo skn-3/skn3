@@ -340,14 +340,14 @@ export function AOrdersView({ currentUser }: Props) {
         order={invoiceFor}
         open={!!invoiceFor}
         onOpenChange={(v) => { if (!v) setInvoiceFor(null); }}
-        onDone={() => qc.invalidateQueries({ queryKey: ['a_orders_all'] })}
+        currentUser={currentUser}
       />
 
       <CreditAOrderDialog
         order={creditFor}
         open={!!creditFor}
         onOpenChange={(v) => { if (!v) setCreditFor(null); }}
-        onDone={() => qc.invalidateQueries({ queryKey: ['a_orders_all'] })}
+        currentUser={currentUser}
       />
     </div>
   );
