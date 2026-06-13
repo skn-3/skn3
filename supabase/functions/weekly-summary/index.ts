@@ -138,6 +138,11 @@ async function sendEmail(
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const CRON_SECRET = Deno.env.get('BACKUP_TRIGGER_SECRET');
+  if (!CRON_SECRET || req.headers.get('x-cron-secret') !== CRON_SECRET) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
   if (!LOVABLE_API_KEY || !RESEND_API_KEY) throw new Error('Missing API keys');
