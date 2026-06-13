@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
     if (!authUserId) {
       const { data, error } = await admin.auth.admin.createUser({
         email,
-        password: padPin(u.pin),
+        password: generatePin(),
         email_confirm: true,
         user_metadata: { name: u.name, role: u.role },
       });
@@ -105,6 +105,7 @@ Deno.serve(async (req) => {
       }
       authUserId = data.user.id;
     }
+
 
     const { error: insErr } = await admin.from("profiles").insert({
       id: authUserId,
