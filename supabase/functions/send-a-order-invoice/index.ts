@@ -60,8 +60,15 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: claims, error: claimsErr } = await userClient.auth.getClaims(authHeader.replace('Bearer ', ''));
-    if (claimsErr || !claims?.claims) {
+    if (claimsErr || !claims?.claims?.sub) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    {
+      const a = createClient(SUPABASE_URL, SERVICE_KEY);
+      const { data: r } = await a.from('user_roles').select('role,is_admin').eq('user_id', claims.claims.sub).maybeSingle();
+      if (!(r?.is_admin || r?.role === 'seller' || r?.role === 'coordinator')) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     const body = await req.json().catch(() => ({}));
