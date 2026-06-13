@@ -14,18 +14,17 @@ interface SeedUser {
   name: string;
   role: "seller" | "montor" | "coordinator";
   is_admin: boolean;
-  pin: string; // 4 digits — will be padded with "00"
 }
 
 const SEED_USERS: SeedUser[] = [
-  { name: "Daniel Malke",      role: "seller",      is_admin: true,  pin: "1234" },
-  { name: "Gabriel Hanna",     role: "seller",      is_admin: false, pin: "5678" },
-  { name: "GVMO",              role: "montor",      is_admin: false, pin: "1111" },
-  { name: "Samy",              role: "montor",      is_admin: false, pin: "2222" },
-  { name: "Alex NBD",          role: "montor",      is_admin: false, pin: "3333" },
-  { name: "Jerk",              role: "montor",      is_admin: false, pin: "4444" },
-  { name: "Villaspecialisten", role: "montor",      is_admin: false, pin: "5555" },
-  { name: "Mirna Malke",       role: "coordinator", is_admin: false, pin: "6666" },
+  { name: "Daniel Malke",      role: "seller",      is_admin: true  },
+  { name: "Gabriel Hanna",     role: "seller",      is_admin: false },
+  { name: "GVMO",              role: "montor",      is_admin: false },
+  { name: "Samy",              role: "montor",      is_admin: false },
+  { name: "Alex NBD",          role: "montor",      is_admin: false },
+  { name: "Jerk",              role: "montor",      is_admin: false },
+  { name: "Villaspecialisten", role: "montor",      is_admin: false },
+  { name: "Mirna Malke",       role: "coordinator", is_admin: false },
 ];
 
 function deriveLoginEmail(name: string): string {
@@ -33,9 +32,14 @@ function deriveLoginEmail(name: string): string {
   return `${local}@caseflow.local`;
 }
 
-function padPin(pin: string): string {
-  return (pin + "00").slice(0, 6);
+function generatePin(): string {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  let s = "";
+  for (let i = 0; i < 6; i++) s += (bytes[i] % 10).toString();
+  return s;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
