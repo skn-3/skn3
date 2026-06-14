@@ -52,7 +52,7 @@ export function AOrdersView({ currentUser }: Props) {
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['a_orders_all'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from('a_orders').select('*, montor_teams(name)').order('created_at', { ascending: false });
+      const { data, error } = await (supabase as any).from('a_orders').select('*, montor_teams(id, name, company_name, org_nr, address, email, invoice_email, bankgiro, invoice_prefix, next_invoice_number)').order('created_at', { ascending: false });
       if (error) throw error;
       return data as any[];
     },

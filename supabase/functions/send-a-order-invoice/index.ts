@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
-const COPY_TO = 'n3prenad@smartklimat.org';
+const COPY_TO = ['n3prenad@smartklimat.org', 'daniel@malke.se'];
 
 function esc(s: string) {
   return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
       from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
       reply_to: 'n3prenad@smartklimat.org',
       to: [recipient],
-      cc: [COPY_TO],
+      cc: COPY_TO,
       subject,
       html,
       attachments: [{ filename, content: pdf_base64 }],

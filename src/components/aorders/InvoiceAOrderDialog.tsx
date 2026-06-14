@@ -153,9 +153,15 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
             </div>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          {!team && (
+            <div className="text-xs text-red-600 sm:mr-auto">Ordern saknar montörsteam — tilldela först.</div>
+          )}
+          {team && !recipient && (
+            <div className="text-xs text-red-600 sm:mr-auto">Teamet saknar e-post (fyll i under Admin → Montörsteam).</div>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Avbryt</Button>
-          <Button onClick={go} disabled={busy || !recipient} className="bg-green-600 hover:bg-green-700">
+          <Button onClick={go} disabled={busy || !team || !recipient || lines.length === 0} className="bg-green-600 hover:bg-green-700">
             {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Generera & skicka faktura
           </Button>
