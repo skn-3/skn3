@@ -549,7 +549,7 @@ export function N3prenadImportView() {
           </Button>
         </div>
       </div>
-      </div>
+
 
       {/* Synka fakturaserier */}
       <div className="rounded-md border p-4 space-y-2">
