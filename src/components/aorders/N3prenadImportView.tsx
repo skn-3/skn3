@@ -45,6 +45,55 @@ export function N3prenadImportView() {
   const [repairReport, setRepairReport] = useState<{ scanned: number; repaired: number } | null>(null);
   const [backfilling, setBackfilling] = useState(false);
   const [backfillReport, setBackfillReport] = useState<{ updated: number; skipped: number; noCase: number; noProfit: number } | null>(null);
+  const [syncingSeries, setSyncingSeries] = useState(false);
+  const [seriesReport, setSeriesReport] = useState<Array<{ prefix: string; next: number }> | null>(null);
+
+  async function syncInvoiceSeries() {
+    setSyncingSeries(true);
+    setSeriesReport(null);
+    try {
+      const { data: teams, error: tErr } = await (supabase as any)
+        .from('montor_teams')
+        .select('id, invoice_prefix, name');
+      if (tErr) throw tErr;
+      const { data: orders, error: oErr } = await (supabase as any)
+        .from('a_orders')
+        .select('team_id, invoice_number, status')
+        .not('invoice_number', 'is', null)
+        .in('status', ['invoiced', 'credited']);
+      if (oErr) throw oErr;
+      const report: Array<{ prefix: string; next: number }> = [];
+      for (const t of (teams || [])) {
+        const prefix = t.invoice_prefix || t.name;
+        if (!prefix) continue;
+        const re = new RegExp(`^${String(prefix).replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}-(\\d+)$`);
+        let max = 0;
+        for (const o of (orders || [])) {
+          if (o.team_id !== t.id) continue;
+          const m = String(o.invoice_number || '').match(re);
+          if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > max) max = n;
+          }
+        }
+        const next = Math.max(1, max + 1);
+        const { error } = await (supabase as any)
+          .from('montor_teams')
+          .update({ next_invoice_number: next })
+          .eq('id', t.id);
+        if (!error) report.push({ prefix, next });
+      }
+      setSeriesReport(report);
+      toast.success(`Synkade ${report.length} team`);
+      qc.invalidateQueries({ queryKey: ['montor_teams'] });
+      qc.invalidateQueries({ queryKey: ['admin_montor_teams'] });
+      qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Synk misslyckades');
+    } finally {
+      setSyncingSeries(false);
+    }
+  }
 
   async function backfillInternalHours() {
     setBackfilling(true);
