@@ -549,6 +549,30 @@ export function N3prenadImportView() {
           </Button>
         </div>
       </div>
+      </div>
+
+      {/* Synka fakturaserier */}
+      <div className="rounded-md border p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium">Synka fakturaserier</div>
+            <div className="text-sm text-muted-foreground">
+              Sätter next_invoice_number per team baserat på högsta befintliga fakturanummer (matchar prefix-NNN). Idempotent.
+            </div>
+            {seriesReport && seriesReport.length > 0 && (
+              <ul className="text-sm mt-1 list-disc ml-5">
+                {seriesReport.map((r, i) => (
+                  <li key={i}>{r.prefix}: nästa nr <b>{r.next}</b></li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <Button variant="outline" onClick={syncInvoiceSeries} disabled={syncingSeries} className="gap-2">
+            {syncingSeries ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Synka fakturaserier
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
