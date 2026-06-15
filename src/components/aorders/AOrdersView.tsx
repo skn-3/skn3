@@ -42,6 +42,8 @@ export function AOrdersView({ currentUser }: Props) {
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
+  const [formPrefill, setFormPrefill] = useState<any | null>(null);
+  const [mockfjardsOpen, setMockfjardsOpen] = useState(false);
   const [assignFor, setAssignFor] = useState<any | null>(null);
   const [assignTeam, setAssignTeam] = useState<string>('');
   const [search, setSearch] = useState('');
