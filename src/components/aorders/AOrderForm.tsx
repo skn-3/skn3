@@ -295,6 +295,9 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         internal_extra_hours: internalExtraHours || 0,
         internal_hour_rate: internalHourRate || 0,
         internal_extra_amount: internalExtraAmount || 0,
+        ...(prefill?.mockfjards_invoice_number !== undefined
+          ? { mockfjards_invoice_number: prefill.mockfjards_invoice_number }
+          : {}),
       };
       let orderId = order?.id as string | undefined;
       if (isEdit && orderId) {
