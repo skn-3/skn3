@@ -209,9 +209,14 @@ export function AOrdersView({ currentUser }: Props) {
 
   return (
     <div className="px-3 md:px-6 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-xl font-semibold">A-ordrar</h2>
-        <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Ny A-order</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setMockfjardsOpen(true)} className="gap-2">
+            <FileUp className="h-4 w-4" /> Från Mockfjärds-faktura
+          </Button>
+          <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Ny A-order</Button>
+        </div>
       </div>
 
       <Tabs defaultValue="pending">
