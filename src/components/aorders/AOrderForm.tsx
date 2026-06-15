@@ -28,6 +28,12 @@ interface Props {
     customer_phone?: string;
     case_id?: string | null;
     team_id?: string | null;
+    line_items?: Array<{ name?: string; unit_price?: number; qty?: number; amount?: number }>;
+    date?: string;
+    description?: string;
+    internalExtraHours?: number;
+    internalHourRate?: number;
+    mockfjards_invoice_number?: string | null;
   } | null;
   currentUser: string;
   onSaved?: () => void;
