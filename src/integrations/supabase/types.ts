@@ -67,6 +67,7 @@ export type Database = {
           invoice_sent_at: string | null
           km_distance: number
           line_items: Json
+          mockfjards_invoice_number: string | null
           order_number: number | null
           order_sent_at: string | null
           pdf_path: string | null
@@ -100,6 +101,7 @@ export type Database = {
           invoice_sent_at?: string | null
           km_distance?: number
           line_items?: Json
+          mockfjards_invoice_number?: string | null
           order_number?: number | null
           order_sent_at?: string | null
           pdf_path?: string | null
@@ -133,6 +135,7 @@ export type Database = {
           invoice_sent_at?: string | null
           km_distance?: number
           line_items?: Json
+          mockfjards_invoice_number?: string | null
           order_number?: number | null
           order_sent_at?: string | null
           pdf_path?: string | null

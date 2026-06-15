@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2 } from 'lucide-react';
+import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AOrderForm } from './AOrderForm';
+import { MockfjardsInvoiceImportDialog } from './MockfjardsInvoiceImportDialog';
 import { InvoiceAOrderDialog } from './InvoiceAOrderDialog';
 import { CreditAOrderDialog } from './CreditAOrderDialog';
 import { ImportInvoicesView } from './ImportInvoicesView';
@@ -41,6 +42,8 @@ export function AOrdersView({ currentUser }: Props) {
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
+  const [formPrefill, setFormPrefill] = useState<any | null>(null);
+  const [mockfjardsOpen, setMockfjardsOpen] = useState(false);
   const [assignFor, setAssignFor] = useState<any | null>(null);
   const [assignTeam, setAssignTeam] = useState<string>('');
   const [search, setSearch] = useState('');
@@ -82,8 +85,8 @@ export function AOrdersView({ currentUser }: Props) {
     );
   }, [orders, search]);
 
-  function openNew() { setEditing(null); setFormOpen(true); }
-  function openEdit(o: any) { setEditing(o); setFormOpen(true); }
+  function openNew() { setEditing(null); setFormPrefill(null); setFormOpen(true); }
+  function openEdit(o: any) { setEditing(o); setFormPrefill(null); setFormOpen(true); }
 
   async function doAssign() {
     if (!assignFor || !assignTeam) return;
@@ -206,9 +209,14 @@ export function AOrdersView({ currentUser }: Props) {
 
   return (
     <div className="px-3 md:px-6 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-xl font-semibold">A-ordrar</h2>
-        <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Ny A-order</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setMockfjardsOpen(true)} className="gap-2">
+            <FileUp className="h-4 w-4" /> Från Mockfjärds-faktura
+          </Button>
+          <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Ny A-order</Button>
+        </div>
       </div>
 
       <Tabs defaultValue="pending">
@@ -389,13 +397,25 @@ export function AOrdersView({ currentUser }: Props) {
       </Dialog>
 
       <AOrderForm
-        key={editing?.id ?? 'new'}
+        key={editing?.id ?? (formPrefill ? 'prefill' : 'new')}
         open={formOpen}
-        onOpenChange={(v) => { setFormOpen(v); if (!v) setEditing(null); }}
+        onOpenChange={(v) => { setFormOpen(v); if (!v) { setEditing(null); setFormPrefill(null); } }}
         order={editing}
+        prefill={formPrefill}
         currentUser={currentUser}
         onSaved={() => qc.invalidateQueries({ queryKey: ['a_orders_all'] })}
       />
+
+      <MockfjardsInvoiceImportDialog
+        open={mockfjardsOpen}
+        onOpenChange={setMockfjardsOpen}
+        onPrefillReady={(prefill) => {
+          setEditing(null);
+          setFormPrefill(prefill);
+          setFormOpen(true);
+        }}
+      />
+
 
       <InvoiceAOrderDialog
         order={invoiceFor}

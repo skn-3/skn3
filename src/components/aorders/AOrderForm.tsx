@@ -28,6 +28,12 @@ interface Props {
     customer_phone?: string;
     case_id?: string | null;
     team_id?: string | null;
+    line_items?: Array<{ name?: string; unit_price?: number; qty?: number; amount?: number }>;
+    date?: string;
+    description?: string;
+    internalExtraHours?: number;
+    internalHourRate?: number;
+    mockfjards_invoice_number?: string | null;
   } | null;
   currentUser: string;
   onSaved?: () => void;
@@ -41,7 +47,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [saving, setSaving] = useState(false);
 
   // Header
-  const [date, setDate] = useState<string>(order?.date || new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState<string>(order?.date || prefill?.date || new Date().toISOString().slice(0, 10));
   const [customerName, setCustomerName] = useState<string>(order?.customer_name ?? prefill?.customer_name ?? '');
   const [customerAddress, setCustomerAddress] = useState<string>(order?.customer_address ?? prefill?.customer_address ?? '');
   const [customerPhone, setCustomerPhone] = useState<string>(order?.customer_phone ?? prefill?.customer_phone ?? '');
@@ -52,14 +58,24 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [kmDistance, setKmDistance] = useState<number>(order?.km_distance ?? 0);
   const [scheduledDelivery, setScheduledDelivery] = useState<boolean>(order?.scheduled_delivery ?? false);
   const [deliveryTime, setDeliveryTime] = useState<string>(order?.delivery_time?.toString().slice(0, 5) ?? '');
-  const [description, setDescription] = useState<string>(order?.description ?? '');
+  const [description, setDescription] = useState<string>(order?.description ?? prefill?.description ?? '');
   const [teamId, setTeamId] = useState<string>(order?.team_id ?? prefill?.team_id ?? '__none__');
-  const [internalExtraHours, setInternalExtraHours] = useState<number>(order?.internal_extra_hours ?? 0);
-  const [internalHourRate, setInternalHourRate] = useState<number>(order?.internal_hour_rate ?? 0);
+  const [internalExtraHours, setInternalExtraHours] = useState<number>(order?.internal_extra_hours ?? prefill?.internalExtraHours ?? 0);
+  const [internalHourRate, setInternalHourRate] = useState<number>(order?.internal_hour_rate ?? prefill?.internalHourRate ?? 0);
   const [internalExtraAmount, setInternalExtraAmount] = useState<number>(order?.internal_extra_amount ?? 0);
 
-  const [lines, setLines] = useState<AOrderLine[]>(normalizeLines(order?.line_items));
-  const [autoLocked, setAutoLocked] = useState<boolean>(!!order?.id); // when editing existing, don't auto-regenerate
+  const prefillLines: AOrderLine[] | null = prefill?.line_items && prefill.line_items.length
+    ? prefill.line_items.map(li => ({
+        id: newId(),
+        name: li.name || '',
+        unit_price: Number(li.unit_price) || 0,
+        qty: Number(li.qty) || 0,
+        amount: li.amount != null ? Number(li.amount) : Math.round((Number(li.unit_price) || 0) * (Number(li.qty) || 0)),
+      }))
+    : null;
+
+  const [lines, setLines] = useState<AOrderLine[]>(prefillLines ?? normalizeLines(order?.line_items));
+  const [autoLocked, setAutoLocked] = useState<boolean>(!!order?.id || !!prefillLines); // when editing or prefilled, don't auto-regenerate
 
   // Effective case_id: existing order.case_id or prefill.case_id
   const effectiveCaseId: string | null = (order?.case_id ?? prefill?.case_id) ?? null;
@@ -113,6 +129,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     if (extraHoursAppliedRef.current) return;
     if (!caseExtra) return;
     extraHoursAppliedRef.current = true;
+    // Om prefill redan satt interna timmar (t.ex. från Mockfjärds-flödet), skriv inte över.
+    if (prefill?.internalExtraHours != null || prefill?.line_items?.length) return;
     applyCaseExtraHours(caseExtra);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isEdit, caseExtra]);
@@ -277,6 +295,9 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         internal_extra_hours: internalExtraHours || 0,
         internal_hour_rate: internalHourRate || 0,
         internal_extra_amount: internalExtraAmount || 0,
+        ...(prefill?.mockfjards_invoice_number !== undefined
+          ? { mockfjards_invoice_number: prefill.mockfjards_invoice_number }
+          : {}),
       };
       let orderId = order?.id as string | undefined;
       if (isEdit && orderId) {
