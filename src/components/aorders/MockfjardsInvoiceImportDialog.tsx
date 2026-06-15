@@ -95,14 +95,15 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
     // Case match by order_number
     let matchedCase: any = null;
     if (p.sales_order_number) {
-      const n = Number(p.sales_order_number);
-      if (!Number.isNaN(n)) {
-        const { data: c } = await (supabase as any)
-          .from('cases')
-          .select('id, customer_address, customer_name, extra_hours_sold, extra_hours_approved')
-          .eq('order_number', n)
-          .maybeSingle();
-        if (c) matchedCase = c;
+      const { data: casesList } = await (supabase as any)
+        .from('cases')
+        .select('id, order_number, address, customer_name, extra_hours_sold, extra_hours_approved')
+        .not('order_number', 'is', null);
+
+      if (casesList) {
+        const targetNorm = norm(p.sales_order_number);
+        const match = casesList.find((c: any) => norm(c.order_number) === targetNorm);
+        if (match) matchedCase = match;
       }
     }
 
@@ -122,7 +123,7 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
 
     const prefill = {
       customer_name: matchedCase?.customer_name || p.customer_name || '',
-      customer_address: matchedCase?.customer_address || '',
+      customer_address: matchedCase?.address || '',
       case_id: matchedCase?.id ?? null,
       team_id: matchedTeam?.id ?? '__none__',
       line_items: p.line_items,
