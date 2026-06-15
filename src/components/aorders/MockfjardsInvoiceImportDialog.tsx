@@ -26,6 +26,9 @@ interface Props {
   onPrefillReady: (prefill: any) => void;
 }
 
+const norm = (s: string | null | undefined) =>
+  (s ?? '').trim().toLowerCase().replace(/\s+/g, '');
+
 function fmt(n: number | null | undefined) {
   if (n == null) return '—';
   return Math.round(n).toLocaleString('sv-SE') + ' kr';
