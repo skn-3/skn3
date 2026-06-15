@@ -397,13 +397,25 @@ export function AOrdersView({ currentUser }: Props) {
       </Dialog>
 
       <AOrderForm
-        key={editing?.id ?? 'new'}
+        key={editing?.id ?? (formPrefill ? 'prefill' : 'new')}
         open={formOpen}
-        onOpenChange={(v) => { setFormOpen(v); if (!v) setEditing(null); }}
+        onOpenChange={(v) => { setFormOpen(v); if (!v) { setEditing(null); setFormPrefill(null); } }}
         order={editing}
+        prefill={formPrefill}
         currentUser={currentUser}
         onSaved={() => qc.invalidateQueries({ queryKey: ['a_orders_all'] })}
       />
+
+      <MockfjardsInvoiceImportDialog
+        open={mockfjardsOpen}
+        onOpenChange={setMockfjardsOpen}
+        onPrefillReady={(prefill) => {
+          setEditing(null);
+          setFormPrefill(prefill);
+          setFormOpen(true);
+        }}
+      />
+
 
       <InvoiceAOrderDialog
         order={invoiceFor}
