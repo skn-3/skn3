@@ -85,8 +85,8 @@ export function AOrdersView({ currentUser }: Props) {
     );
   }, [orders, search]);
 
-  function openNew() { setEditing(null); setFormOpen(true); }
-  function openEdit(o: any) { setEditing(o); setFormOpen(true); }
+  function openNew() { setEditing(null); setFormPrefill(null); setFormOpen(true); }
+  function openEdit(o: any) { setEditing(o); setFormPrefill(null); setFormOpen(true); }
 
   async function doAssign() {
     if (!assignFor || !assignTeam) return;
