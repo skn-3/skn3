@@ -130,13 +130,8 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
       mockfjards_invoice_number: p.invoice_number,
     };
     setPendingPrefill(prefill);
-    if (dupNum !== null || (p.invoice_number && dupNum === null && await checkAnyDup(p.invoice_number))) {
-      // already handled above
-    }
     if (dupNum !== null) setDuplicate({ orderNumber: dupNum });
   }
-
-  async function checkAnyDup(_n: string) { return false; }
 
   function proceed() {
     if (pendingPrefill) {
