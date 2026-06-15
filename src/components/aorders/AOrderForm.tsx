@@ -129,6 +129,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     if (extraHoursAppliedRef.current) return;
     if (!caseExtra) return;
     extraHoursAppliedRef.current = true;
+    // Om prefill redan satt interna timmar (t.ex. från Mockfjärds-flödet), skriv inte över.
+    if (prefill?.internalExtraHours != null || prefill?.line_items?.length) return;
     applyCaseExtraHours(caseExtra);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isEdit, caseExtra]);
