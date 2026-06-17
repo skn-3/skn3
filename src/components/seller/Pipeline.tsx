@@ -69,7 +69,10 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [onlyFlagged, setOnlyFlagged] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   // Debounce
   useEffect(() => {
