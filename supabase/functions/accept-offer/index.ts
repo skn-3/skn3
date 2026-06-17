@@ -142,7 +142,13 @@ Deno.serve(async (req) => {
 <p style="margin-top:16px;"><a href="${offerUrl}" style="color:#15803D;font-weight:bold;">Öppna avtalet</a></p>
 </body></html>`;
 
-      const sendMail = async (to: string, subject: string, html: string) => {
+      const SELLER_EMAIL_MAP: Record<string, string> = {
+        'Daniel Malke': 'daniel.malke@mockfjards.se',
+        'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',
+      };
+      const sellerEmail = offer.created_by ? SELLER_EMAIL_MAP[offer.created_by as string] : undefined;
+
+      const sendMail = async (to: string | string[], subject: string, html: string, cc?: string[]) => {
         try {
           const r = await fetch(`${GATEWAY_URL}/emails`, {
             method: 'POST',
@@ -154,7 +160,8 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
               reply_to: 'n3prenad@smartklimat.org',
-              to: [to],
+              to: Array.isArray(to) ? to : [to],
+              ...(cc && cc.length ? { cc } : {}),
               subject,
               html,
             }),
@@ -168,7 +175,8 @@ Deno.serve(async (req) => {
       if (offer.customer_email) {
         await sendMail(offer.customer_email, `Din offert ${offerNumber} är accepterad`, customerHtml);
       }
-      await sendMail('n3prenad@smartklimat.org', `Offert ${offerNumber} accepterad av ${acceptName}`, internalHtml);
+      const internalTo = ['n3prenad@smartklimat.org', ...(sellerEmail ? [sellerEmail] : [])];
+      await sendMail(internalTo, `Offert ${offerNumber} accepterad av ${acceptName}`, internalHtml, ['daniel@malke.se']);
     }
 
     return new Response(JSON.stringify({ ok: true, accepted_at: acceptedAt, accept_name: acceptName }), {

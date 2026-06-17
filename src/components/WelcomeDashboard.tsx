@@ -208,6 +208,22 @@ function SellerDashboard({ name }: { name: string }) {
     staleTime: 60_000,
   });
 
+  const { data: recentlySigned = [] } = useQuery({
+    queryKey: ['welcome-recently-signed', name],
+    queryFn: async () => {
+      const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { data } = await supabase
+        .from('offers')
+        .select('id, customer_name, accepted_at, total_incl_vat, total_after_rot, rot_enabled, accept_name')
+        .eq('status', 'accepted')
+        .eq('created_by', name)
+        .gte('accepted_at', sevenAgo)
+        .order('accepted_at', { ascending: false });
+      return (data || []) as Array<{ id: string; customer_name: string | null; accepted_at: string | null; total_incl_vat: number | null; total_after_rot: number | null; rot_enabled: boolean | null; accept_name: string | null }>;
+    },
+    staleTime: 60_000,
+  });
+
   const offerStats = useMemo(() => {
     const list = offerOverview || [];
     const now = Date.now();
@@ -439,6 +455,29 @@ function SellerDashboard({ name }: { name: string }) {
                   <div className="text-3xl font-bold mt-2 text-foreground"><CountUp value={offerStats.readyToInvoiceCount} /></div>
                 </Card>
               </div>
+              {recentlySigned.length > 0 && (
+                <Card className="mt-4 border-primary/30 bg-primary/5">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Nyligen signerade (7 dagar)</div>
+                  <div className="space-y-2">
+                    {recentlySigned.map(o => {
+                      const amt = o.rot_enabled && o.total_after_rot != null ? Number(o.total_after_rot) : Number(o.total_incl_vat || 0);
+                      const d = o.accepted_at ? new Date(o.accepted_at).toLocaleDateString('sv-SE') : '';
+                      return (
+                        <div key={o.id} className="flex items-center justify-between gap-3 text-sm border-b border-border/50 last:border-0 pb-2 last:pb-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                            <span className="truncate font-medium">{o.customer_name || o.accept_name || '—'}</span>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="font-semibold">{formatAmount(amt)}</span>
+                            <span className="text-xs text-muted-foreground">{d}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
             </div>
           )}
 
