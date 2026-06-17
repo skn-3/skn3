@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy, FileCheck, Trash2 } from 'lucide-react';
+import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy, FileCheck, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -56,6 +58,9 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [deleteTarget, setDeleteTarget] = useState<OfferRow | null>(null);
   const [hasLinkedUppdrag, setHasLinkedUppdrag] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiText, setAiText] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
   const isAdmin = isCurrentUserAdmin(currentUser);
 
   const { data: offers, isLoading } = useQuery({
@@ -198,6 +203,63 @@ export function OffersView({ currentUser }: OffersViewProps) {
     } catch {}
   };
 
+  const makeId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const handleAiParse = async () => {
+    const text = aiText.trim();
+    if (!text) { toast.error('Skriv en beskrivning först'); return; }
+    setAiBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('parse-offer-text', { body: { text } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const d = data as any;
+      const round = (n: number) => Math.round(n);
+      const lines = Array.isArray(d.line_items) ? d.line_items.map((li: any) => {
+        const qty = li.qty ?? 1;
+        const unit_price = li.unit_price ?? 0;
+        const amount = li.amount ?? round(qty * unit_price);
+        return {
+          id: makeId(),
+          description: li.description || '',
+          is_labor: !!li.is_labor,
+          qty,
+          unit: li.unit ?? 'st',
+          unit_price,
+          amount,
+        };
+      }) : [];
+      const tmpl: any = {
+        customer_type: d.customer_type === 'foretag' ? 'foretag' : 'privat',
+        customer_name: d.customer_name ?? '',
+        customer_email: d.customer_email ?? '',
+        customer_phone: d.customer_phone ?? '',
+        customer_address: d.customer_address ?? '',
+        customer_personnummer: d.customer_personnummer ?? '',
+        fastighetsbeteckning: d.fastighetsbeteckning ?? '',
+        title: d.title ?? '',
+        description: d.description ?? '',
+        vat_mode: d.vat_mode === 'omvand' ? 'omvand' : 'vanlig',
+        rot_enabled: !!d.rot_suggested,
+        rot_percent: 30,
+        handpenning_percent: 25,
+        line_items: lines,
+      };
+      const valid = new Date();
+      valid.setDate(valid.getDate() + 30);
+      tmpl.valid_until = valid.toISOString().slice(0, 10);
+      setAiOpen(false);
+      setAiText('');
+      setEditing(tmpl);
+      setOpenForm(true);
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte tolka texten');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+
 
 
 
@@ -209,9 +271,14 @@ export function OffersView({ currentUser }: OffersViewProps) {
           <h2 className="text-xl font-semibold">Offerter</h2>
           <p className="text-sm text-muted-foreground">Skapa, redigera och ladda ner offerter som PDF.</p>
         </div>
-        <Button onClick={handleOpenNew} className="gap-2">
-          <Plus className="h-4 w-4" /> Ny offert
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setAiOpen(true)} className="gap-2">
+            <Sparkles className="h-4 w-4" /> Skapa med AI
+          </Button>
+          <Button onClick={handleOpenNew} className="gap-2">
+            <Plus className="h-4 w-4" /> Ny offert
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -370,6 +437,33 @@ export function OffersView({ currentUser }: OffersViewProps) {
           </tbody>
         </table>
       </div>
+
+      <Dialog open={aiOpen} onOpenChange={(v) => { if (!aiBusy) setAiOpen(v); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4" /> Skapa offert med AI</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Skriv fritext om jobbet — kund, arbete, priser. AI tolkar och förifyller offerten. Allt går att justera innan du sparar.
+            </p>
+            <Textarea
+              value={aiText}
+              onChange={e => setAiText(e.target.value)}
+              rows={10}
+              placeholder="T.ex. Privatperson Anna Andersson, Storgatan 1 Bromma, personnr 19800101-1234. Montage av 5 fönster, 2500 kr/st arbete. Material 8000 kr. Rivning gammalt 3000 kr."
+              disabled={aiBusy}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAiOpen(false)} disabled={aiBusy}>Avbryt</Button>
+            <Button onClick={handleAiParse} disabled={aiBusy || !aiText.trim()} className="gap-2">
+              {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Tolka & skapa offert
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
         <AlertDialogContent>
