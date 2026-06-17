@@ -208,6 +208,22 @@ function SellerDashboard({ name }: { name: string }) {
     staleTime: 60_000,
   });
 
+  const { data: recentlySigned = [] } = useQuery({
+    queryKey: ['welcome-recently-signed', name],
+    queryFn: async () => {
+      const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { data } = await supabase
+        .from('offers')
+        .select('id, customer_name, accepted_at, total_incl_vat, total_after_rot, rot_enabled, accept_name')
+        .eq('status', 'accepted')
+        .eq('created_by', name)
+        .gte('accepted_at', sevenAgo)
+        .order('accepted_at', { ascending: false });
+      return (data || []) as Array<{ id: string; customer_name: string | null; accepted_at: string | null; total_incl_vat: number | null; total_after_rot: number | null; rot_enabled: boolean | null; accept_name: string | null }>;
+    },
+    staleTime: 60_000,
+  });
+
   const offerStats = useMemo(() => {
     const list = offerOverview || [];
     const now = Date.now();
