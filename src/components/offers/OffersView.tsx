@@ -1,16 +1,21 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy, FileCheck } from 'lucide-react';
+import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy, FileCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { OfferForm } from './OfferForm';
 import { fmtKr } from '@/lib/offerCalc';
 import { buildOfferPdfBlob } from '@/lib/offerPdf';
 import { createUppdragFromOffer } from '@/lib/uppdrag';
+import { isCurrentUserAdmin } from '@/lib/authState';
 
 export type OfferRow = {
   id: string;
@@ -49,6 +54,9 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<OfferRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [deleteTarget, setDeleteTarget] = useState<OfferRow | null>(null);
+  const [hasLinkedUppdrag, setHasLinkedUppdrag] = useState(false);
+  const isAdmin = isCurrentUserAdmin(currentUser);
 
   const { data: offers, isLoading } = useQuery({
     queryKey: ['offers'],
@@ -162,6 +170,35 @@ export function OffersView({ currentUser }: OffersViewProps) {
     },
     onError: (e: any) => toast.error(e?.message || 'Kunde inte skapa uppdrag'),
   });
+
+  const deleteOffer = useMutation({
+    mutationFn: async (offer: OfferRow) => {
+      const paths = [offer.pdf_path, offer.signed_pdf_path].filter(Boolean) as string[];
+      if (paths.length) {
+        await supabase.storage.from('case-documents').remove(paths);
+      }
+      const { error } = await (supabase as any).from('offers').delete().eq('id', offer.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Offert borttagen');
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ['offers'] });
+      qc.invalidateQueries({ queryKey: ['case_offers'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Kunde inte ta bort offert'),
+  });
+
+  const askDelete = async (o: OfferRow) => {
+    setDeleteTarget(o);
+    setHasLinkedUppdrag(false);
+    try {
+      const { data } = await (supabase as any).from('uppdrag').select('id').eq('offer_id', o.id).limit(1);
+      setHasLinkedUppdrag(!!(data && data.length));
+    } catch {}
+  };
+
+
 
 
 
@@ -315,6 +352,16 @@ export function OffersView({ currentUser }: OffersViewProps) {
                     >
                       <Pencil className="h-3 w-3" /> Öppna
                     </button>
+                    {isAdmin && o.status !== 'accepted' && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); askDelete(o); }}
+                        className="ml-3 text-xs text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+                        title="Ta bort offert"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
 
                   </td>
                 </tr>
@@ -323,6 +370,34 @@ export function OffersView({ currentUser }: OffersViewProps) {
           </tbody>
         </table>
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ta bort offert {deleteTarget?.offer_number || ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Detta går inte att ångra.
+              {hasLinkedUppdrag && (
+                <span className="block mt-2 text-amber-700">
+                  Ett uppdrag är kopplat till offerten — uppdraget påverkas inte.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); if (deleteTarget) deleteOffer.mutate(deleteTarget); }}
+              disabled={deleteOffer.isPending}
+            >
+              Ta bort
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
 
       <Sheet open={openForm} onOpenChange={(v) => { setOpenForm(v); if (!v) setEditing(null); }}>
         <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
