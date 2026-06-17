@@ -57,6 +57,8 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const [deleteTarget, setDeleteTarget] = useState<OfferRow | null>(null);
   const [hasLinkedUppdrag, setHasLinkedUppdrag] = useState(false);
   const isAdmin = isCurrentUserAdmin(currentUser);
+
+  const { data: offers, isLoading } = useQuery({
     queryKey: ['offers'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
