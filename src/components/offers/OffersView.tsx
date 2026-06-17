@@ -171,6 +171,35 @@ export function OffersView({ currentUser }: OffersViewProps) {
     onError: (e: any) => toast.error(e?.message || 'Kunde inte skapa uppdrag'),
   });
 
+  const deleteOffer = useMutation({
+    mutationFn: async (offer: OfferRow) => {
+      const paths = [offer.pdf_path, offer.signed_pdf_path].filter(Boolean) as string[];
+      if (paths.length) {
+        await supabase.storage.from('case-documents').remove(paths);
+      }
+      const { error } = await (supabase as any).from('offers').delete().eq('id', offer.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Offert borttagen');
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ['offers'] });
+      qc.invalidateQueries({ queryKey: ['case_offers'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Kunde inte ta bort offert'),
+  });
+
+  const askDelete = async (o: OfferRow) => {
+    setDeleteTarget(o);
+    setHasLinkedUppdrag(false);
+    try {
+      const { data } = await (supabase as any).from('uppdrag').select('id').eq('offer_id', o.id).limit(1);
+      setHasLinkedUppdrag(!!(data && data.length));
+    } catch {}
+  };
+
+
+
 
 
   return (
