@@ -58,6 +58,9 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [deleteTarget, setDeleteTarget] = useState<OfferRow | null>(null);
   const [hasLinkedUppdrag, setHasLinkedUppdrag] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiText, setAiText] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
   const isAdmin = isCurrentUserAdmin(currentUser);
 
   const { data: offers, isLoading } = useQuery({
