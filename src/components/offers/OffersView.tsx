@@ -438,6 +438,33 @@ export function OffersView({ currentUser }: OffersViewProps) {
         </table>
       </div>
 
+      <Dialog open={aiOpen} onOpenChange={(v) => { if (!aiBusy) setAiOpen(v); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4" /> Skapa offert med AI</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Skriv fritext om jobbet — kund, arbete, priser. AI tolkar och förifyller offerten. Allt går att justera innan du sparar.
+            </p>
+            <Textarea
+              value={aiText}
+              onChange={e => setAiText(e.target.value)}
+              rows={10}
+              placeholder="T.ex. Privatperson Anna Andersson, Storgatan 1 Bromma, personnr 19800101-1234. Montage av 5 fönster, 2500 kr/st arbete. Material 8000 kr. Rivning gammalt 3000 kr."
+              disabled={aiBusy}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAiOpen(false)} disabled={aiBusy}>Avbryt</Button>
+            <Button onClick={handleAiParse} disabled={aiBusy || !aiText.trim()} className="gap-2">
+              {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Tolka & skapa offert
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
