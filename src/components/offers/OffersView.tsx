@@ -352,6 +352,16 @@ export function OffersView({ currentUser }: OffersViewProps) {
                     >
                       <Pencil className="h-3 w-3" /> Öppna
                     </button>
+                    {isAdmin && o.status !== 'accepted' && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); askDelete(o); }}
+                        className="ml-3 text-xs text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+                        title="Ta bort offert"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
 
                   </td>
                 </tr>
@@ -360,6 +370,34 @@ export function OffersView({ currentUser }: OffersViewProps) {
           </tbody>
         </table>
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ta bort offert {deleteTarget?.offer_number || ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Detta går inte att ångra.
+              {hasLinkedUppdrag && (
+                <span className="block mt-2 text-amber-700">
+                  Ett uppdrag är kopplat till offerten — uppdraget påverkas inte.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); if (deleteTarget) deleteOffer.mutate(deleteTarget); }}
+              disabled={deleteOffer.isPending}
+            >
+              Ta bort
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
 
       <Sheet open={openForm} onOpenChange={(v) => { setOpenForm(v); if (!v) setEditing(null); }}>
         <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
