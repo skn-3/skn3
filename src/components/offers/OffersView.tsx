@@ -203,6 +203,63 @@ export function OffersView({ currentUser }: OffersViewProps) {
     } catch {}
   };
 
+  const makeId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const handleAiParse = async () => {
+    const text = aiText.trim();
+    if (!text) { toast.error('Skriv en beskrivning först'); return; }
+    setAiBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('parse-offer-text', { body: { text } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const d = data as any;
+      const round = (n: number) => Math.round(n);
+      const lines = Array.isArray(d.line_items) ? d.line_items.map((li: any) => {
+        const qty = li.qty ?? 1;
+        const unit_price = li.unit_price ?? 0;
+        const amount = li.amount ?? round(qty * unit_price);
+        return {
+          id: makeId(),
+          description: li.description || '',
+          is_labor: !!li.is_labor,
+          qty,
+          unit: li.unit ?? 'st',
+          unit_price,
+          amount,
+        };
+      }) : [];
+      const tmpl: any = {
+        customer_type: d.customer_type === 'foretag' ? 'foretag' : 'privat',
+        customer_name: d.customer_name ?? '',
+        customer_email: d.customer_email ?? '',
+        customer_phone: d.customer_phone ?? '',
+        customer_address: d.customer_address ?? '',
+        customer_personnummer: d.customer_personnummer ?? '',
+        fastighetsbeteckning: d.fastighetsbeteckning ?? '',
+        title: d.title ?? '',
+        description: d.description ?? '',
+        vat_mode: d.vat_mode === 'omvand' ? 'omvand' : 'vanlig',
+        rot_enabled: !!d.rot_suggested,
+        rot_percent: 30,
+        handpenning_percent: 25,
+        line_items: lines,
+      };
+      const valid = new Date();
+      valid.setDate(valid.getDate() + 30);
+      tmpl.valid_until = valid.toISOString().slice(0, 10);
+      setAiOpen(false);
+      setAiText('');
+      setEditing(tmpl);
+      setOpenForm(true);
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte tolka texten');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+
 
 
 
