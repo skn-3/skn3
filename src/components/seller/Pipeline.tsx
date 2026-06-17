@@ -10,6 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
+import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
+
+const STATUS_ACCENT: Record<string, string> = {
+  montage_pagar: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  montage_bokat: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  montage_klart: 'bg-green-100 text-green-800 border-green-200',
+  godkand: 'bg-blue-100 text-blue-800 border-blue-200',
+  i_produktion: 'bg-blue-100 text-blue-800 border-blue-200',
+  leverans_klar: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+};
+function statusBadgeClass(status: string) {
+  return STATUS_ACCENT[status] || 'bg-muted text-muted-foreground border-border';
+}
+
+
 
 
 interface PipelineProps {
