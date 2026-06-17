@@ -132,7 +132,9 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     setItems(prev => prev.map(it => {
       if (it.id !== id) return it;
       const next = { ...it, ...patch };
-      next.amount = Number(next.qty || 0) * Number(next.unit_price || 0);
+      if (!('amount' in patch)) {
+        next.amount = Number(next.qty || 0) * Number(next.unit_price || 0);
+      }
       return next;
     }));
   };
