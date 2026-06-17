@@ -132,7 +132,9 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     setItems(prev => prev.map(it => {
       if (it.id !== id) return it;
       const next = { ...it, ...patch };
-      next.amount = Number(next.qty || 0) * Number(next.unit_price || 0);
+      if (!('amount' in patch)) {
+        next.amount = Number(next.qty || 0) * Number(next.unit_price || 0);
+      }
       return next;
     }));
   };
@@ -658,9 +660,15 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
                 <Label className="text-xs">À-pris</Label>
                 <Input type="number" step="any" value={it.unit_price} onChange={e => updateItem(it.id, { unit_price: Number(e.target.value) })} />
               </div>
-              <div className="col-span-8 md:col-span-2 text-right">
-                <div className="text-xs text-muted-foreground">Summa</div>
-                <div className="font-medium tabular-nums">{fmtKr(it.amount)}</div>
+              <div className="col-span-8 md:col-span-2">
+                <Label className="text-xs">Summa</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  className="text-right font-medium tabular-nums"
+                  value={it.amount}
+                  onChange={e => updateItem(it.id, { amount: Number(e.target.value) })}
+                />
               </div>
               <div className="col-span-4 md:col-span-1 flex items-center justify-end gap-2">
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(it.id)} title="Ta bort rad" disabled={items.length <= 1}>
