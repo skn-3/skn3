@@ -271,9 +271,14 @@ export function OffersView({ currentUser }: OffersViewProps) {
           <h2 className="text-xl font-semibold">Offerter</h2>
           <p className="text-sm text-muted-foreground">Skapa, redigera och ladda ner offerter som PDF.</p>
         </div>
-        <Button onClick={handleOpenNew} className="gap-2">
-          <Plus className="h-4 w-4" /> Ny offert
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setAiOpen(true)} className="gap-2">
+            <Sparkles className="h-4 w-4" /> Skapa med AI
+          </Button>
+          <Button onClick={handleOpenNew} className="gap-2">
+            <Plus className="h-4 w-4" /> Ny offert
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
