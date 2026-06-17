@@ -10,6 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
+import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
+
+const STATUS_ACCENT: Record<string, string> = {
+  montage_pagar: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  montage_bokat: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  montage_klart: 'bg-green-100 text-green-800 border-green-200',
+  godkand: 'bg-blue-100 text-blue-800 border-blue-200',
+  i_produktion: 'bg-blue-100 text-blue-800 border-blue-200',
+  leverans_klar: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+};
+function statusBadgeClass(status: string) {
+  return STATUS_ACCENT[status] || 'bg-muted text-muted-foreground border-border';
+}
+
+
 
 
 interface PipelineProps {
@@ -54,7 +69,10 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [onlyFlagged, setOnlyFlagged] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   // Debounce
   useEffect(() => {
@@ -181,6 +199,13 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => {
+                if (blurTimer.current) clearTimeout(blurTimer.current);
+                setSearchFocused(true);
+              }}
+              onBlur={() => {
+                blurTimer.current = setTimeout(() => setSearchFocused(false), 150);
+              }}
               placeholder="Sök ärenden..."
               className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               autoFocus
@@ -193,6 +218,42 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
               >
                 <X className="h-4 w-4" />
               </button>
+            )}
+            {searchFocused && searchTerm.length >= 1 && (
+              <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border bg-popover text-popover-foreground shadow-lg overflow-hidden">
+                <Command shouldFilter={false}>
+                  <CommandList className="max-h-[340px]">
+                    {searchedCases.length === 0 ? (
+                      <CommandEmpty>Inga ärenden matchar</CommandEmpty>
+                    ) : (
+                      searchedCases.slice(0, 8).map((c) => (
+                        <CommandItem
+                          key={c.id}
+                          value={c.id}
+                          onSelect={() => {
+                            onSelectCase(c);
+                            setSearchTerm('');
+                            setDebouncedSearch('');
+                            setSearchFocused(false);
+                            inputRef.current?.blur();
+                          }}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-sm truncate">{c.address}</div>
+                            {c.customer_name && (
+                              <div className="text-xs text-muted-foreground truncate">{c.customer_name}</div>
+                            )}
+                          </div>
+                          <span className={`shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${statusBadgeClass(c.status)}`}>
+                            {STATUS_LABELS[c.status] || c.status}
+                          </span>
+                        </CommandItem>
+                      ))
+                    )}
+                  </CommandList>
+                </Command>
+              </div>
             )}
           </div>
           {isAdmin && !isCoordinator && (
