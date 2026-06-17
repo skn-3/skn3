@@ -142,7 +142,13 @@ Deno.serve(async (req) => {
 <p style="margin-top:16px;"><a href="${offerUrl}" style="color:#15803D;font-weight:bold;">Öppna avtalet</a></p>
 </body></html>`;
 
-      const sendMail = async (to: string, subject: string, html: string) => {
+      const SELLER_EMAIL_MAP: Record<string, string> = {
+        'Daniel Malke': 'daniel.malke@mockfjards.se',
+        'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',
+      };
+      const sellerEmail = offer.created_by ? SELLER_EMAIL_MAP[offer.created_by as string] : undefined;
+
+      const sendMail = async (to: string | string[], subject: string, html: string, cc?: string[]) => {
         try {
           const r = await fetch(`${GATEWAY_URL}/emails`, {
             method: 'POST',
