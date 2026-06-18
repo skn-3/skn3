@@ -435,7 +435,33 @@ export function AOrdersView({ currentUser }: Props) {
         open={!!creditFor}
         onOpenChange={(v) => { if (!v) setCreditFor(null); }}
         currentUser={currentUser}
+        onCredited={(orig) => setRebillPrompt(orig)}
       />
+
+      <AlertDialog open={!!rebillPrompt} onOpenChange={(v) => { if (!v) setRebillPrompt(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fakturan krediterad</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vill du skapa en ny korrigerad faktura för samma uppdrag?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRebillPrompt(null)}>Senare</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                const o = rebillPrompt;
+                setRebillPrompt(null);
+                if (o) setInvoiceFor(o);
+              }}
+            >
+              Skapa ny faktura
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteFor} onOpenChange={(v) => { if (!v) setDeleteFor(null); }}>
         <AlertDialogContent>
