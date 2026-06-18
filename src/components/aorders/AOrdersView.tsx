@@ -351,6 +351,11 @@ export function AOrdersView({ currentUser }: Props) {
                               <RotateCcw className="h-3 w-3" />
                             </Button>
                           )}
+                          {o.status === 'credited' && !o.credited_from_order_id && (
+                            <Button size="sm" variant="ghost" onClick={() => setInvoiceFor(o)} title="Fakturera igen" className="text-green-700">
+                              <Receipt className="h-3 w-3" />
+                            </Button>
+                          )}
                           {o.status === 'order' && (
                             <Button size="sm" variant="ghost" onClick={() => rowSend(o)} disabled={busyId === o.id || !o.team_id} title="Skicka A-order till montör">
                               <Send className="h-3 w-3" />
