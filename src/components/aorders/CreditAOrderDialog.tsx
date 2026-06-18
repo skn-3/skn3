@@ -114,6 +114,7 @@ export function CreditAOrderDialog({ open, onOpenChange, order, currentUser, onC
       qc.invalidateQueries({ queryKey: ['a_orders_all'] });
       qc.invalidateQueries({ queryKey: ['montor_teams'] });
       onOpenChange(false);
+      onCredited?.(order);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Kunde inte kreditera');
