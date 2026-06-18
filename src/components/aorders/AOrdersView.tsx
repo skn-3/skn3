@@ -51,6 +51,7 @@ export function AOrdersView({ currentUser }: Props) {
   const [creditFor, setCreditFor] = useState<any | null>(null);
   const [deleteFor, setDeleteFor] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [rebillPrompt, setRebillPrompt] = useState<any | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['a_orders_all'],
@@ -350,6 +351,11 @@ export function AOrdersView({ currentUser }: Props) {
                               <RotateCcw className="h-3 w-3" />
                             </Button>
                           )}
+                          {o.status === 'credited' && !o.credited_from_order_id && (
+                            <Button size="sm" variant="ghost" onClick={() => setInvoiceFor(o)} title="Fakturera igen" className="text-green-700">
+                              <Receipt className="h-3 w-3" />
+                            </Button>
+                          )}
                           {o.status === 'order' && (
                             <Button size="sm" variant="ghost" onClick={() => rowSend(o)} disabled={busyId === o.id || !o.team_id} title="Skicka A-order till montör">
                               <Send className="h-3 w-3" />
@@ -429,7 +435,33 @@ export function AOrdersView({ currentUser }: Props) {
         open={!!creditFor}
         onOpenChange={(v) => { if (!v) setCreditFor(null); }}
         currentUser={currentUser}
+        onCredited={(orig) => setRebillPrompt(orig)}
       />
+
+      <AlertDialog open={!!rebillPrompt} onOpenChange={(v) => { if (!v) setRebillPrompt(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fakturan krediterad</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vill du skapa en ny korrigerad faktura för samma uppdrag?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRebillPrompt(null)}>Senare</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                const o = rebillPrompt;
+                setRebillPrompt(null);
+                if (o) setInvoiceFor(o);
+              }}
+            >
+              Skapa ny faktura
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteFor} onOpenChange={(v) => { if (!v) setDeleteFor(null); }}>
         <AlertDialogContent>

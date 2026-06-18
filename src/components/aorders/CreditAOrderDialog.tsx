@@ -13,6 +13,7 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   order: any | null;
   currentUser: string;
+  onCredited?: (originalOrder: any) => void;
 }
 
 function fmt(n: number) {
@@ -20,7 +21,7 @@ function fmt(n: number) {
   return (n < 0 ? '-' : '') + s + ' kr';
 }
 
-export function CreditAOrderDialog({ open, onOpenChange, order, currentUser }: Props) {
+export function CreditAOrderDialog({ open, onOpenChange, order, currentUser, onCredited }: Props) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
@@ -113,6 +114,7 @@ export function CreditAOrderDialog({ open, onOpenChange, order, currentUser }: P
       qc.invalidateQueries({ queryKey: ['a_orders_all'] });
       qc.invalidateQueries({ queryKey: ['montor_teams'] });
       onOpenChange(false);
+      onCredited?.(order);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Kunde inte kreditera');
