@@ -51,6 +51,7 @@ export function AOrdersView({ currentUser }: Props) {
   const [creditFor, setCreditFor] = useState<any | null>(null);
   const [deleteFor, setDeleteFor] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [rebillPrompt, setRebillPrompt] = useState<any | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['a_orders_all'],
