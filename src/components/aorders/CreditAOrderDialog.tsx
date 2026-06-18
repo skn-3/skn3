@@ -13,6 +13,7 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   order: any | null;
   currentUser: string;
+  onCredited?: (originalOrder: any) => void;
 }
 
 function fmt(n: number) {
