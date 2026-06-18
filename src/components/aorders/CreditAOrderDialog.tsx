@@ -21,7 +21,7 @@ function fmt(n: number) {
   return (n < 0 ? '-' : '') + s + ' kr';
 }
 
-export function CreditAOrderDialog({ open, onOpenChange, order, currentUser }: Props) {
+export function CreditAOrderDialog({ open, onOpenChange, order, currentUser, onCredited }: Props) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
