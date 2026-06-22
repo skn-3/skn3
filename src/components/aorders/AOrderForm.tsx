@@ -447,57 +447,71 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               <Input value={customerName} onChange={e => setCustomerName(e.target.value)} />
             </div>
             <div className="col-span-2 md:col-span-3">
-              <Label>Adress *</Label>
-              <Input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} required />
+              <Label>{isKomp ? 'Mottagare / notering (valfritt)' : 'Adress *'}</Label>
+              <Input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} required={!isKomp} />
             </div>
-            <div>
-              <Label>Telefon</Label>
-              <Input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
-            </div>
-            <div>
-              <Label>Fasadtyp</Label>
-              <Select value={facadeType} onValueChange={(v: any) => { setAutoLocked(false); setFacadeType(v); }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tra">Trä</SelectItem>
-                  <SelectItem value="sten">Sten/Betong</SelectItem>
-                  <SelectItem value="puts">Puts</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>KM-avstånd</Label>
-              <Input type="number" min={0} value={kmDistance} onChange={e => { setAutoLocked(false); setKmDistance(Number(e.target.value) || 0); }} />
-            </div>
-            <div>
-              <Label>Antal fönster</Label>
-              <Input type="number" min={0} value={windowCount} onChange={e => { setAutoLocked(false); setWindowCount(Number(e.target.value) || 0); }} />
-            </div>
-            <div>
-              <Label>Antal dörrar</Label>
-              <Input type="number" min={0} value={doorCount} onChange={e => { setAutoLocked(false); setDoorCount(Number(e.target.value) || 0); }} />
-            </div>
-            <div>
-              <Label>Antal takfönster</Label>
-              <Input type="number" min={0} value={roofWindowCount} onChange={e => { setAutoLocked(false); setRoofWindowCount(Number(e.target.value) || 0); }} />
-            </div>
-          </div>
-
-          <div className="flex items-end gap-3">
-            <div className="flex items-center gap-2">
-              <Switch checked={scheduledDelivery} onCheckedChange={setScheduledDelivery} id="sched" />
-              <Label htmlFor="sched">Schemalagd leverans</Label>
-            </div>
-            {scheduledDelivery && (
+            {!isKomp && (
               <div>
-                <Label>Tid</Label>
-                <Input type="time" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
+                <Label>Telefon</Label>
+                <Input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
               </div>
             )}
-            {autoLocked && (
-              <Button variant="ghost" size="sm" onClick={() => {
-                setLines(generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }));
-                setAutoLocked(false);
+            {!isKomp && (
+              <>
+                <div>
+                  <Label>Fasadtyp</Label>
+                  <Select value={facadeType} onValueChange={(v: any) => { setAutoLocked(false); setFacadeType(v); }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tra">Trä</SelectItem>
+                      <SelectItem value="sten">Sten/Betong</SelectItem>
+                      <SelectItem value="puts">Puts</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>KM-avstånd</Label>
+                  <Input type="number" min={0} value={kmDistance} onChange={e => { setAutoLocked(false); setKmDistance(Number(e.target.value) || 0); }} />
+                </div>
+                <div>
+                  <Label>Antal fönster</Label>
+                  <Input type="number" min={0} value={windowCount} onChange={e => { setAutoLocked(false); setWindowCount(Number(e.target.value) || 0); }} />
+                </div>
+                <div>
+                  <Label>Antal dörrar</Label>
+                  <Input type="number" min={0} value={doorCount} onChange={e => { setAutoLocked(false); setDoorCount(Number(e.target.value) || 0); }} />
+                </div>
+                <div>
+                  <Label>Antal takfönster</Label>
+                  <Input type="number" min={0} value={roofWindowCount} onChange={e => { setAutoLocked(false); setRoofWindowCount(Number(e.target.value) || 0); }} />
+                </div>
+              </>
+            )}
+          </div>
+
+          {isKomp && (
+            <div>
+              <Label>Koppla till ärende (valfritt)</Label>
+              <CaseCombobox cases={kompCases} value={kompCaseId} onChange={setKompCaseId} />
+            </div>
+          )}
+
+          {!isKomp && (
+            <div className="flex items-end gap-3">
+              <div className="flex items-center gap-2">
+                <Switch checked={scheduledDelivery} onCheckedChange={setScheduledDelivery} id="sched" />
+                <Label htmlFor="sched">Schemalagd leverans</Label>
+              </div>
+              {scheduledDelivery && (
+                <div>
+                  <Label>Tid</Label>
+                  <Input type="time" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
+                </div>
+              )}
+              {autoLocked && (
+                <Button variant="ghost" size="sm" onClick={() => {
+                  setLines(generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }));
+                  setAutoLocked(false);
               }}>Återställ auto-rader</Button>
             )}
           </div>
