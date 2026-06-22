@@ -394,6 +394,10 @@ export function AOrdersView({ currentUser }: Props) {
           </div>
         </TabsContent>
 
+        <TabsContent value="debit">
+          <MontorDebitInvoicesView />
+        </TabsContent>
+
         <TabsContent value="import">
           <ImportInvoicesView />
         </TabsContent>
@@ -438,6 +442,12 @@ export function AOrdersView({ currentUser }: Props) {
           setFormPrefill(prefill);
           setFormOpen(true);
         }}
+      />
+
+      <MontorDebitInvoiceDialog
+        open={debitOpen}
+        onOpenChange={setDebitOpen}
+        currentUser={currentUser}
       />
 
 
