@@ -428,7 +428,11 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
         <SheetHeader className="px-5 py-4 border-b sticky top-0 bg-background z-10">
-          <SheetTitle>{isEdit ? `A-order #${order?.order_number ?? ''}` : 'Ny A-order'}</SheetTitle>
+          <SheetTitle>
+            {isEdit
+              ? (isKomp ? `Kompletteringsfaktura #${order?.order_number ?? ''}` : `A-order #${order?.order_number ?? ''}`)
+              : (isKomp ? 'Ny kompletteringsfaktura' : 'Ny A-order')}
+          </SheetTitle>
         </SheetHeader>
 
         <div className="p-5 space-y-5">
