@@ -315,7 +315,12 @@ export function AOrdersView({ currentUser }: Props) {
                   const meta = STATUS_BADGE[o.status] || STATUS_BADGE.order;
                   return (
                     <tr key={o.id} className="hover:bg-muted/30">
-                      <td className="px-3 py-2 font-mono">{o.order_number ? `#${o.order_number}` : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-3 py-2 font-mono">
+                        {o.order_number ? `#${o.order_number}` : <span className="text-muted-foreground">—</span>}
+                        {o.order_kind === 'komplettering' && (
+                          <Badge variant="secondary" className="ml-1 text-[10px] font-normal">Komplettering</Badge>
+                        )}
+                      </td>
                       <td className="px-3 py-2">{o.date}</td>
                       <td className="px-3 py-2">{o.customer_name || '—'}</td>
                       <td className="px-3 py-2">{o.customer_address}</td>
