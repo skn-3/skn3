@@ -579,6 +579,84 @@ export type Database = {
         }
         Relationships: []
       }
+      montor_debit_invoices: {
+        Row: {
+          case_id: string | null
+          created_at: string
+          created_by: string | null
+          date: string
+          description: string | null
+          due_date: string | null
+          id: string
+          invoice_number: string | null
+          line_items: Json
+          pdf_path: string | null
+          sent_at: string | null
+          status: string
+          subtotal: number
+          team_id: string
+          title: string | null
+          total: number
+          vat_amount: number
+          vat_mode: string
+        }
+        Insert: {
+          case_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          line_items?: Json
+          pdf_path?: string | null
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          team_id: string
+          title?: string | null
+          total?: number
+          vat_amount?: number
+          vat_mode?: string
+        }
+        Update: {
+          case_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          line_items?: Json
+          pdf_path?: string | null
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          team_id?: string
+          title?: string | null
+          total?: number
+          vat_amount?: number
+          vat_mode?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "montor_debit_invoices_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "montor_debit_invoices_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "montor_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       montor_teams: {
         Row: {
           address: string | null
