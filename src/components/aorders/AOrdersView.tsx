@@ -413,12 +413,13 @@ export function AOrdersView({ currentUser }: Props) {
       </Dialog>
 
       <AOrderForm
-        key={editing?.id ?? (formPrefill ? 'prefill' : 'new')}
+        key={editing?.id ?? (formPrefill ? 'prefill' : `new-${formMode}`)}
         open={formOpen}
         onOpenChange={(v) => { setFormOpen(v); if (!v) { setEditing(null); setFormPrefill(null); } }}
         order={editing}
         prefill={formPrefill}
         currentUser={currentUser}
+        mode={formMode}
         onSaved={() => qc.invalidateQueries({ queryKey: ['a_orders_all'] })}
       />
 
