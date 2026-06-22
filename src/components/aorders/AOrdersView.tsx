@@ -218,6 +218,9 @@ export function AOrdersView({ currentUser }: Props) {
           <Button variant="outline" onClick={() => setMockfjardsOpen(true)} className="gap-2">
             <FileUp className="h-4 w-4" /> Från Mockfjärds-faktura
           </Button>
+          <Button variant="outline" onClick={openNewKomp} className="gap-2">
+            <FilePlus className="h-4 w-4" /> Kompletteringsfaktura
+          </Button>
           <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Ny A-order</Button>
         </div>
       </div>
