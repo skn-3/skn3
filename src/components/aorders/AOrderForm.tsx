@@ -614,11 +614,11 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
           {/* Team */}
           <div>
-            <Label>Montör</Label>
+            <Label>Montör{isKomp ? ' *' : ''}</Label>
             <Select value={teamId} onValueChange={setTeamId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={isKomp ? 'Välj montör...' : undefined} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">— Ej tilldelad (utestående) —</SelectItem>
+                {!isKomp && <SelectItem value="__none__">— Ej tilldelad (utestående) —</SelectItem>}
                 {teams.map(t => (
                   <SelectItem key={t.id} value={t.id}>{t.name}{t.company_name ? ` (${t.company_name})` : ''}</SelectItem>
                 ))}
