@@ -178,6 +178,16 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     enabled: open,
   });
 
+  const { data: kompCases = [] } = useQuery({
+    queryKey: ['cases_for_komp'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('cases').select('id, address, customer_name').order('address');
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: open && isKomp,
+  });
+
   const productsByCat = useMemo(() => {
     const m = new Map<string, any[]>();
     for (const p of products) {
