@@ -38,12 +38,14 @@ interface Props {
   } | null;
   currentUser: string;
   onSaved?: () => void;
+  mode?: 'standard' | 'komplettering';
 }
 
 function newId() { return 'al_' + Math.random().toString(36).slice(2, 10); }
 function fmt(n: number) { return Math.round(n).toLocaleString('sv-SE') + ' kr'; }
 
-export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, onSaved }: Props) {
+export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, onSaved, mode = 'standard' }: Props) {
+  const isKomp = (order?.order_kind || mode) === 'komplettering';
   const isEdit = !!order?.id;
   const [saving, setSaving] = useState(false);
 
