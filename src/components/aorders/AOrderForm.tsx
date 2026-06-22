@@ -289,29 +289,33 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   }
 
   async function save(opts?: { silent?: boolean }): Promise<string | null> {
-    if (!customerAddress.trim()) { toast.error('Adress krävs'); return null; }
+    if (!isKomp && !customerAddress.trim()) { toast.error('Adress krävs'); return null; }
+    if (isKomp && (!teamId || teamId === '__none__')) { toast.error('Montör krävs för kompletteringsfaktura'); return null; }
+    if (isKomp && lines.length === 0) { toast.error('Lägg till minst en rad'); return null; }
     setSaving(true);
     try {
       const basePayload: any = {
         date,
         customer_name: customerName || null,
-        customer_address: customerAddress,
+        customer_address: customerAddress || (isKomp ? 'Komplettering' : ''),
         customer_phone: customerPhone || null,
         facade_type: facadeType,
-        window_count: windowCount,
-        door_count: doorCount,
-        roof_window_count: roofWindowCount,
-        km_distance: kmDistance,
+        window_count: isKomp ? 0 : windowCount,
+        door_count: isKomp ? 0 : doorCount,
+        roof_window_count: isKomp ? 0 : roofWindowCount,
+        km_distance: isKomp ? 0 : kmDistance,
         line_items: lines,
         description,
         total_amount: totalAmount,
-        scheduled_delivery: scheduledDelivery,
-        delivery_time: scheduledDelivery && deliveryTime ? deliveryTime : null,
+        scheduled_delivery: isKomp ? false : scheduledDelivery,
+        delivery_time: !isKomp && scheduledDelivery && deliveryTime ? deliveryTime : null,
         team_id: teamId && teamId !== '__none__' ? teamId : null,
-        case_id: prefill?.case_id ?? order?.case_id ?? null,
+        case_id: isKomp ? (kompCaseId || null) : (prefill?.case_id ?? order?.case_id ?? null),
         internal_extra_hours: internalExtraHours || 0,
         internal_hour_rate: internalHourRate || 0,
         internal_extra_amount: internalExtraAmount || 0,
+        order_kind: isKomp ? 'komplettering' : (order?.order_kind || 'standard'),
+        status: order?.status || 'order',
         ...(prefill?.mockfjards_invoice_number !== undefined
           ? { mockfjards_invoice_number: prefill.mockfjards_invoice_number }
           : {}),
