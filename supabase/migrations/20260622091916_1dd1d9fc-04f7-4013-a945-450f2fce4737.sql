@@ -1,0 +1,1 @@
+ALTER TABLE public.a_orders ADD COLUMN IF NOT EXISTS order_kind text NOT NULL DEFAULT 'standard';

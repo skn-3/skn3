@@ -15,6 +15,7 @@ import { generateAutoLines, normalizeLines, sumLines, type AOrderLine, type Faca
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { HOUR_RATE } from '@/lib/constants';
+import { CaseCombobox } from '@/components/shared/CaseCombobox';
 
 type AOrder = any;
 
@@ -37,12 +38,14 @@ interface Props {
   } | null;
   currentUser: string;
   onSaved?: () => void;
+  mode?: 'standard' | 'komplettering';
 }
 
 function newId() { return 'al_' + Math.random().toString(36).slice(2, 10); }
 function fmt(n: number) { return Math.round(n).toLocaleString('sv-SE') + ' kr'; }
 
-export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, onSaved }: Props) {
+export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, onSaved, mode = 'standard' }: Props) {
+  const isKomp = (order?.order_kind || mode) === 'komplettering';
   const isEdit = !!order?.id;
   const [saving, setSaving] = useState(false);
 
@@ -74,11 +77,15 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       }))
     : null;
 
-  const [lines, setLines] = useState<AOrderLine[]>(prefillLines ?? normalizeLines(order?.line_items));
-  const [autoLocked, setAutoLocked] = useState<boolean>(!!order?.id || !!prefillLines); // when editing or prefilled, don't auto-regenerate
+  const [lines, setLines] = useState<AOrderLine[]>(
+    isKomp ? normalizeLines(order?.line_items) : (prefillLines ?? normalizeLines(order?.line_items))
+  );
+  const [autoLocked, setAutoLocked] = useState<boolean>(isKomp || !!order?.id || !!prefillLines); // when editing, prefilled, or komp, don't auto-regenerate
 
-  // Effective case_id: existing order.case_id or prefill.case_id
-  const effectiveCaseId: string | null = (order?.case_id ?? prefill?.case_id) ?? null;
+  const [kompCaseId, setKompCaseId] = useState<string>(order?.case_id ?? prefill?.case_id ?? '');
+
+  // Effective case_id: existing order.case_id or prefill.case_id (or komp selection)
+  const effectiveCaseId: string | null = (isKomp ? (kompCaseId || null) : null) ?? (order?.case_id ?? prefill?.case_id) ?? null;
 
   // Fetch case extra_hours for prefilling (new order with case_id).
   const { data: caseExtra } = useQuery({
@@ -144,11 +151,11 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [sending, setSending] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
-  // Regenerate lines live when not edited / not locked
+  // Regenerate lines live when not edited / not locked / not komplettering
   useEffect(() => {
-    if (autoLocked) return;
+    if (autoLocked || isKomp) return;
     setLines(generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }));
-  }, [windowCount, doorCount, roofWindowCount, facadeType, kmDistance, autoLocked]);
+  }, [windowCount, doorCount, roofWindowCount, facadeType, kmDistance, autoLocked, isKomp]);
 
   // Products for "Lägg till rad"
   const { data: products = [] } = useQuery({
@@ -169,6 +176,16 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       return data as any[];
     },
     enabled: open,
+  });
+
+  const { data: kompCases = [] } = useQuery({
+    queryKey: ['cases_for_komp'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('cases').select('id, address, customer_name').order('address');
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: open && isKomp,
   });
 
   const productsByCat = useMemo(() => {
@@ -272,29 +289,33 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   }
 
   async function save(opts?: { silent?: boolean }): Promise<string | null> {
-    if (!customerAddress.trim()) { toast.error('Adress krävs'); return null; }
+    if (!isKomp && !customerAddress.trim()) { toast.error('Adress krävs'); return null; }
+    if (isKomp && (!teamId || teamId === '__none__')) { toast.error('Montör krävs för kompletteringsfaktura'); return null; }
+    if (isKomp && lines.length === 0) { toast.error('Lägg till minst en rad'); return null; }
     setSaving(true);
     try {
       const basePayload: any = {
         date,
         customer_name: customerName || null,
-        customer_address: customerAddress,
+        customer_address: customerAddress || (isKomp ? 'Komplettering' : ''),
         customer_phone: customerPhone || null,
         facade_type: facadeType,
-        window_count: windowCount,
-        door_count: doorCount,
-        roof_window_count: roofWindowCount,
-        km_distance: kmDistance,
+        window_count: isKomp ? 0 : windowCount,
+        door_count: isKomp ? 0 : doorCount,
+        roof_window_count: isKomp ? 0 : roofWindowCount,
+        km_distance: isKomp ? 0 : kmDistance,
         line_items: lines,
         description,
         total_amount: totalAmount,
-        scheduled_delivery: scheduledDelivery,
-        delivery_time: scheduledDelivery && deliveryTime ? deliveryTime : null,
+        scheduled_delivery: isKomp ? false : scheduledDelivery,
+        delivery_time: !isKomp && scheduledDelivery && deliveryTime ? deliveryTime : null,
         team_id: teamId && teamId !== '__none__' ? teamId : null,
-        case_id: prefill?.case_id ?? order?.case_id ?? null,
+        case_id: isKomp ? (kompCaseId || null) : (prefill?.case_id ?? order?.case_id ?? null),
         internal_extra_hours: internalExtraHours || 0,
         internal_hour_rate: internalHourRate || 0,
         internal_extra_amount: internalExtraAmount || 0,
+        order_kind: isKomp ? 'komplettering' : (order?.order_kind || 'standard'),
+        status: order?.status || 'order',
         ...(prefill?.mockfjards_invoice_number !== undefined
           ? { mockfjards_invoice_number: prefill.mockfjards_invoice_number }
           : {}),
@@ -407,7 +428,11 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
         <SheetHeader className="px-5 py-4 border-b sticky top-0 bg-background z-10">
-          <SheetTitle>{isEdit ? `A-order #${order?.order_number ?? ''}` : 'Ny A-order'}</SheetTitle>
+          <SheetTitle>
+            {isEdit
+              ? (isKomp ? `Kompletteringsfaktura #${order?.order_number ?? ''}` : `A-order #${order?.order_number ?? ''}`)
+              : (isKomp ? 'Ny kompletteringsfaktura' : 'Ny A-order')}
+          </SheetTitle>
         </SheetHeader>
 
         <div className="p-5 space-y-5">
@@ -422,60 +447,75 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               <Input value={customerName} onChange={e => setCustomerName(e.target.value)} />
             </div>
             <div className="col-span-2 md:col-span-3">
-              <Label>Adress *</Label>
-              <Input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} required />
+              <Label>{isKomp ? 'Mottagare / notering (valfritt)' : 'Adress *'}</Label>
+              <Input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} required={!isKomp} />
             </div>
-            <div>
-              <Label>Telefon</Label>
-              <Input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
-            </div>
-            <div>
-              <Label>Fasadtyp</Label>
-              <Select value={facadeType} onValueChange={(v: any) => { setAutoLocked(false); setFacadeType(v); }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tra">Trä</SelectItem>
-                  <SelectItem value="sten">Sten/Betong</SelectItem>
-                  <SelectItem value="puts">Puts</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>KM-avstånd</Label>
-              <Input type="number" min={0} value={kmDistance} onChange={e => { setAutoLocked(false); setKmDistance(Number(e.target.value) || 0); }} />
-            </div>
-            <div>
-              <Label>Antal fönster</Label>
-              <Input type="number" min={0} value={windowCount} onChange={e => { setAutoLocked(false); setWindowCount(Number(e.target.value) || 0); }} />
-            </div>
-            <div>
-              <Label>Antal dörrar</Label>
-              <Input type="number" min={0} value={doorCount} onChange={e => { setAutoLocked(false); setDoorCount(Number(e.target.value) || 0); }} />
-            </div>
-            <div>
-              <Label>Antal takfönster</Label>
-              <Input type="number" min={0} value={roofWindowCount} onChange={e => { setAutoLocked(false); setRoofWindowCount(Number(e.target.value) || 0); }} />
-            </div>
-          </div>
-
-          <div className="flex items-end gap-3">
-            <div className="flex items-center gap-2">
-              <Switch checked={scheduledDelivery} onCheckedChange={setScheduledDelivery} id="sched" />
-              <Label htmlFor="sched">Schemalagd leverans</Label>
-            </div>
-            {scheduledDelivery && (
+            {!isKomp && (
               <div>
-                <Label>Tid</Label>
-                <Input type="time" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
+                <Label>Telefon</Label>
+                <Input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
               </div>
             )}
-            {autoLocked && (
-              <Button variant="ghost" size="sm" onClick={() => {
-                setLines(generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }));
-                setAutoLocked(false);
-              }}>Återställ auto-rader</Button>
+            {!isKomp && (
+              <>
+                <div>
+                  <Label>Fasadtyp</Label>
+                  <Select value={facadeType} onValueChange={(v: any) => { setAutoLocked(false); setFacadeType(v); }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tra">Trä</SelectItem>
+                      <SelectItem value="sten">Sten/Betong</SelectItem>
+                      <SelectItem value="puts">Puts</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>KM-avstånd</Label>
+                  <Input type="number" min={0} value={kmDistance} onChange={e => { setAutoLocked(false); setKmDistance(Number(e.target.value) || 0); }} />
+                </div>
+                <div>
+                  <Label>Antal fönster</Label>
+                  <Input type="number" min={0} value={windowCount} onChange={e => { setAutoLocked(false); setWindowCount(Number(e.target.value) || 0); }} />
+                </div>
+                <div>
+                  <Label>Antal dörrar</Label>
+                  <Input type="number" min={0} value={doorCount} onChange={e => { setAutoLocked(false); setDoorCount(Number(e.target.value) || 0); }} />
+                </div>
+                <div>
+                  <Label>Antal takfönster</Label>
+                  <Input type="number" min={0} value={roofWindowCount} onChange={e => { setAutoLocked(false); setRoofWindowCount(Number(e.target.value) || 0); }} />
+                </div>
+              </>
             )}
           </div>
+
+          {isKomp && (
+            <div>
+              <Label>Koppla till ärende (valfritt)</Label>
+              <CaseCombobox cases={kompCases} value={kompCaseId} onChange={setKompCaseId} />
+            </div>
+          )}
+
+          {!isKomp && (
+            <div className="flex items-end gap-3">
+              <div className="flex items-center gap-2">
+                <Switch checked={scheduledDelivery} onCheckedChange={setScheduledDelivery} id="sched" />
+                <Label htmlFor="sched">Schemalagd leverans</Label>
+              </div>
+              {scheduledDelivery && (
+                <div>
+                  <Label>Tid</Label>
+                  <Input type="time" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
+                </div>
+              )}
+              {autoLocked && (
+                <Button variant="ghost" size="sm" onClick={() => {
+                  setLines(generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }));
+                  setAutoLocked(false);
+              }}>Återställ auto-rader</Button>
+              )}
+            </div>
+          )}
 
           {/* Lines */}
           <div className="border rounded-md">
@@ -574,11 +614,11 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
           {/* Team */}
           <div>
-            <Label>Montör</Label>
+            <Label>Montör{isKomp ? ' *' : ''}</Label>
             <Select value={teamId} onValueChange={setTeamId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={isKomp ? 'Välj montör...' : undefined} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">— Ej tilldelad (utestående) —</SelectItem>
+                {!isKomp && <SelectItem value="__none__">— Ej tilldelad (utestående) —</SelectItem>}
                 {teams.map(t => (
                   <SelectItem key={t.id} value={t.id}>{t.name}{t.company_name ? ` (${t.company_name})` : ''}</SelectItem>
                 ))}

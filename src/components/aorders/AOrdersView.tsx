@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp } from 'lucide-react';
+import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ export function AOrdersView({ currentUser }: Props) {
   const { role } = useRole();
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<'standard' | 'komplettering'>('standard');
   const [editing, setEditing] = useState<any | null>(null);
   const [formPrefill, setFormPrefill] = useState<any | null>(null);
   const [mockfjardsOpen, setMockfjardsOpen] = useState(false);
@@ -86,8 +87,9 @@ export function AOrdersView({ currentUser }: Props) {
     );
   }, [orders, search]);
 
-  function openNew() { setEditing(null); setFormPrefill(null); setFormOpen(true); }
-  function openEdit(o: any) { setEditing(o); setFormPrefill(null); setFormOpen(true); }
+  function openNew() { setEditing(null); setFormPrefill(null); setFormMode('standard'); setFormOpen(true); }
+  function openNewKomp() { setEditing(null); setFormPrefill(null); setFormMode('komplettering'); setFormOpen(true); }
+  function openEdit(o: any) { setEditing(o); setFormPrefill(null); setFormMode(o?.order_kind === 'komplettering' ? 'komplettering' : 'standard'); setFormOpen(true); }
 
   async function doAssign() {
     if (!assignFor || !assignTeam) return;
@@ -216,6 +218,9 @@ export function AOrdersView({ currentUser }: Props) {
           <Button variant="outline" onClick={() => setMockfjardsOpen(true)} className="gap-2">
             <FileUp className="h-4 w-4" /> Från Mockfjärds-faktura
           </Button>
+          <Button variant="outline" onClick={openNewKomp} className="gap-2">
+            <FilePlus className="h-4 w-4" /> Kompletteringsfaktura
+          </Button>
           <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Ny A-order</Button>
         </div>
       </div>
@@ -310,7 +315,12 @@ export function AOrdersView({ currentUser }: Props) {
                   const meta = STATUS_BADGE[o.status] || STATUS_BADGE.order;
                   return (
                     <tr key={o.id} className="hover:bg-muted/30">
-                      <td className="px-3 py-2 font-mono">{o.order_number ? `#${o.order_number}` : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-3 py-2 font-mono">
+                        {o.order_number ? `#${o.order_number}` : <span className="text-muted-foreground">—</span>}
+                        {o.order_kind === 'komplettering' && (
+                          <Badge variant="secondary" className="ml-1 text-[10px] font-normal">Komplettering</Badge>
+                        )}
+                      </td>
                       <td className="px-3 py-2">{o.date}</td>
                       <td className="px-3 py-2">{o.customer_name || '—'}</td>
                       <td className="px-3 py-2">{o.customer_address}</td>
@@ -403,12 +413,13 @@ export function AOrdersView({ currentUser }: Props) {
       </Dialog>
 
       <AOrderForm
-        key={editing?.id ?? (formPrefill ? 'prefill' : 'new')}
+        key={editing?.id ?? (formPrefill ? 'prefill' : `new-${formMode}`)}
         open={formOpen}
         onOpenChange={(v) => { setFormOpen(v); if (!v) { setEditing(null); setFormPrefill(null); } }}
         order={editing}
         prefill={formPrefill}
         currentUser={currentUser}
+        mode={formMode}
         onSaved={() => qc.invalidateQueries({ queryKey: ['a_orders_all'] })}
       />
 
