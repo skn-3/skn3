@@ -15,6 +15,7 @@ import { generateAutoLines, normalizeLines, sumLines, type AOrderLine, type Faca
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { HOUR_RATE } from '@/lib/constants';
+import { CaseCombobox } from '@/components/shared/CaseCombobox';
 
 type AOrder = any;
 
