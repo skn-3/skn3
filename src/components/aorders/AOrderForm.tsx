@@ -77,11 +77,15 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       }))
     : null;
 
-  const [lines, setLines] = useState<AOrderLine[]>(prefillLines ?? normalizeLines(order?.line_items));
-  const [autoLocked, setAutoLocked] = useState<boolean>(!!order?.id || !!prefillLines); // when editing or prefilled, don't auto-regenerate
+  const [lines, setLines] = useState<AOrderLine[]>(
+    isKomp ? normalizeLines(order?.line_items) : (prefillLines ?? normalizeLines(order?.line_items))
+  );
+  const [autoLocked, setAutoLocked] = useState<boolean>(isKomp || !!order?.id || !!prefillLines); // when editing, prefilled, or komp, don't auto-regenerate
 
-  // Effective case_id: existing order.case_id or prefill.case_id
-  const effectiveCaseId: string | null = (order?.case_id ?? prefill?.case_id) ?? null;
+  const [kompCaseId, setKompCaseId] = useState<string>(order?.case_id ?? prefill?.case_id ?? '');
+
+  // Effective case_id: existing order.case_id or prefill.case_id (or komp selection)
+  const effectiveCaseId: string | null = (isKomp ? (kompCaseId || null) : null) ?? (order?.case_id ?? prefill?.case_id) ?? null;
 
   // Fetch case extra_hours for prefilling (new order with case_id).
   const { data: caseExtra } = useQuery({
