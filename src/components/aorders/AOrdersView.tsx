@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus } from 'lucide-react';
+import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,8 @@ import { MockfjardsInvoiceImportDialog } from './MockfjardsInvoiceImportDialog';
 import { InvoiceAOrderDialog } from './InvoiceAOrderDialog';
 import { CreditAOrderDialog } from './CreditAOrderDialog';
 import { ImportInvoicesView } from './ImportInvoicesView';
+import { MontorDebitInvoiceDialog } from './MontorDebitInvoiceDialog';
+import { MontorDebitInvoicesView } from './MontorDebitInvoicesView';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { useRole } from '@/hooks/useRole';
 
@@ -53,6 +55,7 @@ export function AOrdersView({ currentUser }: Props) {
   const [deleteFor, setDeleteFor] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [rebillPrompt, setRebillPrompt] = useState<any | null>(null);
+  const [debitOpen, setDebitOpen] = useState(false);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['a_orders_all'],
@@ -221,6 +224,9 @@ export function AOrdersView({ currentUser }: Props) {
           <Button variant="outline" onClick={openNewKomp} className="gap-2">
             <FilePlus className="h-4 w-4" /> Kompletteringsfaktura
           </Button>
+          <Button variant="outline" onClick={() => setDebitOpen(true)} className="gap-2">
+            <ArrowUpRight className="h-4 w-4" /> Fakturera montör
+          </Button>
           <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Ny A-order</Button>
         </div>
       </div>
@@ -229,6 +235,7 @@ export function AOrdersView({ currentUser }: Props) {
         <TabsList>
           <TabsTrigger value="pending">Utestående ({pending.length})</TabsTrigger>
           <TabsTrigger value="history">Historik</TabsTrigger>
+          <TabsTrigger value="debit">Montörsfakturor</TabsTrigger>
           <TabsTrigger value="import">Importera fakturor</TabsTrigger>
         </TabsList>
 
@@ -387,6 +394,10 @@ export function AOrdersView({ currentUser }: Props) {
           </div>
         </TabsContent>
 
+        <TabsContent value="debit">
+          <MontorDebitInvoicesView />
+        </TabsContent>
+
         <TabsContent value="import">
           <ImportInvoicesView />
         </TabsContent>
@@ -431,6 +442,12 @@ export function AOrdersView({ currentUser }: Props) {
           setFormPrefill(prefill);
           setFormOpen(true);
         }}
+      />
+
+      <MontorDebitInvoiceDialog
+        open={debitOpen}
+        onOpenChange={setDebitOpen}
+        currentUser={currentUser}
       />
 
 
