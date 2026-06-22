@@ -41,6 +41,7 @@ export function AOrdersView({ currentUser }: Props) {
   const { role } = useRole();
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<'standard' | 'komplettering'>('standard');
   const [editing, setEditing] = useState<any | null>(null);
   const [formPrefill, setFormPrefill] = useState<any | null>(null);
   const [mockfjardsOpen, setMockfjardsOpen] = useState(false);
