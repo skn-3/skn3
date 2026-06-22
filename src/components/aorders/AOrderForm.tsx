@@ -513,8 +513,9 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
                   setLines(generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }));
                   setAutoLocked(false);
               }}>Återställ auto-rader</Button>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Lines */}
           <div className="border rounded-md">
