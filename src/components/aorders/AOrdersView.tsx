@@ -87,8 +87,9 @@ export function AOrdersView({ currentUser }: Props) {
     );
   }, [orders, search]);
 
-  function openNew() { setEditing(null); setFormPrefill(null); setFormOpen(true); }
-  function openEdit(o: any) { setEditing(o); setFormPrefill(null); setFormOpen(true); }
+  function openNew() { setEditing(null); setFormPrefill(null); setFormMode('standard'); setFormOpen(true); }
+  function openNewKomp() { setEditing(null); setFormPrefill(null); setFormMode('komplettering'); setFormOpen(true); }
+  function openEdit(o: any) { setEditing(o); setFormPrefill(null); setFormMode(o?.order_kind === 'komplettering' ? 'komplettering' : 'standard'); setFormOpen(true); }
 
   async function doAssign() {
     if (!assignFor || !assignTeam) return;
