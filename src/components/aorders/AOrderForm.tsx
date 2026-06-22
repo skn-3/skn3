@@ -151,11 +151,11 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [sending, setSending] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
-  // Regenerate lines live when not edited / not locked
+  // Regenerate lines live when not edited / not locked / not komplettering
   useEffect(() => {
-    if (autoLocked) return;
+    if (autoLocked || isKomp) return;
     setLines(generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }));
-  }, [windowCount, doorCount, roofWindowCount, facadeType, kmDistance, autoLocked]);
+  }, [windowCount, doorCount, roofWindowCount, facadeType, kmDistance, autoLocked, isKomp]);
 
   // Products for "Lägg till rad"
   const { data: products = [] } = useQuery({
