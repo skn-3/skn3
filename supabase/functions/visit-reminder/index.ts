@@ -6,7 +6,7 @@ const corsHeaders = {
 }
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
-const APP_URL = 'https://smart-caseflow.lovable.app';
+const APP_URL = Deno.env.get('APP_URL') ?? 'https://smartklimatentreprenad.com';
 const LOGO_URL = `${APP_URL}/logo.png`;
 
 const SELLERS = ['Daniel Malke', 'Gabriel Hanna'] as const;
