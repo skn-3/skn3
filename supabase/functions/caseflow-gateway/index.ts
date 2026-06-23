@@ -64,8 +64,17 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: ALLOW_HEADERS });
   }
 
-  const provided = req.headers.get('x-gateway-secret');
-  if (!provided || provided !== GATEWAY_SECRET) {
+  const provided = req.headers.get('x-gateway-secret') ?? '';
+  // Konstanttids-jämförelse för att undvika timing-attacker
+  const enc = new TextEncoder();
+  const a = enc.encode(provided);
+  const b = enc.encode(GATEWAY_SECRET);
+  let ok = a.length === b.length;
+  const len = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < len; i++) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
+  ok = ok && diff === 0;
+  if (!ok) {
     return json({ error: 'Unauthorized' }, 401);
   }
 
