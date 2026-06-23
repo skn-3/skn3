@@ -8,7 +8,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { useMutation } from '@tanstack/react-query';
+import { useRole } from '@/hooks/useRole';
+import { Copy, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Row {
