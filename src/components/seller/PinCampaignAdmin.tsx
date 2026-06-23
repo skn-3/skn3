@@ -179,7 +179,7 @@ export function PinCampaignAdmin() {
                   <div className="font-medium">{r.name}</div>
                   <div className="text-xs text-muted-foreground">{r.role || '—'}</div>
                 </div>
-                <div>
+                <div className="flex items-center gap-2">
                   {!r.must_change_pin ? (
                     <Badge className="bg-primary text-primary-foreground">Bytt ✓</Badge>
                   ) : d === null ? (
@@ -187,12 +187,71 @@ export function PinCampaignAdmin() {
                   ) : (
                     <Badge variant="secondary">Väntar · dag {Math.min(d, 10)} av 10</Badge>
                   )}
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setResetTarget(r)}
+                      disabled={resetMutation.isPending}
+                    >
+                      <KeyRound className="h-3.5 w-3.5" />
+                      Återställ PIN
+                    </Button>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       </div>
+
+      <AlertDialog open={!!resetTarget} onOpenChange={(o) => !o && setResetTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Återställ PIN för {resetTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Den gamla koden slutar gälla direkt. En ny 6-siffrig PIN genereras och visas
+              en gång — kopiera och skicka den till användaren. Användaren tvingas välja en
+              egen PIN vid nästa inloggning.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => resetTarget && resetMutation.mutate(resetTarget.id)}
+              disabled={resetMutation.isPending}
+            >
+              {resetMutation.isPending ? 'Återställer…' : 'Återställ PIN'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={!!newPin} onOpenChange={(o) => !o && closePinDialog()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ny PIN-kod</DialogTitle>
+            <DialogDescription>
+              Den här koden visas bara en gång. Kopiera och skicka den till användaren nu.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 p-4">
+            <code className="font-mono text-2xl tracking-[0.4em]">{newPin}</code>
+            <Button variant="outline" size="sm" onClick={copyPin}>
+              <Copy className="h-3.5 w-3.5" />
+              Kopiera
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Användaren {rows.find(r => r.id === pinShownFor)?.name ?? ''} måste byta till en
+            egen PIN vid nästa inloggning.
+          </p>
+          <DialogFooter>
+            <Button onClick={closePinDialog}>Stäng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
