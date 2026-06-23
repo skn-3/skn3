@@ -119,8 +119,8 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
   try {
-    const authFail = await requireStaff(req);
-    if (authFail) return authFail;
+    const auth = await requireStaff(req, corsHeaders);
+    if (auth.response) return auth.response;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!LOVABLE_API_KEY || !RESEND_API_KEY) throw new Error('API keys not configured');
