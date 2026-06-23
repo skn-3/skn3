@@ -49,7 +49,14 @@ export function PinCampaignAdmin() {
       const { data, error } = await supabase.functions.invoke('reset-user-pin', {
         body: { target_user_id: targetUserId },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        let detail = error.message;
+        try {
+          const body = await (error as any).context?.json?.();
+          if (body?.error) detail = `${body.error}${body.step ? ' (' + body.step + ')' : ''}`;
+        } catch {}
+        throw new Error(detail);
+      }
       if (data?.error) throw new Error(data.error);
       return data as { pin: string };
     },
@@ -57,10 +64,12 @@ export function PinCampaignAdmin() {
       setNewPin(data.pin);
       setPinShownFor(targetUserId);
       setResetTarget(null);
+      const name = rows.find(r => r.id === targetUserId)?.name ?? '';
+      toast.success(`Ny tillfällig PIN för ${name}: ${data.pin} — användaren tvingas byta vid inloggning.`);
       load();
     },
     onError: (err: Error) => {
-      toast.error(err.message || 'Kunde inte återställa PIN');
+      toast.error(`Kunde inte återställa PIN: ${err.message}`);
       setResetTarget(null);
     },
   });

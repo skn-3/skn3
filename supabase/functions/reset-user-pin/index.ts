@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
       password: newPin,
     });
     if (updErr) {
-      return new Response(JSON.stringify({ error: updErr.message }), {
+      return new Response(JSON.stringify({ error: updErr.message, step: 'updateUserById' }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -103,21 +103,25 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const actorName = adminProfile?.name ?? "admin";
 
-    // Logga — ALDRIG själva PIN-värdet
-    await admin.from("activity_log").insert({
-      actor_name: actorName,
-      actor_role: "seller",
-      action: "pin_reset",
-      category: "auth",
-      description: `${actorName} återställde PIN-kod för ${targetProfile.name}`,
-      metadata: { target_user_id: targetUserId, target_name: targetProfile.name },
-    });
+    // Logga — ALDRIG själva PIN-värdet. Misslyckad logg får ALDRIG stoppa återställningen.
+    try {
+      await admin.from("activity_log").insert({
+        actor_name: actorName,
+        actor_role: "seller",
+        action: "pin_reset",
+        category: "auth",
+        description: `${actorName} återställde PIN-kod för ${targetProfile.name}`,
+        metadata: { target_user_id: targetUserId, target_name: targetProfile.name },
+      });
+    } catch (logErr) {
+      console.error("activity_log insert failed (ignored):", logErr);
+    }
 
     return new Response(JSON.stringify({ ok: true, pin: newPin }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message, step: 'unhandled' }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
