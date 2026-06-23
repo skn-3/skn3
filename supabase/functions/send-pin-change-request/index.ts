@@ -100,25 +100,10 @@ Deno.serve(async (req) => {
     if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
 
     // Verifiera JWT + admin-roll
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
-    const { data: claims, error: claimsErr } = await userClient.auth.getClaims(authHeader.replace('Bearer ', ''));
-    if (claimsErr || !claims?.claims?.sub) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    const authCheck = await requireAdmin(req, corsHeaders);
+    if (authCheck.response) return authCheck.response;
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-    const { data: roleRow } = await admin
-      .from('user_roles')
-      .select('is_admin')
-      .eq('user_id', claims.claims.sub)
-      .maybeSingle();
-    if (!roleRow?.is_admin) {
-      return new Response(JSON.stringify({ error: 'Forbidden (admin only)' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
     const body = await req.json().catch(() => ({}));
     const test_mode: boolean = !!body.test_mode;
