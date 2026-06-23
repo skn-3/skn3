@@ -6,7 +6,7 @@ const corsHeaders = {
 }
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
-const APP_URL = 'https://id-preview--6c43e886-ddf2-476f-9c1f-255522ad4ec0.lovable.app';
+const APP_URL = Deno.env.get('APP_URL') ?? 'https://smartklimatentreprenad.com';
 const LOGO_URL = `${APP_URL}/logo.png`;
 const HOUR_RATE = 469;
 const MONTHLY_BUDGET = 2_000_000;
