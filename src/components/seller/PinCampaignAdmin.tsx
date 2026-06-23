@@ -30,12 +30,56 @@ function daysSince(iso: string): number {
 }
 
 export function PinCampaignAdmin() {
+  const { role } = useRole();
+  const isAdmin = !!role?.isAdmin;
   const [testEmail, setTestEmail] = useState('johannes@malke.se');
   const [sendingTest, setSendingTest] = useState(false);
   const [sendingReal, setSendingReal] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // PIN-reset state
+  const [resetTarget, setResetTarget] = useState<Row | null>(null);
+  const [newPin, setNewPin] = useState<string | null>(null);
+  const [pinShownFor, setPinShownFor] = useState<string | null>(null);
+
+  const resetMutation = useMutation({
+    mutationFn: async (targetUserId: string) => {
+      const { data, error } = await supabase.functions.invoke('reset-user-pin', {
+        body: { target_user_id: targetUserId },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      return data as { pin: string };
+    },
+    onSuccess: (data, targetUserId) => {
+      setNewPin(data.pin);
+      setPinShownFor(targetUserId);
+      setResetTarget(null);
+      load();
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Kunde inte återställa PIN');
+      setResetTarget(null);
+    },
+  });
+
+  const copyPin = async () => {
+    if (!newPin) return;
+    try {
+      await navigator.clipboard.writeText(newPin);
+      toast.success('PIN kopierad');
+    } catch {
+      toast.error('Kunde inte kopiera');
+    }
+  };
+
+  const closePinDialog = () => {
+    setNewPin(null);
+    setPinShownFor(null);
+  };
+
 
   const load = async () => {
     setLoading(true);
