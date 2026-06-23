@@ -36,8 +36,8 @@ function json(body: unknown, status = 200): Response {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const authFail = await requireStaff(req);
-    if (authFail) return authFail;
+    const auth = await requireStaff(req, corsHeaders);
+    if (auth.response) return auth.response;
     const apiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!apiKey) return json({ error: 'LOVABLE_API_KEY not configured' }, 500);
 
