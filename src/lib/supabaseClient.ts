@@ -109,16 +109,11 @@ export interface DeviationActionLogEntry {
 }
 
 export async function appendDeviationLog(devId: string, entry: DeviationActionLogEntry) {
-  const { data: current, error: e1 } = await supabase
-    .from('deviations')
-    .select('action_log')
-    .eq('id', devId)
-    .single();
-  if (e1) throw e1;
-  const log = Array.isArray((current as any)?.action_log) ? (current as any).action_log : [];
-  log.push(entry);
-  const { error: e2 } = await supabase.from('deviations').update({ action_log: log } as any).eq('id', devId);
-  if (e2) throw e2;
+  const { error } = await supabase.rpc('append_deviation_log', {
+    p_deviation_id: devId,
+    p_entry: entry as any,
+  });
+  if (error) throw error;
 }
 
 // Visits
