@@ -128,8 +128,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authFail = await requireStaff(req);
-    if (authFail) return authFail;
+    const auth = await requireStaff(req, corsHeaders);
+    if (auth.response) return auth.response;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
