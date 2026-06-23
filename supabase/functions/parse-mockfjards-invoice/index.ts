@@ -27,24 +27,7 @@ const SYSTEM_PROMPT = `Du läser en svensk självfaktura där Smart Klimat N3pre
 }
 Ignorera adressblocken (säljaren=oss i Segeltorp, kunden=Mockfjärds i Borlänge) — de är INTE jobbadressen. Plocka belopp med svensk decimalkomma korrekt (469,20 = 469.20).`;
 
-async function requireStaff(req: Request): Promise<Response | null> {
-  const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-  const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-  const { data, error } = await userClient.auth.getClaims(authHeader.replace('Bearer ', ''));
-  if (error || !data?.claims?.sub) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-  const admin = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-  const { data: r } = await admin.from('user_roles').select('role,is_admin').eq('user_id', data.claims.sub).maybeSingle();
-  if (!(r?.is_admin || r?.role === 'seller' || r?.role === 'coordinator')) {
-    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-  return null;
-}
+import { requireStaff } from '../_shared/auth.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -53,8 +36,8 @@ function json(body: unknown, status = 200): Response {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const authFail = await requireStaff(req);
-    if (authFail) return authFail;
+    const auth = await requireStaff(req, corsHeaders);
+    if (auth.response) return auth.response;
     const apiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!apiKey) return json({ error: 'LOVABLE_API_KEY not configured' }, 500);
 
