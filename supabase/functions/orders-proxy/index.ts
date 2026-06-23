@@ -10,8 +10,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authFail = await requireStaff(req);
-    if (authFail) return authFail;
+    const auth = await requireStaff(req, corsHeaders);
+    if (auth.response) return auth.response;
 
     const body = await req.text();
     const upstream = await fetch(GATEWAY_URL, {
