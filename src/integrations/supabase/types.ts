@@ -1162,6 +1162,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      append_deviation_log: {
+        Args: { p_deviation_id: string; p_entry: Json }
+        Returns: undefined
+      }
       auth_is_admin: { Args: never; Returns: boolean }
       auth_is_my_team_case: { Args: { p_case_id: string }; Returns: boolean }
       auth_user_name: { Args: never; Returns: string }
