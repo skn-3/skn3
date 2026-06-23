@@ -53,8 +53,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const authFail = await requireStaff(req);
-    if (authFail) return authFail;
+    const auth = await requireStaff(req, corsHeaders);
+    if (auth.response) return auth.response;
     const { text } = await req.json();
     if (!text || typeof text !== "string") {
       return new Response(JSON.stringify({ error: "text krävs" }), {
