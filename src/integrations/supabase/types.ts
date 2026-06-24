@@ -596,6 +596,7 @@ export type Database = {
           id: string
           imported_snapshot: Json | null
           littera: string | null
+          montor_note: string | null
           set_lead: boolean | null
           set_number: number | null
           set_position: number | null
@@ -622,6 +623,7 @@ export type Database = {
           id?: string
           imported_snapshot?: Json | null
           littera?: string | null
+          montor_note?: string | null
           set_lead?: boolean | null
           set_number?: number | null
           set_position?: number | null
@@ -648,6 +650,7 @@ export type Database = {
           id?: string
           imported_snapshot?: Json | null
           littera?: string | null
+          montor_note?: string | null
           set_lead?: boolean | null
           set_number?: number | null
           set_position?: number | null

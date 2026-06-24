@@ -1,0 +1,1 @@
+ALTER TABLE public.litteror ADD COLUMN IF NOT EXISTS montor_note text;
