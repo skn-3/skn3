@@ -33,6 +33,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { format } from 'date-fns';
 import { cn, formatAmount } from '@/lib/utils';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
+import { LitterorSection } from '@/components/shared/LitterorSection';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { OfferForm } from '@/components/offers/OfferForm';
@@ -2028,6 +2029,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           </section>
 
           <SheetMetalOrdersSection caseId={caseData.id} />
+
+          <LitterorSection caseId={caseData.id} isAdmin={isAdmin} />
 
 
           {/* Costs */}
