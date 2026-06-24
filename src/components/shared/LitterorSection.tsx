@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Ruler, Upload, Trash2, RefreshCw, Settings2, Star } from 'lucide-react';
+import { Ruler, Upload, Trash2, RefreshCw, Star } from 'lucide-react';
 
 interface LitteraRow {
   id: string;
@@ -28,9 +28,15 @@ interface LitteraRow {
   set_lead: boolean | null;
   color_inside: string | null;
   color_outside: string | null;
-  spec: Record<string, unknown> | null;
   cm_status: string;
 }
+
+const STATUS_LABEL: Record<string, { label: string; variant: 'outline' | 'secondary' | 'default' }> = {
+  ej_paborjad: { label: 'Ej påbörjad', variant: 'outline' },
+  justerad: { label: 'Justerad', variant: 'secondary' },
+  inskickad: { label: 'Inskickad', variant: 'default' },
+  hanterad: { label: 'Hanterad', variant: 'default' },
+};
 
 async function fileToBase64(file: File): Promise<{ base64: string; mime: string }> {
   const buf = await file.arrayBuffer();
@@ -43,11 +49,9 @@ async function fileToBase64(file: File): Promise<{ base64: string; mime: string 
 function ImportInputs({
   onSubmit,
   pending,
-  submitLabel,
 }: {
   onSubmit: (payload: { image_base64?: string; mime_type?: string; text?: string }) => void;
   pending: boolean;
-  submitLabel: string;
 }) {
   const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -69,7 +73,7 @@ function ImportInputs({
   return (
     <div className="space-y-3">
       <div>
-        <Label>Skärmbild från KP</Label>
+        <Label>Skärmbild från KP-översikten</Label>
         <input
           ref={fileRef}
           type="file"
@@ -80,12 +84,12 @@ function ImportInputs({
         {file && <div className="text-xs text-muted-foreground mt-1">{file.name}</div>}
       </div>
       <div>
-        <Label>...eller klistra in text</Label>
+        <Label>...eller klistra in tabelltext</Label>
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={6}
-          placeholder="Klistra in tabellinnehåll/konfigurationsblock från KP"
+          placeholder="Klistra in översikten från Mockfjärds KP"
           onPaste={(e) => {
             const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith('image/'));
             if (item) {
@@ -100,7 +104,7 @@ function ImportInputs({
       </div>
       <DialogFooter>
         <Button onClick={handleSubmit} disabled={pending}>
-          {pending ? 'Tolkar...' : submitLabel}
+          {pending ? 'Tolkar...' : 'Importera'}
         </Button>
       </DialogFooter>
     </div>
@@ -110,7 +114,6 @@ function ImportInputs({
 export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: boolean }) {
   const qc = useQueryClient();
   const [overviewOpen, setOverviewOpen] = useState(false);
-  const [configFor, setConfigFor] = useState<LitteraRow | null>(null);
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['litteror', caseId],
@@ -149,32 +152,6 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
       qc.invalidateQueries({ queryKey: ['litteror', caseId] });
     },
     onError: (e: Error) => toast.error(`Kunde inte importera översikt: ${e.message}`),
-  });
-
-  const configMutation = useMutation({
-    mutationFn: async (vars: { littera_id: string; payload: { image_base64?: string; mime_type?: string; text?: string } }) => {
-      const { data, error } = await supabase.functions.invoke('parse-littera-config', {
-        body: { littera_id: vars.littera_id, ...vars.payload },
-      });
-      if (error) {
-        let detail = error.message;
-        try {
-          const ctx = (error as any).context;
-          if (ctx) {
-            const body = await ctx.json();
-            if (body?.error) detail = body.error;
-          }
-        } catch {}
-        throw new Error(detail);
-      }
-      return data;
-    },
-    onSuccess: () => {
-      toast.success('Konfiguration importerad');
-      setConfigFor(null);
-      qc.invalidateQueries({ queryKey: ['litteror', caseId] });
-    },
-    onError: (e: Error) => toast.error(`Kunde inte tolka konfiguration: ${e.message}`),
   });
 
   const deleteMutation = useMutation({
@@ -258,12 +235,12 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
                 <TableHead>Storlek</TableHead>
                 <TableHead>Kulör in/ut</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead></TableHead>
+                {isAdmin && <TableHead></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((r) => {
-                const hasSpec = r.spec && Object.keys(r.spec).length > 0;
+                const st = STATUS_LABEL[r.cm_status] ?? { label: r.cm_status, variant: 'outline' as const };
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.littera || '—'}</TableCell>
@@ -286,18 +263,11 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
                       {r.color_inside || '—'} / {r.color_outside || '—'}
                     </TableCell>
                     <TableCell>
-                      {hasSpec ? (
-                        <Badge variant="secondary">Konfigurerad</Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-amber-400 text-amber-700">Konfiguration saknas</Badge>
-                      )}
+                      <Badge variant={st.variant}>{st.label}</Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1 justify-end">
-                        <Button size="sm" variant="outline" onClick={() => setConfigFor(r)}>
-                          <Settings2 className="h-3 w-3 mr-1" /> Komplettera
-                        </Button>
-                        {isAdmin && (
+                    {isAdmin && (
+                      <TableCell>
+                        <div className="flex justify-end">
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button size="sm" variant="ghost" className="text-destructive">
@@ -315,9 +285,9 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
-                        )}
-                      </div>
-                    </TableCell>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
@@ -331,24 +301,7 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
           <DialogHeader>
             <DialogTitle>Importera littera-översikt från KP</DialogTitle>
           </DialogHeader>
-          <ImportInputs
-            pending={overviewMutation.isPending}
-            submitLabel="Importera"
-            onSubmit={(p) => overviewMutation.mutate(p)}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!configFor} onOpenChange={(o) => !o && setConfigFor(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Komplettera konfiguration — {configFor?.littera}</DialogTitle>
-          </DialogHeader>
-          <ImportInputs
-            pending={configMutation.isPending}
-            submitLabel="Tolka konfiguration"
-            onSubmit={(p) => configFor && configMutation.mutate({ littera_id: configFor.id, payload: p })}
-          />
+          <ImportInputs pending={overviewMutation.isPending} onSubmit={(p) => overviewMutation.mutate(p)} />
         </DialogContent>
       </Dialog>
     </section>
