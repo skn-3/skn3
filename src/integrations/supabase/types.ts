@@ -579,6 +579,95 @@ export type Database = {
         }
         Relationships: []
       }
+      litteror: {
+        Row: {
+          antal: number | null
+          article_code: string | null
+          article_name: string | null
+          brostning: number | null
+          brostning_mod: string | null
+          case_id: string
+          cm_status: string
+          color_inside: string | null
+          color_outside: string | null
+          created_at: string
+          height: number | null
+          height_mod: string | null
+          id: string
+          imported_snapshot: Json | null
+          littera: string | null
+          set_lead: boolean | null
+          set_number: number | null
+          set_position: number | null
+          sort_order: number
+          spec: Json
+          u_varde: number | null
+          vikt: number | null
+          width: number | null
+          width_mod: string | null
+        }
+        Insert: {
+          antal?: number | null
+          article_code?: string | null
+          article_name?: string | null
+          brostning?: number | null
+          brostning_mod?: string | null
+          case_id: string
+          cm_status?: string
+          color_inside?: string | null
+          color_outside?: string | null
+          created_at?: string
+          height?: number | null
+          height_mod?: string | null
+          id?: string
+          imported_snapshot?: Json | null
+          littera?: string | null
+          set_lead?: boolean | null
+          set_number?: number | null
+          set_position?: number | null
+          sort_order?: number
+          spec?: Json
+          u_varde?: number | null
+          vikt?: number | null
+          width?: number | null
+          width_mod?: string | null
+        }
+        Update: {
+          antal?: number | null
+          article_code?: string | null
+          article_name?: string | null
+          brostning?: number | null
+          brostning_mod?: string | null
+          case_id?: string
+          cm_status?: string
+          color_inside?: string | null
+          color_outside?: string | null
+          created_at?: string
+          height?: number | null
+          height_mod?: string | null
+          id?: string
+          imported_snapshot?: Json | null
+          littera?: string | null
+          set_lead?: boolean | null
+          set_number?: number | null
+          set_position?: number | null
+          sort_order?: number
+          spec?: Json
+          u_varde?: number | null
+          vikt?: number | null
+          width?: number | null
+          width_mod?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "litteror_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       montor_debit_invoices: {
         Row: {
           case_id: string | null
