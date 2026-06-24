@@ -2030,6 +2030,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
           <SheetMetalOrdersSection caseId={caseData.id} />
 
+          <LitterorSection caseId={caseData.id} isAdmin={isAdmin} />
+
 
           {/* Costs */}
           {costs && costs.length > 0 && (
