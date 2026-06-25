@@ -84,7 +84,9 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [lines, setLines] = useState<AOrderLine[]>(
     isKomp ? normalizeLines(order?.line_items) : (prefillLines ?? normalizeLines(order?.line_items))
   );
-  const [autoLocked, setAutoLocked] = useState<boolean>(isKomp || !!order?.id || !!prefillLines); // when editing, prefilled, or komp, don't auto-regenerate
+  const autoRegenEnabled = !isKomp && !order?.id && !prefillLines;
+  const [resetConfirm, setResetConfirm] = useState(false);
+
 
   const [kompCaseId, setKompCaseId] = useState<string>(order?.case_id ?? prefill?.case_id ?? '');
 
