@@ -714,8 +714,13 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 pb-6">
+            {!isEdit && (
+              <Button variant="outline" onClick={() => setResetConfirm(true)} className="mr-auto">
+                Nollställ formulär
+              </Button>
+            )}
             <Button variant="outline" onClick={() => onOpenChange(false)}>Avbryt</Button>
-            <Button variant="outline" onClick={downloadPdf} disabled={!hasTeam || saving} className="gap-2" title={!hasTeam ? 'Tilldela montör först' : undefined}>
+            <Button variant="outline" onClick={downloadPdf} disabled={saving} className="gap-2">
               <Download className="h-4 w-4" /> Ladda ner PDF
             </Button>
             <Button variant="default" onClick={() => setConfirmSend(true)} disabled={!hasTeam || !teamEmail || saving || sending} className="gap-2 bg-green-600 hover:bg-green-700" title={!hasTeam ? 'Tilldela montör först' : (!teamEmail ? 'Montörsteamet saknar e-post' : undefined)}>
@@ -726,6 +731,43 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               {hasTeam ? 'Spara' : 'Spara som utestående'}
             </Button>
           </div>
+
+          <AlertDialog open={resetConfirm} onOpenChange={setResetConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Rensa hela formuläret?</AlertDialogTitle>
+                <AlertDialogDescription>Allt du fyllt i försvinner.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Avbryt</AlertDialogCancel>
+                <AlertDialogAction onClick={(e) => {
+                  e.preventDefault();
+                  setDate(new Date().toISOString().slice(0, 10));
+                  setCustomerName('');
+                  setCustomerAddress('');
+                  setCustomerPhone('');
+                  setFacadeType('tra');
+                  setWindowCount(0);
+                  setDoorCount(0);
+                  setRoofWindowCount(0);
+                  setKmDistance(0);
+                  setScheduledDelivery(false);
+                  setDeliveryTime('');
+                  setDescription('');
+                  setTeamId('__none__');
+                  setInternalExtraHours(0);
+                  setInternalHourRate(0);
+                  setInternalExtraAmount(0);
+                  setLines([]);
+                  setImagePaths([]);
+                  setPendingImages([]);
+                  setKompCaseId('');
+                  setResetConfirm(false);
+                }}>Nollställ</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
 
           <AlertDialog open={confirmSend} onOpenChange={setConfirmSend}>
             <AlertDialogContent>
