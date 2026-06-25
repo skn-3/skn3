@@ -84,7 +84,9 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [lines, setLines] = useState<AOrderLine[]>(
     isKomp ? normalizeLines(order?.line_items) : (prefillLines ?? normalizeLines(order?.line_items))
   );
-  const [autoLocked, setAutoLocked] = useState<boolean>(isKomp || !!order?.id || !!prefillLines); // when editing, prefilled, or komp, don't auto-regenerate
+  const autoRegenEnabled = !isKomp && !order?.id && !prefillLines;
+  const [resetConfirm, setResetConfirm] = useState(false);
+
 
   const [kompCaseId, setKompCaseId] = useState<string>(order?.case_id ?? prefill?.case_id ?? '');
 
@@ -116,7 +118,6 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     setInternalExtraHours(Math.max(sold - approved, 0));
     setInternalHourRate(HOUR_RATE);
     if (approved > 0) {
-      setAutoLocked(true);
       setLines(prev => {
         // Ta bort tidigare "Extra Montagetimme"-rad (om vi byter värden) innan vi lägger till
         const cleaned = prev.filter(l => (l.name || '').trim() !== 'Extra Montagetimme');
@@ -126,6 +127,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
           unit_price: HOUR_RATE,
           qty: approved,
           amount: Math.round(HOUR_RATE * approved),
+          auto: false,
         };
         return [...cleaned, newLine];
       });
@@ -133,6 +135,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       setLines(prev => prev.filter(l => (l.name || '').trim() !== 'Extra Montagetimme'));
     }
   }
+
 
   useEffect(() => {
     if (!open) { extraHoursAppliedRef.current = false; return; }
@@ -155,11 +158,16 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [sending, setSending] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
-  // Regenerate lines live when not edited / not locked / not komplettering
+  // Regenerate ONLY auto-lines live; preserve manual rows (auto !== true).
   useEffect(() => {
-    if (autoLocked || isKomp) return;
-    setLines(generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }));
-  }, [windowCount, doorCount, roofWindowCount, facadeType, kmDistance, autoLocked, isKomp]);
+    if (!autoRegenEnabled) return;
+    setLines(prev => {
+      const kept = prev.filter(l => l.auto !== true);
+      const auto = generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance });
+      return [...auto, ...kept];
+    });
+  }, [windowCount, doorCount, roofWindowCount, facadeType, kmDistance, autoRegenEnabled, isKomp]);
+
 
   // Products for "Lägg till rad"
   const { data: products = [] } = useQuery({
@@ -208,30 +216,29 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   }, [internalExtraHours, internalHourRate, internalExtraAmount]);
 
   function updateLine(id: string, patch: Partial<AOrderLine>) {
-    setAutoLocked(true);
     setLines(prev => prev.map(l => {
       if (l.id !== id) return l;
       const merged = { ...l, ...patch } as AOrderLine;
       merged.amount = Math.round((Number(merged.unit_price) || 0) * (Number(merged.qty) || 0));
+      merged.auto = false;
       return merged;
     }));
   }
 
   function removeLine(id: string) {
-    setAutoLocked(true);
     setLines(prev => prev.filter(l => l.id !== id));
   }
 
   function addProductLine(productId: string) {
     if (!productId) return;
-    setAutoLocked(true);
     if (productId === '__free__') {
-      setLines(prev => [...prev, { id: newId(), name: '', unit_price: 0, qty: 1, amount: 0 }]);
+      setLines(prev => [...prev, { id: newId(), name: '', unit_price: 0, qty: 1, amount: 0, auto: false }]);
       return;
     }
     const p = products.find((x: any) => x.id === productId);
+
     if (!p) return;
-    setLines(prev => [...prev, { id: newId(), name: p.name, unit_price: Number(p.price), qty: 1, amount: Math.round(Number(p.price)) }]);
+    setLines(prev => [...prev, { id: newId(), name: p.name, unit_price: Number(p.price), qty: 1, amount: Math.round(Number(p.price)), auto: false }]);
   }
 
   async function compressImage(file: File): Promise<string> {
@@ -364,8 +371,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   }
 
   async function downloadPdf() {
-    if (!teamId || teamId === '__none__') { toast.error('Tilldela montör först'); return; }
     const orderId = await save({ silent: true });
+
     if (!orderId) return;
     const o = await fetchSavedOrder(orderId);
     const logo = await loadAOrderLogo();
@@ -376,7 +383,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       customerName: o.customer_name,
       lines: o.line_items || [],
       description: o.description,
-      team: o.montor_teams,
+      team: o.montor_teams ?? null,
+
       logoDataUrl: logo,
     });
     const addrSafe = String(o.customer_address || 'adress').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
@@ -464,7 +472,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               <>
                 <div>
                   <Label>Fasadtyp</Label>
-                  <Select value={facadeType} onValueChange={(v: any) => { setAutoLocked(false); setFacadeType(v); }}>
+                  <Select value={facadeType} onValueChange={(v: any) => setFacadeType(v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="tra">Trä</SelectItem>
@@ -475,19 +483,20 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
                 </div>
                 <div>
                   <Label>KM-avstånd</Label>
-                  <Input type="number" min={0} value={kmDistance} onChange={e => { setAutoLocked(false); setKmDistance(Number(e.target.value) || 0); }} />
+                  <Input type="number" min={0} value={kmDistance} onChange={e => setKmDistance(Number(e.target.value) || 0)} />
                 </div>
                 <div>
                   <Label>Antal fönster</Label>
-                  <Input type="number" min={0} value={windowCount} onChange={e => { setAutoLocked(false); setWindowCount(Number(e.target.value) || 0); }} />
+                  <Input type="number" min={0} value={windowCount} onChange={e => setWindowCount(Number(e.target.value) || 0)} />
                 </div>
                 <div>
                   <Label>Antal dörrar</Label>
-                  <Input type="number" min={0} value={doorCount} onChange={e => { setAutoLocked(false); setDoorCount(Number(e.target.value) || 0); }} />
+                  <Input type="number" min={0} value={doorCount} onChange={e => setDoorCount(Number(e.target.value) || 0)} />
                 </div>
                 <div>
                   <Label>Antal takfönster</Label>
-                  <Input type="number" min={0} value={roofWindowCount} onChange={e => { setAutoLocked(false); setRoofWindowCount(Number(e.target.value) || 0); }} />
+                  <Input type="number" min={0} value={roofWindowCount} onChange={e => setRoofWindowCount(Number(e.target.value) || 0)} />
+
                 </div>
               </>
             )}
@@ -512,14 +521,17 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
                   <Input type="time" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
                 </div>
               )}
-              {autoLocked && (
+              {autoRegenEnabled && (
                 <Button variant="ghost" size="sm" onClick={() => {
-                  setLines(generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }));
-                  setAutoLocked(false);
-              }}>Återställ auto-rader</Button>
+                  setLines(prev => {
+                    const kept = prev.filter(l => l.auto !== true);
+                    return [...generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }), ...kept];
+                  });
+                }}>Återställ auto-rader</Button>
               )}
             </div>
           )}
+
 
           {/* Lines */}
           <div className="border rounded-md">
@@ -702,8 +714,13 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 pb-6">
+            {!isEdit && (
+              <Button variant="outline" onClick={() => setResetConfirm(true)} className="mr-auto">
+                Nollställ formulär
+              </Button>
+            )}
             <Button variant="outline" onClick={() => onOpenChange(false)}>Avbryt</Button>
-            <Button variant="outline" onClick={downloadPdf} disabled={!hasTeam || saving} className="gap-2" title={!hasTeam ? 'Tilldela montör först' : undefined}>
+            <Button variant="outline" onClick={downloadPdf} disabled={saving} className="gap-2">
               <Download className="h-4 w-4" /> Ladda ner PDF
             </Button>
             <Button variant="default" onClick={() => setConfirmSend(true)} disabled={!hasTeam || !teamEmail || saving || sending} className="gap-2 bg-green-600 hover:bg-green-700" title={!hasTeam ? 'Tilldela montör först' : (!teamEmail ? 'Montörsteamet saknar e-post' : undefined)}>
@@ -714,6 +731,43 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               {hasTeam ? 'Spara' : 'Spara som utestående'}
             </Button>
           </div>
+
+          <AlertDialog open={resetConfirm} onOpenChange={setResetConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Rensa hela formuläret?</AlertDialogTitle>
+                <AlertDialogDescription>Allt du fyllt i försvinner.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Avbryt</AlertDialogCancel>
+                <AlertDialogAction onClick={(e) => {
+                  e.preventDefault();
+                  setDate(new Date().toISOString().slice(0, 10));
+                  setCustomerName('');
+                  setCustomerAddress('');
+                  setCustomerPhone('');
+                  setFacadeType('tra');
+                  setWindowCount(0);
+                  setDoorCount(0);
+                  setRoofWindowCount(0);
+                  setKmDistance(0);
+                  setScheduledDelivery(false);
+                  setDeliveryTime('');
+                  setDescription('');
+                  setTeamId('__none__');
+                  setInternalExtraHours(0);
+                  setInternalHourRate(0);
+                  setInternalExtraAmount(0);
+                  setLines([]);
+                  setImagePaths([]);
+                  setPendingImages([]);
+                  setKompCaseId('');
+                  setResetConfirm(false);
+                }}>Nollställ</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
 
           <AlertDialog open={confirmSend} onOpenChange={setConfirmSend}>
             <AlertDialogContent>

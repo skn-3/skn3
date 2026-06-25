@@ -9,7 +9,9 @@ export interface AOrderLine {
   unit_price: number;
   qty: number;
   amount: number;
+  auto?: boolean;
 }
+
 
 export interface AutoLineInput {
   windowCount: number;
@@ -28,8 +30,9 @@ function r(n: number) {
 }
 
 function line(name: string, price: number, qty: number): AOrderLine {
-  return { id: makeId(), name, unit_price: price, qty, amount: r(price * qty) };
+  return { id: makeId(), name, unit_price: price, qty, amount: r(price * qty), auto: true };
 }
+
 
 const WINDOW_PRICE: Record<FacadeType, number> = { tra: 352, sten: 624, puts: 352 };
 // Dörr inkl ädelträlist
