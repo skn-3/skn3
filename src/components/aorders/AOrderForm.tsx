@@ -526,24 +526,57 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
             <div className="px-3 py-2 border-b bg-muted/50 flex items-center justify-between">
               <span className="text-sm font-medium">Rader</span>
               <div className="flex items-center gap-2">
-                <Select onValueChange={addProductLine} value="">
-                  <SelectTrigger className="h-8 text-xs w-[260px]">
-                    <SelectValue placeholder="+ Lägg till rad..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__free__">— Fri rad —</SelectItem>
-                    {productsByCat.map(([cat, list]) => (
-                      <SelectGroup key={cat}>
-                        <SelectLabel>{cat}</SelectLabel>
-                        {list.map(p => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name} ({Number(p.price).toLocaleString('sv-SE')} kr)
-                          </SelectItem>
+                <Popover open={addOpen} onOpenChange={(v) => { setAddOpen(v); if (!v) setAddSearch(''); }}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 text-xs w-[260px] justify-between font-normal">
+                      + Lägg till rad...
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[320px] p-0" align="end">
+                    <Command
+                      filter={(value, search) => {
+                        const term = search.trim().toLowerCase();
+                        if (!term) return 1;
+                        return value.toLowerCase().includes(term) ? 1 : 0;
+                      }}
+                    >
+                      <CommandInput placeholder="Sök artikel..." value={addSearch} onValueChange={setAddSearch} autoFocus />
+                      <CommandList className="max-h-[320px]">
+                        <CommandEmpty>Ingen artikel matchar</CommandEmpty>
+                        <CommandItem
+                          value="— Fri rad —"
+                          onSelect={() => {
+                            addProductLine('__free__');
+                            setAddOpen(false);
+                            setAddSearch('');
+                          }}
+                        >
+                          — Fri rad —
+                        </CommandItem>
+                        {productsByCat.map(([cat, list]) => (
+                          <CommandGroup key={cat} heading={cat}>
+                            {list.map(p => (
+                              <CommandItem
+                                key={p.id}
+                                value={p.name}
+                                onSelect={() => {
+                                  addProductLine(p.id);
+                                  setAddOpen(false);
+                                  setAddSearch('');
+                                }}
+                              >
+                                <span className="flex-1 truncate">{p.name}</span>
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  {Number(p.price).toLocaleString('sv-SE')} kr
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
                         ))}
-                      </SelectGroup>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
             <div className="divide-y">
