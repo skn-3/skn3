@@ -520,14 +520,17 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
                   <Input type="time" value={deliveryTime} onChange={e => setDeliveryTime(e.target.value)} />
                 </div>
               )}
-              {autoLocked && (
+              {autoRegenEnabled && (
                 <Button variant="ghost" size="sm" onClick={() => {
-                  setLines(generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }));
-                  setAutoLocked(false);
-              }}>Återställ auto-rader</Button>
+                  setLines(prev => {
+                    const kept = prev.filter(l => l.auto !== true);
+                    return [...generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }), ...kept];
+                  });
+                }}>Återställ auto-rader</Button>
               )}
             </div>
           )}
+
 
           {/* Lines */}
           <div className="border rounded-md">
