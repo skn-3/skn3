@@ -238,7 +238,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     const p = products.find((x: any) => x.id === productId);
 
     if (!p) return;
-    setLines(prev => [...prev, { id: newId(), name: p.name, unit_price: Number(p.price), qty: 1, amount: Math.round(Number(p.price)) }]);
+    setLines(prev => [...prev, { id: newId(), name: p.name, unit_price: Number(p.price), qty: 1, amount: Math.round(Number(p.price)), auto: false }]);
   }
 
   async function compressImage(file: File): Promise<string> {
