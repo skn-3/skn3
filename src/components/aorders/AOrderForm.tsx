@@ -50,6 +50,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const isKomp = (order?.order_kind || mode) === 'komplettering';
   const isEdit = !!order?.id;
   const [saving, setSaving] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addSearch, setAddSearch] = useState('');
 
   // Header
   const [date, setDate] = useState<string>(order?.date || prefill?.date || new Date().toISOString().slice(0, 10));
