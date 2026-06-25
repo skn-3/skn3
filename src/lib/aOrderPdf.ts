@@ -193,11 +193,16 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
   // Bank info left
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  const bg = team?.bankgiro || '—';
-  const company = team?.company_name || team?.name || '—';
-  const org = team?.org_nr || '—';
-  doc.text(`BANKGIRO: ${bg}`, margin, fy + 10);
-  doc.text(`${company} | ${org}`, margin, fy + 14);
+  const bg = team?.bankgiro ?? '';
+  const company = team?.company_name ?? team?.name ?? '';
+  const org = team?.org_nr ?? '';
+  if (!team || !bg) {
+    doc.text('Montör ej tilldelad', margin, fy + 10);
+  } else {
+    doc.text(`BANKGIRO: ${bg}`, margin, fy + 10);
+  }
+  doc.text(`${company || '—'} | ${org || '—'}`, margin, fy + 14);
+
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
