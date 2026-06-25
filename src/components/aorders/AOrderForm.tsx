@@ -158,11 +158,16 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [sending, setSending] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
-  // Regenerate lines live when not edited / not locked / not komplettering
+  // Regenerate ONLY auto-lines live; preserve manual rows (auto !== true).
   useEffect(() => {
-    if (autoLocked || isKomp) return;
-    setLines(generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance }));
-  }, [windowCount, doorCount, roofWindowCount, facadeType, kmDistance, autoLocked, isKomp]);
+    if (!autoRegenEnabled) return;
+    setLines(prev => {
+      const kept = prev.filter(l => l.auto !== true);
+      const auto = generateAutoLines({ windowCount, doorCount, roofWindowCount, facadeType, kmDistance });
+      return [...auto, ...kept];
+    });
+  }, [windowCount, doorCount, roofWindowCount, facadeType, kmDistance, autoRegenEnabled, isKomp]);
+
 
   // Products for "Lägg till rad"
   const { data: products = [] } = useQuery({
