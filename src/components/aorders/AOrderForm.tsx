@@ -216,28 +216,27 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   }, [internalExtraHours, internalHourRate, internalExtraAmount]);
 
   function updateLine(id: string, patch: Partial<AOrderLine>) {
-    setAutoLocked(true);
     setLines(prev => prev.map(l => {
       if (l.id !== id) return l;
       const merged = { ...l, ...patch } as AOrderLine;
       merged.amount = Math.round((Number(merged.unit_price) || 0) * (Number(merged.qty) || 0));
+      merged.auto = false;
       return merged;
     }));
   }
 
   function removeLine(id: string) {
-    setAutoLocked(true);
     setLines(prev => prev.filter(l => l.id !== id));
   }
 
   function addProductLine(productId: string) {
     if (!productId) return;
-    setAutoLocked(true);
     if (productId === '__free__') {
-      setLines(prev => [...prev, { id: newId(), name: '', unit_price: 0, qty: 1, amount: 0 }]);
+      setLines(prev => [...prev, { id: newId(), name: '', unit_price: 0, qty: 1, amount: 0, auto: false }]);
       return;
     }
     const p = products.find((x: any) => x.id === productId);
+
     if (!p) return;
     setLines(prev => [...prev, { id: newId(), name: p.name, unit_price: Number(p.price), qty: 1, amount: Math.round(Number(p.price)) }]);
   }
