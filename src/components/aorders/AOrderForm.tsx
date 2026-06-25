@@ -118,7 +118,6 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     setInternalExtraHours(Math.max(sold - approved, 0));
     setInternalHourRate(HOUR_RATE);
     if (approved > 0) {
-      setAutoLocked(true);
       setLines(prev => {
         // Ta bort tidigare "Extra Montagetimme"-rad (om vi byter värden) innan vi lägger till
         const cleaned = prev.filter(l => (l.name || '').trim() !== 'Extra Montagetimme');
@@ -128,6 +127,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
           unit_price: HOUR_RATE,
           qty: approved,
           amount: Math.round(HOUR_RATE * approved),
+          auto: false,
         };
         return [...cleaned, newLine];
       });
@@ -135,6 +135,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       setLines(prev => prev.filter(l => (l.name || '').trim() !== 'Extra Montagetimme'));
     }
   }
+
 
   useEffect(() => {
     if (!open) { extraHoursAppliedRef.current = false; return; }
