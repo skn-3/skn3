@@ -9,7 +9,9 @@ export interface AOrderLine {
   unit_price: number;
   qty: number;
   amount: number;
+  auto?: boolean;
 }
+
 
 export interface AutoLineInput {
   windowCount: number;
