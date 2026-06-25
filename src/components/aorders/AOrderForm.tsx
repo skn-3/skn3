@@ -371,8 +371,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   }
 
   async function downloadPdf() {
-    if (!teamId || teamId === '__none__') { toast.error('Tilldela montör först'); return; }
     const orderId = await save({ silent: true });
+
     if (!orderId) return;
     const o = await fetchSavedOrder(orderId);
     const logo = await loadAOrderLogo();
