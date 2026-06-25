@@ -471,7 +471,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               <>
                 <div>
                   <Label>Fasadtyp</Label>
-                  <Select value={facadeType} onValueChange={(v: any) => { setAutoLocked(false); setFacadeType(v); }}>
+                  <Select value={facadeType} onValueChange={(v: any) => setFacadeType(v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="tra">Trä</SelectItem>
@@ -482,19 +482,20 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
                 </div>
                 <div>
                   <Label>KM-avstånd</Label>
-                  <Input type="number" min={0} value={kmDistance} onChange={e => { setAutoLocked(false); setKmDistance(Number(e.target.value) || 0); }} />
+                  <Input type="number" min={0} value={kmDistance} onChange={e => setKmDistance(Number(e.target.value) || 0)} />
                 </div>
                 <div>
                   <Label>Antal fönster</Label>
-                  <Input type="number" min={0} value={windowCount} onChange={e => { setAutoLocked(false); setWindowCount(Number(e.target.value) || 0); }} />
+                  <Input type="number" min={0} value={windowCount} onChange={e => setWindowCount(Number(e.target.value) || 0)} />
                 </div>
                 <div>
                   <Label>Antal dörrar</Label>
-                  <Input type="number" min={0} value={doorCount} onChange={e => { setAutoLocked(false); setDoorCount(Number(e.target.value) || 0); }} />
+                  <Input type="number" min={0} value={doorCount} onChange={e => setDoorCount(Number(e.target.value) || 0)} />
                 </div>
                 <div>
                   <Label>Antal takfönster</Label>
-                  <Input type="number" min={0} value={roofWindowCount} onChange={e => { setAutoLocked(false); setRoofWindowCount(Number(e.target.value) || 0); }} />
+                  <Input type="number" min={0} value={roofWindowCount} onChange={e => setRoofWindowCount(Number(e.target.value) || 0)} />
+
                 </div>
               </>
             )}
