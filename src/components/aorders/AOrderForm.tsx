@@ -383,7 +383,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       customerName: o.customer_name,
       lines: o.line_items || [],
       description: o.description,
-      team: o.montor_teams,
+      team: o.montor_teams ?? null,
+
       logoDataUrl: logo,
     });
     const addrSafe = String(o.customer_address || 'adress').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
