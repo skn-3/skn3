@@ -266,10 +266,11 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
         table: {
           widths: [140, '*'],
           body: [
-            [{ text: 'Offert nr', bold: true, color: GREEN_DARK }, { text: offer.offer_number || '—' }],
-            [{ text: 'Accepterad av', bold: true, color: GREEN_DARK }, { text: opts.signature.name || '—' }],
-            [{ text: 'Datum/tid', bold: true, color: GREEN_DARK }, { text: acceptedFmt }],
-            [{ text: 'Dokumentreferens', bold: true, color: GREEN_DARK }, { text: offer.offer_number || '—' }],
+            [{ text: 'Offert nr', bold: true, color: GREEN_DARK }, { text: nfc(offer.offer_number) || '—' }],
+            [{ text: 'Accepterad av', bold: true, color: GREEN_DARK }, { text: nfc(opts.signature.name) || '—' }],
+            [{ text: 'Datum/tid', bold: true, color: GREEN_DARK }, { text: nfc(acceptedFmt) }],
+            [{ text: 'Dokumentreferens', bold: true, color: GREEN_DARK }, { text: nfc(offer.offer_number) || '—' }],
+
           ],
         },
         layout: {
