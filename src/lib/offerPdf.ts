@@ -250,7 +250,7 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
   // Page 2 — terms
   const termsPage: any[] = [
     { text: 'Allmänna villkor', fontSize: 16, bold: true, color: GREEN_DARK, margin: [0, 0, 0, 10], pageBreak: 'before' },
-    { text: offer.terms_text || '', fontSize: 9, color: '#374151', lineHeight: 1.35 },
+    { text: nfc(offer.terms_text), fontSize: 9, color: '#374151', lineHeight: 1.35 },
   ];
 
   // Optional verification page
