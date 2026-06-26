@@ -149,8 +149,8 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
   };
 
   const titleBlock: any[] = [];
-  if (offer.title) titleBlock.push({ text: offer.title, fontSize: 14, bold: true, margin: [0, 0, 0, 4] });
-  if (offer.description) titleBlock.push({ text: offer.description, color: '#374151', margin: [0, 0, 0, 12] });
+  if (offer.title) titleBlock.push({ text: nfc(offer.title), fontSize: 14, bold: true, margin: [0, 0, 0, 4] });
+  if (offer.description) titleBlock.push({ text: nfc(offer.description), color: '#374151', margin: [0, 0, 0, 12] });
 
   // Items table
   const showLaborBadge = offer.rot_enabled && offer.vat_mode === 'vanlig';
@@ -165,18 +165,19 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
   const itemRows = (offer.line_items || []).map(it => {
     const desc: any = showLaborBadge && it.is_labor
       ? { stack: [
-          { text: it.description || '' },
+          { text: nfc(it.description) },
           { text: 'arbete', fontSize: 8, color: GREEN_DARK, italics: true },
         ] }
-      : { text: it.description || '' };
+      : { text: nfc(it.description) };
     return [
       desc,
       { text: String(Number(it.qty || 0).toLocaleString('sv-SE')), alignment: 'right' },
-      { text: it.unit || '' },
+      { text: nfc(it.unit), alignment: 'right' },
       { text: fmtKr(it.unit_price), alignment: 'right' },
       { text: fmtKr(it.amount), alignment: 'right' },
     ];
   });
+
 
   const itemsTable: any = {
     table: {
