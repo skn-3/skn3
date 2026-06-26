@@ -14,6 +14,9 @@ export function getPdfMake(): Promise<any> {
   });
 }
 
+const nfc = (s: any) => (s ?? '').toString().normalize('NFC');
+
+
 
 const GREEN = '#22C55E';
 const GREEN_DARK = '#15803D';
@@ -100,7 +103,7 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
       {
         stack: [
           { text: 'OFFERT', color: GREEN_DARK, bold: true, fontSize: 22, alignment: 'right' },
-          { text: offer.offer_number ? `Nr ${offer.offer_number}` : '', alignment: 'right', color: MUTED, fontSize: 10 },
+          { text: offer.offer_number ? `Nr ${nfc(offer.offer_number)}` : '', alignment: 'right', color: MUTED, fontSize: 10 },
           { text: `Datum ${fmtDate(offer.created_at || new Date())}`, alignment: 'right', color: MUTED, fontSize: 10 },
           offer.valid_until
             ? { text: `Giltig t.o.m. ${fmtDate(offer.valid_until)}`, alignment: 'right', color: MUTED, fontSize: 10 }
@@ -125,15 +128,16 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
 
   const toStack: any[] = [
     { text: 'Till', bold: true, color: GREEN_DARK, margin: [0, 0, 0, 4] },
-    { text: offer.customer_name || '—' },
+    { text: nfc(offer.customer_name) || '—' },
   ];
-  if (offer.customer_address) toStack.push({ text: offer.customer_address, color: MUTED, fontSize: 9 });
-  if (offer.customer_email) toStack.push({ text: offer.customer_email, color: MUTED, fontSize: 9 });
-  if (offer.customer_phone) toStack.push({ text: offer.customer_phone, color: MUTED, fontSize: 9 });
+  if (offer.customer_address) toStack.push({ text: nfc(offer.customer_address), color: MUTED, fontSize: 9 });
+  if (offer.customer_email) toStack.push({ text: nfc(offer.customer_email), color: MUTED, fontSize: 9 });
+  if (offer.customer_phone) toStack.push({ text: nfc(offer.customer_phone), color: MUTED, fontSize: 9 });
   if (offer.customer_type === 'privat' && offer.customer_personnummer)
-    toStack.push({ text: `Personnr: ${offer.customer_personnummer}`, color: MUTED, fontSize: 9 });
+    toStack.push({ text: `Personnr: ${nfc(offer.customer_personnummer)}`, color: MUTED, fontSize: 9 });
   if (offer.customer_type === 'privat' && offer.fastighetsbeteckning)
-    toStack.push({ text: `Fastighet: ${offer.fastighetsbeteckning}`, color: MUTED, fontSize: 9 });
+    toStack.push({ text: `Fastighet: ${nfc(offer.fastighetsbeteckning)}`, color: MUTED, fontSize: 9 });
+
 
   const fromTo: any = {
     columns: [
@@ -145,8 +149,8 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
   };
 
   const titleBlock: any[] = [];
-  if (offer.title) titleBlock.push({ text: offer.title, fontSize: 14, bold: true, margin: [0, 0, 0, 4] });
-  if (offer.description) titleBlock.push({ text: offer.description, color: '#374151', margin: [0, 0, 0, 12] });
+  if (offer.title) titleBlock.push({ text: nfc(offer.title), fontSize: 14, bold: true, margin: [0, 0, 0, 4] });
+  if (offer.description) titleBlock.push({ text: nfc(offer.description), color: '#374151', margin: [0, 0, 0, 12] });
 
   // Items table
   const showLaborBadge = offer.rot_enabled && offer.vat_mode === 'vanlig';
@@ -161,18 +165,19 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
   const itemRows = (offer.line_items || []).map(it => {
     const desc: any = showLaborBadge && it.is_labor
       ? { stack: [
-          { text: it.description || '' },
+          { text: nfc(it.description) },
           { text: 'arbete', fontSize: 8, color: GREEN_DARK, italics: true },
         ] }
-      : { text: it.description || '' };
+      : { text: nfc(it.description) };
     return [
       desc,
       { text: String(Number(it.qty || 0).toLocaleString('sv-SE')), alignment: 'right' },
-      { text: it.unit || '' },
+      { text: nfc(it.unit) },
       { text: fmtKr(it.unit_price), alignment: 'right' },
       { text: fmtKr(it.amount), alignment: 'right' },
     ];
   });
+
 
   const itemsTable: any = {
     table: {
@@ -236,7 +241,7 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
   };
 
   const footer1: any = {
-    text: `Giltig ${validDays} dagar. Betalningsvillkor ${offer.payment_terms || '10 dagar netto'}. Allmänna villkor, se sida 2.`,
+    text: `Giltig ${validDays} dagar. Betalningsvillkor ${nfc(offer.payment_terms) || '10 dagar netto'}. Allmänna villkor, se sida 2.`,
     color: MUTED,
     fontSize: 9,
     margin: [0, 16, 0, 0],
@@ -245,7 +250,7 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
   // Page 2 — terms
   const termsPage: any[] = [
     { text: 'Allmänna villkor', fontSize: 16, bold: true, color: GREEN_DARK, margin: [0, 0, 0, 10], pageBreak: 'before' },
-    { text: offer.terms_text || '', fontSize: 9, color: '#374151', lineHeight: 1.35 },
+    { text: nfc(offer.terms_text), fontSize: 9, color: '#374151', lineHeight: 1.35 },
   ];
 
   // Optional verification page
@@ -261,10 +266,11 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
         table: {
           widths: [140, '*'],
           body: [
-            [{ text: 'Offert nr', bold: true, color: GREEN_DARK }, { text: offer.offer_number || '—' }],
-            [{ text: 'Accepterad av', bold: true, color: GREEN_DARK }, { text: opts.signature.name || '—' }],
-            [{ text: 'Datum/tid', bold: true, color: GREEN_DARK }, { text: acceptedFmt }],
-            [{ text: 'Dokumentreferens', bold: true, color: GREEN_DARK }, { text: offer.offer_number || '—' }],
+            [{ text: 'Offert nr', bold: true, color: GREEN_DARK }, { text: nfc(offer.offer_number) || '—' }],
+            [{ text: 'Accepterad av', bold: true, color: GREEN_DARK }, { text: nfc(opts.signature.name) || '—' }],
+            [{ text: 'Datum/tid', bold: true, color: GREEN_DARK }, { text: nfc(acceptedFmt) }],
+            [{ text: 'Dokumentreferens', bold: true, color: GREEN_DARK }, { text: nfc(offer.offer_number) || '—' }],
+
           ],
         },
         layout: {
