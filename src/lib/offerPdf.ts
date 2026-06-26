@@ -241,7 +241,7 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
   };
 
   const footer1: any = {
-    text: `Giltig ${validDays} dagar. Betalningsvillkor ${offer.payment_terms || '10 dagar netto'}. Allmänna villkor, se sida 2.`,
+    text: `Giltig ${validDays} dagar. Betalningsvillkor ${nfc(offer.payment_terms) || '10 dagar netto'}. Allmänna villkor, se sida 2.`,
     color: MUTED,
     fontSize: 9,
     margin: [0, 16, 0, 0],
