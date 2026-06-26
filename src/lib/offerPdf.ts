@@ -14,6 +14,9 @@ export function getPdfMake(): Promise<any> {
   });
 }
 
+const nfc = (s: any) => (s ?? '').toString().normalize('NFC');
+
+
 
 const GREEN = '#22C55E';
 const GREEN_DARK = '#15803D';
