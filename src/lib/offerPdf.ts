@@ -172,7 +172,7 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
     return [
       desc,
       { text: String(Number(it.qty || 0).toLocaleString('sv-SE')), alignment: 'right' },
-      { text: nfc(it.unit), alignment: 'right' },
+      { text: nfc(it.unit) },
       { text: fmtKr(it.unit_price), alignment: 'right' },
       { text: fmtKr(it.amount), alignment: 'right' },
     ];
