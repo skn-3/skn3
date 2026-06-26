@@ -103,7 +103,7 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
       {
         stack: [
           { text: 'OFFERT', color: GREEN_DARK, bold: true, fontSize: 22, alignment: 'right' },
-          { text: offer.offer_number ? `Nr ${offer.offer_number}` : '', alignment: 'right', color: MUTED, fontSize: 10 },
+          { text: offer.offer_number ? `Nr ${nfc(offer.offer_number)}` : '', alignment: 'right', color: MUTED, fontSize: 10 },
           { text: `Datum ${fmtDate(offer.created_at || new Date())}`, alignment: 'right', color: MUTED, fontSize: 10 },
           offer.valid_until
             ? { text: `Giltig t.o.m. ${fmtDate(offer.valid_until)}`, alignment: 'right', color: MUTED, fontSize: 10 }
@@ -128,15 +128,16 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
 
   const toStack: any[] = [
     { text: 'Till', bold: true, color: GREEN_DARK, margin: [0, 0, 0, 4] },
-    { text: offer.customer_name || '—' },
+    { text: nfc(offer.customer_name) || '—' },
   ];
-  if (offer.customer_address) toStack.push({ text: offer.customer_address, color: MUTED, fontSize: 9 });
-  if (offer.customer_email) toStack.push({ text: offer.customer_email, color: MUTED, fontSize: 9 });
-  if (offer.customer_phone) toStack.push({ text: offer.customer_phone, color: MUTED, fontSize: 9 });
+  if (offer.customer_address) toStack.push({ text: nfc(offer.customer_address), color: MUTED, fontSize: 9 });
+  if (offer.customer_email) toStack.push({ text: nfc(offer.customer_email), color: MUTED, fontSize: 9 });
+  if (offer.customer_phone) toStack.push({ text: nfc(offer.customer_phone), color: MUTED, fontSize: 9 });
   if (offer.customer_type === 'privat' && offer.customer_personnummer)
-    toStack.push({ text: `Personnr: ${offer.customer_personnummer}`, color: MUTED, fontSize: 9 });
+    toStack.push({ text: `Personnr: ${nfc(offer.customer_personnummer)}`, color: MUTED, fontSize: 9 });
   if (offer.customer_type === 'privat' && offer.fastighetsbeteckning)
-    toStack.push({ text: `Fastighet: ${offer.fastighetsbeteckning}`, color: MUTED, fontSize: 9 });
+    toStack.push({ text: `Fastighet: ${nfc(offer.fastighetsbeteckning)}`, color: MUTED, fontSize: 9 });
+
 
   const fromTo: any = {
     columns: [
