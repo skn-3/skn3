@@ -774,7 +774,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               <AlertDialogHeader>
                 <AlertDialogTitle>Skicka A-order?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Mottagare: <strong>{teamEmail || '—'}</strong><br />
+                  <strong>Skickas till: {teamEmail || '—'}</strong><br />
+                  En kopia skickas även till er.<br />
                   Bifogas: PDF + {totalImages} {totalImages === 1 ? 'bild' : 'bilder'}
                 </AlertDialogDescription>
               </AlertDialogHeader>
