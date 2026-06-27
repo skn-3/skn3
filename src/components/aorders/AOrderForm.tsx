@@ -419,7 +419,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         body: { a_order_id: orderId, pdf_base64 },
       });
       if (error) throw error;
-      toast.success('A-order skickad till montör');
+      toast.success(`A-order skickad till ${o.montor_teams?.email}`);
       setConfirmSend(false);
       onSaved?.();
       onOpenChange(false);
@@ -774,7 +774,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               <AlertDialogHeader>
                 <AlertDialogTitle>Skicka A-order?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Mottagare: <strong>{teamEmail || '—'}</strong><br />
+                  <strong>Skickas till: {teamEmail || '—'}</strong><br />
+                  En kopia skickas även till er.<br />
                   Bifogas: PDF + {totalImages} {totalImages === 1 ? 'bild' : 'bilder'}
                 </AlertDialogDescription>
               </AlertDialogHeader>

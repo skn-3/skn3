@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
-const COPY_TO = 'n3prenad@smartklimat.org';
+
 
 function esc(s: string) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!)); }
 function sanitizeFilename(s: string) {
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
       reply_to: 'n3prenad@smartklimat.org',
       to: [team.email],
-      cc: [COPY_TO],
+      cc: ['n3prenad@smartklimat.org', 'daniel@malke.se'],
       subject: `A-ORDER ${orderNo} — ${order.customer_address || ''}`.trim(),
       html,
       attachments,
@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
 
     await admin.from('a_orders').update({ order_sent_at: new Date().toISOString(), pdf_path: pdfPath }).eq('id', a_order_id);
 
-    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ ok: true, recipient: team.email, id: emailData?.id ?? null }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('send-a-order error', e);
     const msg = e instanceof Error ? e.message : 'Unknown error';
