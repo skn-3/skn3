@@ -175,6 +175,16 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
     y += 6;
   }
 
+  // Fixed note
+  if (y > 250) { doc.addPage(); y = 20; }
+  doc.setFillColor(255, 251, 235); // light yellow
+  doc.rect(margin, y + 2, pageW - margin * 2, 10, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...DARK);
+  doc.text('OBS! Lämna skräpet någonstans där Ragnsells kan komma åt det.', margin + 2, y + 8.5);
+  y += 14;
+
   // FOOTER block
   let fy = Math.max(y + 10, 225);
   doc.setFont('helvetica', 'bold');
