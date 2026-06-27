@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
       reply_to: 'n3prenad@smartklimat.org',
       to: [team.email],
-      cc: [COPY_TO],
+      cc: ['n3prenad@smartklimat.org', 'daniel@malke.se'],
       subject: `A-ORDER ${orderNo} — ${order.customer_address || ''}`.trim(),
       html,
       attachments,
