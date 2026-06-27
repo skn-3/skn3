@@ -350,7 +350,7 @@ export function AOrdersView({ currentUser }: Props) {
                           <div className="text-[10px] text-red-600 mt-0.5">avser tidigare faktura</div>
                         )}
                         {o.order_sent_at && !o.invoice_number && (
-                          <div className="text-[10px] text-muted-foreground mt-1">Skickad {new Date(o.order_sent_at).toLocaleDateString('sv-SE')}</div>
+                          <div className="text-[10px] text-muted-foreground mt-1">Skickad {new Date(o.order_sent_at).toLocaleDateString('sv-SE')} → {o.montor_teams?.email || '—'}</div>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right">
