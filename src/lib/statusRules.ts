@@ -5,12 +5,27 @@ export type StatusCheck = { ok: boolean; reason?: string };
 
 type CaseLike = Partial<CaseRow> & Record<string, any>;
 
+const STATUS_ORDER = [
+  'ny', 'vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand',
+  'leverans_klar', 'montage_bokat', 'montage_pagar', 'montage_klart', 'fakturerad',
+];
+
 /**
  * Whether `caseData` may transition into `newStatus` based on business rules.
  * Returns { ok: false, reason } when forbidden — caller decides whether to
  * block, warn or allow admin override.
  */
 export function canEnterStatus(newStatus: string, c: CaseLike): StatusCheck {
+  // Require delivery date or week before moving past KM klar
+  const targetIdx = STATUS_ORDER.indexOf(newStatus);
+  const gateIdx = STATUS_ORDER.indexOf('vantar_godkannande');
+  if (targetIdx >= gateIdx && targetIdx !== -1) {
+    const dw = (c as any).delivery_week;
+    if (!c.delivery_date && !dw) {
+      return { ok: false, reason: 'Välj leveransdatum eller leveransvecka innan ärendet förs vidare från KM klar' };
+    }
+  }
+
   switch (newStatus) {
     case 'montage_bokat':
       if (!c.team) return { ok: false, reason: 'Montage-montör måste tilldelas först' };
@@ -82,10 +97,6 @@ export type PipelineIssue = {
   reason: string;
 };
 
-const STATUS_ORDER = [
-  'ny', 'vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande',
-  'godkand', 'leverans_klar', 'montage_bokat', 'montage_pagar', 'montage_klart', 'fakturerad',
-];
 
 
 function statusIdx(s: string): number {
