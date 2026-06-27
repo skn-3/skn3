@@ -419,7 +419,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         body: { a_order_id: orderId, pdf_base64 },
       });
       if (error) throw error;
-      toast.success('A-order skickad till montör');
+      toast.success(`A-order skickad till ${o.montor_teams?.email}`);
       setConfirmSend(false);
       onSaved?.();
       onOpenChange(false);
