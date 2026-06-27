@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
 
     await admin.from('a_orders').update({ order_sent_at: new Date().toISOString(), pdf_path: pdfPath }).eq('id', a_order_id);
 
-    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ ok: true, recipient: team.email, id: emailData?.id ?? null }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('send-a-order error', e);
     const msg = e instanceof Error ? e.message : 'Unknown error';
