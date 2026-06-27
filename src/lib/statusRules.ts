@@ -97,10 +97,6 @@ export type PipelineIssue = {
   reason: string;
 };
 
-const STATUS_ORDER = [
-  'ny', 'vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande',
-  'godkand', 'leverans_klar', 'montage_bokat', 'montage_pagar', 'montage_klart', 'fakturerad',
-];
 
 
 function statusIdx(s: string): number {
