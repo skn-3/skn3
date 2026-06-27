@@ -163,7 +163,7 @@ export function AOrdersView({ currentUser }: Props) {
       const pdf_base64 = (doc.output('datauristring').split(',')[1]) || '';
       const { error } = await supabase.functions.invoke('send-a-order', { body: { a_order_id: o.id, pdf_base64 } });
       if (error) throw error;
-      toast.success('A-order skickad');
+      toast.success(`A-order skickad till ${full.montor_teams?.email}`);
       qc.invalidateQueries({ queryKey: ['a_orders_all'] });
     } catch (e: any) {
       toast.error(e?.message || 'Kunde inte skicka');
