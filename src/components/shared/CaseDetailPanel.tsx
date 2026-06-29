@@ -843,7 +843,32 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         { montage_date: dateStr },
       );
     },
-    onSuccess: () => { invalidate(); toast.success('KM godkänd och montage bokat'); },
+    onSuccess: () => { invalidate(); toast.success('Montage bokat'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const approveDeliveryMutation = useMutation({
+    mutationFn: async () => {
+      const w = Number(leveransWeek);
+      if (isNaN(w) || w < 1 || w > 53) throw new Error('Vecka måste vara 1–53');
+      const y = Number(leveransYear);
+      if (!y || isNaN(y)) throw new Error('Ange år för leveransveckan');
+      await updateCase(caseData.id, { status: 'godkand', delivery_week: w, delivery_year: y, delivery_date: null } as any);
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'status_change',
+        description: `KM godkänd. Leveransvecka v.${w} ${y}.`,
+        created_by: currentUser,
+      });
+      logActivity({
+        category: 'case',
+        action: 'km_approved',
+        description: `Godkände KM och bokade leverans v.${w} ${y} för ${caseData.address}`,
+        case_id: caseData.id,
+        metadata: { delivery_week: w, delivery_year: y },
+      });
+    },
+    onSuccess: () => { invalidate(); toast.success(`KM godkänd — leverans v.${leveransWeek} ${leveransYear}`); },
     onError: (e: Error) => toast.error(e.message),
   });
 
