@@ -18,6 +18,7 @@ import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { HOUR_RATE } from '@/lib/constants';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
+import { CoupleAOrderDialog } from '@/components/aorders/CoupleAOrderDialog';
 
 type AOrder = any;
 
