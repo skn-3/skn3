@@ -2015,7 +2015,44 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             )}
 
             {isSeller && caseData.status === 'leverans_klar' && (
-              <Button disabled={statusMutation.isPending} onClick={() => changeStatus('montage_bokat', 'Montage bokat')} size="sm">{statusMutation.isPending ? 'Sparar...' : 'Boka montage'}</Button>
+              <div className="space-y-3 rounded-lg border p-3">
+                <h4 className="text-sm font-semibold">Leverans klar — Boka montage</h4>
+                <div className="space-y-2">
+                  <Label>Montör för montage</Label>
+                  <Select value={approvalMontor} onValueChange={setApprovalMontor}>
+                    <SelectTrigger><SelectValue placeholder="Välj montör" /></SelectTrigger>
+                    <SelectContent>
+                      {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Montagedatum</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !approvalDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {approvalDate ? format(approvalDate, 'yyyy-MM-dd') : 'Välj datum'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={approvalDate} onSelect={setApprovalDate} initialFocus className={cn("p-3 pointer-events-auto")} />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>Anteckning (valfritt)</Label>
+                  <Textarea value={approvalNote} onChange={e => setApprovalNote(e.target.value)} rows={2} placeholder="Eventuell kommentar..." />
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full bg-primary"
+                  disabled={!approvalMontor || !approvalDate || approvalMutation.isPending}
+                  onClick={() => approvalMutation.mutate()}
+                >
+                  {approvalMutation.isPending ? 'Sparar...' : 'Boka montage'}
+                </Button>
+              </div>
             )}
 
             {isSeller && caseData.status === 'montage_klart' && (
