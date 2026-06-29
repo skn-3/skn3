@@ -363,6 +363,18 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       if (!opts?.silent) {
         toast.success(isEdit ? 'A-order uppdaterad' : (teamId && teamId !== '__none__' ? 'A-order sparad' : 'A-order sparad som utestående'));
       }
+      // Trigger koppling-dialog (en gång per A-order)
+      if (orderId && !coupledHandled) {
+        const selTeam = teams.find((t: any) => t.id === teamId);
+        setCouplingFor({
+          aOrderId: orderId,
+          teamId: teamId && teamId !== '__none__' ? teamId : null,
+          teamName: selTeam?.name ?? null,
+          customerAddress: customerAddress || '',
+          customerName: customerName || '',
+          existingCaseId: (isKomp ? (kompCaseId || null) : (prefill?.case_id ?? order?.case_id ?? null)) ?? null,
+        });
+      }
       onSaved?.();
       return orderId || null;
     } catch (e: any) {
