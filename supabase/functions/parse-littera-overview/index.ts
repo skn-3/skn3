@@ -1,5 +1,7 @@
 // Edge function: parse-littera-overview
-// Reads a Mockfjärds KP overview screenshot/text and inserts one littera per object.
+// Läser Mockfjärds KP (översiktslista ELLER expanderad littera med Konfiguration)
+// och lägger till/uppdaterar littera ADDITIVT. Tillbehör lagras i spec.tillbehor.
+// imported_snapshot = immutabel baslinje (inkl. tillbehör) för diffen i steg 3.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireStaff } from '../_shared/auth.ts';
@@ -13,12 +15,50 @@ const corsHeaders = {
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
 
-const SYSTEM_PROMPT = `Du läser Mockfjärds kundportals översiktstabell över littera (fönster/dörrar). Kolumner: Littera | Artikel (namn + artikelkod) | U-värde | Antal | Set | Storlek (bredd x höjd, ibland /bröstning) | Kulör (Insida/Utsida). Returnera ENBART JSON:
-{ litteror: [ { littera, article_name, article_code, antal:number, u_varde:number|null,
-  width:number|null, height:number|null, brostning:number|null,
-  set_number:number|null, set_position:number|null, set_lead:boolean,
-  color_inside:string|null, color_outside:string|null } ] }
-set_lead = true om littera har en stjärna (settets ledare). Tolka 'Set:1' → set_number 1. Använd svensk decimalkomma korrekt (1,1 = 1.1).`;
+const SYSTEM_PROMPT = `Du läser Mockfjärds kundportal (KP) och extraherar littera (fönster/dörrar) till JSON.
+
+Indata är antingen:
+(A) en ÖVERSIKTSLISTA med flera littera-rader. Kolumner: Littera | Artikel (namn + artikelkod) | U-värde | Antal | Set | Storlek (bredd x höjd, ibland /bröstning) | Kulör (Insida/Utsida), eller
+(B) en ENSKILD littera (en rubrikrad enligt ovan) följd av ett "Konfiguration"-block som listar tillbehör.
+En screenshot kan visa flera rader OCH ett Konfiguration-block; blocket hör då till den littera vars Storlek matchar måtten i blocket (annars den littera blocket står direkt under).
+
+Returnera ENBART JSON, inga kodstaket:
+{ "litteror": [ {
+  "littera": string,
+  "article_name": string|null, "article_code": string|null,
+  "antal": number,
+  "u_varde": number|null,
+  "width": number|null,
+  "height": number|null,
+  "brostning": number|null,
+  "set_number": number|null, "set_position": number|null, "set_lead": boolean,
+  "color_inside": string|null,
+  "color_outside": string|null,
+  "tillbehor": [ {
+    "typ": "foder"|"smyg"|"fonsterbank"|"sockellist"|"plisse"|"l_profil"|"ovrigt",
+    "placering": "invandig"|"utvandig"|null,
+    "material": string|null,
+    "dimension": string|null,
+    "matt": string|null,
+    "kulor": string|null,
+    "note": string|null
+  } ]
+} ] }
+
+Tillbehörsregler (rader i Konfiguration som börjar med "-" eller "^"):
+- "Foder ..." => typ "foder", placering "invandig". "Råplan Foder ..." => typ "foder", placering "utvandig".
+- "Smyg ..." => typ "smyg", placering "invandig". "Råplan Smyg ..." => typ "smyg", placering "utvandig".
+- "...fönsterbänk" / "Integrerad fönsterbänk ..." => typ "fonsterbank", placering null.
+- "Sockellist ..." => typ "sockellist".
+- "Plissé ..." (även rad som börjar med F-kod, t.ex. "F1AS1A: Plissé ...") => typ "plisse", placering null. F-koden och "förspänd Mörkläggande" i note.
+- "L-Profil" => typ "l_profil".
+- Annat tillbehör => typ "ovrigt".
+- Rad "^ NNN x NNN mm (bredd x höjd)" direkt under ett tillbehör = dess "matt".
+- Rad "^ Kulör: X" direkt under ett tillbehör = dess "kulor".
+- dimension = "NNxNN"-talet i raden. material = de beskrivande orden utan dimension.
+- IGNORERA: Vikt, "Profilerad profil", Glas, Spröjs, Klickventil, Spår, "Bilden visas ifrån...". Fönstrets eget handtag/beslag behöver inte bli tillbehör. Fokus: foder, smyg, fönsterbänk, sockellist, plissé, plåt/L-profil.
+
+Svensk decimalkomma (1,09 = 1.09). Måtten är heltal mm.`;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -28,6 +68,48 @@ function num(v: unknown): number | null {
   if (v == null || v === '') return null;
   const n = Number(String(v).replace(',', '.'));
   return Number.isFinite(n) ? n : null;
+}
+
+function normTillbehor(arr: unknown): any[] {
+  if (!Array.isArray(arr)) return [];
+  const okTyp = new Set(['foder', 'smyg', 'fonsterbank', 'sockellist', 'plisse', 'l_profil', 'ovrigt']);
+  const okPlac = new Set(['invandig', 'utvandig']);
+  const s = (v: unknown) => { const x = (v ?? '').toString().trim(); return x === '' ? null : x; };
+  return arr
+    .map((t: any) => ({
+      typ: okTyp.has(t?.typ) ? t.typ : 'ovrigt',
+      placering: okPlac.has(t?.placering) ? t.placering : null,
+      material: s(t?.material),
+      dimension: s(t?.dimension),
+      matt: s(t?.matt),
+      kulor: s(t?.kulor),
+      note: s(t?.note),
+    }))
+    .filter((t) => t.material || t.dimension || t.matt || t.kulor || t.note || t.typ !== 'ovrigt');
+}
+
+function buildSnap(it: any) {
+  return {
+    littera: it?.littera ?? null,
+    article_name: it?.article_name ?? null,
+    article_code: it?.article_code ?? null,
+    antal: num(it?.antal) ?? 1,
+    u_varde: num(it?.u_varde),
+    width: num(it?.width),
+    height: num(it?.height),
+    brostning: num(it?.brostning),
+    set_number: num(it?.set_number),
+    set_position: num(it?.set_position),
+    set_lead: !!it?.set_lead,
+    color_inside: it?.color_inside ?? null,
+    color_outside: it?.color_outside ?? null,
+    tillbehor: normTillbehor(it?.tillbehor),
+  };
+}
+
+function overviewCols(snap: any) {
+  const { tillbehor: _ignore, ...cols } = snap;
+  return cols;
 }
 
 Deno.serve(async (req) => {
@@ -43,7 +125,7 @@ Deno.serve(async (req) => {
     if (!body?.case_id) return json({ error: 'case_id is required' }, 400);
     if (!body?.image_base64 && !body?.text) return json({ error: 'image_base64 or text is required' }, 400);
 
-    const userContent: any[] = [{ type: 'text', text: 'Extrahera littera-översikten och returnera JSON enligt schemat.' }];
+    const userContent: any[] = [{ type: 'text', text: 'Extrahera littera (översikt + ev. tillbehör) och returnera JSON enligt schemat.' }];
     if (body.image_base64) {
       const dataUrl = `data:${body.mime_type || 'image/png'};base64,${body.image_base64}`;
       userContent.push({ type: 'image_url', image_url: { url: dataUrl } });
@@ -86,39 +168,60 @@ Deno.serve(async (req) => {
 
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-    const rows = items.map((it, idx) => {
-      const snap = {
-        littera: it?.littera ?? null,
-        article_name: it?.article_name ?? null,
-        article_code: it?.article_code ?? null,
-        antal: it?.antal != null ? Number(it.antal) : 1,
-        u_varde: num(it?.u_varde),
-        width: num(it?.width),
-        height: num(it?.height),
-        brostning: num(it?.brostning),
-        set_number: it?.set_number != null ? Number(it.set_number) : null,
-        set_position: it?.set_position != null ? Number(it.set_position) : null,
-        set_lead: !!it?.set_lead,
-        color_inside: it?.color_inside ?? null,
-        color_outside: it?.color_outside ?? null,
-      };
-      return {
-        case_id: body.case_id,
-        sort_order: idx,
-        ...snap,
-        spec: {},
-        imported_snapshot: snap,
-        cm_status: 'ej_paborjad',
-      };
-    });
-
-    const { data: inserted, error: insErr } = await admin.from('litteror').insert(rows).select('id');
-    if (insErr) {
-      console.error('insert litteror failed', insErr);
-      return json({ error: 'Kunde inte spara littera', detail: insErr.message }, 500);
+    const { data: existing, error: exErr } = await admin
+      .from('litteror')
+      .select('id, littera, cm_status, sort_order')
+      .eq('case_id', body.case_id);
+    if (exErr) {
+      console.error('fetch existing litteror failed', exErr);
+      return json({ error: 'Kunde inte läsa befintliga littera', detail: exErr.message }, 500);
     }
 
-    return json({ inserted: inserted?.length ?? 0, litteror: items });
+    const byName = new Map<string, { id: string; cm_status: string; sort_order: number }>();
+    let maxSort = -1;
+    for (const e of existing ?? []) {
+      if (e.littera) byName.set(String(e.littera).trim().toLowerCase(), e as any);
+      if ((e.sort_order ?? 0) > maxSort) maxSort = e.sort_order ?? 0;
+    }
+
+    let added = 0, updated = 0, skipped = 0;
+    const inserts: any[] = [];
+    const seen = new Set<string>();
+
+    for (const it of items) {
+      const snap = buildSnap(it);
+      const cols = overviewCols(snap);
+      const tillbehor = snap.tillbehor;
+      const key = (it?.littera ?? '').toString().trim().toLowerCase();
+      const match = key ? byName.get(key) : undefined;
+
+      if (match) {
+        if (match.cm_status === 'ej_paborjad') {
+          const { error } = await admin
+            .from('litteror')
+            .update({ ...cols, spec: { tillbehor }, imported_snapshot: snap })
+            .eq('id', match.id);
+          if (error) { console.error('update littera failed', error); return json({ error: 'Kunde inte uppdatera littera', detail: error.message }, 500); }
+          updated++;
+        } else {
+          skipped++;
+        }
+      } else if (key && seen.has(key)) {
+        skipped++;
+      } else {
+        maxSort++;
+        inserts.push({ case_id: body.case_id, sort_order: maxSort, ...cols, spec: { tillbehor }, imported_snapshot: snap, cm_status: 'ej_paborjad' });
+        if (key) seen.add(key);
+      }
+    }
+
+    if (inserts.length) {
+      const { error } = await admin.from('litteror').insert(inserts);
+      if (error) { console.error('insert litteror failed', error); return json({ error: 'Kunde inte spara littera', detail: error.message }, 500); }
+      added = inserts.length;
+    }
+
+    return json({ added, updated, skipped, total: items.length });
   } catch (e) {
     console.error('parse-littera-overview error', e);
     return json({ error: e instanceof Error ? e.message : 'Unknown error' }, 500);

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Ruler, Upload, Trash2, RefreshCw, Star } from 'lucide-react';
+import { Ruler, Trash2, RefreshCw, Star, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+
+interface Tillbehor {
+  typ: string;
+  placering: string | null;
+  material: string | null;
+  dimension: string | null;
+  matt: string | null;
+  kulor: string | null;
+  note: string | null;
+}
 
 interface LitteraRow {
   id: string;
@@ -28,6 +38,8 @@ interface LitteraRow {
   set_lead: boolean | null;
   color_inside: string | null;
   color_outside: string | null;
+  spec: any | null;
+  montor_note: string | null;
   cm_status: string;
 }
 
@@ -37,6 +49,12 @@ const STATUS_LABEL: Record<string, { label: string; variant: 'outline' | 'second
   inskickad: { label: 'Inskickad', variant: 'default' },
   hanterad: { label: 'Hanterad', variant: 'default' },
 };
+
+const TILLBEHOR_LABEL: Record<string, string> = {
+  foder: 'Foder', smyg: 'Smyg', fonsterbank: 'Fönsterbänk', sockellist: 'Sockellist',
+  plisse: 'Plissé', l_profil: 'L-profil / plåt', ovrigt: 'Övrigt',
+};
+const PLACERING_LABEL: Record<string, string> = { invandig: 'Invändig', utvandig: 'Utvändig' };
 
 async function fileToBase64(file: File): Promise<{ base64: string; mime: string }> {
   const buf = await file.arrayBuffer();
@@ -72,8 +90,11 @@ function ImportInputs({
 
   return (
     <div className="space-y-3">
+      <div className="text-xs text-muted-foreground bg-muted/40 rounded p-2">
+        Importen är additiv. Ta en skärmbild av översiktslistan för alla littera på en gång, och en skärmbild per expanderad littera för att fånga tillbehör (foder, smyg, fönsterbänk, plissé). Littera som montören redan justerat skrivs inte över.
+      </div>
       <div>
-        <Label>Skärmbild från KP-översikten</Label>
+        <Label>Skärmbild från KP</Label>
         <input
           ref={fileRef}
           type="file"
@@ -89,7 +110,7 @@ function ImportInputs({
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={6}
-          placeholder="Klistra in översikten från Mockfjärds KP"
+          placeholder="Klistra in översikten eller en littera med Konfiguration från Mockfjärds KP"
           onPaste={(e) => {
             const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith('image/'));
             if (item) {
@@ -114,6 +135,15 @@ function ImportInputs({
 export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: boolean }) {
   const qc = useQueryClient();
   const [overviewOpen, setOverviewOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggle = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['litteror', caseId],
@@ -147,11 +177,16 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Importerade ${data?.inserted ?? 0} littera`);
+      const a = data?.added ?? 0, u = data?.updated ?? 0, s = data?.skipped ?? 0;
+      const parts: string[] = [];
+      if (a) parts.push(`${a} tillagda`);
+      if (u) parts.push(`${u} uppdaterade`);
+      if (s) parts.push(`${s} oförändrade (skyddade)`);
+      toast.success(parts.length ? `Import klar: ${parts.join(', ')}` : 'Inga littera hittades');
       setOverviewOpen(false);
       qc.invalidateQueries({ queryKey: ['litteror', caseId] });
     },
-    onError: (e: Error) => toast.error(`Kunde inte importera översikt: ${e.message}`),
+    onError: (e: Error) => toast.error(`Kunde inte importera: ${e.message}`),
   });
 
   const deleteMutation = useMutation({
@@ -191,6 +226,9 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
           <Ruler className="h-4 w-4" /> Littera (kontrollmätning){rows && rows.length > 0 ? ` (${rows.length})` : ''}
         </h3>
         <div className="flex gap-2">
+          <Button size="sm" onClick={() => setOverviewOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Importera littera
+          </Button>
           {rows && rows.length > 0 && isAdmin && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -200,9 +238,9 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Importera om översikt?</AlertDialogTitle>
+                  <AlertDialogTitle>Importera om från grunden?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Alla {rows.length} littera på ärendet raderas. Detta kan inte ångras.
+                    Alla {rows.length} littera på ärendet raderas (även montörens ändringar). Detta kan inte ångras. Vanligtvis räcker "Importera littera" som lägger till och uppdaterar.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -211,11 +249,6 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-          )}
-          {(!rows || rows.length === 0) && (
-            <Button size="sm" onClick={() => setOverviewOpen(true)}>
-              <Upload className="h-4 w-4 mr-1" /> Importera littera-översikt
-            </Button>
           )}
         </div>
       </div>
@@ -227,6 +260,7 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8"></TableHead>
                 <TableHead>Littera</TableHead>
                 <TableHead>Artikel</TableHead>
                 <TableHead>U-värde</TableHead>
@@ -241,54 +275,111 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
             <TableBody>
               {rows.map((r) => {
                 const st = STATUS_LABEL[r.cm_status] ?? { label: r.cm_status, variant: 'outline' as const };
+                const till = ((r.spec as any)?.tillbehor ?? []) as Tillbehor[];
+                const isOpen = expanded.has(r.id);
                 return (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.littera || '—'}</TableCell>
-                    <TableCell>
-                      <div className="text-sm">{r.article_name || '—'}</div>
-                      {r.article_code && <div className="text-xs text-muted-foreground">{r.article_code}</div>}
-                    </TableCell>
-                    <TableCell>{r.u_varde ?? '—'}</TableCell>
-                    <TableCell>{r.antal ?? '—'}</TableCell>
-                    <TableCell>
-                      {r.set_number != null ? (
-                        <span className="inline-flex items-center gap-1">
-                          {r.set_number}
-                          {r.set_lead && <Star className="h-3 w-3 fill-yellow-400 text-yellow-500" />}
-                        </span>
-                      ) : '—'}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">{formatSize(r)}</TableCell>
-                    <TableCell className="text-xs">
-                      {r.color_inside || '—'} / {r.color_outside || '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={st.variant}>{st.label}</Badge>
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell>
-                        <div className="flex justify-end">
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="ghost" className="text-destructive">
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Radera littera {r.littera}?</AlertDialogTitle>
-                                <AlertDialogDescription>Detta kan inte ångras.</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Avbryt</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deleteMutation.mutate(r.id)}>Radera</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                  <Fragment key={r.id}>
+                    <TableRow>
+                      <TableCell className="w-8 p-2 align-top">
+                        <button onClick={() => toggle(r.id)} className="p-1 rounded hover:bg-muted text-muted-foreground" aria-label="Visa tillbehör">
+                          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        </button>
                       </TableCell>
+                      <TableCell className="font-medium">{r.littera || '—'}</TableCell>
+                      <TableCell>
+                        <div className="text-sm">{r.article_name || '—'}</div>
+                        {r.article_code && <div className="text-xs text-muted-foreground">{r.article_code}</div>}
+                        {till.length > 0 && <div className="text-[11px] text-muted-foreground">{till.length} tillbehör</div>}
+                      </TableCell>
+                      <TableCell>{r.u_varde ?? '—'}</TableCell>
+                      <TableCell>{r.antal ?? '—'}</TableCell>
+                      <TableCell>
+                        {r.set_number != null ? (
+                          <span className="inline-flex items-center gap-1">
+                            {r.set_number}
+                            {r.set_lead && <Star className="h-3 w-3 fill-yellow-400 text-yellow-500" />}
+                          </span>
+                        ) : '—'}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{formatSize(r)}</TableCell>
+                      <TableCell className="text-xs">
+                        {r.color_inside || '—'} / {r.color_outside || '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={st.variant}>{st.label}</Badge>
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          <div className="flex justify-end">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="ghost" className="text-destructive">
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Radera littera {r.littera}?</AlertDialogTitle>
+                                  <AlertDialogDescription>Detta kan inte ångras.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Avbryt</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deleteMutation.mutate(r.id)}>Radera</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                    {isOpen && (
+                      <TableRow>
+                        <TableCell colSpan={isAdmin ? 10 : 9} className="bg-muted/30">
+                          {till.length === 0 && !r.montor_note ? (
+                            <div className="text-xs text-muted-foreground py-1">
+                              Inga tillbehör importerade. Importera den expanderade littera-vyn från KP för att fånga foder, smyg, fönsterbänk m.m.
+                            </div>
+                          ) : (
+                            <div className="space-y-2 py-1">
+                              {till.length > 0 && (
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="text-left text-muted-foreground">
+                                      <th className="py-1 pr-3 font-medium">Typ</th>
+                                      <th className="pr-3 font-medium">Placering</th>
+                                      <th className="pr-3 font-medium">Material</th>
+                                      <th className="pr-3 font-medium">Dim</th>
+                                      <th className="pr-3 font-medium">Mått</th>
+                                      <th className="pr-3 font-medium">Kulör</th>
+                                      <th className="font-medium">Övrigt</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {till.map((t, i) => (
+                                      <tr key={i} className="border-t border-border/50">
+                                        <td className="py-1 pr-3 font-medium">{TILLBEHOR_LABEL[t.typ] ?? t.typ}</td>
+                                        <td className="pr-3">{t.placering ? (PLACERING_LABEL[t.placering] ?? t.placering) : '—'}</td>
+                                        <td className="pr-3">{t.material ?? '—'}</td>
+                                        <td className="pr-3">{t.dimension ?? '—'}</td>
+                                        <td className="pr-3">{t.matt ?? '—'}</td>
+                                        <td className="pr-3">{t.kulor ?? '—'}</td>
+                                        <td>{t.note ?? '—'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                              {r.montor_note && (
+                                <div className="text-xs">
+                                  <span className="text-muted-foreground">Montörens övriga justeringar: </span>{r.montor_note}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
                     )}
-                  </TableRow>
+                  </Fragment>
                 );
               })}
             </TableBody>
@@ -299,7 +390,7 @@ export function LitterorSection({ caseId, isAdmin }: { caseId: string; isAdmin: 
       <Dialog open={overviewOpen} onOpenChange={setOverviewOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Importera littera-översikt från KP</DialogTitle>
+            <DialogTitle>Importera littera från KP</DialogTitle>
           </DialogHeader>
           <ImportInputs pending={overviewMutation.isPending} onSubmit={(p) => overviewMutation.mutate(p)} />
         </DialogContent>
