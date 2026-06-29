@@ -17,46 +17,85 @@ const MODEL = 'google/gemini-2.5-flash';
 
 const SYSTEM_PROMPT = `Du läser Mockfjärds kundportal (KP) och extraherar littera (fönster/dörrar) till JSON.
 
+VIKTIGAST:
+
+1) "littera" är ALLTID etiketten längst till vänster = rummets/platsens namn (t.ex. "Arbetsrum", "Sovrum", "TV-Rum", "Matsalsbord", "Kök", "Hall"). Den är ALDRIG en del av artikeln. Artikelnamn ("Ultimat Vrid F1", "Ultimat Tradition F2 KP01 VÄ/HÖ") och artikelkod ("iF61-...", "iF60-...") hör till article_name/article_code. Plocka ALDRIG "F1", "F2", "Vrid", "KP01" e.d. som littera. Är vänsteretiketten otydlig: returnera den ordagrant ändå – hitta aldrig på.
+
+2) Sätt ALLTID color_inside och color_outside när uppgiften finns (se nedan). Lämna dem inte tomma om Träkulör/Alukulör syns.
+
 Indata är antingen:
+
 (A) en ÖVERSIKTSLISTA med flera littera-rader. Kolumner: Littera | Artikel (namn + artikelkod) | U-värde | Antal | Set | Storlek (bredd x höjd, ibland /bröstning) | Kulör (Insida/Utsida), eller
-(B) en ENSKILD littera (en rubrikrad enligt ovan) följd av ett "Konfiguration"-block som listar tillbehör.
-En screenshot kan visa flera rader OCH ett Konfiguration-block; blocket hör då till den littera vars Storlek matchar måtten i blocket (annars den littera blocket står direkt under).
+
+(B) en ENSKILD littera (rubrikrad enligt ovan) följd av ett "Konfiguration"-block med tillbehör.
+
+En screenshot kan visa flera rader OCH ett Konfiguration-block; blocket hör till den littera vars Storlek matchar måtten i blocket (annars den littera blocket står direkt under).
 
 Returnera ENBART JSON, inga kodstaket:
+
 { "litteror": [ {
-  "littera": string,
-  "article_name": string|null, "article_code": string|null,
-  "antal": number,
+
+  "littera": string,            // rummets namn (se VIKTIGAST 1)
+
+  "article_name": string|null,  // t.ex. "Ultimat Vrid F1"
+
+  "article_code": string|null,  // t.ex. "iF61-0100101010100A"
+
+  "antal": number,              // nästan alltid 1
+
   "u_varde": number|null,
-  "width": number|null,
-  "height": number|null,
-  "brostning": number|null,
+
+  "width": number|null, "height": number|null, "brostning": number|null,   // mm ur Storlek (talet efter "/" = brostning)
+
   "set_number": number|null, "set_position": number|null, "set_lead": boolean,
-  "color_inside": string|null,
-  "color_outside": string|null,
-  "tillbehor": [ {
+
+  "color_inside": string|null,  // fönstrets INSIDA. Konfigurationens "Träkulör: ..." (hela värdet, t.ex. "VITMÅLAT NCS S 0502-Y"). Annars Insida i översiktens Kulör-kolumn.
+
+  "color_outside": string|null, // fönstrets UTSIDA. Konfigurationens "Alukulör: ..." (t.ex. "VITMÅLAT RAL 9010 gl 30"). Annars Utsida i Kulör-kolumnen.
+
+  "tillbehor": [ {              // [] om inget Konfiguration-block hör till denna littera
+
     "typ": "foder"|"smyg"|"fonsterbank"|"sockellist"|"plisse"|"l_profil"|"ovrigt",
+
     "placering": "invandig"|"utvandig"|null,
-    "material": string|null,
-    "dimension": string|null,
-    "matt": string|null,
-    "kulor": string|null,
-    "note": string|null
+
+    "material": string|null,    // beskrivande ord utan dimension: "Furu Målad Vit", "Gran NCS", "MDF Vit", "Råplan Gran"
+
+    "dimension": string|null,   // profilens tvärsnitt: "12x50", "16x95", "22x145"
+
+    "matt": string|null,        // riktigt B x H i mm – BARA fönsterbänk/plissé: "1360 x 0", "883 x 1086"
+
+    "kulor": string|null,       // tillbehörets egen kulör: "NCS S 5502-Y", "Varmvit BO(7755)"
+
+    "note": string|null         // resten: "Profilerat", "förspänd Mörkläggande", F-kod (F1AS1A), beslagsfärg, "Sockellist 12x69"
+
   } ]
+
 } ] }
 
 Tillbehörsregler (rader i Konfiguration som börjar med "-" eller "^"):
+
 - "Foder ..." => typ "foder", placering "invandig". "Råplan Foder ..." => typ "foder", placering "utvandig".
+
 - "Smyg ..." => typ "smyg", placering "invandig". "Råplan Smyg ..." => typ "smyg", placering "utvandig".
+
 - "...fönsterbänk" / "Integrerad fönsterbänk ..." => typ "fonsterbank", placering null.
+
 - "Sockellist ..." => typ "sockellist".
-- "Plissé ..." (även rad som börjar med F-kod, t.ex. "F1AS1A: Plissé ...") => typ "plisse", placering null. F-koden och "förspänd Mörkläggande" i note.
+
+- "Plissé ..." (även rad som börjar med F-kod, t.ex. "F1AS1A: Plissé ...") => typ "plisse", placering null. F-kod + "förspänd Mörkläggande" i note.
+
 - "L-Profil" => typ "l_profil".
+
 - Annat tillbehör => typ "ovrigt".
+
 - Rad "^ NNN x NNN mm (bredd x höjd)" direkt under ett tillbehör = dess "matt".
+
 - Rad "^ Kulör: X" direkt under ett tillbehör = dess "kulor".
-- dimension = "NNxNN"-talet i raden. material = de beskrivande orden utan dimension.
-- IGNORERA: Vikt, "Profilerad profil", Glas, Spröjs, Klickventil, Spår, "Bilden visas ifrån...". Fönstrets eget handtag/beslag behöver inte bli tillbehör. Fokus: foder, smyg, fönsterbänk, sockellist, plissé, plåt/L-profil.
+
+- dimension = "NNxNN"-talet i raden. material = beskrivande ord utan dimension.
+
+- IGNORERA: Vikt, "Profilerad profil", Glas, Spröjs, Klickventil, Spår, "Bilden visas ifrån...". Fönstrets eget handtag/beslag behöver inte bli tillbehör.
 
 Svensk decimalkomma (1,09 = 1.09). Måtten är heltal mm.`;
 
