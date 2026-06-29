@@ -78,6 +78,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [approvalMontor, setApprovalMontor] = useState(caseData.team || '');
   const [approvalDate, setApprovalDate] = useState<Date | undefined>(undefined);
   const [approvalNote, setApprovalNote] = useState('');
+  const [leveransWeek, setLeveransWeek] = useState((caseData as any).delivery_week != null ? String((caseData as any).delivery_week) : '');
+  const [leveransYear, setLeveransYear] = useState((caseData as any).delivery_year != null ? String((caseData as any).delivery_year) : String(new Date().getFullYear()));
   // Edit deviation cost
   const [editingDevCost, setEditingDevCost] = useState<string | null>(null);
   const [editDevCostValue, setEditDevCostValue] = useState('');
