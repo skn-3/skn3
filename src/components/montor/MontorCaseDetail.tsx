@@ -623,6 +623,13 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <SheetMetalOrdersSection caseId={caseData.id} variant="mobile" />
         </section>
 
+        <MontorLitteraSection
+          caseId={caseData.id}
+          currentUser={currentUser}
+          caseAddress={caseData.address}
+          customerName={caseData.customer_name}
+        />
+
         {/* Notes */}
         <section className="py-4 border-t space-y-2">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Anteckning</h3>
