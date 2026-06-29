@@ -444,7 +444,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       toast.success(`A-order skickad till ${o.montor_teams?.email}`);
       setConfirmSend(false);
       onSaved?.();
-      onOpenChange(false);
+      // Stäng inte sheet om kopplingsdialog ska visas — den stänger via onDone.
+      if (coupledHandled) onOpenChange(false);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Kunde inte skicka');
