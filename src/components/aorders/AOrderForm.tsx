@@ -18,6 +18,7 @@ import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { HOUR_RATE } from '@/lib/constants';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
+import { CoupleAOrderDialog } from '@/components/aorders/CoupleAOrderDialog';
 
 type AOrder = any;
 
@@ -157,6 +158,15 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [confirmSend, setConfirmSend] = useState(false);
   const [sending, setSending] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [coupledHandled, setCoupledHandled] = useState(false);
+  const [couplingFor, setCouplingFor] = useState<null | {
+    aOrderId: string;
+    teamId: string | null;
+    teamName: string | null;
+    customerAddress: string;
+    customerName: string;
+    existingCaseId: string | null;
+  }>(null);
 
   // Regenerate ONLY auto-lines live; preserve manual rows (auto !== true).
   useEffect(() => {
@@ -353,6 +363,18 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       if (!opts?.silent) {
         toast.success(isEdit ? 'A-order uppdaterad' : (teamId && teamId !== '__none__' ? 'A-order sparad' : 'A-order sparad som utestående'));
       }
+      // Trigger koppling-dialog (en gång per A-order)
+      if (orderId && !coupledHandled) {
+        const selTeam = teams.find((t: any) => t.id === teamId);
+        setCouplingFor({
+          aOrderId: orderId,
+          teamId: teamId && teamId !== '__none__' ? teamId : null,
+          teamName: selTeam?.name ?? null,
+          customerAddress: customerAddress || '',
+          customerName: customerName || '',
+          existingCaseId: (isKomp ? (kompCaseId || null) : (prefill?.case_id ?? order?.case_id ?? null)) ?? null,
+        });
+      }
       onSaved?.();
       return orderId || null;
     } catch (e: any) {
@@ -422,7 +444,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       toast.success(`A-order skickad till ${o.montor_teams?.email}`);
       setConfirmSend(false);
       onSaved?.();
-      onOpenChange(false);
+      // Stäng inte sheet om kopplingsdialog ska visas — den stänger via onDone.
+      if (coupledHandled) onOpenChange(false);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Kunde inte skicka');
@@ -787,6 +810,23 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {couplingFor && (
+            <CoupleAOrderDialog
+              key={couplingFor.aOrderId}
+              aOrderId={couplingFor.aOrderId}
+              teamId={couplingFor.teamId}
+              teamName={couplingFor.teamName}
+              customerAddress={couplingFor.customerAddress}
+              customerName={couplingFor.customerName}
+              existingCaseId={couplingFor.existingCaseId}
+              onDone={() => {
+                setCoupledHandled(true);
+                setCouplingFor(null);
+                onOpenChange(false);
+              }}
+            />
+          )}
         </div>
       </SheetContent>
     </Sheet>
