@@ -794,7 +794,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const teamChanged = approvalMontor !== oldTeam;
 
       await updateCase(caseData.id, { status: 'montage_bokat', montage_date: dateStr, team: approvalMontor });
-      await createCaseEvent({ case_id: caseData.id, event_type: 'status_change', description: `KM godkänd. Montage bokat ${dateStr} — montör: ${approvalMontor}${approvalNote ? '. ' + approvalNote : ''}`, created_by: currentUser });
+      await createCaseEvent({ case_id: caseData.id, event_type: 'status_change', description: `Montage bokat ${dateStr} — montör: ${approvalMontor}${approvalNote ? '. ' + approvalNote : ''}`, created_by: currentUser });
 
       if (teamChanged && oldTeam) {
         await createCaseEvent({ case_id: caseData.id, event_type: 'team_change', description: `Montör bytt från ${oldTeam} till ${approvalMontor}`, created_by: currentUser });
