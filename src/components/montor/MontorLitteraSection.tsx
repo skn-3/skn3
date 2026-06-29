@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
-import { Ruler, Star, Send, CheckCircle2, Pencil } from 'lucide-react';
+import { Ruler, Star, Send, CheckCircle2, Pencil, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface LitteraRow {
@@ -31,8 +31,20 @@ interface LitteraRow {
   color_inside: string | null;
   color_outside: string | null;
   montor_note: string | null;
+  spec: any | null;
   imported_snapshot: any | null;
   cm_status: string;
+}
+
+interface TillForm {
+  typ: string;
+  placering: string;
+  material: string;
+  dimension: string;
+  matt: string;
+  kulor: string;
+  note: string;
+  _new?: boolean;
 }
 
 const STATUS: Record<string, { label: string; variant: 'outline' | 'secondary' | 'default' | 'destructive' }> = {
@@ -41,6 +53,18 @@ const STATUS: Record<string, { label: string; variant: 'outline' | 'secondary' |
   inskickad: { label: 'Inskickad', variant: 'default' },
   hanterad: { label: 'Hanterad', variant: 'default' },
 };
+
+const TILL_TYPES: { value: string; label: string }[] = [
+  { value: 'foder', label: 'Foder' },
+  { value: 'smyg', label: 'Smyg' },
+  { value: 'fonsterbank', label: 'Fönsterbänk' },
+  { value: 'sockellist', label: 'Sockellist' },
+  { value: 'plisse', label: 'Plissé' },
+  { value: 'l_profil', label: 'L-profil / plåt' },
+  { value: 'ovrigt', label: 'Övrigt' },
+];
+const TILL_LABEL: Record<string, string> = Object.fromEntries(TILL_TYPES.map((t) => [t.value, t.label]));
+const PLAC_LABEL: Record<string, string> = { invandig: 'Invändig', utvandig: 'Utvändig' };
 
 const TRACKED: { key: keyof LitteraRow; label: string }[] = [
   { key: 'width', label: 'bredd' },
@@ -65,6 +89,55 @@ function strOrNull(v: string): string | null {
   return t === '' ? null : t;
 }
 
+function canonTill(arr: any): string {
+  const list = Array.isArray(arr) ? arr : [];
+  return JSON.stringify(
+    list.map((t: any) => [
+      t?.typ ?? 'ovrigt', t?.placering ?? null, t?.material ?? null,
+      t?.dimension ?? null, t?.matt ?? null, t?.kulor ?? null, t?.note ?? null,
+    ]),
+  );
+}
+
+function formToTill(f: TillForm) {
+  return {
+    typ: f.typ || 'ovrigt',
+    placering: f.placering ? f.placering : null,
+    material: strOrNull(f.material),
+    dimension: strOrNull(f.dimension),
+    matt: strOrNull(f.matt),
+    kulor: strOrNull(f.kulor),
+    note: strOrNull(f.note),
+  };
+}
+function tillToForm(t: any): TillForm {
+  return {
+    typ: t?.typ || 'ovrigt',
+    placering: t?.placering || '',
+    material: t?.material || '',
+    dimension: t?.dimension || '',
+    matt: t?.matt || '',
+    kulor: t?.kulor || '',
+    note: t?.note || '',
+  };
+}
+function tillEmpty(f: TillForm): boolean {
+  return !f.material.trim() && !f.dimension.trim() && !f.matt.trim() && !f.kulor.trim() && !f.note.trim() && (f.typ === 'ovrigt' || f.typ === '');
+}
+function tillLabel(t: any): string {
+  const head = [TILL_LABEL[t?.typ] ?? t?.typ ?? 'Tillbehör'];
+  if (t?.placering) head.push(`(${PLAC_LABEL[t.placering] ?? t.placering})`);
+  const meta: string[] = [];
+  if (t?.dimension) meta.push(t.dimension);
+  if (t?.matt) meta.push(`${t.matt} mm`);
+  if (t?.material) meta.push(t.material);
+  if (t?.kulor) meta.push(t.kulor);
+  let s = head.join(' ');
+  if (meta.length) s += ' · ' + meta.join(', ');
+  if (t?.note) s += ` (${t.note})`;
+  return s;
+}
+
 function changedFields(r: LitteraRow): string[] {
   const snap = r.imported_snapshot || {};
   const diff = TRACKED.filter(({ key }) => {
@@ -73,6 +146,7 @@ function changedFields(r: LitteraRow): string[] {
     return (now ?? null) !== (orig ?? null);
   }).map((f) => f.label);
   if (r.montor_note && r.montor_note.trim()) diff.push('övrigt');
+  if (canonTill((r.spec as any)?.tillbehor) !== canonTill(snap?.tillbehor)) diff.push('tillbehör');
   return diff;
 }
 
@@ -113,6 +187,7 @@ export function MontorLitteraSection({
   const [fColIn, setFColIn] = useState('');
   const [fColOut, setFColOut] = useState('');
   const [fNote, setFNote] = useState('');
+  const [fTill, setFTill] = useState<TillForm[]>([]);
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['litteror', caseId],
@@ -139,7 +214,14 @@ export function MontorLitteraSection({
     setFColIn(r.color_inside ?? '');
     setFColOut(r.color_outside ?? '');
     setFNote(r.montor_note ?? '');
+    setFTill((((r.spec as any)?.tillbehor ?? []) as any[]).map(tillToForm));
   }
+
+  const updateTill = (i: number, patch: Partial<TillForm>) =>
+    setFTill((prev) => prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
+  const removeTill = (i: number) => setFTill((prev) => prev.filter((_, idx) => idx !== i));
+  const addTill = () =>
+    setFTill((prev) => [...prev, { typ: 'ovrigt', placering: '', material: '', dimension: '', matt: '', kulor: '', note: '', _new: true }]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -156,14 +238,16 @@ export function MontorLitteraSection({
         color_outside: strOrNull(fColOut),
         montor_note: strOrNull(fNote),
       };
-      const changed = (Object.keys(patch) as (keyof typeof patch)[]).some(
+      const tillbehor = fTill.filter((f) => !tillEmpty(f)).map(formToTill);
+      const overviewChanged = (Object.keys(patch) as (keyof typeof patch)[]).some(
         (k) => (patch[k] ?? null) !== ((editing as any)[k] ?? null),
       );
-      if (!changed) return { noop: true };
+      const tillChanged = canonTill(tillbehor) !== canonTill((editing.spec as any)?.tillbehor);
+      if (!overviewChanged && !tillChanged) return { noop: true };
       const next_status = editing.cm_status === 'hanterad' ? 'hanterad' : 'justerad';
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('litteror')
-        .update({ ...patch, cm_status: next_status })
+        .update({ ...patch, spec: { ...((editing.spec as any) || {}), tillbehor }, cm_status: next_status })
         .eq('id', editing.id);
       if (error) throw error;
       return { noop: false };
@@ -252,7 +336,7 @@ export function MontorLitteraSection({
           <Ruler className="h-4 w-4" /> Littera / kontrollmätning
         </h3>
         <p className="text-sm text-muted-foreground">
-          Inga littera importerade ännu. Kontoret importerar littera-översikten från Mockfjärds kundportal.
+          Inga littera importerade ännu. Kontoret importerar littera från Mockfjärds kundportal.
         </p>
       </section>
     );
@@ -261,6 +345,7 @@ export function MontorLitteraSection({
   const reviewable = rows.filter((r) => r.cm_status === 'ej_paborjad' || r.cm_status === 'justerad');
   const allHandled = rows.every((r) => r.cm_status === 'hanterad');
   const allSubmitted = reviewable.length === 0 && !allHandled;
+  const origTill = ((editing?.imported_snapshot as any)?.tillbehor ?? []) as any[];
 
   return (
     <section className="py-4 border-t space-y-3">
@@ -268,13 +353,14 @@ export function MontorLitteraSection({
         <Ruler className="h-4 w-4" /> Littera / kontrollmätning ({rows.length})
       </h3>
       <p className="text-xs text-muted-foreground">
-        Granska säljarens littera mot verkligheten. Justera mått, set, antal och kulör, eller skriv en notering. Skicka sedan in till kontoret.
+        Granska säljarens littera mot verkligheten. Justera mått, kulör och tillbehör (lister, smyg, fönsterbänk, plissé, plåt) — ändra, ta bort eller lägg till. Skicka sedan in till kontoret.
       </p>
 
       <div className="space-y-2">
         {rows.map((r) => {
           const st = STATUS[r.cm_status] ?? { label: r.cm_status, variant: 'outline' as const };
           const diff = changedFields(r);
+          const till = ((r.spec as any)?.tillbehor ?? []) as any[];
           const locked = r.cm_status === 'hanterad';
           return (
             <button
@@ -295,14 +381,13 @@ export function MontorLitteraSection({
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">{r.article_name || '—'}</p>
-                  {r.article_code && <p className="text-[11px] text-muted-foreground">{r.article_code}</p>}
                 </div>
                 <Badge variant={st.variant}>{st.label}</Badge>
               </div>
               <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-card-foreground">
                 <div><span className="text-muted-foreground">Storlek:</span> {fmtSize(r)}</div>
-                <div><span className="text-muted-foreground">Antal:</span> {r.antal ?? '—'}</div>
                 <div className="truncate"><span className="text-muted-foreground">Kulör:</span> {r.color_inside || '—'} / {r.color_outside || '—'}</div>
+                <div><span className="text-muted-foreground">Tillbehör:</span> {till.length}</div>
               </div>
               {diff.length > 0 && (
                 <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 flex items-center gap-1">
@@ -407,15 +492,92 @@ export function MontorLitteraSection({
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-xs">Tillbehör (lister, smyg, fönsterbänk, plissé, plåt)</Label>
+                {origTill.length > 0 && (
+                  <div className="rounded border border-dashed bg-muted/30 p-2">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Säljarens original:</p>
+                    {origTill.map((t, i) => (
+                      <p key={i} className="text-[11px] text-muted-foreground">• {tillLabel(t)}</p>
+                    ))}
+                  </div>
+                )}
+                {fTill.map((f, i) => (
+                  <div key={i} className="relative rounded-lg border p-2 space-y-2 bg-card">
+                    {f._new && <Badge variant="secondary" className="text-[10px] absolute -top-2 left-2">Ny</Badge>}
+                    <button
+                      type="button"
+                      onClick={() => removeTill(i)}
+                      className="absolute top-1 right-1 p-1 text-muted-foreground hover:text-destructive"
+                      aria-label="Ta bort tillbehör"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wider">Typ</Label>
+                        <select
+                          value={f.typ}
+                          onChange={(e) => updateTill(i, { typ: e.target.value })}
+                          className="w-full min-h-[44px] rounded-md border border-input bg-background px-2 text-sm"
+                        >
+                          {TILL_TYPES.map((t) => (
+                            <option key={t.value} value={t.value}>{t.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wider">Placering</Label>
+                        <select
+                          value={f.placering}
+                          onChange={(e) => updateTill(i, { placering: e.target.value })}
+                          className="w-full min-h-[44px] rounded-md border border-input bg-background px-2 text-sm"
+                        >
+                          <option value="">—</option>
+                          <option value="invandig">Invändig</option>
+                          <option value="utvandig">Utvändig</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wider">Material</Label>
+                        <Input value={f.material} onChange={(e) => updateTill(i, { material: e.target.value })} className="min-h-[44px]" placeholder="Furu Målad Vit" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wider">Dimension</Label>
+                        <Input value={f.dimension} onChange={(e) => updateTill(i, { dimension: e.target.value })} className="min-h-[44px]" placeholder="12x50" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wider">Mått (b×h)</Label>
+                        <Input value={f.matt} onChange={(e) => updateTill(i, { matt: e.target.value })} className="min-h-[44px]" placeholder="883 x 1086" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] uppercase tracking-wider">Kulör</Label>
+                        <Input value={f.kulor} onChange={(e) => updateTill(i, { kulor: e.target.value })} className="min-h-[44px]" placeholder="NCS S 5502-Y" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase tracking-wider">Notering</Label>
+                      <Input value={f.note} onChange={(e) => updateTill(i, { note: e.target.value })} className="min-h-[44px]" placeholder="t.ex. förspänd Mörkläggande" />
+                    </div>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" className="w-full min-h-[44px]" onClick={addTill}>
+                  <Plus className="h-4 w-4 mr-1" /> Lägg till tillbehör
+                </Button>
+              </div>
+
               <div>
-                <Label className="text-xs">Övriga justeringar</Label>
+                <Label className="text-xs">Övriga justeringar (fritext)</Label>
                 <Textarea
                   value={fNote}
                   onChange={(e) => setFNote(e.target.value)}
                   rows={3}
-                  placeholder="T.ex. listbredd, utan salningsspår, annat foder/smyg, handtagsplacering..."
+                  placeholder="Allt som inte ryms i fälten ovan – t.ex. spårtyp, handtagsplacering, annat foder/smyg..."
                 />
-                <p className="mt-1 text-[11px] text-muted-foreground">Allt som inte ryms i fälten ovan (djupare konfiguration) skriver du här i klartext.</p>
               </div>
             </div>
           )}
