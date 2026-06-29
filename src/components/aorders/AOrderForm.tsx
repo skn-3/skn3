@@ -158,6 +158,15 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [confirmSend, setConfirmSend] = useState(false);
   const [sending, setSending] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [coupledHandled, setCoupledHandled] = useState(false);
+  const [couplingFor, setCouplingFor] = useState<null | {
+    aOrderId: string;
+    teamId: string | null;
+    teamName: string | null;
+    customerAddress: string;
+    customerName: string;
+    existingCaseId: string | null;
+  }>(null);
 
   // Regenerate ONLY auto-lines live; preserve manual rows (auto !== true).
   useEffect(() => {
