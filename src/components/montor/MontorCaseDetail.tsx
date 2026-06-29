@@ -18,6 +18,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerC
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 import { SignedImage } from '@/components/shared/SignedImage';
+import { MontorLitteraSection } from '@/components/montor/MontorLitteraSection';
 
 interface Props {
   caseData: CaseRow;
@@ -621,6 +622,13 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
           <SheetMetalOrdersSection caseId={caseData.id} variant="mobile" />
         </section>
+
+        <MontorLitteraSection
+          caseId={caseData.id}
+          currentUser={currentUser}
+          caseAddress={caseData.address}
+          customerName={caseData.customer_name}
+        />
 
         {/* Notes */}
         <section className="py-4 border-t space-y-2">
