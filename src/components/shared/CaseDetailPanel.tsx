@@ -1961,25 +1961,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
             {isSeller && (caseData.status === 'km_klar' || caseData.status === 'vantar_godkannande') && (
               <div className="space-y-3 rounded-lg border p-3">
-                <h4 className="text-sm font-semibold">KM Klar — Granska & Boka montage</h4>
-                {/* Show KM report from case_events */}
+                <h4 className="text-sm font-semibold">KM Klar — Godkänn & boka leverans</h4>
                 {events?.filter(e => e.event_type === 'km_report' || e.event_type === 'hours_request').slice(0, 1).map(e => (
                   <div key={e.id} className="text-sm bg-muted p-2 rounded">
                     <p className="text-card-foreground">{e.description}</p>
                     <p className="text-xs text-muted-foreground mt-1">— {e.created_by}, {new Date(e.created_at).toLocaleDateString('sv-SE')}</p>
                   </div>
                 ))}
-
-                {/* Extra hours status display */}
                 {caseData.extra_hours_requested > 0 && caseData.extra_hours_approved > 0 && (
                   <div className="rounded bg-primary/10 p-2">
-                    <p className="text-sm font-medium text-primary">✅ Extra timmar godkända: {caseData.extra_hours_approved} st</p>
+                    <p className="text-sm font-medium text-primary">Extra timmar godkända: {caseData.extra_hours_approved} st</p>
                   </div>
                 )}
-
                 {caseData.extra_hours_requested > 0 && caseData.extra_hours_approved === 0 && caseData.status === 'vantar_godkannande' && (
                   <div className="space-y-2 rounded bg-destructive/10 p-2">
-                    <p className="text-sm font-medium text-destructive">⚠ {caseData.extra_hours_requested} extra timmar begärda</p>
+                    <p className="text-sm font-medium text-destructive">{caseData.extra_hours_requested} extra timmar begärda</p>
                     <div className="flex gap-2">
                       <Button size="sm" variant="default" disabled={approveHoursMutation.isPending || rejectHoursMutation.isPending} onClick={() => approveHoursMutation.mutate()}>
                         {approveHoursMutation.isPending ? 'Sparar...' : 'Godkänn extra timmar'}
@@ -1990,50 +1986,26 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     </div>
                   </div>
                 )}
-
                 {caseData.extra_hours_requested > 0 && caseData.extra_hours_approved === 0 && caseData.status !== 'vantar_godkannande' && (
                   <div className="rounded bg-muted p-2">
-                    <p className="text-sm font-medium text-muted-foreground">❌ Extra timmar avslagna. Begärda: {caseData.extra_hours_requested} st</p>
+                    <p className="text-sm font-medium text-muted-foreground">Extra timmar avslagna. Begärda: {caseData.extra_hours_requested} st</p>
                   </div>
                 )}
-
                 <div className="space-y-2">
-                  <Label>Montör för montage</Label>
-                  <Select value={approvalMontor} onValueChange={setApprovalMontor}>
-                    <SelectTrigger><SelectValue placeholder="Välj montör" /></SelectTrigger>
-                    <SelectContent>
-                      {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Label>Leveransvecka</Label>
+                  <div className="flex gap-2">
+                    <Input type="number" min={1} max={53} placeholder="Vecka" className="flex-1" value={leveransWeek} onChange={(e) => setLeveransWeek(e.target.value)} />
+                    <Input type="number" className="w-28" placeholder="År" value={leveransYear} onChange={(e) => setLeveransYear(e.target.value)} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Montör och exakt montagedatum väljs efter leverans.</p>
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Montagedatum</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !approvalDate && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {approvalDate ? format(approvalDate, 'yyyy-MM-dd') : 'Välj datum'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={approvalDate} onSelect={setApprovalDate} initialFocus className={cn("p-3 pointer-events-auto")} />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Anteckning (valfritt)</Label>
-                  <Textarea value={approvalNote} onChange={e => setApprovalNote(e.target.value)} rows={2} placeholder="Eventuell kommentar..." />
-                </div>
-
                 <Button
                   size="sm"
                   className="w-full bg-primary"
-                  disabled={!approvalMontor || !approvalDate || approvalMutation.isPending}
-                  onClick={() => approvalMutation.mutate()}
+                  disabled={!leveransWeek || approveDeliveryMutation.isPending}
+                  onClick={() => approveDeliveryMutation.mutate()}
                 >
-                  {approvalMutation.isPending ? 'Sparar...' : 'Godkänn och boka montage'}
+                  {approveDeliveryMutation.isPending ? 'Sparar...' : 'Godkänn & boka leverans'}
                 </Button>
               </div>
             )}
