@@ -810,6 +810,23 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {couplingFor && (
+            <CoupleAOrderDialog
+              key={couplingFor.aOrderId}
+              aOrderId={couplingFor.aOrderId}
+              teamId={couplingFor.teamId}
+              teamName={couplingFor.teamName}
+              customerAddress={couplingFor.customerAddress}
+              customerName={couplingFor.customerName}
+              existingCaseId={couplingFor.existingCaseId}
+              onDone={() => {
+                setCoupledHandled(true);
+                setCouplingFor(null);
+                onOpenChange(false);
+              }}
+            />
+          )}
         </div>
       </SheetContent>
     </Sheet>
