@@ -2066,7 +2066,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
           <SheetMetalOrdersSection caseId={caseData.id} />
 
-          <LitterorSection caseId={caseData.id} isAdmin={isAdmin} />
+          <LitterorSection caseId={caseData.id} isAdmin={isAdmin} currentUser={currentUser} />
 
 
           {/* Costs */}
