@@ -147,6 +147,7 @@ function changedFields(r: LitteraRow): string[] {
   }).map((f) => f.label);
   if (r.montor_note && r.montor_note.trim()) diff.push('övrigt');
   if (canonTill((r.spec as any)?.tillbehor) !== canonTill(snap?.tillbehor)) diff.push('tillbehör');
+  if (((r.spec as any)?.spartyp ?? null) !== (snap?.spartyp ?? null)) diff.push('spårtyp');
   return diff;
 }
 
