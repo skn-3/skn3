@@ -244,7 +244,7 @@ Deno.serve(async (req) => {
         if (match.cm_status === 'ej_paborjad') {
           const { error } = await admin
             .from('litteror')
-            .update({ ...cols, spec: { tillbehor }, imported_snapshot: snap })
+            .update({ ...cols, spec: { tillbehor, spartyp: snap.spartyp }, imported_snapshot: snap })
             .eq('id', match.id);
           if (error) { console.error('update littera failed', error); return json({ error: 'Kunde inte uppdatera littera', detail: error.message }, 500); }
           updated++;
