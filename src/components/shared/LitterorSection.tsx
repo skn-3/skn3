@@ -152,65 +152,92 @@ async function fileToBase64(file: File): Promise<{ base64: string; mime: string 
 function ImportInputs({
   onSubmit,
   pending,
+  progress,
 }: {
-  onSubmit: (payload: { image_base64?: string; mime_type?: string; text?: string }) => void;
+  onSubmit: (payload: { files: File[]; text?: string }) => void;
   pending: boolean;
+  progress: { done: number; total: number } | null;
 }) {
   const [text, setText] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  async function handleSubmit() {
-    if (!file && !text.trim()) {
-      toast.error('Lägg in en bild eller text först');
+  function addFiles(list: FileList | File[]) {
+    const arr = Array.from(list).filter((f) => f.type.startsWith('image/'));
+    if (arr.length) setFiles((prev) => [...prev, ...arr]);
+  }
+
+  function handleSubmit() {
+    if (files.length === 0 && !text.trim()) {
+      toast.error('Lägg in minst en bild eller text först');
       return;
     }
-    if (file) {
-      const { base64, mime } = await fileToBase64(file);
-      onSubmit({ image_base64: base64, mime_type: mime, text: text.trim() || undefined });
-    } else {
-      onSubmit({ text: text.trim() });
-    }
+    onSubmit({ files, text: text.trim() || undefined });
   }
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Importen är additiv. Ta en skärmbild av översiktslistan för alla littera på en gång, och en skärmbild per expanderad littera för att fånga tillbehör (foder, smyg, fönsterbänk, plissé). Littera som montören redan justerat skrivs inte över.
+        Välj flera skärmbilder på en gång — en per expanderad littera (fångar tillbehören) och/eller översiktslistan. Bilderna tolkas i tur och ordning. Importen är additiv: littera som montören redan justerat skrivs inte över.
       </p>
       <div>
-        <Label>Skärmbild från KP</Label>
+        <Label>Skärmbilder från KP</Label>
         <input
           ref={fileRef}
           type="file"
           accept="image/*"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
+          multiple
+          disabled={pending}
+          onChange={(e) => {
+            if (e.target.files) addFiles(e.target.files);
+            e.target.value = '';
+          }}
           className="block mt-1 text-sm"
         />
-        {file && <p className="text-xs text-muted-foreground mt-1">{file.name}</p>}
+        {files.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {files.map((f, i) => (
+              <div key={i} className="flex items-center justify-between rounded-md border px-2 py-1 text-xs">
+                <span className="truncate">{f.name}</span>
+                <button
+                  onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                  disabled={pending}
+                  className="ml-2 shrink-0 text-muted-foreground hover:text-destructive"
+                  aria-label="Ta bort bild"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div>
-        <Label>...eller klistra in tabelltext</Label>
+        <Label>...eller klistra in (bilder eller tabelltext)</Label>
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          rows={6}
-          placeholder="Klistra in översikten eller en littera med Konfiguration från Mockfjärds KP"
+          rows={4}
+          disabled={pending}
+          placeholder="Klistra in en eller flera skärmbilder (Ctrl/Cmd+V) eller tabelltext från Mockfjärds KP"
           onPaste={(e) => {
-            const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith('image/'));
-            if (item) {
-              const f = item.getAsFile();
-              if (f) {
-                e.preventDefault();
-                setFile(f);
-              }
+            const imgs = Array.from(e.clipboardData.items).filter((i) => i.type.startsWith('image/'));
+            if (imgs.length) {
+              e.preventDefault();
+              addFiles(imgs.map((i) => i.getAsFile()).filter(Boolean) as File[]);
             }
           }}
         />
       </div>
       <DialogFooter>
         <Button onClick={handleSubmit} disabled={pending}>
-          {pending ? 'Tolkar...' : 'Importera'}
+          {pending
+            ? progress
+              ? `Tolkar bild ${Math.min(progress.done + 1, progress.total)} av ${progress.total}...`
+              : 'Tolkar...'
+            : files.length > 1
+              ? `Importera ${files.length} bilder`
+              : 'Importera'}
         </Button>
       </DialogFooter>
     </div>
