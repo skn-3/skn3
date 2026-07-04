@@ -147,6 +147,7 @@ function changedFields(r: LitteraRow): string[] {
   }).map((f) => f.label);
   if (r.montor_note && r.montor_note.trim()) diff.push('övrigt');
   if (canonTill((r.spec as any)?.tillbehor) !== canonTill(snap?.tillbehor)) diff.push('tillbehör');
+  if (((r.spec as any)?.spartyp ?? null) !== (snap?.spartyp ?? null)) diff.push('spårtyp');
   return diff;
 }
 
@@ -188,6 +189,7 @@ export function MontorLitteraSection({
   const [fColOut, setFColOut] = useState('');
   const [fNote, setFNote] = useState('');
   const [fTill, setFTill] = useState<TillForm[]>([]);
+  const [fSpartyp, setFSpartyp] = useState('');
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['litteror', caseId],
@@ -215,6 +217,7 @@ export function MontorLitteraSection({
     setFColOut(r.color_outside ?? '');
     setFNote(r.montor_note ?? '');
     setFTill((((r.spec as any)?.tillbehor ?? []) as any[]).map(tillToForm));
+    setFSpartyp((((r.spec as any)?.spartyp as string) ?? ''));
   }
 
   const updateTill = (i: number, patch: Partial<TillForm>) =>
@@ -239,15 +242,17 @@ export function MontorLitteraSection({
         montor_note: strOrNull(fNote),
       };
       const tillbehor = fTill.filter((f) => !tillEmpty(f)).map(formToTill);
+      const spartyp = strOrNull(fSpartyp);
       const overviewChanged = (Object.keys(patch) as (keyof typeof patch)[]).some(
         (k) => (patch[k] ?? null) !== ((editing as any)[k] ?? null),
       );
       const tillChanged = canonTill(tillbehor) !== canonTill((editing.spec as any)?.tillbehor);
-      if (!overviewChanged && !tillChanged) return { noop: true };
+      const spartypChanged = spartyp !== ((editing.spec as any)?.spartyp ?? null);
+      if (!overviewChanged && !tillChanged && !spartypChanged) return { noop: true };
       const next_status = editing.cm_status === 'hanterad' ? 'hanterad' : 'justerad';
       const { error } = await (supabase as any)
         .from('litteror')
-        .update({ ...patch, spec: { ...((editing.spec as any) || {}), tillbehor }, cm_status: next_status })
+        .update({ ...patch, spec: { ...((editing.spec as any) || {}), tillbehor, spartyp }, cm_status: next_status })
         .eq('id', editing.id);
       if (error) throw error;
       return { noop: false };
@@ -384,9 +389,10 @@ export function MontorLitteraSection({
                 </div>
                 <Badge variant={st.variant}>{st.label}</Badge>
               </div>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-card-foreground">
+              <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-card-foreground">
                 <div><span className="text-muted-foreground">Storlek:</span> {fmtSize(r)}</div>
                 <div className="truncate"><span className="text-muted-foreground">Kulör:</span> {r.color_inside || '—'} / {r.color_outside || '—'}</div>
+                <div className="truncate"><span className="text-muted-foreground">Spår:</span> {((r.spec as any)?.spartyp) || '—'}</div>
                 <div><span className="text-muted-foreground">Tillbehör:</span> {till.length}</div>
               </div>
               {diff.length > 0 && (
@@ -492,6 +498,13 @@ export function MontorLitteraSection({
                 </div>
               </div>
 
+              <div>
+                <Label className="text-xs">Spårtyp</Label>
+                <Input value={fSpartyp} onChange={(e) => setFSpartyp(e.target.value)} className="min-h-[48px]" placeholder="t.ex. B2 Fyra sidor" />
+                <OrigHint orig={editing.imported_snapshot?.spartyp} cur={strOrNull(fSpartyp)} />
+              </div>
+
+
               <div className="space-y-2">
                 <Label className="text-xs">Tillbehör (lister, smyg, fönsterbänk, plissé, plåt)</Label>
                 {origTill.length > 0 && (
@@ -576,7 +589,7 @@ export function MontorLitteraSection({
                   value={fNote}
                   onChange={(e) => setFNote(e.target.value)}
                   rows={3}
-                  placeholder="Allt som inte ryms i fälten ovan – t.ex. spårtyp, handtagsplacering, annat foder/smyg..."
+                  placeholder="Allt som inte ryms i fälten ovan – t.ex. handtagsplacering, specialönskemål..."
                 />
               </div>
             </div>

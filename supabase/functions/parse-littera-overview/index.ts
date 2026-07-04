@@ -52,6 +52,7 @@ Returnera ENBART JSON, inga kodstaket:
   "color_inside": string|null,  // fönstrets INSIDA. Konfigurationens "Träkulör: ..." (hela värdet, t.ex. "VITMÅLAT NCS S 0502-Y"). Annars Insida i översiktens Kulör-kolumn.
 
   "color_outside": string|null, // fönstrets UTSIDA. Konfigurationens "Alukulör: ..." (t.ex. "VITMÅLAT RAL 9010 gl 30"). Annars Utsida i Kulör-kolumnen.
+  "spartyp": string|null,       // ur Konfigurationens rad "Spår ..." — allt efter "Spår ", t.ex. "- Spår B2 Fyra sidor" => "B2 Fyra sidor". null om raden saknas.
 
   "tillbehor": [ {              // [] om inget Konfiguration-block hör till denna littera
 
@@ -95,7 +96,11 @@ Tillbehörsregler (rader i Konfiguration som börjar med "-" eller "^"):
 
 - dimension = "NNxNN"-talet i raden. material = beskrivande ord utan dimension.
 
-- IGNORERA: Vikt, "Profilerad profil", Glas, Spröjs, Klickventil, Spår, "Bilden visas ifrån...". Fönstrets eget handtag/beslag behöver inte bli tillbehör.
+- IGNORERA HELT (blir aldrig tillbehör): Vikt, "Profilerad profil", Glas, Spröjs, Klickventil, "Bilden visas ifrån...", samt ALLA Handtag-rader (t.ex. "- Handtag 10 Ultimat vrid o vänster sidohängt fönster").
+
+- "Beslagsfärg: ..." blir ALDRIG ett eget tillbehör. Finns en plissé i samma littera: skriv in beslagsfärgen i plisséns "note". Annars: ignorera den.
+
+- Raden "Spår ..." är INTE ett tillbehör — den fyller fältet "spartyp" på litteran.
 
 Svensk decimalkomma (1,09 = 1.09). Måtten är heltal mm.`;
 
@@ -142,12 +147,13 @@ function buildSnap(it: any) {
     set_lead: !!it?.set_lead,
     color_inside: it?.color_inside ?? null,
     color_outside: it?.color_outside ?? null,
+    spartyp: it?.spartyp ? String(it.spartyp).trim() : null,
     tillbehor: normTillbehor(it?.tillbehor),
   };
 }
 
 function overviewCols(snap: any) {
-  const { tillbehor: _ignore, ...cols } = snap;
+  const { tillbehor: _ignore, spartyp: _ignore2, ...cols } = snap;
   return cols;
 }
 
@@ -238,7 +244,7 @@ Deno.serve(async (req) => {
         if (match.cm_status === 'ej_paborjad') {
           const { error } = await admin
             .from('litteror')
-            .update({ ...cols, spec: { tillbehor }, imported_snapshot: snap })
+            .update({ ...cols, spec: { tillbehor, spartyp: snap.spartyp }, imported_snapshot: snap })
             .eq('id', match.id);
           if (error) { console.error('update littera failed', error); return json({ error: 'Kunde inte uppdatera littera', detail: error.message }, 500); }
           updated++;
@@ -249,7 +255,7 @@ Deno.serve(async (req) => {
         skipped++;
       } else {
         maxSort++;
-        inserts.push({ case_id: body.case_id, sort_order: maxSort, ...cols, spec: { tillbehor }, imported_snapshot: snap, cm_status: 'ej_paborjad' });
+        inserts.push({ case_id: body.case_id, sort_order: maxSort, ...cols, spec: { tillbehor, spartyp: snap.spartyp }, imported_snapshot: snap, cm_status: 'ej_paborjad' });
         if (key) seen.add(key);
       }
     }
