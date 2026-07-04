@@ -389,9 +389,10 @@ export function MontorLitteraSection({
                 </div>
                 <Badge variant={st.variant}>{st.label}</Badge>
               </div>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-card-foreground">
+              <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-card-foreground">
                 <div><span className="text-muted-foreground">Storlek:</span> {fmtSize(r)}</div>
                 <div className="truncate"><span className="text-muted-foreground">Kulör:</span> {r.color_inside || '—'} / {r.color_outside || '—'}</div>
+                <div className="truncate"><span className="text-muted-foreground">Spår:</span> {((r.spec as any)?.spartyp) || '—'}</div>
                 <div><span className="text-muted-foreground">Tillbehör:</span> {till.length}</div>
               </div>
               {diff.length > 0 && (
