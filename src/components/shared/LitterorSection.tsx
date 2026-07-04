@@ -271,34 +271,65 @@ export function LitterorSection({ caseId, isAdmin, currentUser }: { caseId: stri
   });
 
   const overviewMutation = useMutation({
-    mutationFn: async (payload: { image_base64?: string; mime_type?: string; text?: string }) => {
-      const { data, error } = await supabase.functions.invoke('parse-littera-overview', {
-        body: { case_id: caseId, ...payload },
-      });
-      if (error) {
-        let detail = error.message;
-        try {
-          const ctx = (error as any).context;
-          if (ctx) {
-            const body = await ctx.json();
-            if (body?.error) detail = body.error;
-          }
-        } catch {}
-        throw new Error(detail);
+    mutationFn: async (payload: { files: File[]; text?: string }) => {
+      const jobs: { label: string; body: { image_base64?: string; mime_type?: string; text?: string } }[] = [];
+      for (const f of payload.files) {
+        const { base64, mime } = await fileToBase64(f);
+        jobs.push({ label: f.name, body: { image_base64: base64, mime_type: mime } });
       }
-      return data;
+      if (payload.text) jobs.push({ label: 'inklistrad text', body: { text: payload.text } });
+      let added = 0, updated = 0, skipped = 0;
+      const failed: string[] = [];
+      setImportProgress({ done: 0, total: jobs.length });
+      for (let i = 0; i < jobs.length; i++) {
+        const job = jobs[i];
+        try {
+          const { data, error } = await supabase.functions.invoke('parse-littera-overview', {
+            body: { case_id: caseId, ...job.body },
+          });
+          if (error) {
+            let detail = error.message;
+            try {
+              const ctx = (error as any).context;
+              if (ctx) {
+                const body = await ctx.json();
+                if (body?.error) detail = body.error;
+              }
+            } catch {}
+            throw new Error(detail);
+          }
+          added += data?.added ?? 0;
+          updated += data?.updated ?? 0;
+          skipped += data?.skipped ?? 0;
+        } catch (e) {
+          console.error('Import misslyckades för', job.label, e);
+          failed.push(job.label);
+        }
+        setImportProgress({ done: i + 1, total: jobs.length });
+      }
+      return { added, updated, skipped, failed, total: jobs.length };
     },
-    onSuccess: (data) => {
-      const a = data?.added ?? 0, u = data?.updated ?? 0, s = data?.skipped ?? 0;
+    onSuccess: (res) => {
+      setImportProgress(null);
+      if (res.failed.length === res.total) {
+        toast.error(`Ingen bild kunde tolkas (${res.failed.length} st). Försök igen.`);
+        return;
+      }
       const parts: string[] = [];
-      if (a) parts.push(`${a} tillagda`);
-      if (u) parts.push(`${u} uppdaterade`);
-      if (s) parts.push(`${s} oförändrade (skyddade)`);
+      if (res.added) parts.push(`${res.added} tillagda`);
+      if (res.updated) parts.push(`${res.updated} uppdaterade`);
+      if (res.skipped) parts.push(`${res.skipped} oförändrade (skyddade)`);
       toast.success(parts.length ? `Import klar: ${parts.join(', ')}` : 'Inga littera hittades');
+      if (res.failed.length > 0) {
+        toast.error(`Kunde inte tolka: ${res.failed.join(', ')} — importera de bilderna igen.`);
+      }
       setOverviewOpen(false);
       qc.invalidateQueries({ queryKey: ['litteror', caseId] });
     },
-    onError: (e: Error) => toast.error(`Kunde inte importera: ${e.message}`),
+    onError: (e: Error) => {
+      setImportProgress(null);
+      toast.error(`Kunde inte importera: ${e.message}`);
+    },
   });
 
   const deleteMutation = useMutation({
