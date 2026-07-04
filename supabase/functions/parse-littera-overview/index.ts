@@ -153,7 +153,7 @@ function buildSnap(it: any) {
 }
 
 function overviewCols(snap: any) {
-  const { tillbehor: _ignore, ...cols } = snap;
+  const { tillbehor: _ignore, spartyp: _ignore2, ...cols } = snap;
   return cols;
 }
 
