@@ -621,7 +621,7 @@ export function LitterorSection({ caseId, isAdmin, currentUser }: { caseId: stri
           <DialogHeader>
             <DialogTitle>Importera littera från KP</DialogTitle>
           </DialogHeader>
-          <ImportInputs pending={overviewMutation.isPending} onSubmit={(p) => overviewMutation.mutate(p)} />
+          <ImportInputs pending={overviewMutation.isPending} progress={importProgress} onSubmit={(p) => overviewMutation.mutate(p)} />
         </DialogContent>
       </Dialog>
     </section>
