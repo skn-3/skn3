@@ -498,6 +498,13 @@ export function MontorLitteraSection({
                 </div>
               </div>
 
+              <div>
+                <Label className="text-xs">Spårtyp</Label>
+                <Input value={fSpartyp} onChange={(e) => setFSpartyp(e.target.value)} className="min-h-[48px]" placeholder="t.ex. B2 Fyra sidor" />
+                <OrigHint orig={editing.imported_snapshot?.spartyp} cur={strOrNull(fSpartyp)} />
+              </div>
+
+
               <div className="space-y-2">
                 <Label className="text-xs">Tillbehör (lister, smyg, fönsterbänk, plissé, plåt)</Label>
                 {origTill.length > 0 && (
