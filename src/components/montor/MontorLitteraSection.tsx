@@ -241,11 +241,13 @@ export function MontorLitteraSection({
         montor_note: strOrNull(fNote),
       };
       const tillbehor = fTill.filter((f) => !tillEmpty(f)).map(formToTill);
+      const spartyp = strOrNull(fSpartyp);
       const overviewChanged = (Object.keys(patch) as (keyof typeof patch)[]).some(
         (k) => (patch[k] ?? null) !== ((editing as any)[k] ?? null),
       );
       const tillChanged = canonTill(tillbehor) !== canonTill((editing.spec as any)?.tillbehor);
-      if (!overviewChanged && !tillChanged) return { noop: true };
+      const spartypChanged = spartyp !== ((editing.spec as any)?.spartyp ?? null);
+      if (!overviewChanged && !tillChanged && !spartypChanged) return { noop: true };
       const next_status = editing.cm_status === 'hanterad' ? 'hanterad' : 'justerad';
       const { error } = await (supabase as any)
         .from('litteror')
