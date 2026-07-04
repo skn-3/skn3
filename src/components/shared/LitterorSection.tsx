@@ -575,6 +575,9 @@ export function LitterorSection({ caseId, isAdmin, currentUser }: { caseId: stri
                               )
                             )}
 
+                            {((r.spec as any)?.spartyp) && (
+                              <div className="text-xs"><span className="text-muted-foreground">Spårtyp: </span><span className="font-medium">{(r.spec as any).spartyp}</span></div>
+                            )}
                             {till.length === 0 && !hasChanges && r.cm_status === 'ej_paborjad' ? (
                               <div className="text-xs text-muted-foreground">
                                 Inga tillbehör importerade. Importera den expanderade littera-vyn från KP för att fånga foder, smyg, fönsterbänk m.m.
