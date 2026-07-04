@@ -188,6 +188,7 @@ export function MontorLitteraSection({
   const [fColOut, setFColOut] = useState('');
   const [fNote, setFNote] = useState('');
   const [fTill, setFTill] = useState<TillForm[]>([]);
+  const [fSpartyp, setFSpartyp] = useState('');
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['litteror', caseId],
