@@ -147,6 +147,7 @@ function buildSnap(it: any) {
     set_lead: !!it?.set_lead,
     color_inside: it?.color_inside ?? null,
     color_outside: it?.color_outside ?? null,
+    spartyp: it?.spartyp ? String(it.spartyp).trim() : null,
     tillbehor: normTillbehor(it?.tillbehor),
   };
 }
