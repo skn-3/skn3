@@ -96,7 +96,11 @@ Tillbehörsregler (rader i Konfiguration som börjar med "-" eller "^"):
 
 - dimension = "NNxNN"-talet i raden. material = beskrivande ord utan dimension.
 
-- IGNORERA: Vikt, "Profilerad profil", Glas, Spröjs, Klickventil, Spår, "Bilden visas ifrån...". Fönstrets eget handtag/beslag behöver inte bli tillbehör.
+- IGNORERA HELT (blir aldrig tillbehör): Vikt, "Profilerad profil", Glas, Spröjs, Klickventil, "Bilden visas ifrån...", samt ALLA Handtag-rader (t.ex. "- Handtag 10 Ultimat vrid o vänster sidohängt fönster").
+
+- "Beslagsfärg: ..." blir ALDRIG ett eget tillbehör. Finns en plissé i samma littera: skriv in beslagsfärgen i plisséns "note". Annars: ignorera den.
+
+- Raden "Spår ..." är INTE ett tillbehör — den fyller fältet "spartyp" på litteran.
 
 Svensk decimalkomma (1,09 = 1.09). Måtten är heltal mm.`;
 
