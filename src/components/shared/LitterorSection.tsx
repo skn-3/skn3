@@ -247,6 +247,7 @@ function ImportInputs({
 export function LitterorSection({ caseId, isAdmin, currentUser }: { caseId: string; isAdmin: boolean; currentUser: string }) {
   const qc = useQueryClient();
   const [overviewOpen, setOverviewOpen] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const toggle = (id: string) =>
