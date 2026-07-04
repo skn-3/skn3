@@ -216,6 +216,7 @@ export function MontorLitteraSection({
     setFColOut(r.color_outside ?? '');
     setFNote(r.montor_note ?? '');
     setFTill((((r.spec as any)?.tillbehor ?? []) as any[]).map(tillToForm));
+    setFSpartyp((((r.spec as any)?.spartyp as string) ?? ''));
   }
 
   const updateTill = (i: number, patch: Partial<TillForm>) =>
