@@ -251,7 +251,7 @@ export function MontorLitteraSection({
       const next_status = editing.cm_status === 'hanterad' ? 'hanterad' : 'justerad';
       const { error } = await (supabase as any)
         .from('litteror')
-        .update({ ...patch, spec: { ...((editing.spec as any) || {}), tillbehor }, cm_status: next_status })
+        .update({ ...patch, spec: { ...((editing.spec as any) || {}), tillbehor, spartyp }, cm_status: next_status })
         .eq('id', editing.id);
       if (error) throw error;
       return { noop: false };
