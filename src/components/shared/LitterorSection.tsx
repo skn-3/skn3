@@ -138,6 +138,9 @@ function diffOverview(r: LitteraRow): string[] {
     const orig = snap[key as string] ?? null;
     if (now !== orig) out.push(`${label}: ${fmtVal(orig)} → ${fmtVal(now)}`);
   }
+  const sNow = (r.spec as any)?.spartyp ?? null;
+  const sOrig = snap?.spartyp ?? null;
+  if (sNow !== sOrig) out.push(`Spårtyp: ${fmtVal(sOrig)} → ${fmtVal(sNow)}`);
   return out;
 }
 
