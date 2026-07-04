@@ -589,7 +589,7 @@ export function MontorLitteraSection({
                   value={fNote}
                   onChange={(e) => setFNote(e.target.value)}
                   rows={3}
-                  placeholder="Allt som inte ryms i fälten ovan – t.ex. spårtyp, handtagsplacering, annat foder/smyg..."
+                  placeholder="Allt som inte ryms i fälten ovan – t.ex. handtagsplacering, specialönskemål..."
                 />
               </div>
             </div>
