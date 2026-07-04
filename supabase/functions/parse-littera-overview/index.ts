@@ -255,7 +255,7 @@ Deno.serve(async (req) => {
         skipped++;
       } else {
         maxSort++;
-        inserts.push({ case_id: body.case_id, sort_order: maxSort, ...cols, spec: { tillbehor }, imported_snapshot: snap, cm_status: 'ej_paborjad' });
+        inserts.push({ case_id: body.case_id, sort_order: maxSort, ...cols, spec: { tillbehor, spartyp: snap.spartyp }, imported_snapshot: snap, cm_status: 'ej_paborjad' });
         if (key) seen.add(key);
       }
     }
