@@ -52,6 +52,7 @@ Returnera ENBART JSON, inga kodstaket:
   "color_inside": string|null,  // fönstrets INSIDA. Konfigurationens "Träkulör: ..." (hela värdet, t.ex. "VITMÅLAT NCS S 0502-Y"). Annars Insida i översiktens Kulör-kolumn.
 
   "color_outside": string|null, // fönstrets UTSIDA. Konfigurationens "Alukulör: ..." (t.ex. "VITMÅLAT RAL 9010 gl 30"). Annars Utsida i Kulör-kolumnen.
+  "spartyp": string|null,       // ur Konfigurationens rad "Spår ..." — allt efter "Spår ", t.ex. "- Spår B2 Fyra sidor" => "B2 Fyra sidor". null om raden saknas.
 
   "tillbehor": [ {              // [] om inget Konfiguration-block hör till denna littera
 
