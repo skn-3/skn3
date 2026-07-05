@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, sendNotificationEmail, updateVisit, type VisitRow } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
     km_team: '',
     google_drive_link: '',
     notes: '',
+    units: '',
     media_consent: false,
     carry_help_needed: false,
     scheduled_delivery: false,
@@ -47,6 +49,8 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
   const tbNum = form.tb_percent === '' ? null : Number(form.tb_percent);
   const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
   const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
+  const unitsNum = form.units === '' ? NaN : Number(form.units);
+  const unitsValid = Number.isFinite(unitsNum) && unitsNum >= 1 && Number.isInteger(unitsNum);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleSubmit = () => {
