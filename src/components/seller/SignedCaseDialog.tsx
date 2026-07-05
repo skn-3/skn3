@@ -283,7 +283,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Avbryt</Button>
           <Button
             onClick={handleSubmit}
-            disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
+            disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || !unitsValid || mutation.isPending}
           >
             {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}
           </Button>
