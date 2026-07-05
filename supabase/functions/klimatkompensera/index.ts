@@ -32,20 +32,24 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const orderId = String(body?.order_id || '');
-    const treeCount = Number(body?.tree_count);
     if (!orderId) return json({ error: 'order_id krävs' }, 400);
-    if (!Number.isFinite(treeCount) || treeCount < 1 || treeCount > 500) {
-      return json({ error: 'tree_count måste vara 1–500' }, 400);
-    }
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
     const { data: order, error: oErr } = await admin
       .from('a_orders')
-      .select('id, order_number, customer_name, customer_email, created_by, window_count, roof_window_count')
+      .select('id, order_number, customer_name, customer_email, created_by, window_count, roof_window_count, door_count')
       .eq('id', orderId)
       .maybeSingle();
     if (oErr || !order) return json({ error: 'Order finns inte' }, 404);
+
+    const treeCount = (Number(order.window_count) || 0) + (Number(order.roof_window_count) || 0) + (Number(order.door_count) || 0);
+    if (treeCount <= 0) {
+      return json({ skipped: true });
+    }
+    if (treeCount > 500) {
+      return json({ error: 'tree_count överstiger 500' }, 400);
+    }
 
     let sellerName: string | null = null;
     if (order.created_by) {
@@ -85,6 +89,7 @@ Deno.serve(async (req) => {
         ...(order.customer_email ? { recipient_email: order.customer_email } : {}),
       }),
     });
+
 
     const upText = await upstream.text();
     let upJson: any = null;
