@@ -39,6 +39,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { OfferForm } from '@/components/offers/OfferForm';
 import { AOrderForm } from '@/components/aorders/AOrderForm';
 import { fmtKr as fmtOfferKr } from '@/lib/offerCalc';
+import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -943,7 +944,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         <div className="divide-y">
           {/* Customer info */}
           <section className="p-4 space-y-2">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Kundinformation</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Kundinformation</h3>
+              <KlimatKompenseradBadge caseId={caseData.id} />
+            </div>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div><span className="text-muted-foreground">Namn:</span> {caseData.customer_name}</div>
               <div><span className="text-muted-foreground">Tel:</span> {caseData.customer_phone}</div>
