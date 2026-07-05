@@ -19,6 +19,7 @@ import { SignedImage } from '@/components/shared/SignedImage';
 import { HOUR_RATE } from '@/lib/constants';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
 import { CoupleAOrderDialog } from '@/components/aorders/CoupleAOrderDialog';
+import { KlimatKompensering } from '@/components/aorders/KlimatKompensering';
 
 type AOrder = any;
 
