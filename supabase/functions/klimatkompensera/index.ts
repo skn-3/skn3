@@ -43,6 +43,22 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (cErr || !caseRow) return json({ error: 'Case finns inte' }, 404);
 
+    // Verifiera att caset faktiskt är signerat — dvs det finns minst ett besök med result='signerat' som pekar på caset
+    const { data: signedVisit, error: vErr } = await admin
+      .from('visits')
+      .select('id')
+      .eq('case_id', caseId)
+      .eq('result', 'signerat')
+      .limit(1)
+      .maybeSingle();
+    if (vErr) {
+      console.error('[klimatkompensera] kunde inte verifiera signering', vErr);
+      return json({ error: 'Kunde inte verifiera signering' }, 500);
+    }
+    if (!signedVisit) {
+      return json({ error: 'Caset är inte signerat — kompensering nekad' }, 403);
+    }
+
     const treeCount = Number(caseRow.units) || 0;
     if (treeCount <= 0) {
       return json({ skipped: true });
