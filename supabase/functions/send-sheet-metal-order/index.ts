@@ -112,14 +112,14 @@ function dataUrlToBase64(dataUrl: string): { base64: string; contentType: string
   if (!match) return { base64: dataUrl, contentType: 'image/jpeg' };
   return { contentType: match[1], base64: match[2] };
 }
-import { requireStaff } from '../_shared/auth.ts';
+import { requireCoordinator } from '../_shared/auth.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
   try {
-    const auth = await requireStaff(req, corsHeaders);
+    const auth = await requireCoordinator(req, corsHeaders);
     if (auth.response) return auth.response;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
