@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { requireCoordinator } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,24 +48,10 @@ Deno.serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
     if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
 
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: claims, error: claimsErr } = await userClient.auth.getClaims(authHeader.replace('Bearer ', ''));
-    if (claimsErr || !claims?.claims?.sub) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    const auth = await requireCoordinator(req, corsHeaders);
+    if (auth.response) return auth.response;
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-    {
-      const { data: r } = await admin.from('user_roles').select('role,is_admin').eq('user_id', claims.claims.sub).maybeSingle();
-      if (!(r?.is_admin || r?.role === 'seller' || r?.role === 'coordinator')) {
-        return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-    }
+
 
     const body = await req.json().catch(() => ({}));
     const { debit_invoice_id, pdf_base64 } = body || {};

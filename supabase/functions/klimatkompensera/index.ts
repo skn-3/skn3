@@ -5,7 +5,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SMARTKLIMAT_URL = 'https://yakwdirpbwdtsdpxlbkp.supabase.co/functions/v1/inbound-mockfjards';
-const SMARTKLIMAT_SECRET = Deno.env.get('SMARTKLIMAT_INBOUND_SECRET') || '';
+const SMARTKLIMAT_SECRET = Deno.env.get('SMARTKLIMAT_INBOUND_SECRET');
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -42,6 +42,22 @@ Deno.serve(async (req) => {
       .eq('id', caseId)
       .maybeSingle();
     if (cErr || !caseRow) return json({ error: 'Case finns inte' }, 404);
+
+    // Verifiera att caset faktiskt är signerat — dvs det finns minst ett besök med result='signerat' som pekar på caset
+    const { data: signedVisit, error: vErr } = await admin
+      .from('visits')
+      .select('id')
+      .eq('case_id', caseId)
+      .eq('result', 'signerat')
+      .limit(1)
+      .maybeSingle();
+    if (vErr) {
+      console.error('[klimatkompensera] kunde inte verifiera signering', vErr);
+      return json({ error: 'Kunde inte verifiera signering' }, 500);
+    }
+    if (!signedVisit) {
+      return json({ error: 'Caset är inte signerat — kompensering nekad' }, 403);
+    }
 
     const treeCount = Number(caseRow.units) || 0;
     if (treeCount <= 0) {

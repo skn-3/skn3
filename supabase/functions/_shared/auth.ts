@@ -91,3 +91,20 @@ export async function requireAdmin(
   }
   return { response: null, userId: res.userId, claims: res.claims, isAdmin: true, role: res.role };
 }
+
+/**
+ * Coordinator-or-admin gate. Used for outbound mail / admin-only actions
+ * that should NOT be callable by säljare eller montörer.
+ */
+export async function requireCoordinator(
+  req: Request,
+  corsHeaders: CorsHeaders = defaultCorsHeaders,
+): Promise<AuthResult> {
+  const res = await authenticate(req, corsHeaders);
+  if (res.fail) return { response: res.fail };
+  if (!(res.isAdmin || res.role === 'coordinator')) {
+    return { response: forbidden(corsHeaders, 'Forbidden (coordinator only)') };
+  }
+  return { response: null, userId: res.userId, claims: res.claims, isAdmin: res.isAdmin, role: res.role };
+}
+

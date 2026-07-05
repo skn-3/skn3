@@ -120,7 +120,7 @@ function getCtaForHeading(heading: string): string | null {
   return null;
 }
 
-import { requireStaff } from '../_shared/auth.ts';
+import { requireCoordinator } from '../_shared/auth.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const auth = await requireStaff(req, corsHeaders);
+    const auth = await requireCoordinator(req, corsHeaders);
     if (auth.response) return auth.response;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
