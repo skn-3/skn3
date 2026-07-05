@@ -37,7 +37,7 @@ export function KlimatKompensering({ orderId, suggestedTreeCount }: Props) {
         .eq('order_id', orderId)
         .maybeSingle();
       if (error) throw error;
-      return (data as CompensationRow | null) ?? null;
+      return (data as unknown as CompensationRow | null) ?? null;
     },
   });
 
