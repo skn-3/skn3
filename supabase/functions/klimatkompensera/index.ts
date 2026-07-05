@@ -42,10 +42,20 @@ Deno.serve(async (req) => {
 
     const { data: order, error: oErr } = await admin
       .from('a_orders')
-      .select('id, order_number, customer_name')
+      .select('id, order_number, customer_name, created_by, window_count, roof_window_count')
       .eq('id', orderId)
       .maybeSingle();
     if (oErr || !order) return json({ error: 'Order finns inte' }, 404);
+
+    let sellerName: string | null = null;
+    if (order.created_by) {
+      const { data: prof } = await admin
+        .from('profiles')
+        .select('name')
+        .eq('id', order.created_by)
+        .maybeSingle();
+      sellerName = (prof?.name as string | undefined) ?? null;
+    }
 
     const { data: existing } = await admin
       .from('order_climate_compensation')
@@ -71,8 +81,10 @@ Deno.serve(async (req) => {
         order_number: order.order_number,
         tree_count: treeCount,
         customer_name: order.customer_name || null,
+        seller_name: sellerName,
       }),
     });
+
     const upText = await upstream.text();
     let upJson: any = null;
     try { upJson = JSON.parse(upText); } catch { /* keep null */ }
