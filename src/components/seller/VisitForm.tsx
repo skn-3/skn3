@@ -314,6 +314,14 @@ export function VisitForm({ sellerName }: VisitFormProps) {
         }
       }
 
+      // Auto-klimatkompensera (fire-and-forget) — får aldrig blockera flödet
+      try {
+        supabase.functions.invoke('klimatkompensera', { body: { case_id: newCase.id } })
+          .catch((e) => console.warn('[klimatkompensera] auto-invoke failed', e));
+      } catch (e) {
+        console.warn('[klimatkompensera] auto-invoke threw', e);
+      }
+
       return { visit, newCase };
     },
     onSuccess: ({ visit, newCase }) => {
