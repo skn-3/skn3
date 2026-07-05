@@ -473,12 +473,10 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
         {isEdit && !isKomp && order?.id && (
           <div className="px-5 py-3 border-b bg-green-50/40">
-            <KlimatKompensering
-              orderId={order.id}
-              suggestedTreeCount={(Number(order?.window_count) || 0) + (Number(order?.roof_window_count) || 0)}
-            />
+            <KlimatKompensering orderId={order.id} />
           </div>
         )}
+
 
         <div className="p-5 space-y-5">
 
