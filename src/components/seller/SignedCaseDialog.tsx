@@ -75,6 +75,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         order_value: form.order_value ? Number(form.order_value) : null,
         tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
         extra_hours_sold: Number(form.extra_hours_sold) || 0,
+        units: Math.max(1, Math.floor(Number(form.units))),
         team: form.team || null,
         km_team: form.km_team || null,
         google_drive_link: form.google_drive_link || null,
@@ -122,6 +123,14 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           console.error('Email notification failed:', emailErr);
           toast.warning('Ärendet skapades men mailet kunde inte skickas');
         }
+      }
+
+      // Fire-and-forget klimatkompensering
+      try {
+        supabase.functions.invoke('klimatkompensera', { body: { case_id: newCase.id } })
+          .catch((e) => console.warn('[klimatkompensera] auto-invoke failed', e));
+      } catch (e) {
+        console.warn('[klimatkompensera] auto-invoke threw', e);
       }
 
       return newCase;
