@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: oErr } = await admin
       .from('a_orders')
-      .select('id, order_number, customer_name, created_by, window_count, roof_window_count')
+      .select('id, order_number, customer_name, customer_email, created_by, window_count, roof_window_count')
       .eq('id', orderId)
       .maybeSingle();
     if (oErr || !order) return json({ error: 'Order finns inte' }, 404);
@@ -82,6 +82,7 @@ Deno.serve(async (req) => {
         tree_count: treeCount,
         customer_name: order.customer_name || null,
         seller_name: sellerName,
+        ...(order.customer_email ? { recipient_email: order.customer_email } : {}),
       }),
     });
 
