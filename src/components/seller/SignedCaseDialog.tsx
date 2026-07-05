@@ -210,6 +210,20 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
             <Input type="number" value={form.extra_hours_sold} onChange={(e) => update('extra_hours_sold', e.target.value)} />
           </div>
           <div className="space-y-1.5">
+            <Label>Antal enheter *</Label>
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              placeholder="Minst 1"
+              value={form.units}
+              onChange={(e) => update('units', e.target.value)}
+            />
+            {form.units !== '' && !unitsValid && (
+              <p className="text-xs text-destructive">Antal enheter måste vara minst 1.</p>
+            )}
+          </div>
+          <div className="space-y-1.5">
             <Label>KM-montör (valfritt)</Label>
             <Select value={form.km_team || '__none__'} onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
