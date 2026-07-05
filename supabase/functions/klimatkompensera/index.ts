@@ -31,19 +31,19 @@ Deno.serve(async (req) => {
     if (!SMARTKLIMAT_SECRET) return json({ error: 'SMARTKLIMAT_INBOUND_SECRET saknas' }, 500);
 
     const body = await req.json().catch(() => ({}));
-    const orderId = String(body?.order_id || '');
-    if (!orderId) return json({ error: 'order_id krävs' }, 400);
+    const caseId = String(body?.case_id || '');
+    if (!caseId) return json({ error: 'case_id krävs' }, 400);
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    const { data: order, error: oErr } = await admin
-      .from('a_orders')
-      .select('id, order_number, customer_name, customer_email, created_by, window_count, roof_window_count, door_count')
-      .eq('id', orderId)
+    const { data: caseRow, error: cErr } = await admin
+      .from('cases')
+      .select('id, customer_name, customer_email, seller, units')
+      .eq('id', caseId)
       .maybeSingle();
-    if (oErr || !order) return json({ error: 'Order finns inte' }, 404);
+    if (cErr || !caseRow) return json({ error: 'Case finns inte' }, 404);
 
-    const treeCount = (Number(order.window_count) || 0) + (Number(order.roof_window_count) || 0) + (Number(order.door_count) || 0);
+    const treeCount = Number(caseRow.units) || 0;
     if (treeCount <= 0) {
       return json({ skipped: true });
     }
@@ -51,27 +51,18 @@ Deno.serve(async (req) => {
       return json({ error: 'tree_count överstiger 500' }, 400);
     }
 
-    let sellerName: string | null = null;
-    if (order.created_by) {
-      const { data: prof } = await admin
-        .from('profiles')
-        .select('name')
-        .eq('id', order.created_by)
-        .maybeSingle();
-      sellerName = (prof?.name as string | undefined) ?? null;
-    }
-
+    // Idempotens
     const { data: existing } = await admin
-      .from('order_climate_compensation')
-      .select('klimat_verification_id, klimat_tree_count, klimat_kompenserad_at')
-      .eq('order_id', orderId)
+      .from('case_climate_compensation')
+      .select('verification_id, tree_count, kompenserad_at')
+      .eq('case_id', caseId)
       .maybeSingle();
     if (existing) {
       return json({
         error: 'Redan klimatkompenserad',
-        klimat_verification_id: existing.klimat_verification_id,
-        klimat_tree_count: existing.klimat_tree_count,
-        klimat_kompenserad_at: existing.klimat_kompenserad_at,
+        verification_id: existing.verification_id,
+        tree_count: existing.tree_count,
+        kompenserad_at: existing.kompenserad_at,
       }, 409);
     }
 
@@ -82,14 +73,13 @@ Deno.serve(async (req) => {
         'x-smartklimat-secret': SMARTKLIMAT_SECRET,
       },
       body: JSON.stringify({
-        order_number: order.order_number,
+        order_number: `CASE-${caseId}`,
         tree_count: treeCount,
-        customer_name: order.customer_name || null,
-        seller_name: sellerName,
-        ...(order.customer_email ? { recipient_email: order.customer_email } : {}),
+        customer_name: caseRow.customer_name || null,
+        seller_name: caseRow.seller || null,
+        ...(caseRow.customer_email ? { recipient_email: caseRow.customer_email } : {}),
       }),
     });
-
 
     const upText = await upstream.text();
     let upJson: any = null;
@@ -106,11 +96,11 @@ Deno.serve(async (req) => {
     }
 
     const nowIso = new Date().toISOString();
-    const { error: insErr } = await admin.from('order_climate_compensation').insert({
-      order_id: orderId,
-      klimat_kompenserad_at: nowIso,
-      klimat_tree_count: treeCount,
-      klimat_verification_id: String(verificationId),
+    const { error: insErr } = await admin.from('case_climate_compensation').insert({
+      case_id: caseId,
+      kompenserad_at: nowIso,
+      tree_count: treeCount,
+      verification_id: String(verificationId),
       created_by: userId,
     });
     if (insErr) {
@@ -119,9 +109,9 @@ Deno.serve(async (req) => {
     }
 
     return json({
-      klimat_verification_id: String(verificationId),
-      klimat_tree_count: treeCount,
-      klimat_kompenserad_at: nowIso,
+      verification_id: String(verificationId),
+      tree_count: treeCount,
+      kompenserad_at: nowIso,
       proof_url: `https://smartklimat.org/v/${verificationId}`,
     });
   } catch (err) {

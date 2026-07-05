@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, sendNotificationEmail, updateVisit, type VisitRow } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
     km_team: '',
     google_drive_link: '',
     notes: '',
+    units: '',
     media_consent: false,
     carry_help_needed: false,
     scheduled_delivery: false,
@@ -47,6 +49,8 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
   const tbNum = form.tb_percent === '' ? null : Number(form.tb_percent);
   const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
   const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
+  const unitsNum = form.units === '' ? NaN : Number(form.units);
+  const unitsValid = Number.isFinite(unitsNum) && unitsNum >= 1 && Number.isInteger(unitsNum);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleSubmit = () => {
@@ -71,6 +75,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         order_value: form.order_value ? Number(form.order_value) : null,
         tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
         extra_hours_sold: Number(form.extra_hours_sold) || 0,
+        units: Math.max(1, Math.floor(Number(form.units))),
         team: form.team || null,
         km_team: form.km_team || null,
         google_drive_link: form.google_drive_link || null,
@@ -118,6 +123,14 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           console.error('Email notification failed:', emailErr);
           toast.warning('Ärendet skapades men mailet kunde inte skickas');
         }
+      }
+
+      // Fire-and-forget klimatkompensering
+      try {
+        supabase.functions.invoke('klimatkompensera', { body: { case_id: newCase.id } })
+          .catch((e) => console.warn('[klimatkompensera] auto-invoke failed', e));
+      } catch (e) {
+        console.warn('[klimatkompensera] auto-invoke threw', e);
       }
 
       return newCase;
@@ -197,6 +210,20 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
             <Input type="number" value={form.extra_hours_sold} onChange={(e) => update('extra_hours_sold', e.target.value)} />
           </div>
           <div className="space-y-1.5">
+            <Label>Antal enheter *</Label>
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              placeholder="Minst 1"
+              value={form.units}
+              onChange={(e) => update('units', e.target.value)}
+            />
+            {form.units !== '' && !unitsValid && (
+              <p className="text-xs text-destructive">Antal enheter måste vara minst 1.</p>
+            )}
+          </div>
+          <div className="space-y-1.5">
             <Label>KM-montör (valfritt)</Label>
             <Select value={form.km_team || '__none__'} onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
@@ -256,7 +283,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Avbryt</Button>
           <Button
             onClick={handleSubmit}
-            disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
+            disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || !unitsValid || mutation.isPending}
           >
             {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}
           </Button>

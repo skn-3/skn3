@@ -212,6 +212,44 @@ export type Database = {
         }
         Relationships: []
       }
+      case_climate_compensation: {
+        Row: {
+          case_id: string
+          created_at: string
+          created_by: string | null
+          kompenserad_at: string
+          tree_count: number
+          updated_at: string
+          verification_id: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          created_by?: string | null
+          kompenserad_at?: string
+          tree_count: number
+          updated_at?: string
+          verification_id: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          created_by?: string | null
+          kompenserad_at?: string
+          tree_count?: number
+          updated_at?: string
+          verification_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_climate_compensation_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: true
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_costs: {
         Row: {
           amount: number

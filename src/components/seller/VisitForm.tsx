@@ -183,12 +183,14 @@ export function VisitForm({ sellerName }: VisitFormProps) {
   const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const unitsNum = form.units === '' ? NaN : Number(form.units);
+  const unitsValid = Number.isFinite(unitsNum) && unitsNum >= 1 && Number.isInteger(unitsNum);
   const baseValid = !!form.date && !!form.customer_name.trim() && !!form.address.trim();
   const canSubmit =
     baseValid &&
     !!form.result &&
     (form.result !== 'aterkoppla' || !!form.follow_up_date) &&
-    (form.result !== 'signerat' || (!!form.customer_phone.trim() && !!form.city.trim() && !tbInvalid));
+    (form.result !== 'signerat' || (!!form.customer_phone.trim() && !!form.city.trim() && !tbInvalid && unitsValid));
 
   // ===== Spara =====
   const mutation = useMutation({
@@ -310,6 +312,14 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           console.error('Email notification failed:', emailErr);
           toast.warning('Ärendet skapades men mailet kunde inte skickas');
         }
+      }
+
+      // Auto-klimatkompensera (fire-and-forget) — får aldrig blockera flödet
+      try {
+        supabase.functions.invoke('klimatkompensera', { body: { case_id: newCase.id } })
+          .catch((e) => console.warn('[klimatkompensera] auto-invoke failed', e));
+      } catch (e) {
+        console.warn('[klimatkompensera] auto-invoke threw', e);
       }
 
       return { visit, newCase };
@@ -623,15 +633,18 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Antal enheter</Label>
+                  <Label>Antal enheter *</Label>
                   <Input
                     type="number"
-                    min={0}
+                    min={1}
                     step={1}
-                    placeholder="Valfritt"
+                    placeholder="Minst 1"
                     value={form.units}
                     onChange={(e) => update('units', e.target.value)}
                   />
+                  {form.units !== '' && !unitsValid && (
+                    <p className="text-xs text-destructive">Antal enheter måste vara minst 1.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>KM-montör (valfritt)</Label>

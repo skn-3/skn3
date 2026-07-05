@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { User, Wrench, UserCircle, AlertTriangle, Clock } from 'lucide-react';
 import { differenceInCalendarDays, startOfISOWeek } from 'date-fns';
+import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
 
 const DELIVERY_RELEVANT_STATUSES = new Set([
   'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat',
@@ -198,6 +199,9 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancia
           ))}
         </div>
       )}
+      <div className="pt-1">
+        <KlimatKompenseradBadge caseId={caseData.id} compact />
+      </div>
     </button>
   );
 }
