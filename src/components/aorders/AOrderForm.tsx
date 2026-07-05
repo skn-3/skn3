@@ -19,6 +19,7 @@ import { SignedImage } from '@/components/shared/SignedImage';
 import { HOUR_RATE } from '@/lib/constants';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
 import { CoupleAOrderDialog } from '@/components/aorders/CoupleAOrderDialog';
+import { KlimatKompensering } from '@/components/aorders/KlimatKompensering';
 
 type AOrder = any;
 
@@ -470,7 +471,17 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
           </SheetTitle>
         </SheetHeader>
 
+        {isEdit && !isKomp && order?.id && (
+          <div className="px-5 py-3 border-b bg-green-50/40">
+            <KlimatKompensering
+              orderId={order.id}
+              suggestedTreeCount={(Number(order?.window_count) || 0) + (Number(order?.roof_window_count) || 0)}
+            />
+          </div>
+        )}
+
         <div className="p-5 space-y-5">
+
           {/* Header */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>

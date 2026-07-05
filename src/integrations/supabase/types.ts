@@ -955,6 +955,44 @@ export type Database = {
           },
         ]
       }
+      order_climate_compensation: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          klimat_kompenserad_at: string
+          klimat_tree_count: number
+          klimat_verification_id: string
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          klimat_kompenserad_at?: string
+          klimat_tree_count: number
+          klimat_verification_id: string
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          klimat_kompenserad_at?: string
+          klimat_tree_count?: number
+          klimat_verification_id?: string
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_climate_compensation_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "a_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
