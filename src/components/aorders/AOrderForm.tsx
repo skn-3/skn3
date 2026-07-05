@@ -350,7 +350,14 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         const { data, error } = await (supabase as any).from('a_orders').insert({ ...basePayload, images: imagePaths }).select('id').single();
         if (error) throw error;
         orderId = data.id;
+        // Auto-klimatkompensera nya standard-ordrar (fire-and-forget)
+        if (orderId && !isKomp && (basePayload.order_kind === 'standard')) {
+          const newOrderId = orderId;
+          supabase.functions.invoke('klimatkompensera', { body: { order_id: newOrderId } })
+            .catch((e) => console.warn('[klimatkompensera] auto-invoke failed', e));
+        }
       }
+
       // Upload pending images and update images column
       if (pendingImages.length && orderId) {
         const newPaths = await uploadPendingImages(orderId);
@@ -473,12 +480,10 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
         {isEdit && !isKomp && order?.id && (
           <div className="px-5 py-3 border-b bg-green-50/40">
-            <KlimatKompensering
-              orderId={order.id}
-              suggestedTreeCount={(Number(order?.window_count) || 0) + (Number(order?.roof_window_count) || 0)}
-            />
+            <KlimatKompensering orderId={order.id} />
           </div>
         )}
+
 
         <div className="p-5 space-y-5">
 
