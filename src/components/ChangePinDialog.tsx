@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/activityLog';
+import { isPredictablePin, PREDICTABLE_PIN_MESSAGE } from '@/lib/pinValidation';
 
 interface Props {
   open: boolean;
@@ -25,6 +26,7 @@ export function ChangePinDialog({ open, onOpenChange, userName }: Props) {
     setError(null);
     if (pin.length !== 6) { setError('PIN måste vara exakt 6 siffror'); return; }
     if (pin !== confirm) { setError('PIN-koderna matchar inte'); return; }
+    if (isPredictablePin(pin)) { setError(PREDICTABLE_PIN_MESSAGE); return; }
     setSaving(true);
     const { error: updErr } = await supabase.auth.updateUser({ password: pin });
     if (updErr) {

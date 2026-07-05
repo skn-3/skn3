@@ -13,12 +13,28 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function isPredictablePin(pin: string): boolean {
+  if (!/^\d{6}$/.test(pin)) return false;
+  const d = pin.split("").map(Number);
+  if (d.every((x) => x === d[0])) return true; // 111111, 000000
+  const diffs = d.slice(1).map((v, i) => (v - d[i] + 10) % 10);
+  if (diffs.every((x) => x === 1)) return true; // 123456
+  if (diffs.every((x) => x === 9)) return true; // 654321
+  if (pin.slice(0, 3) === pin.slice(3, 6)) return true; // 123123
+  return false;
+}
+
 function generatePin(): string {
-  const bytes = new Uint8Array(6);
-  crypto.getRandomValues(bytes);
-  let s = "";
-  for (let i = 0; i < 6; i++) s += (bytes[i] % 10).toString();
-  return s;
+  // Loopa tills vi får en icke-förutsägbar kod. Praktiskt taget alltid första försöket.
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const bytes = new Uint8Array(6);
+    crypto.getRandomValues(bytes);
+    let s = "";
+    for (let i = 0; i < 6; i++) s += (bytes[i] % 10).toString();
+    if (!isPredictablePin(s)) return s;
+  }
+  // Fallback som garanterat inte matchar mönstren
+  return "918273";
 }
 
 Deno.serve(async (req) => {
