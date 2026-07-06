@@ -832,6 +832,24 @@ export type Database = {
         }
         Relationships: []
       }
+      number_counters: {
+        Row: {
+          counter: number
+          series: string
+          year: number
+        }
+        Insert: {
+          counter?: number
+          series: string
+          year: number
+        }
+        Update: {
+          counter?: number
+          series?: string
+          year?: number
+        }
+        Relationships: []
+      }
       offers: {
         Row: {
           accept_ip: string | null
@@ -1339,6 +1357,7 @@ export type Database = {
       auth_user_name: { Args: never; Returns: string }
       auth_user_role: { Args: never; Returns: string }
       fix_a_order_sequence: { Args: never; Returns: undefined }
+      next_yearly_number: { Args: { p_series: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

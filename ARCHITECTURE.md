@@ -130,8 +130,8 @@ Systemet har tre olika fakturatyper som går i olika riktningar i pengaflödet. 
 
 | Serie | Format | Källa | Nollställs per år? |
 |---|---|---|---|
-| Offert | `ÅÅÅÅ-NNNN` | `offer_number_seq` | **Nej** (känd brist — se §11) |
-| Uppdrag | `ÅÅÅÅ-NNNN` | `uppdrag_number_seq` | **Nej** (känd brist) |
+| Offert | `ÅÅÅÅ-NNNN` | `number_counters` via `next_yearly_number('offer')` | **Ja** (fr.o.m. juli 2026) |
+| Uppdrag | `ÅÅÅÅ-NNNN` | `number_counters` via `next_yearly_number('uppdrag')` | **Ja** (fr.o.m. juli 2026) |
 | A-order | heltal (löpande) | `a_order_number_seq` | Nej (fortsätter från n3prenad-importen) |
 | A-orderfaktura | `{PREFIX}-NNN` per team | `montor_teams.next_invoice_number` | Nej |
 | Montörsdebet | `N3-NNN` | `montor_debit_seq` | Nej |
@@ -223,7 +223,7 @@ AI-gateway har separat saldo från build-credits (~$1/mån gratis räcker för n
 | Punkt | Beskrivning | Prioritet |
 |---|---|---|
 
-| **Nummerserie per år** | Offert- och uppdragsnummer återställs INTE till `-0001` vid årsskifte. Bör fixas före nyår. | Medel (innan jan) |
+
 | **GDPR / personnummer** | Systemet lagrar personnummer, kunduppgifter och fastighetsbeteckningar = känsliga personuppgifter. Behöver: laglig grund, gallringsrutin, personuppgiftsbiträdesavtal. **Inte en kodfråga — kräver juridisk kompetens.** | Hög (verksamhetsrisk) |
 | **Veckobackup innehåller PII** | `weekly-backup` mejlar full JSON med personnummer. Bör skrivas till privat bucket + notislänk i stället. | Medel |
 | **ErrorBoundary-täckning** | Verifiera att ErrorBoundary + loading-states täcker *alla* datahämtande vyer. | Låg |
