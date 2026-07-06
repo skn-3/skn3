@@ -193,7 +193,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
           )}
         </div>
       </div>
-      {(deliveryBadge || tidsBadge || kmInbox || (warnings && warnings.length > 0)) && (
+      {(deliveryBadge || tidsBadge || kmInbox || dwellBadge || (warnings && warnings.length > 0)) && (
         <div className="flex flex-wrap gap-1 pt-1">
           {deliveryBadge && (
             <span
