@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { ChevronDown, ChevronRight, AlertTriangle, TrendingDown, FileWarning, FileX } from 'lucide-react';
 import type { CaseRow } from '@/lib/supabaseClient';
+import { computeCaseEconomics } from '@/lib/caseEconomy';
 
 type DocRow = {
   id: string;
