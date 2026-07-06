@@ -60,6 +60,10 @@ ${ctaButton ? `<tr><td style="padding:0 28px 8px 28px;">${ctaButton}</td></tr>` 
 }
 
 function buildListTable(headers: string[], rows: string[][]): string {
+  const esc = (s: string) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+
+  rows = rows.map((row) => row.map(esc));
+
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
 <tr>${headers.map(h => `<th style="text-align:left;padding:8px 6px;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600;">${h}</th>`).join('')}</tr>
 ${rows.map(row => `<tr>${row.map(c => `<td style="padding:8px 6px;border-bottom:1px solid #f0f0f0;">${c}</td>`).join('')}</tr>`).join('')}
