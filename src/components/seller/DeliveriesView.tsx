@@ -203,6 +203,8 @@ export function DeliveriesView({ onSelectCase, currentUser }: { onSelectCase: (c
         </p>
       </header>
 
+      <CapacityMatrix />
+
       <Section
         icon={<AlertTriangle className="h-4 w-4" />}
         title="Försenade — vecka passerad, ej markerad levererad"
