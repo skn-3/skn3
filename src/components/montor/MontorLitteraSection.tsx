@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { Ruler, Star, Send, CheckCircle2, Pencil, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { changedFields, tillLabel, canonTillbehor } from '@/lib/litteraDiff';
 
 interface LitteraRow {
   id: string;
