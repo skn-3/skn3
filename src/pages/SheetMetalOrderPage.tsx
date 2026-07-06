@@ -154,6 +154,16 @@ export default function SheetMetalOrderPage() {
         })),
       };
 
+      const pdfDoc = buildSheetMetalOrderPdf({
+        caseAddress: caseData.address,
+        montorName: montor || 'Ej angiven',
+        montorPhone: MONTOR_PHONES[montor] || '',
+        notes,
+        profiles: payload.profiles as any,
+        createdBy: role.name,
+      });
+      (payload as any).pdf_base64 = pdfDoc.output('datauristring').split(',')[1];
+
       const { error: fnErr } = await supabase.functions.invoke('send-sheet-metal-order', { body: payload });
       if (fnErr) throw fnErr;
 
