@@ -199,7 +199,7 @@ export function MontorLitteraSection({
       const overviewChanged = (Object.keys(patch) as (keyof typeof patch)[]).some(
         (k) => (patch[k] ?? null) !== ((editing as any)[k] ?? null),
       );
-      const tillChanged = canonTill(tillbehor) !== canonTill((editing.spec as any)?.tillbehor);
+      const tillChanged = canonTillbehor(tillbehor) !== canonTillbehor((editing.spec as any)?.tillbehor);
       const spartypChanged = spartyp !== ((editing.spec as any)?.spartyp ?? null);
       if (!overviewChanged && !tillChanged && !spartypChanged) return { noop: true };
       const next_status = editing.cm_status === 'hanterad' ? 'hanterad' : 'justerad';
