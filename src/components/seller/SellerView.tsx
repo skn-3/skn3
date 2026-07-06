@@ -75,6 +75,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         {tab === 'pipeline' && (
           <Pipeline sellerName={role.name} isAdmin={isAdmin} onSelectCase={setSelectedCase} />
         )}
+        {tab === 'deliveries' && (
+          <DeliveriesView onSelectCase={setSelectedCase} currentUser={role.name} />
+        )}
         {tab === 'calendar' && (
           <CalendarView onSelectCase={setSelectedCase} />
         )}
