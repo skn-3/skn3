@@ -171,7 +171,7 @@ Samtliga ligger i `supabase/functions/`. Auth-modell anges per grupp.
 - `public-case-status` — kundstatussida för ärenden via `cases.public_token` (adress, tidslinje, leverans-/montagedatum, ev. klimatcertifikat). Läser aldrig ekonomi- eller interna fält.
 
 ### Cron / schemalagda (kräver CRON_SECRET-header)
-- `daily-reminders` — dagliga påminnelser (besök, leveranser, offerter, PIN-byte). Innehåller PÅMINNELSE 1–5.
+- `daily-reminders` — dagliga påminnelser (besök, leveranser, offerter, PIN-byte, kund-SMS dagen före montage). Innehåller PÅMINNELSE 1–6.
 - `weekly-summary` — veckosammanfattning.
 - `weekly-backup` — veckobackup till privata `backups`-bucketen; mejlar signerad nedladdningslänk (7 dagar) istället för bilaga. Gallrar backuper äldre än 90 dagar automatiskt.
 - `visit-reminder`, `upcoming-deliveries` — påminnelser.
