@@ -144,6 +144,7 @@ function getDwellBadge(c: any): { label: string; tone: 'amber' | 'red' } | null 
 export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hideFinancials }: CaseCardProps) {
   const tidsBadge = getScheduledDeliveryBadge(caseData as any);
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
+  const dwellBadge = getDwellBadge(caseData as any);
   const units = (caseData as any).units as number | null | undefined;
   const intensity = unitsIntensity(units);
   const cardStyle: CSSProperties | undefined = intensity != null
