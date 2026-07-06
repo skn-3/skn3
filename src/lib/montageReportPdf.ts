@@ -1,37 +1,9 @@
 import jsPDF from 'jspdf';
+import { litteraChangeLines, fmtVal } from '@/lib/litteraDiff';
 
 const DARK: [number, number, number] = [51, 51, 51];
 const MUTED: [number, number, number] = [120, 120, 120];
 const GREEN: [number, number, number] = [34, 122, 74];
-
-const FIELD_LABELS: [string, string][] = [
-  ['width', 'Bredd'], ['height', 'Höjd'], ['brostning', 'Bröstning'], ['antal', 'Antal'],
-  ['set_number', 'Set-nr'], ['set_position', 'Position'], ['set_lead', 'Ledare'],
-  ['color_inside', 'Kulör insida'], ['color_outside', 'Kulör utsida'],
-];
-
-function fv(v: unknown): string {
-  if (v === null || v === undefined || v === '') return '—';
-  if (typeof v === 'boolean') return v ? 'Ja' : 'Nej';
-  return String(v);
-}
-
-function litteraChanges(r: any): string[] {
-  const snap = r.imported_snapshot || {};
-  const out: string[] = [];
-  for (const [key, label] of FIELD_LABELS) {
-    const now = r[key] ?? null;
-    const orig = snap[key] ?? null;
-    if (now !== orig) out.push(`${label}: ${fv(orig)} -> ${fv(now)}`);
-  }
-  const sNow = r.spec?.spartyp ?? null;
-  const sOrig = snap?.spartyp ?? null;
-  if (sNow !== sOrig) out.push(`Spårtyp: ${fv(sOrig)} -> ${fv(sNow)}`);
-  const canon = (a: any) => JSON.stringify((Array.isArray(a) ? a : []).map((t: any) => [t?.typ, t?.placering, t?.material, t?.dimension, t?.matt, t?.kulor, t?.note]));
-  if (canon(r.spec?.tillbehor) !== canon(snap?.tillbehor)) out.push('Tillbehör justerade (se system för detalj)');
-  if (r.montor_note && String(r.montor_note).trim()) out.push(`Notering: ${String(r.montor_note).trim()}`);
-  return out;
-}
 
 export interface MontageReportArgs {
   caseData: any;
@@ -88,12 +60,12 @@ export function buildMontageReportPdf({ caseData, litteror, deviations }: Montag
   if (!litteror.length) {
     para('Kontrollmätning ej registrerad i systemet för detta ärende.');
   } else {
-    const changed = litteror.filter((r) => litteraChanges(r).length > 0);
+    const changed = litteror.filter((r) => litteraChangeLines(r).length > 0);
     para(`${litteror.length} littera kontrollmätta. ${changed.length === 0 ? 'Samtliga bekräftade enligt säljorder.' : `${changed.length} med justeringar mot säljorder:`}`);
     y += 1;
     for (const r of litteror) {
-      const ch = litteraChanges(r);
-      const size = r.width || r.height ? ` (${fv(r.width)}×${fv(r.height)}${r.brostning ? ` / ${r.brostning}` : ''})` : '';
+      const ch = litteraChangeLines(r);
+      const size = r.width || r.height ? ` (${fmtVal(r.width)}×${fmtVal(r.height)}${r.brostning ? ` / ${r.brostning}` : ''})` : '';
       ensure(6);
       para(`• ${r.littera || '—'}${size}${ch.length ? '' : ' — enligt order'}`, 9.5, ch.length > 0);
       for (const c of ch) { para(`   ${c}`, 9); }

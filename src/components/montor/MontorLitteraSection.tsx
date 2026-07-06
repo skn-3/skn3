@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { Ruler, Star, Send, CheckCircle2, Pencil, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { changedFields, tillLabel, canonTillbehor } from '@/lib/litteraDiff';
 
 interface LitteraRow {
   id: string;
@@ -66,18 +67,6 @@ const TILL_TYPES: { value: string; label: string }[] = [
 const TILL_LABEL: Record<string, string> = Object.fromEntries(TILL_TYPES.map((t) => [t.value, t.label]));
 const PLAC_LABEL: Record<string, string> = { invandig: 'Invändig', utvandig: 'Utvändig' };
 
-const TRACKED: { key: keyof LitteraRow; label: string }[] = [
-  { key: 'width', label: 'bredd' },
-  { key: 'height', label: 'höjd' },
-  { key: 'brostning', label: 'bröstning' },
-  { key: 'antal', label: 'antal' },
-  { key: 'set_number', label: 'set-nr' },
-  { key: 'set_position', label: 'position' },
-  { key: 'set_lead', label: 'ledare' },
-  { key: 'color_inside', label: 'kulör insida' },
-  { key: 'color_outside', label: 'kulör utsida' },
-];
-
 function numOrNull(v: string): number | null {
   const t = v.trim();
   if (t === '') return null;
@@ -87,16 +76,6 @@ function numOrNull(v: string): number | null {
 function strOrNull(v: string): string | null {
   const t = v.trim();
   return t === '' ? null : t;
-}
-
-function canonTill(arr: any): string {
-  const list = Array.isArray(arr) ? arr : [];
-  return JSON.stringify(
-    list.map((t: any) => [
-      t?.typ ?? 'ovrigt', t?.placering ?? null, t?.material ?? null,
-      t?.dimension ?? null, t?.matt ?? null, t?.kulor ?? null, t?.note ?? null,
-    ]),
-  );
 }
 
 function formToTill(f: TillForm) {
@@ -123,32 +102,6 @@ function tillToForm(t: any): TillForm {
 }
 function tillEmpty(f: TillForm): boolean {
   return !f.material.trim() && !f.dimension.trim() && !f.matt.trim() && !f.kulor.trim() && !f.note.trim() && (f.typ === 'ovrigt' || f.typ === '');
-}
-function tillLabel(t: any): string {
-  const head = [TILL_LABEL[t?.typ] ?? t?.typ ?? 'Tillbehör'];
-  if (t?.placering) head.push(`(${PLAC_LABEL[t.placering] ?? t.placering})`);
-  const meta: string[] = [];
-  if (t?.dimension) meta.push(t.dimension);
-  if (t?.matt) meta.push(`${t.matt} mm`);
-  if (t?.material) meta.push(t.material);
-  if (t?.kulor) meta.push(t.kulor);
-  let s = head.join(' ');
-  if (meta.length) s += ' · ' + meta.join(', ');
-  if (t?.note) s += ` (${t.note})`;
-  return s;
-}
-
-function changedFields(r: LitteraRow): string[] {
-  const snap = r.imported_snapshot || {};
-  const diff = TRACKED.filter(({ key }) => {
-    const now = r[key];
-    const orig = snap[key as string] ?? null;
-    return (now ?? null) !== (orig ?? null);
-  }).map((f) => f.label);
-  if (r.montor_note && r.montor_note.trim()) diff.push('övrigt');
-  if (canonTill((r.spec as any)?.tillbehor) !== canonTill(snap?.tillbehor)) diff.push('tillbehör');
-  if (((r.spec as any)?.spartyp ?? null) !== (snap?.spartyp ?? null)) diff.push('spårtyp');
-  return diff;
 }
 
 function fmtSize(r: { width: number | null; height: number | null; brostning: number | null }) {
@@ -246,7 +199,7 @@ export function MontorLitteraSection({
       const overviewChanged = (Object.keys(patch) as (keyof typeof patch)[]).some(
         (k) => (patch[k] ?? null) !== ((editing as any)[k] ?? null),
       );
-      const tillChanged = canonTill(tillbehor) !== canonTill((editing.spec as any)?.tillbehor);
+      const tillChanged = canonTillbehor(tillbehor) !== canonTillbehor((editing.spec as any)?.tillbehor);
       const spartypChanged = spartyp !== ((editing.spec as any)?.spartyp ?? null);
       if (!overviewChanged && !tillChanged && !spartypChanged) return { noop: true };
       const next_status = editing.cm_status === 'hanterad' ? 'hanterad' : 'justerad';
