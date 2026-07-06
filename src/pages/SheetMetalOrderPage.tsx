@@ -18,6 +18,7 @@ import { ArrowLeft, Plus, Trash2, Upload, Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProfileSvg } from '@/components/sheet-metal/ProfileSvg';
 import { compressImageToDataUrl } from '@/lib/imageCompress';
+import { buildSheetMetalOrderPdf } from '@/lib/sheetMetalOrderPdf';
 
 interface ProfileLength { length_mm: number; qty: number; }
 interface Measurements {
