@@ -171,22 +171,19 @@ export function EconomyView() {
 
     return cases.map(c => {
       const cd = docsByCase.get(c.id) || [];
-      const revenue = cd.filter(d => d.doc_type === 'mockfjards_payout')
-        .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
-      const aOrderLocalSum = aOrderSumByCase.get(c.id);
-      const aOrderDocSum = cd.filter(d => d.doc_type === 'a_order')
-        .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
-      // Primärt: lokala a_orders. Fallback: a_order-dokumentsumman.
-      const montorCost = aOrderLocalSum != null ? aOrderLocalSum : aOrderDocSum;
-      const hasMontor = (aOrderLocalSum != null && aOrderLocalSum !== 0) || aOrderDocSum > 0;
-      const sheetCost = cd.filter(d => d.doc_type === 'sheet_metal_invoice')
-        .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
-      const montorInvoiceCost = cd.filter(d => d.doc_type === 'montor_invoice')
-        .reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
       const ccBuckets = costsByCase.get(c.id) || { ovrigt: 0, reklMontor: 0, reklOvrig: 0, reklFabrik: 0 };
-      // Fabrik exkluderas helt (ersätts av fabrik)
-      const cost = montorCost + ccBuckets.ovrigt + ccBuckets.reklMontor + ccBuckets.reklOvrig + sheetCost + montorInvoiceCost;
-      const profit = revenue - cost;
+      const eco = computeCaseEconomics({
+        aOrderSum: aOrderSumByCase.has(c.id) ? aOrderSumByCase.get(c.id)! : null,
+        docs: cd,
+        buckets: ccBuckets,
+      });
+      const revenue = eco.revenue;
+      const montorCost = eco.montorCost;
+      const hasMontor = eco.hasMontor;
+      const sheetCost = eco.sheetCost;
+      const montorInvoiceCost = eco.montorInvoiceCost;
+      const cost = eco.cost;
+      const profit = eco.profit;
       const hasRevenue = revenue > 0;
       const complete = hasRevenue && hasMontor;
       return {
