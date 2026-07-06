@@ -2071,6 +2071,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
           <SheetMetalOrdersSection caseId={caseData.id} />
 
+          {isSeller && <CaseMarginBlock caseId={caseData.id} orderValue={(caseData as any).order_value ?? null} />}
+
           <LitterorSection caseId={caseData.id} isAdmin={isAdmin} currentUser={currentUser} />
 
 
