@@ -215,6 +215,18 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
               {tidsBadge.label}
             </span>
           )}
+          {dwellBadge && (
+            <span
+              className={
+                dwellBadge.tone === 'red'
+                  ? 'inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800'
+                  : 'inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800'
+              }
+            >
+              <Clock className="h-3 w-3" />
+              {dwellBadge.label}
+            </span>
+          )}
           {kmInbox && (
             <span className="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-800">
               <Ruler className="h-3 w-3" />
