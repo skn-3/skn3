@@ -170,7 +170,7 @@ Samtliga ligger i `supabase/functions/`. Auth-modell anges per grupp.
 ### Cron / schemalagda (kräver CRON_SECRET-header)
 - `daily-reminders` — dagliga påminnelser (besök, leveranser, offerter, PIN-byte). Innehåller PÅMINNELSE 1–5.
 - `weekly-summary` — veckosammanfattning.
-- `weekly-backup` — veckobackup (OBS: se §11, innehåller personnummer).
+- `weekly-backup` — veckobackup till privata `backups`-bucketen; mejlar signerad nedladdningslänk (7 dagar) istället för bilaga. Gallrar backuper äldre än 90 dagar automatiskt.
 - `visit-reminder`, `upcoming-deliveries` — påminnelser.
 
 ### Admin / system
@@ -202,6 +202,7 @@ AI-gateway har separat saldo från build-credits (~$1/mån gratis räcker för n
 - **`case-documents`** — **privat**. Offerter, fakturor, signerade avtal, A-order-PDF:er, bilder. PII bor här. Åtkomst via signerade URL:er, endast personal kan skriva/radera.
 - **`case-images`** — publik bucket. Ärendebilder (kvitton, montagebilder). Uppladdning/läsning för inloggade, radering endast personal.
 - **`sheet-metal-sketches`** — publik bucket. Plåtskisser.
+- **`backups`** — privat bucket utan klientpolicys (endast service_role). Veckovisa databasbackuper (zip); åtkomst via tidsbegränsad signerad länk i backupmejlet.
 
 ### Säkerhetsmodell (genomgången juni 2026)
 - **RLS aktiverat på samtliga 16 tabeller.** Montörer scopas till egna teamets ärenden; interna vinstfält och A-orderdata är personal-only.
@@ -225,7 +226,7 @@ AI-gateway har separat saldo från build-credits (~$1/mån gratis räcker för n
 
 
 | **GDPR / personnummer** | Systemet lagrar personnummer, kunduppgifter och fastighetsbeteckningar = känsliga personuppgifter. Behöver: laglig grund, gallringsrutin, personuppgiftsbiträdesavtal. **Inte en kodfråga — kräver juridisk kompetens.** | Hög (verksamhetsrisk) |
-| **Veckobackup innehåller PII** | `weekly-backup` mejlar full JSON med personnummer. Bör skrivas till privat bucket + notislänk i stället. | Medel |
+
 | **ErrorBoundary-täckning** | Verifiera att ErrorBoundary + loading-states täcker *alla* datahämtande vyer. | Låg |
 
 ---
