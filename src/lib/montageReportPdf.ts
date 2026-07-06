@@ -1,37 +1,9 @@
 import jsPDF from 'jspdf';
+import { litteraChangeLines, fmtVal } from '@/lib/litteraDiff';
 
 const DARK: [number, number, number] = [51, 51, 51];
 const MUTED: [number, number, number] = [120, 120, 120];
 const GREEN: [number, number, number] = [34, 122, 74];
-
-const FIELD_LABELS: [string, string][] = [
-  ['width', 'Bredd'], ['height', 'Höjd'], ['brostning', 'Bröstning'], ['antal', 'Antal'],
-  ['set_number', 'Set-nr'], ['set_position', 'Position'], ['set_lead', 'Ledare'],
-  ['color_inside', 'Kulör insida'], ['color_outside', 'Kulör utsida'],
-];
-
-function fv(v: unknown): string {
-  if (v === null || v === undefined || v === '') return '—';
-  if (typeof v === 'boolean') return v ? 'Ja' : 'Nej';
-  return String(v);
-}
-
-function litteraChanges(r: any): string[] {
-  const snap = r.imported_snapshot || {};
-  const out: string[] = [];
-  for (const [key, label] of FIELD_LABELS) {
-    const now = r[key] ?? null;
-    const orig = snap[key] ?? null;
-    if (now !== orig) out.push(`${label}: ${fv(orig)} -> ${fv(now)}`);
-  }
-  const sNow = r.spec?.spartyp ?? null;
-  const sOrig = snap?.spartyp ?? null;
-  if (sNow !== sOrig) out.push(`Spårtyp: ${fv(sOrig)} -> ${fv(sNow)}`);
-  const canon = (a: any) => JSON.stringify((Array.isArray(a) ? a : []).map((t: any) => [t?.typ, t?.placering, t?.material, t?.dimension, t?.matt, t?.kulor, t?.note]));
-  if (canon(r.spec?.tillbehor) !== canon(snap?.tillbehor)) out.push('Tillbehör justerade (se system för detalj)');
-  if (r.montor_note && String(r.montor_note).trim()) out.push(`Notering: ${String(r.montor_note).trim()}`);
-  return out;
-}
 
 export interface MontageReportArgs {
   caseData: any;
