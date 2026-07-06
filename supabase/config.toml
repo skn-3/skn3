@@ -6,8 +6,6 @@ verify_jwt = false
 [functions.weekly-backup]
 verify_jwt = false
 
-[functions.caseflow-gateway]
-verify_jwt = false
 
 [functions.seed-users]
 verify_jwt = false
