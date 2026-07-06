@@ -508,6 +508,34 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ===================== PÅMINNELSE 6: Kund-SMS dagen före montage =====================
+    {
+      const sthlm = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm' });
+      const tomorrowStr = sthlm.format(new Date(Date.now() + 24 * 60 * 60 * 1000));
+      const { data: mCases } = await supabase
+        .from('cases')
+        .select('id')
+        .eq('status', 'montage_bokat')
+        .eq('montage_date', tomorrowStr);
+
+      let sentCount = 0;
+      const CRON = Deno.env.get('BACKUP_TRIGGER_SECRET')!;
+      for (const c of (mCases || []) as any[]) {
+        try {
+          const res = await fetch(`${supabaseUrl}/functions/v1/send-customer-sms`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-cron-secret': CRON },
+            body: JSON.stringify({ case_id: c.id, kind: 'montage_paminnelse' }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data?.sent) sentCount++;
+        } catch (e) {
+          console.error(`Customer SMS reminder failed for ${c.id}:`, e);
+        }
+      }
+      if (sentCount > 0) results.push(`Reminder 6: Sent ${sentCount} customer montage SMS`);
+    }
+
     console.log('Daily reminders completed:', results);
     return new Response(JSON.stringify({ success: true, results }), {
       status: 200,
