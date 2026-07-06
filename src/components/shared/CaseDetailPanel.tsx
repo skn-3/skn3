@@ -838,6 +838,18 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         toast.warning('Status uppdaterad men mailet kunde inte skickas');
       }
 
+      // Kund-SMS: montage bokat (hoppar tyst över vid ogiltigt nummer)
+      try {
+        const { data: sms } = await supabase.functions.invoke('send-customer-sms', {
+          body: { case_id: caseData.id, kind: 'montage_bokat' },
+        });
+        if (sms?.skipped === 'no_valid_phone') {
+          toast.info('Kundens telefonnummer saknas eller är ogiltigt — inget SMS skickades');
+        }
+      } catch (e) {
+        console.error('Customer SMS failed:', e);
+      }
+
       // Tilldelningsmail till montör (separat) — team kan ha bytts via approvalMontor
       await sendMontorAssignmentEmail(
         { ...caseData, team: approvalMontor, montage_date: dateStr },
