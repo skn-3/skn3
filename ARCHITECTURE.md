@@ -226,7 +226,7 @@ AI-gateway har separat saldo från build-credits (~$1/mån gratis räcker för n
 
 
 | **GDPR / personnummer** | Systemet lagrar personnummer, kunduppgifter och fastighetsbeteckningar = känsliga personuppgifter. Behöver: laglig grund, gallringsrutin, personuppgiftsbiträdesavtal. **Inte en kodfråga — kräver juridisk kompetens.** | Hög (verksamhetsrisk) |
-| **Veckobackup innehåller PII** | `weekly-backup` mejlar full JSON med personnummer. Bör skrivas till privat bucket + notislänk i stället. | Medel |
+
 | **ErrorBoundary-täckning** | Verifiera att ErrorBoundary + loading-states täcker *alla* datahämtande vyer. | Låg |
 
 ---
