@@ -140,26 +140,3 @@ export async function searchOrders(term: string): Promise<OrderRow[]> {
   }
   return (data ?? []).map(toRow);
 }
-
-/** ENDA kvarvarande proxy-funktionen: hämtar ALLA ordrar från gamla n3prenad
- *  (arkivet) för engångsimporten i N3prenadImportView. Tas bort i FAS 4 steg 2. */
-export async function listAllOrders(): Promise<any[]> {
-  const pageSize = 500;
-  let offset = 0;
-  const all: any[] = [];
-  for (let i = 0; i < 200; i++) {
-    const { data, error } = await supabase.functions.invoke('orders-proxy', {
-      body: { action: 'list', limit: pageSize, offset },
-    });
-    if (error) {
-      console.error('[orderGateway] listAllOrders failed:', error);
-      break;
-    }
-    const batch = Array.isArray(data) ? data : (data && Array.isArray((data as any).data) ? (data as any).data : []);
-    if (batch.length === 0) break;
-    all.push(...batch);
-    if (batch.length < pageSize) break;
-    offset += batch.length;
-  }
-  return all;
-}
