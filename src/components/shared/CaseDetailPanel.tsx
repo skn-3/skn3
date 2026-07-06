@@ -2071,6 +2071,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
           <SheetMetalOrdersSection caseId={caseData.id} />
 
+          {isSeller && (caseData as any).public_token && (
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const url = `${window.location.origin}/status/${(caseData as any).public_token}`;
+                  navigator.clipboard.writeText(url);
+                  toast.success('Kundlänk kopierad');
+                }}
+              >
+                <Link2 className="w-4 h-4 mr-2" /> Kopiera kundlänk
+              </Button>
+            </div>
+          )}
           {isSeller && <CaseMarginBlock caseId={caseData.id} orderValue={(caseData as any).order_value ?? null} />}
 
           <LitterorSection caseId={caseData.id} isAdmin={isAdmin} currentUser={currentUser} />
