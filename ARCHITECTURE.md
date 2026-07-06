@@ -170,7 +170,7 @@ Samtliga ligger i `supabase/functions/`. Auth-modell anges per grupp.
 ### Cron / schemalagda (kräver CRON_SECRET-header)
 - `daily-reminders` — dagliga påminnelser (besök, leveranser, offerter, PIN-byte). Innehåller PÅMINNELSE 1–5.
 - `weekly-summary` — veckosammanfattning.
-- `weekly-backup` — veckobackup (OBS: se §11, innehåller personnummer).
+- `weekly-backup` — veckobackup till privata `backups`-bucketen; mejlar signerad nedladdningslänk (7 dagar) istället för bilaga. Gallrar backuper äldre än 90 dagar automatiskt.
 - `visit-reminder`, `upcoming-deliveries` — påminnelser.
 
 ### Admin / system
