@@ -423,6 +423,7 @@ export type Database = {
           scheduled_delivery: boolean
           seller: string
           status: string
+          status_changed_at: string
           tb_percent: number | null
           team: string | null
           units: number | null
@@ -460,6 +461,7 @@ export type Database = {
           scheduled_delivery?: boolean
           seller: string
           status?: string
+          status_changed_at?: string
           tb_percent?: number | null
           team?: string | null
           units?: number | null
@@ -497,6 +499,7 @@ export type Database = {
           scheduled_delivery?: boolean
           seller?: string
           status?: string
+          status_changed_at?: string
           tb_percent?: number | null
           team?: string | null
           units?: number | null
