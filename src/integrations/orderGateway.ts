@@ -131,7 +131,7 @@ export async function searchOrders(term: string): Promise<OrderRow[]> {
   const { data, error } = await (supabase as any)
     .from('a_orders')
     .select(COLS)
-    .or(`customer_address.ilike.%${t}%,customer_name.ilike.%${t}%`)
+    .or(`customer_address.ilike.%${t.replace(/[,()]/g, ' ')}%,customer_name.ilike.%${t.replace(/[,()]/g, ' ')}%`)
     .order('date', { ascending: false })
     .limit(10);
   if (error) {
