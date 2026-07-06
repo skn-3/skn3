@@ -238,7 +238,7 @@ A-ordersystemet (montörsersättning, fakturering, kreditering) var ursprunglige
 - Importen är idempotent via `source_n3prenad_id`.
 - Skälet: den fristående appen saknade inloggning helt (vinsttimmar skyddades bara av att ingen kände URL:en), och den korsande gateway-sömmen var systemets sköraste del.
 
-Kvar att göra: FAS 4 (se §11) som river de sista gateway-beroendena.
+FAS 4 genomförd juli 2026: alla vyer läser lokala `a_orders`; importverktyget, `orders-proxy` och `caseflow-gateway` är borttagna.
 
 ---
 
