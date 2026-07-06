@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { User, Wrench, UserCircle, AlertTriangle, Clock } from 'lucide-react';
+import { User, Wrench, UserCircle, AlertTriangle, Clock, Ruler } from 'lucide-react';
 import { differenceInCalendarDays, startOfISOWeek } from 'date-fns';
 import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
 
@@ -89,6 +89,7 @@ interface CaseCardProps {
   onClick: () => void;
   showSeller?: boolean;
   warnings?: string[];
+  kmInbox?: boolean;
   hideFinancials?: boolean;
 }
 
@@ -115,7 +116,7 @@ function getScheduledDeliveryBadge(c: any): { label: string; urgent: boolean } |
   return { label: '🕐 Tidsstyrd leverans', urgent: false };
 }
 
-export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancials }: CaseCardProps) {
+export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hideFinancials }: CaseCardProps) {
   const tidsBadge = getScheduledDeliveryBadge(caseData as any);
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
   const units = (caseData as any).units as number | null | undefined;
@@ -166,7 +167,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, hideFinancia
           )}
         </div>
       </div>
-      {(deliveryBadge || tidsBadge || (warnings && warnings.length > 0)) && (
+      {(deliveryBadge || tidsBadge || kmInbox || (warnings && warnings.length > 0)) && (
         <div className="flex flex-wrap gap-1 pt-1">
           {deliveryBadge && (
             <span
