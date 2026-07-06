@@ -130,8 +130,8 @@ Systemet har tre olika fakturatyper som går i olika riktningar i pengaflödet. 
 
 | Serie | Format | Källa | Nollställs per år? |
 |---|---|---|---|
-| Offert | `ÅÅÅÅ-NNNN` | `offer_number_seq` | **Nej** (känd brist — se §11) |
-| Uppdrag | `ÅÅÅÅ-NNNN` | `uppdrag_number_seq` | **Nej** (känd brist) |
+| Offert | `ÅÅÅÅ-NNNN` | `number_counters` via `next_yearly_number('offer')` | **Ja** (fr.o.m. juli 2026) |
+| Uppdrag | `ÅÅÅÅ-NNNN` | `number_counters` via `next_yearly_number('uppdrag')` | **Ja** (fr.o.m. juli 2026) |
 | A-order | heltal (löpande) | `a_order_number_seq` | Nej (fortsätter från n3prenad-importen) |
 | A-orderfaktura | `{PREFIX}-NNN` per team | `montor_teams.next_invoice_number` | Nej |
 | Montörsdebet | `N3-NNN` | `montor_debit_seq` | Nej |
