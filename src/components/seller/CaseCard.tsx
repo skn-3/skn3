@@ -116,9 +116,35 @@ function getScheduledDeliveryBadge(c: any): { label: string; urgent: boolean } |
   return { label: '🕐 Tidsstyrd leverans', urgent: false };
 }
 
+// Liggetid: [varningsdagar, röda dagar] per status. Statusar som saknas här visar aldrig chip.
+const STATUS_DWELL: Record<string, [number, number]> = {
+  ny: [7, 14],
+  vantar_km: [7, 14],
+  km_bokad: [14, 21],
+  km_klar: [3, 7],
+  vantar_godkannande: [3, 7],
+  godkand: [35, 50],
+  i_produktion: [35, 50],
+  leverans_klar: [7, 14],
+  montage_pagar: [7, 14],
+  montage_klart: [14, 30],
+};
+
+function getDwellBadge(c: any): { label: string; tone: 'amber' | 'red' } | null {
+  const th = STATUS_DWELL[c.status];
+  if (!th) return null;
+  const since: string | null = c.status_changed_at || c.created_at || null;
+  if (!since) return null;
+  const days = differenceInCalendarDays(new Date(), new Date(since));
+  if (days >= th[1]) return { label: `${days} dagar i steget`, tone: 'red' };
+  if (days >= th[0]) return { label: `${days} dagar i steget`, tone: 'amber' };
+  return null;
+}
+
 export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hideFinancials }: CaseCardProps) {
   const tidsBadge = getScheduledDeliveryBadge(caseData as any);
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
+  const dwellBadge = getDwellBadge(caseData as any);
   const units = (caseData as any).units as number | null | undefined;
   const intensity = unitsIntensity(units);
   const cardStyle: CSSProperties | undefined = intensity != null
@@ -167,7 +193,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
           )}
         </div>
       </div>
-      {(deliveryBadge || tidsBadge || kmInbox || (warnings && warnings.length > 0)) && (
+      {(deliveryBadge || tidsBadge || kmInbox || dwellBadge || (warnings && warnings.length > 0)) && (
         <div className="flex flex-wrap gap-1 pt-1">
           {deliveryBadge && (
             <span
@@ -187,6 +213,18 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
             >
               <Clock className="h-3 w-3" />
               {tidsBadge.label}
+            </span>
+          )}
+          {dwellBadge && (
+            <span
+              className={
+                dwellBadge.tone === 'red'
+                  ? 'inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800'
+                  : 'inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800'
+              }
+            >
+              <Clock className="h-3 w-3" />
+              {dwellBadge.label}
             </span>
           )}
           {kmInbox && (

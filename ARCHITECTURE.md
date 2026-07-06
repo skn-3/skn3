@@ -64,7 +64,7 @@ Inloggning sker med namn + PIN (4–6 siffror). PIN lagras som Supabase Auth-lö
 Tabeller (Postgres, samtliga med RLS aktiverat):
 
 ### Ärende-/pipeline-domän
-- **`cases`** — kärnan. Mockfjärds-jobb: kund, adress, `order_number` (Mockfjärds försäljningsorder), team, km_team, status, ekonomifält (`order_value`, `extra_hours_sold`, `extra_hours_approved`), montage-/leveransdatum.
+- **`cases`** — kärnan. Mockfjärds-jobb: kund, adress, `order_number` (Mockfjärds försäljningsorder), team, km_team, status, ekonomifält (`order_value`, `extra_hours_sold`, `extra_hours_approved`), montage-/leveransdatum, `status_changed_at` (sätts av trigger vid statusbyte; driver liggetids-chippen i pipelinen).
 - **`case_events`** — händelselogg per ärende.
 - **`case_costs`** — kostnader per ärende. `category`: `ovrigt` | `reklamation`; `responsible`: fabrik/saljare/montor/okant (styr om kostnaden belastar teamet i statistiken).
 - **`case_documents`** — metadata för uppladdade filer (kopplade till privata bucketen).
