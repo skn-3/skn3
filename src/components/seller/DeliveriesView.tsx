@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { getISOWeek, getISOWeekYear } from 'date-fns';
 import { Truck, CalendarCheck, AlertTriangle, PackageCheck, CalendarX } from 'lucide-react';
 import { toast } from 'sonner';
+import { CapacityMatrix } from './CapacityMatrix';
 
 const ACTIVE_STATUSES = ['godkand', 'i_produktion', 'leverans_klar'];
 
@@ -201,6 +202,8 @@ export function DeliveriesView({ onSelectCase, currentUser }: { onSelectCase: (c
           Vecka {curWeek}. Markera anlända leveranser som klara och boka montage för de som redan levererats.
         </p>
       </header>
+
+      <CapacityMatrix />
 
       <Section
         icon={<AlertTriangle className="h-4 w-4" />}
