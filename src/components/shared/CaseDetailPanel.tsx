@@ -35,6 +35,7 @@ import { cn, formatAmount } from '@/lib/utils';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 import { LitterorSection } from '@/components/shared/LitterorSection';
 import { CaseMarginBlock } from '@/components/shared/CaseMarginBlock';
+import { MontageReportButton } from '@/components/shared/MontageReportButton';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { OfferForm } from '@/components/offers/OfferForm';
@@ -2087,6 +2088,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </div>
           )}
           {isSeller && <CaseMarginBlock caseId={caseData.id} orderValue={(caseData as any).order_value ?? null} />}
+
+          {isSeller && (caseData.status === 'montage_klart' || caseData.status === 'fakturerad') && (
+            <div className="flex justify-end">
+              <MontageReportButton caseData={caseData} />
+            </div>
+          )}
 
           <LitterorSection caseId={caseData.id} isAdmin={isAdmin} currentUser={currentUser} />
 

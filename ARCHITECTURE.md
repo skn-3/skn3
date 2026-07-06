@@ -152,6 +152,7 @@ Samtliga ligger i `supabase/functions/`. Auth-modell anges per grupp.
 - `send-montor-debit-invoice` — debetfaktura till montör. CC: n3prenad@, daniel@malke.se.
 - `send-sheet-metal-order` — plåtbeställning till joakim@byggplatar.se, CC mf@malke.se.
 - `notify-email` — generella interna notiser.
+- `send-montage-report` — montagerapport-PDF (klientbyggd jsPDF) till valfri mottagare, CC daniel@malke.se + mf@malke.se. Innehåller littera-utfall och avvikelser, aldrig interna kostnader.
 
 ### AI-extraktion (Gemini, kräver inloggad personal-JWT)
 - `extract-ue-offer` — UE-underentreprenörsofferter (PDF → rader, markup, ROT-split).
