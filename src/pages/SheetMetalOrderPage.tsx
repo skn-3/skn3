@@ -110,6 +110,26 @@ export default function SheetMetalOrderPage() {
     }
   };
 
+  const previewPdf = () => {
+    if (!caseData || !role) return;
+    const doc = buildSheetMetalOrderPdf({
+      caseAddress: caseData.address,
+      montorName: montor || 'Ej angiven',
+      montorPhone: MONTOR_PHONES[montor] || '',
+      notes,
+      profiles: profiles.map(p => ({
+        mode: p.mode, type: p.type, color: p.color, with_gables: p.with_gables,
+        lengths: p.lengths,
+        measurements: p.mode === 'manual' ? p.measurements : undefined,
+        image_filename: p.mode === 'image' ? p.image_filename : undefined,
+        image_description: p.mode === 'image' ? p.image_description : undefined,
+      })) as any,
+      createdBy: role.name,
+    });
+    doc.save(`Bestallning_byggplat_${caseData.address.replace(/\s+/g, '_')}.pdf`);
+  };
+
+
   const submit = useMutation({
     mutationFn: async () => {
       if (!caseData || !role) throw new Error('Saknar data');
