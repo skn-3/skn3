@@ -7,6 +7,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { SellerNav, type SellerTab } from './SellerNav';
 import { Pipeline } from './Pipeline';
 import { SellerDashboard } from './SellerDashboard';
+import { DeliveriesView } from './DeliveriesView';
 import { VisitForm } from './VisitForm';
 import { AdminView } from './AdminView';
 import { EconomyView } from '@/components/economy/EconomyView';
@@ -73,6 +74,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
 
         {tab === 'pipeline' && (
           <Pipeline sellerName={role.name} isAdmin={isAdmin} onSelectCase={setSelectedCase} />
+        )}
+        {tab === 'deliveries' && (
+          <DeliveriesView onSelectCase={setSelectedCase} currentUser={role.name} />
         )}
         {tab === 'calendar' && (
           <CalendarView onSelectCase={setSelectedCase} />
