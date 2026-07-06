@@ -451,6 +451,9 @@ export default function SheetMetalOrderPage() {
 
             <div className="flex justify-between pt-4">
               <Button variant="outline" onClick={() => setStep(1)}>← Tillbaka</Button>
+              <Button type="button" variant="outline" onClick={previewPdf}>
+                Förhandsgranska PDF
+              </Button>
               <Button onClick={() => submit.mutate()} disabled={submit.isPending || !montor}>
                 {submit.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Skickar...</> : <><Send className="h-4 w-4 mr-1" /> Skicka till plåtslagare</>}
               </Button>
