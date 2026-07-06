@@ -12,16 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { Ruler, Trash2, RefreshCw, Star, Plus, ChevronDown, ChevronRight, CheckCircle2, Undo2, X } from 'lucide-react';
-
-interface Tillbehor {
-  typ: string;
-  placering: string | null;
-  material: string | null;
-  dimension: string | null;
-  matt: string | null;
-  kulor: string | null;
-  note: string | null;
-}
+import { type Tillbehor, type TillChange, TILLBEHOR_LABEL, PLACERING_LABEL, fmtVal, diffTillbehor, diffOverview } from '@/lib/litteraDiff';
 
 interface LitteraRow {
   id: string;
@@ -54,95 +45,6 @@ const STATUS_LABEL: Record<string, { label: string; variant: BadgeVariant }> = {
   inskickad: { label: 'Inskickad', variant: 'default' },
   hanterad: { label: 'Hanterad', variant: 'default' },
 };
-
-const TILLBEHOR_LABEL: Record<string, string> = {
-  foder: 'Foder', smyg: 'Smyg', fonsterbank: 'Fönsterbänk', sockellist: 'Sockellist',
-  plisse: 'Plissé', l_profil: 'L-profil / plåt', ovrigt: 'Övrigt',
-};
-const PLACERING_LABEL: Record<string, string> = { invandig: 'Invändig', utvandig: 'Utvändig' };
-
-const FIELD_LABELS: { key: keyof LitteraRow; label: string }[] = [
-  { key: 'width', label: 'Bredd' },
-  { key: 'height', label: 'Höjd' },
-  { key: 'brostning', label: 'Bröstning' },
-  { key: 'antal', label: 'Antal' },
-  { key: 'set_number', label: 'Set-nr' },
-  { key: 'set_position', label: 'Position' },
-  { key: 'set_lead', label: 'Ledare' },
-  { key: 'color_inside', label: 'Kulör insida' },
-  { key: 'color_outside', label: 'Kulör utsida' },
-];
-
-function fmtVal(v: unknown): string {
-  if (v === null || v === undefined || v === '') return '—';
-  if (typeof v === 'boolean') return v ? 'Ja' : 'Nej';
-  return String(v);
-}
-
-function tillHead(t: Tillbehor): string {
-  let s = TILLBEHOR_LABEL[t.typ] ?? t.typ;
-  if (t.placering) s += ` (${PLACERING_LABEL[t.placering] ?? t.placering})`;
-  return s;
-}
-
-function tillLabel(t: Tillbehor): string {
-  const meta: string[] = [];
-  if (t.dimension) meta.push(t.dimension);
-  if (t.matt) meta.push(`${t.matt} mm`);
-  if (t.material) meta.push(t.material);
-  if (t.kulor) meta.push(t.kulor);
-  let s = tillHead(t);
-  if (meta.length) s += ' · ' + meta.join(', ');
-  if (t.note) s += ` (${t.note})`;
-  return s;
-}
-
-function eqTill(a: Tillbehor, b: Tillbehor): boolean {
-  return (['material', 'dimension', 'matt', 'kulor', 'note'] as const).every(
-    (k) => ((a as any)[k] ?? null) === ((b as any)[k] ?? null),
-  );
-}
-
-type TillChange = { kind: 'added' | 'removed' | 'changed'; label: string; details?: string[] };
-
-function diffTillbehor(orig: Tillbehor[], cur: Tillbehor[]): TillChange[] {
-  const changes: TillChange[] = [];
-  const left = [...cur];
-  for (const o of orig) {
-    let idx = left.findIndex((t) => t.typ === o.typ && (t.placering ?? null) === (o.placering ?? null) && eqTill(t, o));
-    if (idx === -1) idx = left.findIndex((t) => t.typ === o.typ && (t.placering ?? null) === (o.placering ?? null));
-    if (idx === -1) {
-      changes.push({ kind: 'removed', label: tillLabel(o) });
-    } else {
-      const t = left[idx];
-      left.splice(idx, 1);
-      const details: string[] = [];
-      const meta: [keyof Tillbehor, string][] = [['material', 'material'], ['dimension', 'dim'], ['matt', 'mått'], ['kulor', 'kulör'], ['note', 'notering']];
-      for (const [k, lbl] of meta) {
-        const a = (o as any)[k] ?? null;
-        const b = (t as any)[k] ?? null;
-        if (a !== b) details.push(`${lbl}: ${fmtVal(a)} → ${fmtVal(b)}`);
-      }
-      if (details.length) changes.push({ kind: 'changed', label: tillHead(o), details });
-    }
-  }
-  for (const t of left) changes.push({ kind: 'added', label: tillLabel(t) });
-  return changes;
-}
-
-function diffOverview(r: LitteraRow): string[] {
-  const snap = r.imported_snapshot || {};
-  const out: string[] = [];
-  for (const { key, label } of FIELD_LABELS) {
-    const now = (r as any)[key] ?? null;
-    const orig = snap[key as string] ?? null;
-    if (now !== orig) out.push(`${label}: ${fmtVal(orig)} → ${fmtVal(now)}`);
-  }
-  const sNow = (r.spec as any)?.spartyp ?? null;
-  const sOrig = snap?.spartyp ?? null;
-  if (sNow !== sOrig) out.push(`Spårtyp: ${fmtVal(sOrig)} → ${fmtVal(sNow)}`);
-  return out;
-}
 
 async function fileToBase64(file: File): Promise<{ base64: string; mime: string }> {
   const buf = await file.arrayBuffer();
