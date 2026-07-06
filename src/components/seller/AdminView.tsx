@@ -60,7 +60,6 @@ export function AdminView({ currentUser }: AdminViewProps) {
         </TabsContent>
         <TabsContent value="teams" className="mt-4">
           <MontorTeamsAdmin />
-          <N3prenadImportView />
         </TabsContent>
         <TabsContent value="prices" className="mt-4">
           <AOrderPricesAdmin />
