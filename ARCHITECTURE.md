@@ -4,7 +4,7 @@
 > Syftet med detta dokument är att kunskapen om systemet ska bo i repot — inte bara i en chatt eller i någons huvud.
 > **Håll det uppdaterat:** när en ny tabell, edge-funktion, fakturatyp eller nummerserie tillkommer, lägg in den här i samma veva.
 
-Senast större uppdatering: juni 2026.
+Senast större uppdatering: juli 2026.
 
 ---
 
