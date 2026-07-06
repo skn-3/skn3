@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { getISOWeek, getISOWeekYear } from 'date-fns';
 import { Truck, CalendarCheck, AlertTriangle, PackageCheck, CalendarX } from 'lucide-react';
 import { toast } from 'sonner';
+import { CapacityMatrix } from './CapacityMatrix';
 
 const ACTIVE_STATUSES = ['godkand', 'i_produktion', 'leverans_klar'];
 
