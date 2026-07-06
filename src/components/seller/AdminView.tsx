@@ -8,7 +8,7 @@ import { ActivityLogView } from './ActivityLogView';
 import { LinkOrdersView } from './LinkOrdersView';
 import { MontorTeamsAdmin } from '@/components/aorders/MontorTeamsAdmin';
 import { AOrderPricesAdmin } from '@/components/aorders/AOrderPricesAdmin';
-import { N3prenadImportView } from '@/components/aorders/N3prenadImportView';
+
 import { PinCampaignAdmin } from './PinCampaignAdmin';
 
 interface AdminViewProps {
@@ -60,7 +60,6 @@ export function AdminView({ currentUser }: AdminViewProps) {
         </TabsContent>
         <TabsContent value="teams" className="mt-4">
           <MontorTeamsAdmin />
-          <N3prenadImportView />
         </TabsContent>
         <TabsContent value="prices" className="mt-4">
           <AOrderPricesAdmin />

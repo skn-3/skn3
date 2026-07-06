@@ -4,7 +4,7 @@
 > Syftet med detta dokument är att kunskapen om systemet ska bo i repot — inte bara i en chatt eller i någons huvud.
 > **Håll det uppdaterat:** när en ny tabell, edge-funktion, fakturatyp eller nummerserie tillkommer, lägg in den här i samma veva.
 
-Senast större uppdatering: juni 2026.
+Senast större uppdatering: juli 2026.
 
 ---
 
@@ -178,9 +178,8 @@ Samtliga ligger i `supabase/functions/`. Auth-modell anges per grupp.
 - `send-pin-change-request` — PIN-kampanj (mejl + must_change_pin).
 - `seed-users` — engångsseedning (slumpmässiga PIN, inga hårdkodade).
 
-### Legacy / under avveckling
-- `orders-proxy` — proxy mot gamla fristående n3prenad-databasen. Kräver personal-JWT. **Ska bort i FAS 4.**
-- `caseflow-gateway` — server-till-server-brygga, skyddad med `CASEFLOW_GATEWAY_SECRET`. **Ska bort i FAS 4.**
+### Legacy
+- `orders-proxy` och `caseflow-gateway` **togs bort i FAS 4 (juli 2026)**. All orderläsning sker mot lokala `a_orders`. Gamla n3prenad-databasen ligger kvar orörd som passivt arkiv men nås inte längre av systemet.
 
 ---
 
@@ -223,7 +222,7 @@ AI-gateway har separat saldo från build-credits (~$1/mån gratis räcker för n
 
 | Punkt | Beskrivning | Prioritet |
 |---|---|---|
-| **FAS 4: gateway-städning** | `orders-proxy` + `caseflow-gateway` ska bort när alla vyer läser lokala `a_orders`. Vissa vyer (Pipeline/VisitForm/ValidatePipeline/LinkOrders) kan fortfarande använda `orderGateway` — verifiera och byt till lokal data. Gamla n3prenad-databasen behålls som arkiv, raderas aldrig. | Hög |
+
 | **Nummerserie per år** | Offert- och uppdragsnummer återställs INTE till `-0001` vid årsskifte. Bör fixas före nyår. | Medel (innan jan) |
 | **GDPR / personnummer** | Systemet lagrar personnummer, kunduppgifter och fastighetsbeteckningar = känsliga personuppgifter. Behöver: laglig grund, gallringsrutin, personuppgiftsbiträdesavtal. **Inte en kodfråga — kräver juridisk kompetens.** | Hög (verksamhetsrisk) |
 | **Veckobackup innehåller PII** | `weekly-backup` mejlar full JSON med personnummer. Bör skrivas till privat bucket + notislänk i stället. | Medel |
@@ -239,7 +238,7 @@ A-ordersystemet (montörsersättning, fakturering, kreditering) var ursprunglige
 - Importen är idempotent via `source_n3prenad_id`.
 - Skälet: den fristående appen saknade inloggning helt (vinsttimmar skyddades bara av att ingen kände URL:en), och den korsande gateway-sömmen var systemets sköraste del.
 
-Kvar att göra: FAS 4 (se §11) som river de sista gateway-beroendena.
+FAS 4 genomförd juli 2026: alla vyer läser lokala `a_orders`; importverktyget, `orders-proxy` och `caseflow-gateway` är borttagna.
 
 ---
 
