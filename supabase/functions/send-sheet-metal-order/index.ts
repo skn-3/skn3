@@ -36,6 +36,7 @@ interface RequestBody {
   notes?: string;
   profiles: OrderProfile[];
   created_by: string;
+  pdf_base64?: string;
 }
 
 function buildProfileSection(p: OrderProfile, idx: number): string {
