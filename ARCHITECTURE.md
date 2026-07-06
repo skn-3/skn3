@@ -222,7 +222,7 @@ AI-gateway har separat saldo från build-credits (~$1/mån gratis räcker för n
 
 | Punkt | Beskrivning | Prioritet |
 |---|---|---|
-| **FAS 4: gateway-städning** | `orders-proxy` + `caseflow-gateway` ska bort när alla vyer läser lokala `a_orders`. Vissa vyer (Pipeline/VisitForm/ValidatePipeline/LinkOrders) kan fortfarande använda `orderGateway` — verifiera och byt till lokal data. Gamla n3prenad-databasen behålls som arkiv, raderas aldrig. | Hög |
+
 | **Nummerserie per år** | Offert- och uppdragsnummer återställs INTE till `-0001` vid årsskifte. Bör fixas före nyår. | Medel (innan jan) |
 | **GDPR / personnummer** | Systemet lagrar personnummer, kunduppgifter och fastighetsbeteckningar = känsliga personuppgifter. Behöver: laglig grund, gallringsrutin, personuppgiftsbiträdesavtal. **Inte en kodfråga — kräver juridisk kompetens.** | Hög (verksamhetsrisk) |
 | **Veckobackup innehåller PII** | `weekly-backup` mejlar full JSON med personnummer. Bör skrivas till privat bucket + notislänk i stället. | Medel |
