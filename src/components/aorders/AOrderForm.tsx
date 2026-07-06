@@ -15,6 +15,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { generateAutoLines, normalizeLines, sumLines, type AOrderLine, type FacadeType } from '@/lib/aOrderLines';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
+import { lineAmount } from '@/lib/invoiceMath';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { HOUR_RATE } from '@/lib/constants';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
@@ -79,7 +80,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         name: li.name || '',
         unit_price: Number(li.unit_price) || 0,
         qty: Number(li.qty) || 0,
-        amount: li.amount != null ? Number(li.amount) : Math.round((Number(li.unit_price) || 0) * (Number(li.qty) || 0)),
+        amount: li.amount != null ? Number(li.amount) : lineAmount(li.unit_price, li.qty),
       }))
     : null;
 
@@ -230,7 +231,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     setLines(prev => prev.map(l => {
       if (l.id !== id) return l;
       const merged = { ...l, ...patch } as AOrderLine;
-      merged.amount = Math.round((Number(merged.unit_price) || 0) * (Number(merged.qty) || 0));
+      merged.amount = lineAmount(merged.unit_price, merged.qty);
       merged.auto = false;
       return merged;
     }));
@@ -249,7 +250,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     const p = products.find((x: any) => x.id === productId);
 
     if (!p) return;
-    setLines(prev => [...prev, { id: newId(), name: p.name, unit_price: Number(p.price), qty: 1, amount: Math.round(Number(p.price)), auto: false }]);
+    setLines(prev => [...prev, { id: newId(), name: p.name, unit_price: Number(p.price), qty: 1, amount: lineAmount(p.price, 1), auto: false }]);
   }
 
   async function compressImage(file: File): Promise<string> {

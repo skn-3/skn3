@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
 import { buildMontorDebitPdf } from '@/lib/montorDebitPdf';
 import { loadAOrderLogo } from '@/lib/aOrderPdf';
+import { calcInvoiceTotals } from '@/lib/invoiceMath';
 
 type Line = { id: string; description: string; qty: number; unit: string; unit_price: number; amount: number };
 
@@ -67,9 +68,7 @@ export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser }: Pr
   const team = useMemo(() => teams.find(t => t.id === teamId) || null, [teams, teamId]);
   const recipient = team?.invoice_email || team?.email || '';
 
-  const subtotal = useMemo(() => lines.reduce((s, l) => s + Number(l.amount || 0), 0), [lines]);
-  const vatAmount = vatMode === 'vanlig' ? Math.round(subtotal * 0.25) : 0;
-  const total = subtotal + vatAmount;
+  const { subtotal, vatAmount, total } = useMemo(() => calcInvoiceTotals(lines, vatMode), [lines, vatMode]);
 
   function upd(id: string, patch: Partial<Line>) {
     setLines(prev => prev.map(l => {
