@@ -203,8 +203,8 @@ AI-gateway har separat saldo från build-credits (~$1/mån gratis räcker för n
 
 ### Storage buckets
 - **`case-documents`** — **privat**. Offerter, fakturor, signerade avtal, A-order-PDF:er, bilder. PII bor här. Åtkomst via signerade URL:er, endast personal kan skriva/radera.
-- **`case-images`** — publik bucket. Ärendebilder (kvitton, montagebilder). Uppladdning/läsning för inloggade, radering endast personal.
-- **`sheet-metal-sketches`** — publik bucket. Plåtskisser.
+- **`case-images`** — privat bucket. Avvikelsefoton och kvitton; visas enbart via tidsbegränsade signerade URL:er (SignedImage / getSignedImageUrl). Gjordes privat juli 2026.
+- **`sheet-metal-sketches`** — privat bucket. Plåtskisser; visas via signerade URL:er, bifogas (inte länkas) i beställningsmail. Gjordes privat juli 2026.
 - **`backups`** — privat bucket utan klientpolicys (endast service_role). Veckovisa databasbackuper (zip); åtkomst via tidsbegränsad signerad länk i backupmejlet.
 
 ### Säkerhetsmodell (genomgången juni 2026)
