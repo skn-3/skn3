@@ -7,6 +7,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { SellerNav, type SellerTab } from './SellerNav';
 import { Pipeline } from './Pipeline';
 import { SellerDashboard } from './SellerDashboard';
+import { DeliveriesView } from './DeliveriesView';
 import { VisitForm } from './VisitForm';
 import { AdminView } from './AdminView';
 import { EconomyView } from '@/components/economy/EconomyView';
