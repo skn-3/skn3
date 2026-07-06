@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCases, fetchVisits, type CaseRow } from '@/lib/supabaseClient';
 import { listOrdersByCaseIds } from '@/integrations/orderGateway';
+import { supabase } from '@/integrations/supabase/client';
 import { SELLER_PIPELINE_COLUMNS, STATUS_LABELS, SELLERS, MONTORS } from '@/lib/constants';
 import { CaseCard } from './CaseCard';
 import { FollowUpSection } from './FollowUpSection';
-import { Loader2, Search, X, SlidersHorizontal, AlertTriangle } from 'lucide-react';
+import { Loader2, Search, X, SlidersHorizontal, AlertTriangle, Ruler } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -69,6 +70,7 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [onlyFlagged, setOnlyFlagged] = useState(false);
+  const [onlyKmInbox, setOnlyKmInbox] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -151,10 +153,35 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
     [searchedCases, ordersByCaseId],
   );
 
+  // Ärenden med inskickade kontrollmätningar (montören väntar på att kontoret för in i KP)
+  const { data: kmInboxCaseIds } = useQuery<Set<string>>({
+    queryKey: ['km-inbox-case-ids'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('litteror')
+        .select('case_id')
+        .eq('cm_status', 'inskickad');
+      if (error) {
+        console.warn('KM-inkorg lookup failed', error);
+        return new Set<string>();
+      }
+      return new Set<string>((data ?? []).map((r: any) => r.case_id));
+    },
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+
+  const kmInboxCount = useMemo(
+    () => searchedCases.filter(c => kmInboxCaseIds?.has(c.id)).length,
+    [searchedCases, kmInboxCaseIds],
+  );
+
   const visibleCases = useMemo(() => {
-    if (!onlyFlagged) return searchedCases;
-    return searchedCases.filter(c => getWarnings(c, ordersByCaseId ?? null).length > 0);
-  }, [searchedCases, onlyFlagged, ordersByCaseId]);
+    let list = searchedCases;
+    if (onlyFlagged) list = list.filter(c => getWarnings(c, ordersByCaseId ?? null).length > 0);
+    if (onlyKmInbox) list = list.filter(c => kmInboxCaseIds?.has(c.id));
+    return list;
+  }, [searchedCases, onlyFlagged, onlyKmInbox, ordersByCaseId, kmInboxCaseIds]);
 
   if (isLoading) {
     return (
@@ -314,7 +341,7 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
       {flaggedCount > 0 && !isCoordinator && (
         <button
           type="button"
-          onClick={() => setOnlyFlagged(v => !v)}
+          onClick={() => { setOnlyFlagged(v => !v); setOnlyKmInbox(false); }}
           className={`mx-3 md:mx-0 flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors text-left w-[calc(100%-1.5rem)] md:w-auto ${
             onlyFlagged
               ? 'bg-amber-200 border-amber-400 text-amber-900'
@@ -329,7 +356,25 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
         </button>
       )}
 
-      {followUps.length > 0 && !onlyFlagged && !isCoordinator && (
+      {kmInboxCount > 0 && (
+        <button
+          type="button"
+          onClick={() => { setOnlyKmInbox(v => !v); setOnlyFlagged(false); }}
+          className={`mx-3 md:mx-0 flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors text-left w-[calc(100%-1.5rem)] md:w-auto ${
+            onlyKmInbox
+              ? 'bg-sky-200 border-sky-400 text-sky-900'
+              : 'bg-sky-100 border-sky-300 text-sky-800 hover:bg-sky-200'
+          }`}
+        >
+          <Ruler className="h-4 w-4 flex-shrink-0" />
+          <span>
+            {kmInboxCount} ärenden har inskickade KM-ändringar
+            {onlyKmInbox ? ' — klicka för att visa alla' : ' — klicka för att filtrera'}
+          </span>
+        </button>
+      )}
+
+      {followUps.length > 0 && !onlyFlagged && !onlyKmInbox && !isCoordinator && (
         <FollowUpSection visits={followUps} sellerName={sellerName} />
       )}
 
