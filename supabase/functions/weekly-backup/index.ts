@@ -96,13 +96,34 @@ Deno.serve(async (req) => {
       compressionOptions: { level: 6 },
     });
 
-    // base64 encode for Resend attachment
-    let binary = '';
-    const chunk = 0x8000;
-    for (let i = 0; i < zipBytes.length; i += chunk) {
-      binary += String.fromCharCode(...zipBytes.subarray(i, i + chunk));
+    // Ladda upp till privat bucket istället för mailbilaga (PII ska inte bo i mailkorgar)
+    const path = `caseflow-backup-${dateStr}.zip`;
+    const { error: upErr } = await supabase.storage
+      .from('backups')
+      .upload(path, zipBytes, { contentType: 'application/zip', upsert: true });
+    if (upErr) throw new Error(`Backup upload failed: ${upErr.message}`);
+
+    // Signerad nedladdningslänk, giltig 7 dagar
+    const { data: signed, error: signErr } = await supabase.storage
+      .from('backups')
+      .createSignedUrl(path, 60 * 60 * 24 * 7);
+    if (signErr || !signed?.signedUrl) throw new Error(`Signed URL failed: ${signErr?.message ?? 'unknown'}`);
+
+    // Gallring: radera backuper äldre än 90 dagar
+    let pruned = 0;
+    try {
+      const { data: files } = await supabase.storage.from('backups').list('', { limit: 200 });
+      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+      const old = (files ?? [])
+        .filter((f: any) => f.name?.startsWith('caseflow-backup-') && f.created_at && new Date(f.created_at).getTime() < cutoff)
+        .map((f: any) => f.name);
+      if (old.length > 0) {
+        await supabase.storage.from('backups').remove(old);
+        pruned = old.length;
+      }
+    } catch (e) {
+      console.warn('Backup pruning failed (non-fatal):', e);
     }
-    const base64 = btoa(binary);
 
     const manifestRows = TABLES
       .map((t) => `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">${t}</td><td style="padding:4px 0;font-weight:600;">${manifest[t] ?? 0}</td></tr>`)
@@ -112,7 +133,8 @@ Deno.serve(async (req) => {
 <h2 style="color:#22C55E;margin:0 0 12px 0;">Databasbackup — CaseFlow</h2>
 <p>Datum: <strong>${dateStr}</strong><br/>Totalt antal rader: <strong>${totalRows}</strong></p>
 <table style="border-collapse:collapse;margin-top:8px;">${manifestRows}</table>
-<p style="margin-top:16px;color:#6b7280;font-size:12px;">Bifogad: caseflow-backup-${dateStr}.zip</p>
+<p style="margin-top:20px;"><a href="${signed.signedUrl}" style="display:inline-block;background:#22C55E;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:600;">Ladda ner backup (zip)</a></p>
+<p style="margin-top:12px;color:#6b7280;font-size:12px;">Länken gäller i 7 dagar. Filen innehåller personuppgifter — ladda inte upp den okrypterat och vidarebefordra inte detta mail.<br/>Backuper äldre än 90 dagar gallras automatiskt${pruned ? ` (raderade nu: ${pruned})` : ''}.</p>
 </body></html>`;
 
     const emailResp = await fetch(`${GATEWAY_URL}/emails`, {
@@ -127,10 +149,6 @@ Deno.serve(async (req) => {
         to: ['mf@malke.se'],
         subject: `N3prenad — Databasbackup (CaseFlow) ${dateStr}`,
         html,
-        attachments: [{
-          filename: `caseflow-backup-${dateStr}.zip`,
-          content: base64,
-        }],
       }),
     });
 
