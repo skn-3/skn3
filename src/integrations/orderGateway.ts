@@ -1,7 +1,6 @@
 // Orderdata för pipeline/besök/länkning.
-// FAS 4: läser nu LOKALA a_orders (CaseFlow-databasen) — inte längre gamla
-// n3prenad via orders-proxy. Enda undantag: listAllOrders (arkivimporten i
-// N3prenadImportView) som fortfarande går via proxyn tills den tas bort helt.
+// FAS 4 (juli 2026): läser LOKALA a_orders. Gamla n3prenad-databasen
+// nås inte längre av systemet — den ligger kvar externt som passivt arkiv.
 
 import { supabase } from '@/integrations/supabase/client';
 
