@@ -420,6 +420,7 @@ export type Database = {
           offer_number: string | null
           order_number: string | null
           order_value: number | null
+          public_token: string
           scheduled_delivery: boolean
           seller: string
           status: string
@@ -458,6 +459,7 @@ export type Database = {
           offer_number?: string | null
           order_number?: string | null
           order_value?: number | null
+          public_token?: string
           scheduled_delivery?: boolean
           seller: string
           status?: string
@@ -496,6 +498,7 @@ export type Database = {
           offer_number?: string | null
           order_number?: string | null
           order_value?: number | null
+          public_token?: string
           scheduled_delivery?: boolean
           seller?: string
           status?: string
