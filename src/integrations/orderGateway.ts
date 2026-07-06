@@ -1,47 +1,17 @@
-// Gateway-wrapper för n3prenad's orders-tabell.
-// n3prenad har RLS aktiverat på orders → direkt anon-access ger 0 rader.
-// All access går via CaseFlow edge function 'orders-proxy' som håller den delade
-// secreten server-side och vidarebefordrar till n3prenads orders-gateway.
+// Orderdata för pipeline/besök/länkning.
+// FAS 4: läser nu LOKALA a_orders (CaseFlow-databasen) — inte längre gamla
+// n3prenad via orders-proxy. Enda undantag: listAllOrders (arkivimporten i
+// N3prenadImportView) som fortfarande går via proxyn tills den tas bort helt.
 
 import { supabase } from '@/integrations/supabase/client';
 
-type Action =
-  | 'list_unlinked'
-  | 'get_by_case_id'
-  | 'list_by_case_ids'
-  | 'update_date'
-  | 'link_case'
-  | 'unlink_case'
-  | 'search'
-  | 'list'
-  | 'insert'
-  | 'update'
-  | 'check_duplicate';
-
-async function callGateway<T = any>(action: Action, params: Record<string, unknown> = {}): Promise<T | null> {
-  try {
-    const { data, error } = await supabase.functions.invoke('orders-proxy', {
-      body: { action, ...params },
-    });
-    if (error) {
-      console.error(`[orderGateway] ${action} failed:`, error);
-      return null;
-    }
-    return data as T;
-  } catch (err) {
-    console.error(`[orderGateway] ${action} threw:`, err);
-    return null;
-  }
-}
-
 export type OrderLineItem = {
-  id?: string | number;
-  name?: string | null;
-  description?: string | null;
-  quantity?: number | null;
-  unit?: string | null;
-  unit_price?: number | null;
-  amount?: number | null;
+  id?: string;
+  description?: string;
+  quantity?: number;
+  unit?: string;
+  unit_price?: number;
+  total?: number;
   [key: string]: unknown;
 };
 
@@ -65,83 +35,128 @@ export type OrderRow = {
   _orphanCaseId?: string | null;
 };
 
-function unwrap(res: any): any[] {
-  if (Array.isArray(res)) return res;
-  if (res && Array.isArray(res.data)) return res.data;
-  if (res && Array.isArray(res.orders)) return res.orders;
-  return [];
+const COLS =
+  'id, order_number, invoice_number, customer_address, customer_name, customer_phone, total_amount, status, date, created_at, case_id, line_items, window_count, door_count';
+
+function toRow(o: any): OrderRow {
+  return {
+    id: o.id,
+    order_number: o.order_number ?? null,
+    invoice_number: o.invoice_number ?? null,
+    customer_address: o.customer_address ?? null,
+    customer_name: o.customer_name ?? null,
+    customer_phone: o.customer_phone ?? null,
+    total_amount: o.total_amount ?? null,
+    status: o.status ?? null,
+    date: o.date ?? null,
+    created_at: o.created_at ?? null,
+    case_id: o.case_id ?? null,
+    line_items: (o.line_items as OrderLineItem[] | null) ?? null,
+    windows_count: o.window_count ?? null,
+    doors_count: o.door_count ?? null,
+  };
 }
 
-function unwrapSingle(res: any): any | null {
-  if (!res) return null;
-  if (Array.isArray(res)) return res[0] ?? null;
-  if (res.data !== undefined) {
-    return Array.isArray(res.data) ? (res.data[0] ?? null) : res.data;
-  }
-  if (res.order) return res.order;
-  return res;
-}
-
-/** Hämta okopplade ordrar + orphans (case_id pekar på ärende som inte finns). */
+/** Olänkade ordrar (case_id saknas) + föräldralösa (case_id pekar på ärende som inte finns). */
 export async function listUnlinkedOrders(knownCaseIds: string[]): Promise<OrderRow[]> {
-  const res = await callGateway('list_unlinked', { known_case_ids: knownCaseIds });
-  return unwrap(res).map((o: any) => ({
-    ...o,
-    _orphan: o._orphan ?? (o.case_id != null && !knownCaseIds.includes(o.case_id)),
-    _orphanCaseId: o._orphanCaseId ?? (o.case_id ?? null),
-  }));
+  const { data, error } = await (supabase as any)
+    .from('a_orders')
+    .select(COLS)
+    .order('date', { ascending: false });
+  if (error) {
+    console.error('[orderGateway] listUnlinkedOrders failed:', error);
+    return [];
+  }
+  const known = new Set(knownCaseIds);
+  return (data ?? [])
+    .filter((o: any) => o.case_id == null || !known.has(o.case_id))
+    .map((o: any) => ({
+      ...toRow(o),
+      _orphan: o.case_id != null && !known.has(o.case_id),
+      _orphanCaseId: o.case_id ?? null,
+    }));
 }
 
 /** Hämta order kopplad till ett specifikt ärende. */
 export async function getOrderByCaseId(caseId: string): Promise<OrderRow | null> {
-  const res = await callGateway('get_by_case_id', { case_id: caseId });
-  return unwrapSingle(res);
+  const { data, error } = await (supabase as any)
+    .from('a_orders')
+    .select(COLS)
+    .eq('case_id', caseId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error('[orderGateway] getOrderByCaseId failed:', error);
+    return null;
+  }
+  return data ? toRow(data) : null;
 }
 
-/** Hämta ordrar för en lista case-id:n. Fallback per-id om gatewayen saknar batch. */
+/** Hämta ordrar för en lista case-id:n. */
 export async function listOrdersByCaseIds(caseIds: string[]): Promise<OrderRow[]> {
   if (caseIds.length === 0) return [];
-  const res = await callGateway('list_by_case_ids', { case_ids: caseIds });
-  if (res !== null) return unwrap(res);
-  // Fallback
-  const results: OrderRow[] = [];
-  for (const id of caseIds) {
-    const o = await getOrderByCaseId(id);
-    if (o) results.push(o);
+  const { data, error } = await (supabase as any)
+    .from('a_orders')
+    .select(COLS)
+    .in('case_id', caseIds);
+  if (error) {
+    console.error('[orderGateway] listOrdersByCaseIds failed:', error);
+    return [];
   }
-  return results;
+  return (data ?? []).map(toRow);
 }
 
 export async function updateOrderDate(orderId: string, date: string | null): Promise<boolean> {
-  const res = await callGateway('update_date', { order_id: orderId, date });
-  return res !== null;
+  const { error } = await (supabase as any).from('a_orders').update({ date }).eq('id', orderId);
+  if (error) console.error('[orderGateway] updateOrderDate failed:', error);
+  return !error;
 }
 
 export async function linkCase(orderId: string, caseId: string): Promise<boolean> {
-  const res = await callGateway('link_case', { order_id: orderId, case_id: caseId });
-  return res !== null;
+  const { error } = await (supabase as any).from('a_orders').update({ case_id: caseId }).eq('id', orderId);
+  if (error) console.error('[orderGateway] linkCase failed:', error);
+  return !error;
 }
 
 export async function unlinkCase(orderId: string): Promise<boolean> {
-  const res = await callGateway('unlink_case', { order_id: orderId });
-  return res !== null;
+  const { error } = await (supabase as any).from('a_orders').update({ case_id: null }).eq('id', orderId);
+  if (error) console.error('[orderGateway] unlinkCase failed:', error);
+  return !error;
 }
 
-/** Sök ordrar (gateway-side). Returnerar [] vid fel. */
+/** Sök ordrar på adress eller kundnamn (lokala a_orders). */
 export async function searchOrders(term: string): Promise<OrderRow[]> {
-  const res = await callGateway('search', { term });
-  return unwrap(res);
+  const t = term.trim();
+  if (!t) return [];
+  const { data, error } = await (supabase as any)
+    .from('a_orders')
+    .select(COLS)
+    .or(`customer_address.ilike.%${t}%,customer_name.ilike.%${t}%`)
+    .order('date', { ascending: false })
+    .limit(10);
+  if (error) {
+    console.error('[orderGateway] searchOrders failed:', error);
+    return [];
+  }
+  return (data ?? []).map(toRow);
 }
 
-/** Hämta ALLA ordrar från n3prenad (för engångsimport). Paginerar defensivt. */
+/** ENDA kvarvarande proxy-funktionen: hämtar ALLA ordrar från gamla n3prenad
+ *  (arkivet) för engångsimporten i N3prenadImportView. Tas bort i FAS 4 steg 2. */
 export async function listAllOrders(): Promise<any[]> {
   const pageSize = 500;
   let offset = 0;
   const all: any[] = [];
-  // Skydd mot oändlig loop
   for (let i = 0; i < 200; i++) {
-    const res = await callGateway('list', { limit: pageSize, offset });
-    const batch = unwrap(res);
+    const { data, error } = await supabase.functions.invoke('orders-proxy', {
+      body: { action: 'list', limit: pageSize, offset },
+    });
+    if (error) {
+      console.error('[orderGateway] listAllOrders failed:', error);
+      break;
+    }
+    const batch = Array.isArray(data) ? data : (data && Array.isArray((data as any).data) ? (data as any).data : []);
     if (batch.length === 0) break;
     all.push(...batch);
     if (batch.length < pageSize) break;
