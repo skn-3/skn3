@@ -189,6 +189,12 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
               {tidsBadge.label}
             </span>
           )}
+          {kmInbox && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-800">
+              <Ruler className="h-3 w-3" />
+              KM-ändringar väntar
+            </span>
+          )}
           {warnings?.map((w) => (
             <span
               key={w}
