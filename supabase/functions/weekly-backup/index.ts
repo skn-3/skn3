@@ -164,10 +164,10 @@ Deno.serve(async (req) => {
     supabase.from('activity_log').insert({
       actor_name: 'system',
       actor_role: 'system',
-      action: 'backup_emailed',
+      action: 'backup_stored',
       category: 'system',
-      description: `Databasbackup mejlad till mf@malke.se (${TABLES.length} tabeller, ${totalRows} rader)`,
-      metadata: { manifest, date: dateStr, zip_bytes: zipBytes.length },
+      description: `Databasbackup sparad i backups-bucketen, länk mejlad till mf@malke.se (${TABLES.length} tabeller, ${totalRows} rader)`,
+      metadata: { manifest, date: dateStr, zip_bytes: zipBytes.length, path, pruned },
     }).then(() => {}, (e: any) => console.error('log insert failed', e));
 
     return new Response(JSON.stringify({
