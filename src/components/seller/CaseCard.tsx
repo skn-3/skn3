@@ -116,6 +116,31 @@ function getScheduledDeliveryBadge(c: any): { label: string; urgent: boolean } |
   return { label: '🕐 Tidsstyrd leverans', urgent: false };
 }
 
+// Liggetid: [varningsdagar, röda dagar] per status. Statusar som saknas här visar aldrig chip.
+const STATUS_DWELL: Record<string, [number, number]> = {
+  ny: [7, 14],
+  vantar_km: [7, 14],
+  km_bokad: [14, 21],
+  km_klar: [3, 7],
+  vantar_godkannande: [3, 7],
+  godkand: [35, 50],
+  i_produktion: [35, 50],
+  leverans_klar: [7, 14],
+  montage_pagar: [7, 14],
+  montage_klart: [14, 30],
+};
+
+function getDwellBadge(c: any): { label: string; tone: 'amber' | 'red' } | null {
+  const th = STATUS_DWELL[c.status];
+  if (!th) return null;
+  const since: string | null = c.status_changed_at || c.created_at || null;
+  if (!since) return null;
+  const days = differenceInCalendarDays(new Date(), new Date(since));
+  if (days >= th[1]) return { label: `${days} dagar i steget`, tone: 'red' };
+  if (days >= th[0]) return { label: `${days} dagar i steget`, tone: 'amber' };
+  return null;
+}
+
 export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hideFinancials }: CaseCardProps) {
   const tidsBadge = getScheduledDeliveryBadge(caseData as any);
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
