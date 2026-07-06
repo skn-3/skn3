@@ -60,12 +60,12 @@ export function buildMontageReportPdf({ caseData, litteror, deviations }: Montag
   if (!litteror.length) {
     para('Kontrollmätning ej registrerad i systemet för detta ärende.');
   } else {
-    const changed = litteror.filter((r) => litteraChanges(r).length > 0);
+    const changed = litteror.filter((r) => litteraChangeLines(r).length > 0);
     para(`${litteror.length} littera kontrollmätta. ${changed.length === 0 ? 'Samtliga bekräftade enligt säljorder.' : `${changed.length} med justeringar mot säljorder:`}`);
     y += 1;
     for (const r of litteror) {
-      const ch = litteraChanges(r);
-      const size = r.width || r.height ? ` (${fv(r.width)}×${fv(r.height)}${r.brostning ? ` / ${r.brostning}` : ''})` : '';
+      const ch = litteraChangeLines(r);
+      const size = r.width || r.height ? ` (${fmtVal(r.width)}×${fmtVal(r.height)}${r.brostning ? ` / ${r.brostning}` : ''})` : '';
       ensure(6);
       para(`• ${r.littera || '—'}${size}${ch.length ? '' : ' — enligt order'}`, 9.5, ch.length > 0);
       for (const c of ch) { para(`   ${c}`, 9); }
