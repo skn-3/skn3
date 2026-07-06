@@ -246,4 +246,9 @@ FAS 4 genomförd juli 2026: alla vyer läser lokala `a_orders`; importverktyget,
 
 ---
 
+## Testsvit (regressionsskydd på pengaflödena)
+Beräkningslogiken för ekonomi bor i rena moduler: `src/lib/caseEconomy.ts` (marginalformeln — enda källan för EconomyView OCH CaseMarginBlock), `src/lib/invoiceMath.ts` (moms + radbelopp) och `src/lib/litteraDiff.ts` (kontrollmätningens diff, delas av personalvy/montörsvy/montagerapport). Testerna ligger i `src/lib/__tests__/`. **Regel: varje ändring som rör ekonomi, fakturering eller littera-diff avslutas med `npm test` — alla tester ska passera före commit. Ändra aldrig en formel i en vy; ändra i lib-modulen så följer alla konsumenter med.**
+
+---
+
 *Detta dokument speglar systemets tillstånd juni 2026. Uppdatera vid varje strukturell ändring.*
