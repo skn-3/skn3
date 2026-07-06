@@ -18,6 +18,7 @@ import { ArrowLeft, Plus, Trash2, Upload, Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProfileSvg } from '@/components/sheet-metal/ProfileSvg';
 import { compressImageToDataUrl } from '@/lib/imageCompress';
+import { buildSheetMetalOrderPdf } from '@/lib/sheetMetalOrderPdf';
 
 interface ProfileLength { length_mm: number; qty: number; }
 interface Measurements {
@@ -109,6 +110,26 @@ export default function SheetMetalOrderPage() {
     }
   };
 
+  const previewPdf = () => {
+    if (!caseData || !role) return;
+    const doc = buildSheetMetalOrderPdf({
+      caseAddress: caseData.address,
+      montorName: montor || 'Ej angiven',
+      montorPhone: MONTOR_PHONES[montor] || '',
+      notes,
+      profiles: profiles.map(p => ({
+        mode: p.mode, type: p.type, color: p.color, with_gables: p.with_gables,
+        lengths: p.lengths,
+        measurements: p.mode === 'manual' ? p.measurements : undefined,
+        image_filename: p.mode === 'image' ? p.image_filename : undefined,
+        image_description: p.mode === 'image' ? p.image_description : undefined,
+      })) as any,
+      createdBy: role.name,
+    });
+    doc.save(`Bestallning_byggplat_${caseData.address.replace(/\s+/g, '_')}.pdf`);
+  };
+
+
   const submit = useMutation({
     mutationFn: async () => {
       if (!caseData || !role) throw new Error('Saknar data');
@@ -132,6 +153,16 @@ export default function SheetMetalOrderPage() {
           image_description: p.mode === 'image' ? p.image_description : undefined,
         })),
       };
+
+      const pdfDoc = buildSheetMetalOrderPdf({
+        caseAddress: caseData.address,
+        montorName: montor || 'Ej angiven',
+        montorPhone: MONTOR_PHONES[montor] || '',
+        notes,
+        profiles: payload.profiles as any,
+        createdBy: role.name,
+      });
+      (payload as any).pdf_base64 = pdfDoc.output('datauristring').split(',')[1];
 
       const { error: fnErr } = await supabase.functions.invoke('send-sheet-metal-order', { body: payload });
       if (fnErr) throw fnErr;
@@ -420,6 +451,9 @@ export default function SheetMetalOrderPage() {
 
             <div className="flex justify-between pt-4">
               <Button variant="outline" onClick={() => setStep(1)}>← Tillbaka</Button>
+              <Button type="button" variant="outline" onClick={previewPdf}>
+                Förhandsgranska PDF
+              </Button>
               <Button onClick={() => submit.mutate()} disabled={submit.isPending || !montor}>
                 {submit.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Skickar...</> : <><Send className="h-4 w-4 mr-1" /> Skicka till plåtslagare</>}
               </Button>

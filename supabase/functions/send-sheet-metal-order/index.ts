@@ -36,6 +36,7 @@ interface RequestBody {
   notes?: string;
   profiles: OrderProfile[];
   created_by: string;
+  pdf_base64?: string;
 }
 
 function buildProfileSection(p: OrderProfile, idx: number): string {
@@ -147,6 +148,13 @@ Deno.serve(async (req) => {
         });
       }
     });
+
+    // Beställnings-PDF (plåtslagarens blankettformat) läggs först bland bilagorna
+    if (body.pdf_base64) {
+      const safeAddr = String(body.delivery_address || 'order')
+        .normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 60);
+      attachments.unshift({ filename: `Bestallning_byggplat_${safeAddr}.pdf`, content: body.pdf_base64 });
+    }
 
     const GLOBAL_CC = 'mf@malke.se';
     const ccList = Array.from(new Set([
