@@ -178,9 +178,8 @@ Samtliga ligger i `supabase/functions/`. Auth-modell anges per grupp.
 - `send-pin-change-request` — PIN-kampanj (mejl + must_change_pin).
 - `seed-users` — engångsseedning (slumpmässiga PIN, inga hårdkodade).
 
-### Legacy / under avveckling
-- `orders-proxy` — proxy mot gamla fristående n3prenad-databasen. Kräver personal-JWT. **Ska bort i FAS 4.**
-- `caseflow-gateway` — server-till-server-brygga, skyddad med `CASEFLOW_GATEWAY_SECRET`. **Ska bort i FAS 4.**
+### Legacy
+- `orders-proxy` och `caseflow-gateway` **togs bort i FAS 4 (juli 2026)**. All orderläsning sker mot lokala `a_orders`. Gamla n3prenad-databasen ligger kvar orörd som passivt arkiv men nås inte längre av systemet.
 
 ---
 
