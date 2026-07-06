@@ -64,7 +64,7 @@ Inloggning sker med namn + PIN (4–6 siffror). PIN lagras som Supabase Auth-lö
 Tabeller (Postgres, samtliga med RLS aktiverat):
 
 ### Ärende-/pipeline-domän
-- **`cases`** — kärnan. Mockfjärds-jobb: kund, adress, `order_number` (Mockfjärds försäljningsorder), team, km_team, status, ekonomifält (`order_value`, `extra_hours_sold`, `extra_hours_approved`), montage-/leveransdatum, `status_changed_at` (sätts av trigger vid statusbyte; driver liggetids-chippen i pipelinen).
+- **`cases`** — kärnan. Mockfjärds-jobb: kund, adress, `order_number` (Mockfjärds försäljningsorder), team, km_team, status, ekonomifält (`order_value`, `extra_hours_sold`, `extra_hours_approved`), montage-/leveransdatum, `status_changed_at` (sätts av trigger vid statusbyte; driver liggetids-chippen i pipelinen), `public_token` (kundstatussidans token).
 - **`case_events`** — händelselogg per ärende.
 - **`case_costs`** — kostnader per ärende. `category`: `ovrigt` | `reklamation`; `responsible`: fabrik/saljare/montor/okant (styr om kostnaden belastar teamet i statistiken).
 - **`case_documents`** — metadata för uppladdade filer (kopplade till privata bucketen).
@@ -166,6 +166,7 @@ Samtliga ligger i `supabase/functions/`. Auth-modell anges per grupp.
 - `accept-offer` — kund signerar (genererar signerad PDF, blockerar utgångna).
 - `decline-offer` — kund avböjer.
 - `calendar-ics` — ICS-kalenderflöde, skyddat med hemlig token i URL.
+- `public-case-status` — kundstatussida för ärenden via `cases.public_token` (adress, tidslinje, leverans-/montagedatum, ev. klimatcertifikat). Läser aldrig ekonomi- eller interna fält.
 
 ### Cron / schemalagda (kräver CRON_SECRET-header)
 - `daily-reminders` — dagliga påminnelser (besök, leveranser, offerter, PIN-byte). Innehåller PÅMINNELSE 1–5.

@@ -9,3 +9,6 @@ verify_jwt = false
 
 [functions.seed-users]
 verify_jwt = false
+
+[functions.public-case-status]
+verify_jwt = false
