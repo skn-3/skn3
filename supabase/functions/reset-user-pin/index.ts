@@ -5,7 +5,7 @@
 // Sätter must_change_pin=true så användaren tvingas välja en personlig PIN vid nästa login.
 // Loggar VEM som återställde VEMS PIN i activity_log — ALDRIG själva PIN-värdet.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
