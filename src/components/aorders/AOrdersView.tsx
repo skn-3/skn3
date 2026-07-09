@@ -50,6 +50,7 @@ export function AOrdersView({ currentUser }: Props) {
   const [assignFor, setAssignFor] = useState<any | null>(null);
   const [assignTeam, setAssignTeam] = useState<string>('');
   const [search, setSearch] = useState('');
+  const [teamFilter, setTeamFilter] = useState<string>('all');
   const [invoiceFor, setInvoiceFor] = useState<any | null>(null);
   const [creditFor, setCreditFor] = useState<any | null>(null);
   const [deleteFor, setDeleteFor] = useState<any | null>(null);
@@ -82,13 +83,17 @@ export function AOrdersView({ currentUser }: Props) {
 
   const filteredHistory = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return orders;
-    return orders.filter(o =>
-      (o.customer_address || '').toLowerCase().includes(q) ||
-      (o.customer_name || '').toLowerCase().includes(q) ||
-      String(o.order_number || '').includes(q)
-    );
-  }, [orders, search]);
+    return orders.filter(o => {
+      if (teamFilter === 'unassigned' && o.team_id) return false;
+      if (teamFilter !== 'all' && teamFilter !== 'unassigned' && o.team_id !== teamFilter) return false;
+      if (!q) return true;
+      return (
+        (o.customer_address || '').toLowerCase().includes(q) ||
+        (o.customer_name || '').toLowerCase().includes(q) ||
+        String(o.order_number || '').includes(q)
+      );
+    });
+  }, [orders, search, teamFilter]);
 
   function openNew() { setEditing(null); setFormPrefill(null); setFormMode('standard'); setFormOpen(true); }
   function openNewKomp() { setEditing(null); setFormPrefill(null); setFormMode('komplettering'); setFormOpen(true); }
@@ -293,10 +298,28 @@ export function AOrdersView({ currentUser }: Props) {
         </TabsContent>
 
         <TabsContent value="history" className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Sök adress, kund eller ordernr..." className="pl-9" />
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Sök adress, kund eller ordernr..." className="pl-9" />
+            </div>
+            <Select value={teamFilter} onValueChange={setTeamFilter}>
+              <SelectTrigger className="w-full sm:w-[220px]">
+                <SelectValue placeholder="Alla montörer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alla montörer</SelectItem>
+                <SelectItem value="unassigned">Ej tilldelad</SelectItem>
+                {teams.map((t: any) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Visar {filteredHistory.length} av {orders.length} A-ordrar
+            {teamFilter !== 'all' && teamFilter !== 'unassigned' ? ` för ${teams.find((t: any) => t.id === teamFilter)?.name ?? ''}` : ''}
+          </p>
           <div className="rounded-md border overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
