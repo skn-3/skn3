@@ -82,7 +82,7 @@ export interface OfferForPdf {
 }
 
 export interface OfferPdfOptions {
-  signature?: { name: string; acceptedAt: string; userAgent?: string };
+  signature?: { name: string; acceptedAt: string; userAgent?: string; imageDataUrl?: string };
 }
 
 export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOptions = {}): Promise<Blob> {
