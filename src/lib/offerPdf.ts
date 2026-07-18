@@ -228,7 +228,7 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
   // 3) Handpenning + slutfaktura
   if (hpPercent > 0) {
     summaryStack.push({ text: '', margin: [0, 4, 0, 0] });
-    summaryStack.push(sumRow(`Handpenning ${hpPercent}%`, fmtKr(totals.handpenning)));
+    summaryStack.push(sumRow(`Handpenning ${hpPercent}%${offer.rot_enabled ? ' (före ROT)' : ''}`, fmtKr(totals.handpenning)));
     summaryStack.push(sumRow(`Slutfaktura${rotActive ? ' (efter prel. ROT-avdrag)' : ''}`, fmtKr(totals.slutfaktura)));
   }
 

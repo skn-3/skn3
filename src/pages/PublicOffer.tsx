@@ -328,7 +328,8 @@ export default function PublicOffer() {
           const rotActive = data.rot_enabled && data.vat_mode === 'vanlig';
           const hpPercent = Number(data.handpenning_percent ?? 25);
           const payable = Number(data.total_after_rot || 0);
-          const handpenning = Math.round(payable * hpPercent / 100);
+          const beforeRot = Number(data.total_incl_vat || 0) || (payable + Number(data.rot_amount || 0));
+          const handpenning = Math.round(beforeRot * hpPercent / 100);
           const slutfaktura = payable - handpenning;
           return (
             <section className="bg-card rounded-xl border shadow-sm p-5 space-y-1 text-sm">
@@ -353,7 +354,7 @@ export default function PublicOffer() {
               {/* 3) Handpenning + slutfaktura */}
               {hpPercent > 0 && (
                 <>
-                  <div className="flex justify-between pt-2 border-t mt-2"><span>Handpenning {hpPercent}%</span><span className="tabular-nums">{fmtKr(handpenning)}</span></div>
+                  <div className="flex justify-between pt-2 border-t mt-2"><span>Handpenning {hpPercent}%{rotActive ? ' (före ROT)' : ''}</span><span className="tabular-nums">{fmtKr(handpenning)}</span></div>
                   <div className="flex justify-between"><span>Slutfaktura{rotActive ? ' (efter prel. ROT-avdrag)' : ''}</span><span className="tabular-nums">{fmtKr(slutfaktura)}</span></div>
                 </>
               )}

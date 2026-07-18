@@ -143,7 +143,7 @@ export async function buildHandpenningPdfBlob(uppdrag: UppdragForInvoice, { invo
     { text: 'Belopp', style: 'th', alignment: 'right' },
   ];
   const row = [
-    { text: `Handpenning 25 % avseende ${uppdrag.title || 'uppdraget'}` },
+    { text: `Handpenning avseende ${uppdrag.title || 'uppdraget'}` },
     { text: fmtKr(exVat), alignment: 'right' },
   ];
 
