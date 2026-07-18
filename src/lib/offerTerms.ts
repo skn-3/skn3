@@ -20,10 +20,10 @@ Priset framgår av offerten och är fast om inte annat anges. Arbete eller mater
 N3prenad har rätt till ersättning för ändrings- och tilläggsarbeten. Sådana överenskoms särskilt, så snart behovet upptäcks. Skriftlighet eftersträvas; bekräftelse via sms eller e-post räknas som skriftlig. Utan särskild prisöverenskommelse utförs ÄTA på löpande räkning enligt N3prenads vid var tid gällande prislista.
 
 5. ROT-avdrag (endast konsument)
-För arbete som berättigar till ROT-avdrag dras preliminärt skattereduktion direkt på fakturan om kunden lämnat de uppgifter som krävs (personnummer och fastighetsbeteckning) samt har avdragsutrymme. Får N3prenad inte ut beloppet från Skatteverket är kunden skyldig att betala beloppet i efterhand. Endast arbetskostnad är ROT-berättigad; material och resor omfattas inte.
+För arbete som berättigar till ROT-avdrag dras preliminärt skattereduktion direkt på fakturan om kunden lämnat de uppgifter som krävs (personnummer och fastighetsbeteckning) samt har avdragsutrymme. Får N3prenad inte ut beloppet från Skatteverket, eller blir N3prenad i efterhand helt eller delvis återbetalningsskyldigt för utbetalt ROT-avdrag hänförligt till kunden – exempelvis till följd av bristande avdragsutrymme, ägarförhållanden, lagändring eller annat förhållande utanför N3prenads kontroll – är kunden skyldig att betala motsvarande belopp i efterhand mot faktura. Endast arbetskostnad är ROT-berättigad; material och resor omfattas inte.
 
 6. Betalning
-Faktura skickas efter utfört arbete eller enligt särskild betalningsplan. Betalningsvillkor framgår av fakturan. Vid försenad betalning utgår dröjsmålsränta enligt räntelagen samt lagstadgade påminnelse- och inkassoavgifter.
+Faktura, inklusive eventuell handpenningsfaktura, skickas efter utfört arbete eller enligt den betalningsplan som framgår av offerten. Betalningsvillkor framgår av fakturan. Vid försenad betalning utgår dröjsmålsränta enligt räntelagen samt lagstadgade påminnelse- och inkassoavgifter.
 
 7. Tider och förseningar
 Tider i offert/avtal är preliminära om inte annat anges. N3prenad ska utan dröjsmål informera kunden om förseningar och orsak. Vid väsentlig försening har kunden de rättigheter som följer av tillämplig lag.
