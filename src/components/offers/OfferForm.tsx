@@ -791,7 +791,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
 
               {handpenningPercent > 0 && (
                 <>
-                  <div className="flex justify-between pt-2 border-t mt-2"><span>Handpenning {handpenningPercent}%</span><span className="tabular-nums">{fmtKr(totals.handpenning)}</span></div>
+                  <div className="flex justify-between pt-2 border-t mt-2"><span>Handpenning {handpenningPercent}%{rotEnabled ? ' (före ROT)' : ''}</span><span className="tabular-nums">{fmtKr(totals.handpenning)}</span></div>
                   <div className="flex justify-between"><span>Slutfaktura{rotActive ? ' (efter prel. ROT-avdrag)' : ''}</span><span className="tabular-nums">{fmtKr(totals.slutfaktura)}</span></div>
                 </>
               )}
