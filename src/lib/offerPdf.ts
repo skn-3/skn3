@@ -62,7 +62,6 @@ export interface OfferForPdf {
   offer_number?: string | null;
   created_at?: string | null;
   sent_at?: string | null;
-  customer_email?: string | null;
   valid_until?: string | null;
   payment_terms?: string | null;
   customer_type: 'privat' | 'foretag';
