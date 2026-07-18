@@ -234,10 +234,11 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   };
 
   const handleSendToCustomer = async () => {
-    const id = currentId;
-    if (!id) { toast.error('Spara offerten först'); return; }
     if (!email) { toast.error('Kunden saknar e-post'); return; }
     if (!pdfPath) { toast.error('Generera PDF först'); return; }
+    // Spara alltid innan utskick — send-offer läser kunduppgifterna från databasen, inte från formuläret.
+    const id = await handleSave(false);
+    if (!id) return;
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: id, origin: window.location.origin } });
@@ -593,19 +594,19 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
       <section className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <Label>Namn *</Label>
-          <Input value={name} onChange={e => setName(e.target.value)} />
+          <Input value={name} onChange={e => setName(e.target.value)} autoComplete="off" name="offer-customer-name" />
         </div>
         <div>
           <Label>E-post</Label>
-          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="off" name="offer-customer-email" />
         </div>
         <div>
           <Label>Telefon</Label>
-          <Input value={phone} onChange={e => setPhone(e.target.value)} />
+          <Input value={phone} onChange={e => setPhone(e.target.value)} autoComplete="off" name="offer-customer-phone" />
         </div>
         <div>
           <Label>Adress</Label>
-          <Input value={address} onChange={e => setAddress(e.target.value)} />
+          <Input value={address} onChange={e => setAddress(e.target.value)} autoComplete="off" name="offer-customer-address" />
         </div>
         {isPrivat && (
           <>
