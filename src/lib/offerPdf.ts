@@ -311,6 +311,15 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
             infoRow('Offert skapad', createdFmt),
             infoRow('Offert skickad till kund', sentFmt),
             infoRow('Accepterad', `${acceptedFmt} av ${nfc(opts.signature.name) || '—'}`),
+            ...(opts.signature.imageDataUrl ? [[
+              { text: 'Underskrift:', bold: true, color: GREEN_DARK },
+              {
+                stack: [
+                  { image: opts.signature.imageDataUrl, width: 170, margin: [0, 4, 0, 2] },
+                  { text: nfc(opts.signature.name) || '', fontSize: 9, color: MUTED },
+                ],
+              },
+            ]] : []),
             infoRow('Enhet vid accept', nfc(opts.signature.userAgent) || '—'),
           ],
         },
