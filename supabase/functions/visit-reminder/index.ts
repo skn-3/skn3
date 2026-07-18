@@ -12,7 +12,7 @@ const LOGO_URL = `${APP_URL}/logo.png`;
 const SELLERS = ['Daniel Malke', 'Gabriel Hanna'] as const;
 
 const EMAIL_MAP: Record<string, string> = {
-  'Daniel Malke': 'daniel.malke@mockfjards.se',
+  'Daniel Malke': 'daniel@smartklimat.org',
   'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',
 };
 

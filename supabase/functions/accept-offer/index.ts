@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
 </body></html>`;
 
       const SELLER_EMAIL_MAP: Record<string, string> = {
-        'Daniel Malke': 'daniel.malke@mockfjards.se',
+        'Daniel Malke': 'daniel@smartklimat.org',
         'Gabriel Hanna': 'gabriel.hanna@mockfjards.se',
       };
       const sellerEmail = offer.created_by ? SELLER_EMAIL_MAP[offer.created_by as string] : undefined;
