@@ -641,6 +641,8 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
             <Plus className="h-3 w-3" /> Lägg till rad
           </Button>
         </div>
+              <p className="text-xs text-muted-foreground">Belopp anges exklusive moms. Kunden ser priserna inklusive moms i offerten (vid vanlig moms).</p>
+
         <div className="rounded-md border divide-y">
           {items.map((it, idx) => (
             <div key={it.id} className="p-3 grid grid-cols-12 gap-2 items-end">
