@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { calcOfferTotals } from './offerCalc';
 
 export type UppdragStatus = 'ej_paborjad' | 'pagar' | 'klar' | 'fakturerad';
 
@@ -27,9 +28,14 @@ export async function createUppdragFromOffer(offer: any, currentUser: string): P
   if (existing) return existing;
 
   const totalAfterRot = offer.total_after_rot != null ? Number(offer.total_after_rot) : (offer.total_incl_vat != null ? Number(offer.total_incl_vat) : 0);
-  const hpPct = Number(offer.handpenning_percent ?? 25);
-  const handpenning = Math.round(totalAfterRot * hpPct / 100);
-  const slutfaktura = totalAfterRot - handpenning;
+  const totals = calcOfferTotals((offer.line_items as any) || [], {
+    vat_mode: offer.vat_mode,
+    rot_enabled: offer.rot_enabled,
+    rot_percent: Number(offer.rot_percent ?? 30),
+    handpenning_percent: Number(offer.handpenning_percent ?? 25),
+  });
+  const handpenning = totals.handpenning;
+  const slutfaktura = totals.slutfaktura;
 
   const payload = {
     offer_id: offer.id,

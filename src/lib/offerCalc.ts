@@ -33,7 +33,7 @@ export function calcOfferTotals(
 
   if (opts.vat_mode === 'omvand') {
     const total_after_rot = total_ex_vat;
-    const handpenning = round(total_after_rot * hp / 100);
+    const handpenning = round(total_ex_vat * hp / 100); // före ROT (ROT ej tillämpligt vid omvänd moms)
     return {
       labor_ex_vat,
       total_ex_vat,
@@ -52,7 +52,8 @@ export function calcOfferTotals(
   const rot_base = labor_ex_vat * 1.25;
   const rot_amount = opts.rot_enabled ? round(rot_base * (opts.rot_percent / 100)) : 0;
   const total_after_rot = total_incl_vat - rot_amount;
-  const handpenning = round(total_after_rot * hp / 100);
+  // Handpenning beräknas på ordersumman FÖRE ROT-avdrag — hela ROT-avdraget dras på slutfakturan.
+  const handpenning = round(total_incl_vat * hp / 100);
 
   return {
     labor_ex_vat,
