@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { OfferForm } from './OfferForm';
 import { fmtKr } from '@/lib/offerCalc';
-import { buildOfferPdfBlob } from '@/lib/offerPdf';
+import { buildOfferPdfBlob, offerFileName } from '@/lib/offerPdf';
 import { createUppdragFromOffer } from '@/lib/uppdrag';
 import { isCurrentUserAdmin } from '@/lib/authState';
 
@@ -123,7 +123,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const openPdf = useMutation({
     mutationFn: async (offer: OfferRow) => {
       if (offer.pdf_path) {
-        const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.pdf_path, 3600);
+        const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.pdf_path, 3600, { download: offerFileName(offer as any, 'offert') });
         if (error || !data?.signedUrl) throw new Error('Kunde inte öppna PDF');
         window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
         return;
@@ -131,7 +131,10 @@ export function OffersView({ currentUser }: OffersViewProps) {
       // No saved PDF — generate on the fly and download
       const blob = await buildOfferPdfBlob(offer as any);
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank', 'noopener,noreferrer');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = offerFileName(offer as any, 'offert');
+      a.click();
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     },
     onError: (e: any) => toast.error(e?.message || 'Kunde inte öppna PDF'),
@@ -140,7 +143,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const openSignedPdf = useMutation({
     mutationFn: async (offer: OfferRow) => {
       if (!offer.signed_pdf_path) throw new Error('Signerat avtal saknas');
-      const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path, 3600);
+      const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path, 3600, { download: offerFileName(offer as any, 'avtal') });
       if (error || !data?.signedUrl) throw new Error('Kunde inte öppna avtal');
       window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
     },

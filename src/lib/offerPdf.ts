@@ -18,6 +18,13 @@ const nfc = (s: any) => (s ?? '').toString().normalize('NFC');
 
 
 
+export function offerFileName(o: { offer_number?: string | null; customer_address?: string | null; title?: string | null }, kind: 'offert' | 'avtal'): string {
+  const addr = (o.customer_address || o.title || '')
+    .normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 50);
+  const prefix = kind === 'avtal' ? 'Avtal' : 'Offert';
+  return `${prefix}_${o.offer_number || 'utkast'}${addr ? '_' + addr : ''}.pdf`;
+}
+
 const GREEN = '#22C55E';
 const GREEN_DARK = '#15803D';
 const MUTED = '#6B7280';
@@ -51,8 +58,10 @@ export function fmtDate(d: string | Date | null | undefined) {
 
 
 export interface OfferForPdf {
+  id?: string | null;
   offer_number?: string | null;
   created_at?: string | null;
+  sent_at?: string | null;
   valid_until?: string | null;
   payment_terms?: string | null;
   customer_type: 'privat' | 'foretag';
@@ -73,7 +82,7 @@ export interface OfferForPdf {
 }
 
 export interface OfferPdfOptions {
-  signature?: { name: string; acceptedAt: string };
+  signature?: { name: string; acceptedAt: string; userAgent?: string };
 }
 
 export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOptions = {}): Promise<Blob> {
@@ -258,21 +267,51 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
   // Optional verification page
   const verificationPage: any[] = [];
   if (opts.signature) {
-    const acceptedDate = new Date(opts.signature.acceptedAt);
-    const acceptedFmt = isNaN(acceptedDate.getTime())
-      ? opts.signature.acceptedAt
-      : acceptedDate.toLocaleString('sv-SE');
+    const fmtTs = (v: string | null | undefined) => {
+      if (!v) return '—';
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? String(v) : d.toLocaleString('sv-SE');
+    };
+    const acceptedFmt = fmtTs(opts.signature.acceptedAt);
+    const createdFmt = fmtTs(offer.created_at || null);
+    const sentFmt = fmtTs(offer.sent_at || null);
+    const docLabel = `Offert ${nfc(offer.offer_number) || '—'}${offer.title ? ' — ' + nfc(offer.title) : ''}`;
+    const customerLine = `${nfc(offer.customer_name) || '—'} (${nfc(offer.customer_email) || '—'})`;
+    const infoRow = (label: string, value: string) => [
+      { text: label, bold: true, color: GREEN_DARK },
+      { text: value },
+    ];
     verificationPage.push(
-      { text: 'Verifikat – elektroniskt accepterad', fontSize: 18, bold: true, color: GREEN_DARK, pageBreak: 'before', margin: [0, 0, 0, 16] },
+      { text: 'SIGNERINGSVERIFIKAT', fontSize: 18, bold: true, color: GREEN_DARK, pageBreak: 'before', margin: [0, 0, 0, 4] },
+      { text: 'Elektronisk accept via N3prenads offertportal', fontSize: 10, color: MUTED, margin: [0, 0, 0, 16] },
       {
         table: {
           widths: [140, '*'],
           body: [
-            [{ text: 'Offert nr', bold: true, color: GREEN_DARK }, { text: nfc(offer.offer_number) || '—' }],
-            [{ text: 'Accepterad av', bold: true, color: GREEN_DARK }, { text: nfc(opts.signature.name) || '—' }],
-            [{ text: 'Datum/tid', bold: true, color: GREEN_DARK }, { text: nfc(acceptedFmt) }],
-            [{ text: 'Dokumentreferens', bold: true, color: GREEN_DARK }, { text: nfc(offer.offer_number) || '—' }],
-
+            infoRow('Dokument', docLabel),
+            infoRow('Dokument-ID', nfc(offer.id) || '—'),
+            infoRow('Kund', customerLine),
+            infoRow('Leverantör', 'SmartKlimat N3prenad AB (org.nr 559026-6630)'),
+          ],
+        },
+        layout: {
+          hLineWidth: () => 0.5,
+          vLineWidth: () => 0,
+          hLineColor: () => BORDER,
+          paddingTop: () => 8,
+          paddingBottom: () => 8,
+        },
+        margin: [0, 0, 0, 16],
+      },
+      { text: 'Händelser', fontSize: 12, bold: true, color: GREEN_DARK, margin: [0, 0, 0, 6] },
+      {
+        table: {
+          widths: [140, '*'],
+          body: [
+            infoRow('Offert skapad', createdFmt),
+            infoRow('Offert skickad till kund', sentFmt),
+            infoRow('Accepterad', `${acceptedFmt} av ${nfc(opts.signature.name) || '—'}`),
+            infoRow('Enhet vid accept', nfc(opts.signature.userAgent) || '—'),
           ],
         },
         layout: {
@@ -285,9 +324,9 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
         margin: [0, 0, 0, 20],
       },
       {
-        text: 'Offerten har accepterats elektroniskt via SmartKlimat N3prenads offertsystem. Accepten har loggats med tidpunkt och IP-adress.',
-        fontSize: 10,
-        color: '#374151',
+        text: 'IP-adress och fullständiga acceptuppgifter registreras och förvaras i N3prenads system. Detta verifikat genererades automatiskt vid acceptillfället.',
+        fontSize: 9,
+        color: MUTED,
         lineHeight: 1.4,
       },
     );
