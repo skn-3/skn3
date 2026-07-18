@@ -234,10 +234,11 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   };
 
   const handleSendToCustomer = async () => {
-    const id = currentId;
-    if (!id) { toast.error('Spara offerten först'); return; }
     if (!email) { toast.error('Kunden saknar e-post'); return; }
     if (!pdfPath) { toast.error('Generera PDF först'); return; }
+    // Spara alltid innan utskick — send-offer läser kunduppgifterna från databasen, inte från formuläret.
+    const id = await handleSave(false);
+    if (!id) return;
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: id, origin: window.location.origin } });
