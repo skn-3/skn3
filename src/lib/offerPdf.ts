@@ -18,6 +18,13 @@ const nfc = (s: any) => (s ?? '').toString().normalize('NFC');
 
 
 
+export function offerFileName(o: { offer_number?: string | null; customer_address?: string | null; title?: string | null }, kind: 'offert' | 'avtal'): string {
+  const addr = (o.customer_address || o.title || '')
+    .normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 50);
+  const prefix = kind === 'avtal' ? 'Avtal' : 'Offert';
+  return `${prefix}_${o.offer_number || 'utkast'}${addr ? '_' + addr : ''}.pdf`;
+}
+
 const GREEN = '#22C55E';
 const GREEN_DARK = '#15803D';
 const MUTED = '#6B7280';
@@ -51,8 +58,11 @@ export function fmtDate(d: string | Date | null | undefined) {
 
 
 export interface OfferForPdf {
+  id?: string | null;
   offer_number?: string | null;
   created_at?: string | null;
+  sent_at?: string | null;
+  customer_email?: string | null;
   valid_until?: string | null;
   payment_terms?: string | null;
   customer_type: 'privat' | 'foretag';
