@@ -305,7 +305,7 @@ export default function PublicOffer() {
                   <th className="text-right px-4 py-2">Antal</th>
                   <th className="text-left px-4 py-2">Enhet</th>
                   <th className="text-right px-4 py-2">À-pris</th>
-                  <th className="text-right px-4 py-2">Summa</th>
+                  <th className="text-right px-4 py-2">Summa {data.vat_mode === 'vanlig' ? '(inkl. moms)' : '(exkl. moms)'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -314,8 +314,8 @@ export default function PublicOffer() {
                     <td className="px-4 py-2">{it.description}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{it.qty}</td>
                     <td className="px-4 py-2">{it.unit}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmtKr(it.unit_price)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmtKr(it.amount)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{fmtKr(Number(it.unit_price || 0) * (data.vat_mode === 'vanlig' ? 1.25 : 1))}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{fmtKr(Number(it.amount || 0) * (data.vat_mode === 'vanlig' ? 1.25 : 1))}</td>
                   </tr>
                 ))}
               </tbody>

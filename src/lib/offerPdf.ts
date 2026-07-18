@@ -154,12 +154,14 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
 
   // Items table
   const showLaborBadge = offer.rot_enabled && offer.vat_mode === 'vanlig';
+  const priceFactor = offer.vat_mode === 'vanlig' ? 1.25 : 1;
+  const priceSuffix = offer.vat_mode === 'vanlig' ? ' (inkl. moms)' : ' (exkl. moms)';
   const tableHeader = [
     { text: 'Benämning', style: 'th' },
     { text: 'Antal', style: 'th', alignment: 'right' },
     { text: 'Enhet', style: 'th' },
     { text: 'À-pris', style: 'th', alignment: 'right' },
-    { text: 'Summa', style: 'th', alignment: 'right' },
+    { text: 'Summa' + priceSuffix, style: 'th', alignment: 'right' },
   ];
 
   const itemRows = (offer.line_items || []).map(it => {
@@ -173,8 +175,8 @@ export async function buildOfferPdfBlob(offer: OfferForPdf, opts: OfferPdfOption
       desc,
       { text: String(Number(it.qty || 0).toLocaleString('sv-SE')), alignment: 'right' },
       { text: nfc(it.unit) },
-      { text: fmtKr(it.unit_price), alignment: 'right' },
-      { text: fmtKr(it.amount), alignment: 'right' },
+      { text: fmtKr(Number(it.unit_price || 0) * priceFactor), alignment: 'right' },
+      { text: fmtKr(Number(it.amount || 0) * priceFactor), alignment: 'right' },
     ];
   });
 
