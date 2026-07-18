@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { buildOfferPdfBlob } from '@/lib/offerPdf';
+import { SignaturePad } from '@/components/public/SignaturePad';
 import { toast } from 'sonner';
 
 type PublicOfferData = {
@@ -83,6 +84,7 @@ export default function PublicOffer() {
   const [acceptName, setAcceptName] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
 
   // Decline form
   const [declineOpen, setDeclineOpen] = useState(false);
@@ -129,7 +131,7 @@ export default function PublicOffer() {
     let signedPdfBase64: string | undefined;
 
     try {
-      const blob = await buildOfferPdfBlob(data as any, { signature: { name: acceptName.trim(), acceptedAt, userAgent: navigator.userAgent } });
+      const blob = await buildOfferPdfBlob(data as any, { signature: { name: acceptName.trim(), acceptedAt, userAgent: navigator.userAgent, imageDataUrl: signatureDataUrl || undefined } });
       signedPdfBase64 = await blobToBase64(blob);
     } catch (e) {
       console.error('PDF signering misslyckades, fortsätter med accept', e);
@@ -437,12 +439,6 @@ export default function PublicOffer() {
                 <h2 className="text-base font-semibold">Acceptera offerten</h2>
                 <p className="text-sm text-muted-foreground mt-1">När du accepterar registreras tidpunkt och IP-adress, och du får en bekräftelse på e-post.</p>
               </div>
-              <div className="flex items-start gap-3">
-                <Checkbox id="accept-terms" checked={acceptedTerms} onCheckedChange={(v) => setAcceptedTerms(v === true)} className="mt-1" />
-                <Label htmlFor="accept-terms" className="text-sm font-normal leading-relaxed cursor-pointer">
-                  Jag har läst och accepterar offerten samt de allmänna villkoren.
-                </Label>
-              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="accept-name">Ditt namn *</Label>
@@ -455,10 +451,20 @@ export default function PublicOffer() {
                   />
                 </div>
               </div>
+              <div>
+                <Label>Din signatur</Label>
+                <SignaturePad name={acceptName} onChange={setSignatureDataUrl} />
+              </div>
+              <div className="flex items-start gap-3">
+                <Checkbox id="accept-terms" checked={acceptedTerms} onCheckedChange={(v) => setAcceptedTerms(v === true)} className="mt-1" />
+                <Label htmlFor="accept-terms" className="text-sm font-normal leading-relaxed cursor-pointer">
+                  Jag har läst och accepterar offerten samt de allmänna villkoren.
+                </Label>
+              </div>
               <Button
                 type="button"
                 onClick={handleAccept}
-                disabled={!acceptedTerms || !acceptName.trim() || submitting}
+                disabled={!acceptedTerms || !acceptName.trim() || !signatureDataUrl || submitting}
                 className="bg-[#22C55E] hover:bg-[#16A34A] gap-2"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
