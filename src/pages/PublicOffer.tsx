@@ -129,7 +129,7 @@ export default function PublicOffer() {
     let signedPdfBase64: string | undefined;
 
     try {
-      const blob = await buildOfferPdfBlob(data as any, { signature: { name: acceptName.trim(), acceptedAt } });
+      const blob = await buildOfferPdfBlob(data as any, { signature: { name: acceptName.trim(), acceptedAt, userAgent: navigator.userAgent } });
       signedPdfBase64 = await blobToBase64(blob);
     } catch (e) {
       console.error('PDF signering misslyckades, fortsätter med accept', e);

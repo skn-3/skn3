@@ -56,14 +56,19 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    const sanitize = (s: string) => s.normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 50);
+    const addrPart = sanitize(String(offer.customer_address || offer.title || ''));
+    const offerFile = `Offert_${offer.offer_number || 'utkast'}${addrPart ? '_' + addrPart : ''}.pdf`;
+    const avtalFile = `Avtal_${offer.offer_number || 'utkast'}${addrPart ? '_' + addrPart : ''}.pdf`;
+
     let signedUrl: string | null = null;
     if (offer.pdf_path) {
-      const { data: sig } = await admin.storage.from('case-documents').createSignedUrl(offer.pdf_path, 3600);
+      const { data: sig } = await admin.storage.from('case-documents').createSignedUrl(offer.pdf_path, 3600, { download: offerFile });
       signedUrl = sig?.signedUrl || null;
     }
     let signedPdfUrl: string | null = null;
     if (offer.signed_pdf_path) {
-      const { data: sig2 } = await admin.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path, 3600);
+      const { data: sig2 } = await admin.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path, 3600, { download: avtalFile });
       signedPdfUrl = sig2?.signedUrl || null;
     }
 

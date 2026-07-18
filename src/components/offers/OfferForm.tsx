@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DEFAULT_OFFER_TERMS } from '@/lib/offerTerms';
 import { calcOfferTotals, fmtKr, type OfferLineItem } from '@/lib/offerCalc';
-import { buildOfferPdfBlob } from '@/lib/offerPdf';
+import { buildOfferPdfBlob, offerFileName } from '@/lib/offerPdf';
 import { createUppdragFromOffer, findUppdragForOffer } from '@/lib/uppdrag';
 
 type OfferRow = any;
@@ -363,23 +363,36 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
               </div>
             )}
           </div>
-          {currentStatus === 'accepted' && (offer?.accept_name || offer?.accepted_at) && (
-            <div className="flex flex-wrap items-center gap-3 text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
-              <span>
-                Accepterad av <strong>{offer?.accept_name || '—'}</strong>
-                {offer?.accepted_at ? ` • ${new Date(offer.accepted_at).toLocaleString('sv-SE')}` : ''}
-              </span>
-              {offer?.signed_pdf_path && (
+          {offer && (offer.sent_at || offer.accepted_at || (offer as any).declined_at) && (
+            <div className="rounded-md border bg-muted/20 p-3 text-xs space-y-1">
+              <div className="font-semibold text-sm mb-1">Historik</div>
+              <div className="text-muted-foreground">Skapad: {new Date((offer as any).created_at).toLocaleString('sv-SE')}</div>
+              {offer.sent_at && <div className="text-muted-foreground">Skickad till kund: {new Date(offer.sent_at).toLocaleString('sv-SE')}</div>}
+              {offer.accepted_at && (
+                <div className="text-green-700">
+                  Accepterad: {new Date(offer.accepted_at).toLocaleString('sv-SE')} av {offer.accept_name || '—'}
+                  {(offer as any).accept_ip ? ` · IP ${(offer as any).accept_ip}` : ''}
+                  {(offer as any).accept_user_agent ? ` · ${String((offer as any).accept_user_agent).slice(0, 60)}...` : ''}
+                </div>
+              )}
+              {(offer as any).declined_at && (
+                <div className="text-red-700">
+                  Avböjd: {new Date((offer as any).declined_at).toLocaleString('sv-SE')}
+                  {(offer as any).decline_name ? ` av ${(offer as any).decline_name}` : ''}
+                  {(offer as any).decline_reason ? ` — "${(offer as any).decline_reason}"` : ''}
+                </div>
+              )}
+              {offer.signed_pdf_path && (
                 <button
                   type="button"
-                  className="underline hover:text-green-900"
+                  className="underline text-green-700 hover:text-green-900 mt-1"
                   onClick={async () => {
-                    const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path, 3600);
-                    if (error || !data?.signedUrl) { toast.error('Kunde inte öppna signerad PDF'); return; }
+                    const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path!, 3600, { download: offerFileName(offer as any, 'avtal') });
+                    if (error || !data?.signedUrl) { toast.error('Kunde inte öppna avtalet'); return; }
                     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
                   }}
                 >
-                  Öppna signerad PDF
+                  Öppna signerat avtal med verifikat
                 </button>
               )}
             </div>
