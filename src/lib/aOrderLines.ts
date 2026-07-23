@@ -34,9 +34,9 @@ function line(name: string, price: number, qty: number): AOrderLine {
 }
 
 
-const WINDOW_PRICE: Record<FacadeType, number> = { tra: 352, sten: 624, puts: 352 };
+const WINDOW_PRICE: Record<FacadeType, number> = { tra: 352, sten: 624, puts: 624 };
 // Dörr inkl ädelträlist
-const DOOR_PRICE: Record<FacadeType, number> = { tra: 764.8, sten: 1078.8, puts: 764.8 };
+const DOOR_PRICE: Record<FacadeType, number> = { tra: 764.8, sten: 1078.8, puts: 1078.8 };
 const RIVNING_PRICE: Record<FacadeType, number> = { tra: 154.8, sten: 154.8, puts: 186.7 };
 const BLECK_PRICE: Record<FacadeType, number> = { tra: 79.8, sten: 131.8, puts: 131.8 };
 
