@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { uppdrag_id, kind } = body || {};
+    const { uppdrag_id, kind, to } = body || {};
     if (!uppdrag_id || typeof uppdrag_id !== 'string') {
       return new Response(JSON.stringify({ error: 'uppdrag_id krävs' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -74,7 +74,9 @@ Deno.serve(async (req) => {
     const { data: uppdrag, error: uErr } = await admin.from('uppdrag').select('*').eq('id', uppdrag_id).maybeSingle();
     if (uErr) throw uErr;
     if (!uppdrag) return new Response(JSON.stringify({ error: 'Uppdraget hittades inte' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    if (!uppdrag.customer_email) return new Response(JSON.stringify({ error: 'Kunden saknar e-post' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const override = typeof to === 'string' && /.+@.+\..+/.test(to.trim()) ? to.trim() : null;
+    const recipient = override || uppdrag.customer_email;
+    if (!recipient) return new Response(JSON.stringify({ error: 'Ingen mottagaradress — ange en e-post eller lägg in kundens' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const pdfPath = kind === 'handpenning' ? uppdrag.handpenning_pdf_path : uppdrag.slutfaktura_pdf_path;
     const invoiceNo = kind === 'handpenning' ? uppdrag.handpenning_invoice_no : uppdrag.slutfaktura_invoice_no;
@@ -113,7 +115,7 @@ Deno.serve(async (req) => {
     const payload: Record<string, unknown> = {
       from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
       reply_to: 'n3prenad@smartklimat.org',
-      to: [uppdrag.customer_email],
+      to: [recipient],
       cc: [COPY_TO],
       subject: `Faktura ${invoiceNo} – ${uppdrag.title || ''}`.trim(),
       html,
@@ -140,7 +142,7 @@ Deno.serve(async (req) => {
     const sentField = kind === 'handpenning' ? 'handpenning_sent_at' : 'slutfaktura_sent_at';
     await admin.from('uppdrag').update({ [sentField]: new Date().toISOString() }).eq('id', uppdrag_id);
 
-    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ ok: true, sent_to: recipient }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('send-invoice error', e);
     const msg = e instanceof Error ? e.message : 'Unknown error';
