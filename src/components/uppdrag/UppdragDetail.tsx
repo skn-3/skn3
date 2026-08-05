@@ -50,6 +50,8 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
   const [hpNo, setHpNo] = useState('');
   const [sfNo, setSfNo] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [sendDialog, setSendDialog] = useState<'handpenning' | 'slutfaktura' | null>(null);
+  const [sendTo, setSendTo] = useState('');
 
   useEffect(() => {
     if (!uppdragId) { setU(null); return; }
@@ -125,18 +127,18 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
     } finally { setBusy(null); }
   };
 
-  const send = async (kind: 'handpenning' | 'slutfaktura') => {
+  const send = async (kind: 'handpenning' | 'slutfaktura', to: string) => {
     if (!u) return;
     setBusy(`${kind}-send`);
     try {
-      const { data, error } = await supabase.functions.invoke('send-invoice', { body: { uppdrag_id: u.id, kind } });
+      const { data, error } = await supabase.functions.invoke('send-invoice', { body: { uppdrag_id: u.id, kind, to: to.trim() } });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       if (kind === 'slutfaktura') {
         await (supabase as any).from('uppdrag').update({ status: 'fakturerad' }).eq('id', u.id);
       }
       await refresh();
-      toast.success('Skickad till kund');
+      toast.success(`Faktura skickad till ${to.trim()}`);
     } catch (e: any) {
       console.error(e); toast.error(e?.message || 'Kunde inte skicka');
     } finally { setBusy(null); }
@@ -196,8 +198,8 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
                     Visa PDF
                   </button>
                 )}
-                <Button type="button" size="sm" onClick={() => send('handpenning')}
-                  disabled={busy === 'handpenning-send' || !u.handpenning_pdf_path || !u.customer_email}>
+                <Button type="button" size="sm" onClick={() => { setSendTo(u.customer_email || ''); setSendDialog('handpenning'); }}
+                  disabled={busy === 'handpenning-send' || !u.handpenning_pdf_path}>
                   {busy === 'handpenning-send' ? 'Skickar…' : 'Skicka till kund'}
                 </Button>
                 {u.handpenning_sent_at && (
@@ -234,8 +236,8 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
                     Visa PDF
                   </button>
                 )}
-                <Button type="button" size="sm" onClick={() => send('slutfaktura')}
-                  disabled={busy === 'slutfaktura-send' || !u.slutfaktura_pdf_path || !u.customer_email}>
+                <Button type="button" size="sm" onClick={() => { setSendTo(u.customer_email || ''); setSendDialog('slutfaktura'); }}
+                  disabled={busy === 'slutfaktura-send' || !u.slutfaktura_pdf_path}>
                   {busy === 'slutfaktura-send' ? 'Skickar…' : 'Skicka till kund'}
                 </Button>
                 {u.slutfaktura_sent_at && (
@@ -245,6 +247,38 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
             </section>
           </div>
         )}
+
+        <Dialog open={!!sendDialog} onOpenChange={(o) => !o && setSendDialog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Skicka {sendDialog === 'handpenning' ? 'handpenningsfaktura' : 'slutfaktura'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="invoice-recipient">Mottagare</Label>
+              <Input
+                id="invoice-recipient"
+                value={sendTo}
+                onChange={(e) => setSendTo(e.target.value)}
+                placeholder="namn@exempel.se"
+                autoComplete="off"
+                name="invoice-recipient"
+              />
+              <p className="text-xs text-muted-foreground">
+                Förifylld med kundens e-post — ändra om fakturan ska gå till någon annan, t.ex. förvaltare, anhörig eller ekonomiansvarig. Intern kopia skickas som vanligt.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setSendDialog(null)}>Avbryt</Button>
+              <Button
+                type="button"
+                disabled={!/.+@.+\..+/.test(sendTo) || busy === `${sendDialog}-send`}
+                onClick={async () => { if (sendDialog) { await send(sendDialog, sendTo); setSendDialog(null); } }}
+              >
+                {busy === `${sendDialog}-send` ? 'Skickar…' : 'Skicka'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SheetContent>
     </Sheet>
   );
