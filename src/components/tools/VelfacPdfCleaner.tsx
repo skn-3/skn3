@@ -3,7 +3,7 @@ import { PDFDocument, rgb } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { FileText, Sparkles, Download, RotateCcw } from 'lucide-react';
+import { FileText, Download, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
@@ -25,7 +25,6 @@ export function VelfacPdfCleaner() {
   const [result, setResult] = useState<Result | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
 
   const reset = () => {
     if (result?.blobUrl) URL.revokeObjectURL(result.blobUrl);
@@ -132,7 +131,6 @@ export function VelfacPdfCleaner() {
               />
             </div>
           )}
-
 
           {result && (
             <div className="space-y-4">
