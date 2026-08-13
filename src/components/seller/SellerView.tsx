@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { VelfacPdfCleaner } from '@/components/tools/VelfacPdfCleaner';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { UserRole } from '@/lib/constants';
@@ -71,6 +72,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
       </AppHeader>
 
       <main className="py-4 md:py-6 max-w-screen-2xl mx-auto">
+        <div className="flex justify-end px-3 md:px-0 mb-3">
+          <VelfacPdfCleaner />
+        </div>
 
         {tab === 'pipeline' && (
           <Pipeline sellerName={role.name} isAdmin={isAdmin} onSelectCase={setSelectedCase} />
