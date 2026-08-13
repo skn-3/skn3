@@ -23,7 +23,9 @@ export function VelfacPdfCleaner() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
 
   const reset = () => {
     if (result?.blobUrl) URL.revokeObjectURL(result.blobUrl);
@@ -98,23 +100,39 @@ export function VelfacPdfCleaner() {
           </DialogHeader>
 
           {!result && (
-            <div className="space-y-4">
-              <Button onClick={() => !busy && inputRef.current?.click()} disabled={busy}>
-                <Sparkles className="h-4 w-4 mr-2" />
-                {busy ? 'Städar...' : 'Klicka för att välja den råa PDF:en'}
-              </Button>
-              <p className="text-sm text-muted-foreground">
-                Den städade versionen laddas ner automatiskt med samma filnamn
+            <div
+              className={`rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${
+                dragOver ? 'border-primary bg-primary/10' : 'hover:bg-muted/40'
+              }`}
+              onClick={() => !busy && inputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); if (!busy) setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                if (busy) return;
+                const f = Array.from(e.dataTransfer.files).find(
+                  (x) => x.type === 'application/pdf' || x.name.toLowerCase().endsWith('.pdf')
+                );
+                if (f) process(f);
+                else toast.error('Släpp en PDF-fil');
+              }}
+            >
+              <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm font-medium">
+                {busy ? 'Städar...' : dragOver ? 'Släpp här' : 'Släpp PDF:en här — eller klicka för att bläddra'}
               </p>
+              <p className="text-xs text-muted-foreground mt-1">Den städade versionen laddas ner automatiskt med samma filnamn</p>
               <input
+                ref={inputRef}
                 type="file"
                 accept="application/pdf"
-                ref={inputRef}
                 className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) process(f); }}
               />
             </div>
           )}
+
 
           {result && (
             <div className="space-y-4">
