@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { VelfacPdfCleaner } from '@/components/tools/VelfacPdfCleaner';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { UserRole } from '@/lib/constants';
