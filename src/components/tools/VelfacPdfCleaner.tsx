@@ -64,7 +64,7 @@ export function VelfacPdfCleaner() {
       const bytes = await out.save();
 
       // Steg 3: ladda ner med SAMMA filnamn
-      const blob = new Blob([bytes.buffer], { type: 'application/pdf' });
+      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;
