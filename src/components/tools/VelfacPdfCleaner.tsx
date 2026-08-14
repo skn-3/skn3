@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { PDFDocument, rgb } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { FileText, Download, RotateCcw } from 'lucide-react';
@@ -15,7 +15,7 @@ if (typeof (Promise as any).withResolvers !== 'function') {
   };
 }
 // Legacy-workern är byggd för äldre webbläsare (iOS Safari)
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.js', import.meta.url).toString();
 
 const FOOTER_HEIGHT_PT = 44; // DOVISTA-foten ligger i nedersta ~36pt; 44 täcker text + linje med marginal
 const VILLKOR_PATTERN = /allmänna villkor|försäljnings- och leveransvillkor/;
@@ -26,6 +26,7 @@ type Result = {
   pagesOut: number;
   removed: { page: number; reason: string }[];
   blobUrl: string;
+  villkorCheck: boolean;
 };
 
 export function VelfacPdfCleaner() {
@@ -46,19 +47,31 @@ export function VelfacPdfCleaner() {
     try {
       const buf = await file.arrayBuffer();
 
-      // Steg 1: textanalys per sida (pdfjs) — hitta sidor som ska bort
-      const doc = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+      // Steg 1: textanalys per sida (pdfjs) — hitta sidor som ska bort.
+      // Faller analysen (t.ex. på äldre enheter) körs städningen ändå, utan villkorsdetektering.
       const removed: { page: number; reason: string }[] = [{ page: 1, reason: 'Försättsblad' }];
-      const keepIndices: number[] = [];
-      for (let i = 2; i <= doc.numPages; i++) {
-        const page = await doc.getPage(i);
-        const tc = await page.getTextContent();
-        const text = tc.items.map((it: any) => it.str || '').join(' ').toLowerCase();
-        if (VILLKOR_PATTERN.test(text)) {
-          removed.push({ page: i, reason: 'Allmänna villkor' });
-        } else {
-          keepIndices.push(i - 1); // 0-indexerat för pdf-lib
+      let keepIndices: number[] = [];
+      let villkorCheck = true;
+      let pageCount = 0;
+      try {
+        const doc = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+        pageCount = doc.numPages;
+        for (let i = 2; i <= doc.numPages; i++) {
+          const page = await doc.getPage(i);
+          const tc = await page.getTextContent();
+          const text = tc.items.map((it: any) => it.str || '').join(' ').toLowerCase();
+          if (VILLKOR_PATTERN.test(text)) {
+            removed.push({ page: i, reason: 'Allmänna villkor' });
+          } else {
+            keepIndices.push(i - 1);
+          }
         }
+      } catch (e) {
+        console.warn('PDF-textanalys misslyckades — kör utan villkorsdetektering', e);
+        villkorCheck = false;
+        const probe = await PDFDocument.load(buf, { ignoreEncryption: true });
+        pageCount = probe.getPageCount();
+        keepIndices = Array.from({ length: Math.max(0, pageCount - 1) }, (_, i) => i + 1);
       }
       if (keepIndices.length === 0) throw new Error('Inga sidor kvar efter städning — är detta rätt fil?');
 
@@ -81,7 +94,7 @@ export function VelfacPdfCleaner() {
       a.download = file.name;
       a.click();
 
-      setResult({ fileName: file.name, pagesIn: doc.numPages, pagesOut: keepIndices.length, removed, blobUrl });
+      setResult({ fileName: file.name, pagesIn: pageCount, pagesOut: keepIndices.length, removed, blobUrl, villkorCheck });
       toast.success('PDF städad och nedladdad');
     } catch (e: any) {
       console.error(e);
@@ -155,6 +168,9 @@ export function VelfacPdfCleaner() {
                     </li>
                   ))}
                 </ul>
+                {!result.villkorCheck && (
+                  <div className="text-xs text-amber-700">OBS: villkorssidan kunde inte auto-detekteras på den här enheten — bläddra igenom resultatet innan du skickar det.</div>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => { const a = document.createElement('a'); a.href = result.blobUrl; a.download = result.fileName; a.click(); }}>
