@@ -168,6 +168,9 @@ export function VelfacPdfCleaner() {
                     </li>
                   ))}
                 </ul>
+                {!result.villkorCheck && (
+                  <div className="text-xs text-amber-700">OBS: villkorssidan kunde inte auto-detekteras på den här enheten — bläddra igenom resultatet innan du skickar det.</div>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => { const a = document.createElement('a'); a.href = result.blobUrl; a.download = result.fileName; a.click(); }}>
