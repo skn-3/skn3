@@ -1,12 +1,21 @@
 import { useRef, useState } from 'react';
 import { PDFDocument, rgb } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { FileText, Download, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+// Polyfill för äldre Safari/iOS (< 17.4) som saknar Promise.withResolvers — krävs av pdfjs
+if (typeof (Promise as any).withResolvers !== 'function') {
+  (Promise as any).withResolvers = function () {
+    let resolve: any, reject: any;
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
+  };
+}
+// Legacy-workern är byggd för äldre webbläsare (iOS Safari)
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
 
 const FOOTER_HEIGHT_PT = 44; // DOVISTA-foten ligger i nedersta ~36pt; 44 täcker text + linje med marginal
 const VILLKOR_PATTERN = /allmänna villkor|försäljnings- och leveransvillkor/;
