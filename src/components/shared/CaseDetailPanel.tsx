@@ -42,6 +42,7 @@ import { OfferForm } from '@/components/offers/OfferForm';
 import { AOrderForm } from '@/components/aorders/AOrderForm';
 import { fmtKr as fmtOfferKr } from '@/lib/offerCalc';
 import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
+import { openDocumentInNewTab } from '@/lib/openDocument';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -322,14 +323,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [economyOpsOpen, setEconomyOpsOpen] = useState(false);
 
   const openPayoutPdf = async (path: string) => {
-    const { data, error } = await supabase.storage
-      .from('case-documents')
-      .createSignedUrl(path, 3600);
-    if (error || !data?.signedUrl) {
-      toast.error('Kunde inte öppna PDF');
-      return;
-    }
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    const ok = await openDocumentInNewTab(async () => {
+      const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(path, 3600);
+      return error ? null : data?.signedUrl ?? null;
+    });
+    if (!ok) toast.error('Kunde inte öppna PDF');
   };
 
 

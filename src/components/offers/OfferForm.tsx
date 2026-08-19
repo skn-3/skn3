@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { DEFAULT_OFFER_TERMS } from '@/lib/offerTerms';
 import { calcOfferTotals, fmtKr, type OfferLineItem } from '@/lib/offerCalc';
 import { buildOfferPdfBlob, offerFileName } from '@/lib/offerPdf';
+import { openDocumentInNewTab } from '@/lib/openDocument';
 import { createUppdragFromOffer, findUppdragForOffer } from '@/lib/uppdrag';
 
 type OfferRow = any;
@@ -221,8 +222,11 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
       if (upErr) throw upErr;
       await (supabase as any).from('offers').update({ pdf_path: path }).eq('id', id);
       setPdfPath(path);
-      const { data: signed } = await supabase.storage.from('case-documents').createSignedUrl(path, 3600);
-      if (signed?.signedUrl) window.open(signed.signedUrl, '_blank', 'noopener,noreferrer');
+      const opened = await openDocumentInNewTab(async () => {
+        const { data: signed } = await supabase.storage.from('case-documents').createSignedUrl(path, 3600);
+        return signed?.signedUrl ?? null;
+      }, { fallbackSameTab: false });
+      if (!opened) toast.info('PDF sparad — öppna den via offertlistan');
       onSaved();
       toast.success('PDF genererad');
     } catch (e: any) {
@@ -386,11 +390,11 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
                 <button
                   type="button"
                   className="underline text-green-700 hover:text-green-900 mt-1"
-                  onClick={async () => {
+                  onClick={() => openDocumentInNewTab(async () => {
                     const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path!, 3600, { download: offerFileName(offer as any, 'avtal') });
-                    if (error || !data?.signedUrl) { toast.error('Kunde inte öppna avtalet'); return; }
-                    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
-                  }}
+                    if (error || !data?.signedUrl) { toast.error('Kunde inte öppna avtalet'); return null; }
+                    return data.signedUrl;
+                  })}
                 >
                   Öppna signerat avtal med verifikat
                 </button>
