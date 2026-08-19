@@ -27,6 +27,7 @@ import { ImportInvoicesView } from './ImportInvoicesView';
 import { MontorDebitInvoiceDialog } from './MontorDebitInvoiceDialog';
 import { MontorDebitInvoicesView } from './MontorDebitInvoicesView';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
+import { openDocumentInNewTab } from '@/lib/openDocument';
 import { useRole } from '@/hooks/useRole';
 
 interface Props { currentUser: string }
@@ -124,8 +125,11 @@ export function AOrdersView({ currentUser }: Props) {
     setBusyId(o.id);
     try {
       if (o.pdf_path) {
-        const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(o.pdf_path, 600);
-        if (!error && data?.signedUrl) { window.open(data.signedUrl, '_blank'); return; }
+        const ok = await openDocumentInNewTab(async () => {
+          const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(o.pdf_path, 600);
+          return error ? null : data?.signedUrl ?? null;
+        });
+        if (ok) return;
       }
       const full = await fetchOrder(o.id);
       const logo = await loadAOrderLogo();

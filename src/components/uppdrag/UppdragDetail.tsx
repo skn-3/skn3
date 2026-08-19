@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { fmtKr } from '@/lib/offerCalc';
 import { buildHandpenningPdfBlob, buildSlutfakturaPdfBlob } from '@/lib/invoicePdf';
+import { openDocumentInNewTab } from '@/lib/openDocument';
 import { UPPDRAG_STATUS_META, type UppdragStatus } from '@/lib/uppdrag';
 
 type Uppdrag = {
@@ -77,8 +78,11 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
   };
 
   const openSigned = async (path: string) => {
-    const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 3600);
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    const ok = await openDocumentInNewTab(async () => {
+      const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 3600);
+      return data?.signedUrl ?? null;
+    });
+    if (!ok) toast.error('Kunde inte öppna PDF');
   };
 
   const generateHandpenning = async () => {

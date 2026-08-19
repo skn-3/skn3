@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { buildMontorDebitPdf } from '@/lib/montorDebitPdf';
 import { loadAOrderLogo } from '@/lib/aOrderPdf';
+import { openDocumentInNewTab } from '@/lib/openDocument';
 import { useRole } from '@/hooks/useRole';
 
 function fmt(n: number) { return Math.round(n || 0).toLocaleString('sv-SE') + ' kr'; }
@@ -38,8 +39,11 @@ export function MontorDebitInvoicesView() {
     setBusyId(inv.id);
     try {
       if (inv.pdf_path) {
-        const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(inv.pdf_path, 600);
-        if (!error && data?.signedUrl) { window.open(data.signedUrl, '_blank'); return; }
+        const ok = await openDocumentInNewTab(async () => {
+          const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(inv.pdf_path, 600);
+          return error ? null : data?.signedUrl ?? null;
+        });
+        if (ok) return;
       }
       const logo = await loadAOrderLogo();
       const doc = buildMontorDebitPdf({

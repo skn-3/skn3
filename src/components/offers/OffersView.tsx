@@ -17,6 +17,7 @@ import { OfferForm } from './OfferForm';
 import { fmtKr } from '@/lib/offerCalc';
 import { buildOfferPdfBlob, offerFileName } from '@/lib/offerPdf';
 import { createUppdragFromOffer } from '@/lib/uppdrag';
+import { openDocumentInNewTab } from '@/lib/openDocument';
 import { isCurrentUserAdmin } from '@/lib/authState';
 
 export type OfferRow = {
@@ -123,9 +124,11 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const openPdf = useMutation({
     mutationFn: async (offer: OfferRow) => {
       if (offer.pdf_path) {
-        const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.pdf_path, 3600, { download: offerFileName(offer as any, 'offert') });
-        if (error || !data?.signedUrl) throw new Error('Kunde inte öppna PDF');
-        window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+        const ok = await openDocumentInNewTab(async () => {
+          const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.pdf_path!, 3600, { download: offerFileName(offer as any, 'offert') });
+          return error ? null : data?.signedUrl ?? null;
+        });
+        if (!ok) throw new Error('Kunde inte öppna PDF');
         return;
       }
       // No saved PDF — generate on the fly and download
@@ -143,9 +146,11 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const openSignedPdf = useMutation({
     mutationFn: async (offer: OfferRow) => {
       if (!offer.signed_pdf_path) throw new Error('Signerat avtal saknas');
-      const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path, 3600, { download: offerFileName(offer as any, 'avtal') });
-      if (error || !data?.signedUrl) throw new Error('Kunde inte öppna avtal');
-      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+      const ok = await openDocumentInNewTab(async () => {
+        const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path!, 3600, { download: offerFileName(offer as any, 'avtal') });
+        return error ? null : data?.signedUrl ?? null;
+      });
+      if (!ok) throw new Error('Kunde inte öppna avtal');
     },
     onError: (e: any) => toast.error(e?.message || 'Kunde inte öppna avtal'),
   });
