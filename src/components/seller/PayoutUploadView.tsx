@@ -588,6 +588,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const multiSumMismatch = isMulti && totalNum > 0 && Math.abs(groupedSubtotalSum - totalNum) > 0.5;
 
   const reset = () => {
+    setUnlinkedAccepts({});
     setSingleAOrderAccept(true);
     setAllowUnlinked(false);
     setFile(null);
