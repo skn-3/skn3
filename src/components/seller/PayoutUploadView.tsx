@@ -572,6 +572,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setSearch('');
     setChosenCase(null);
     setGroupChoices({});
+    setClearedGroups({});
     setGroupSearch({});
     setLineCaseChoices({});
     setLineSearch({});
@@ -1133,7 +1134,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               )}
 
               {groups.map(g => {
-                const override = groupChoices[g.order_number] ?? null;
+                
                 const showSearch = !g.effectiveCase || g.matchSource === 'manual';
                 const results = filteredCasesForGroup(g.order_number);
                 const skipped = isMontorInvoice && isSkipped(g.order_number);
@@ -1713,6 +1714,15 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               </AlertDescription>
             </Alert>
           )}
+
+          {isMulti && !isMontorInvoice && (() => {
+            const unresolved = groups.filter(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !isSkipped(g.order_number)).length;
+            return unresolved > 0 ? (
+              <p className="text-xs text-amber-700 text-right">
+                {unresolved} ärendegrupp{unresolved === 1 ? '' : 'er'} saknar val — bekräfta förslag, sök manuellt eller hoppa över innan import.
+              </p>
+            ) : null;
+          })()}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={reset} disabled={submitting}>Rensa</Button>
