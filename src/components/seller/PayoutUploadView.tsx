@@ -1366,7 +1366,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                                   key={c.id}
                                   type="button"
                                   onClick={() => {
-                                    setGroupChoices(prev => ({ ...prev, [g.order_number]: c }));
+                                    setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'case', case: c } }));
                                     setGroupSearch(prev => ({ ...prev, [g.order_number]: '' }));
                                   }}
                                   className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
