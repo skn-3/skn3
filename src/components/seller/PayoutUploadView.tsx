@@ -229,6 +229,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [chosenCase, setChosenCase] = useState<CaseRow | null>(null);
   // Multi-mode: per-order-number manually chosen case override
   const [groupChoices, setGroupChoices] = useState<Record<string, CaseRow | null>>({});
+  const [clearedGroups, setClearedGroups] = useState<Record<string, boolean>>({});
   const [groupSearch, setGroupSearch] = useState<Record<string, string>>({});
   // For montor_invoice: per-line manual case assignment (when address can't auto-match)
   const [lineCaseChoices, setLineCaseChoices] = useState<Record<number, CaseRow | null>>({});
@@ -353,7 +354,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     return findNameMatches(cases as CaseRow[], customerName, null, 5);
   }, [orderMatch, cases, customerName, isSheet]);
 
-  const strongNameMatch = nameCandidates[0] && nameCandidates[0].score >= 90 ? nameCandidates[0].case : null;
+  // Auto-acceptera ENDAST exakta namnträffar
+  const strongNameMatch = nameCandidates[0] && nameCandidates[0].score >= 90 && /exakt namn/i.test(nameCandidates[0].reason) ? nameCandidates[0].case : null;
 
   // Adress-kandidater (plåtfaktura)
   const addressMatches = useMemo<AddrCandidate[]>(() => {
@@ -416,8 +418,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         const candidates = addressCandidates(cases as CaseRow[], v.addr);
         const auto = candidates[0]?.case || null;
         const override = groupChoices[groupId] ?? null;
-        const effective = override || auto;
-        const matchSource: Group['matchSource'] = override ? 'manual' : (auto ? 'address' : null);
+        const cleared = !!clearedGroups[groupId];
+        const effective = override || (cleared ? null : auto);
+        const matchSource: Group['matchSource'] = override ? 'manual' : cleared ? null : (auto ? 'address' : null);
         return {
           order_number: groupId,
           keyKind: 'address',
