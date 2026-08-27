@@ -474,12 +474,14 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const groupCustomerName = lines.find(l => norm(l.customer_name))?.customer_name ?? null;
       const orderC = (cases as any[]).find(c => norm(c.order_number) === on) || null;
       const candidates = orderC ? [] : findNameMatches(cases as CaseRow[], groupCustomerName, null, 5);
-      const strong = candidates[0] && candidates[0].score >= 90 ? candidates[0].case : null;
+      // Auto-acceptera ENDAST exakta namnträffar — delsträngar och ordöverlapp kräver aktivt val
+      const strong = candidates[0] && candidates[0].score >= 90 && /exakt namn/i.test(candidates[0].reason) ? candidates[0].case : null;
       const autoCase = orderC || strong;
       const override = groupChoices[on] ?? null;
-      const effective = override || autoCase;
+      const cleared = !!clearedGroups[on];
+      const effective = override || (cleared ? null : autoCase);
       const matchSource: Group['matchSource'] =
-        override ? 'manual' : orderC ? 'order' : strong ? 'name' : null;
+        override ? 'manual' : cleared ? null : orderC ? 'order' : strong ? 'name' : null;
       const aOrderMatch = matchSource === null ? findAOrderNameMatch(unlinkedAOrders as any[], groupCustomerName) : null;
       return {
         order_number: on,
@@ -497,7 +499,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         aOrderMatch,
       };
     });
-  }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, lineCaseChoices, unlinkedAOrders]);
+  }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, clearedGroups, lineCaseChoices, unlinkedAOrders]);
 
   const unassignedLines = useMemo(
     () => {
