@@ -888,73 +888,69 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       }
 
 
-      // Saknad kundprofil: skapa ärende i efterhand från A-order + utbetalningsrad
-      const aOrderGroups = groups.filter(
-        (g) => !g.effectiveCase && g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true) && !isSkipped(g.order_number)
-      );
       let createdCases = 0;
-      for (const g of aOrderGroups) {
-        const ao = g.aOrderMatch!.aOrder;
-        const { data: newCase, error: caseErr } = await (supabase as any)
-          .from('cases')
-          .insert({
-            customer_name: ao.customer_name || g.groupCustomerName || 'Okänd kund',
-            address: ao.customer_address || '—',
-            customer_phone: '',
-            seller: 'Okänd',
-            status: 'fakturerad',
-            carry_help_needed: false,
-            notes: 'Skapad i efterhand vid utbetalningsimport — säljregistrering saknades. Komplettera säljare.',
-            order_number: ao.order_number != null ? String(ao.order_number) : (g.order_number || null),
-          })
-          .select('id')
-          .single();
-        if (caseErr) throw caseErr;
-
-        const { error: linkErr } = await (supabase as any).from('a_orders').update({ case_id: newCase.id }).eq('id', ao.id);
-        if (linkErr) throw linkErr;
-
-        const { error: docErr } = await (supabase as any).from('case_documents').insert({
-          case_id: newCase.id,
-          doc_type: docType,
-          file_path: path,
-          file_name: file.name,
-          order_number: g.order_number,
-          invoice_number: inv,
-          customer_name: g.groupCustomerName || null,
-          invoice_date: invoiceDate || null,
-          total_amount: g.subtotal,
-          currency: 'SEK',
-          line_items: g.lines,
-          uploaded_by: currentUser,
-        });
-        if (docErr) throw docErr;
-        createdCases++;
-      }
-
-      // Parkerade grupper: importeras utan koppling (case_id null) och kopplas senare
-      const parkedGroups = isMontorInvoice ? [] : groups.filter(
-        (g) => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && (unlinkedAccepts[g.order_number] ?? false)
-      );
       let parkedCount = 0;
-      for (const g of parkedGroups) {
-        const { error: parkErr } = await (supabase as any).from('case_documents').insert({
-          case_id: null,
-          doc_type: docType,
-          file_path: path,
-          file_name: file.name,
-          order_number: g.order_number,
-          invoice_number: inv,
-          customer_name: g.groupCustomerName || null,
-          invoice_date: invoiceDate || null,
-          total_amount: g.subtotal,
-          currency: 'SEK',
-          line_items: g.lines,
-          uploaded_by: currentUser,
-        });
-        if (parkErr) throw parkErr;
-        parkedCount++;
+      if (!isMontorInvoice) {
+        for (const g of groups) {
+          if (g.choice?.kind === 'aorder') {
+            const ao = g.choice.aOrder;
+            const { data: newCase, error: caseErr } = await (supabase as any)
+              .from('cases')
+              .insert({
+                customer_name: ao.customer_name || g.groupCustomerName || 'Okänd kund',
+                address: ao.customer_address || '—',
+                customer_phone: '',
+                seller: 'Okänd',
+                status: 'fakturerad',
+                carry_help_needed: false,
+                notes: 'Skapad i efterhand vid utbetalningsimport — säljregistrering saknades. Komplettera säljare.',
+                order_number: ao.order_number != null ? String(ao.order_number) : (g.order_number || null),
+              })
+              .select('id')
+              .single();
+            if (caseErr) throw caseErr;
+
+            const { error: linkErr } = await (supabase as any).from('a_orders').update({ case_id: newCase.id }).eq('id', ao.id);
+            if (linkErr) throw linkErr;
+
+            const { error: docErr } = await (supabase as any).from('case_documents').insert({
+              case_id: newCase.id,
+              doc_type: docType,
+              file_path: path,
+              file_name: file.name,
+              order_number: g.order_number,
+              invoice_number: inv,
+              customer_name: g.groupCustomerName || null,
+              invoice_date: invoiceDate || null,
+              total_amount: g.subtotal,
+              currency: 'SEK',
+              line_items: g.lines,
+              uploaded_by: currentUser,
+            });
+            if (docErr) throw docErr;
+            createdCases++;
+          } else if (g.choice?.kind === 'unlinked') {
+            const { error: parkErr } = await (supabase as any).from('case_documents').insert({
+              case_id: null,
+              doc_type: docType,
+              file_path: path,
+              file_name: file.name,
+              order_number: g.order_number,
+              invoice_number: inv,
+              customer_name: g.groupCustomerName || null,
+              invoice_date: invoiceDate || null,
+              total_amount: g.subtotal,
+              currency: 'SEK',
+              line_items: g.lines,
+              uploaded_by: currentUser,
+            });
+            if (parkErr) throw parkErr;
+            parkedCount++;
+          }
+        }
       }
+
+
 
       for (const g of groupsToInsert) {
         const c = g.effectiveCase!;
