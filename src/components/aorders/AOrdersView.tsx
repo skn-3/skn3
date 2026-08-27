@@ -344,6 +344,10 @@ export function AOrdersView({ currentUser }: Props) {
                 ))}
               </SelectContent>
             </Select>
+            <label className="flex items-center gap-2 text-sm whitespace-nowrap cursor-pointer">
+              <input type="checkbox" checked={onlyPayReady} onChange={(e) => setOnlyPayReady(e.target.checked)} />
+              MF betald · ej montörsfakturerad
+            </label>
           </div>
           <p className="text-xs text-muted-foreground">
             Visar {filteredHistory.length} av {orders.length} A-ordrar
@@ -392,6 +396,13 @@ export function AOrdersView({ currentUser }: Props) {
                       </td>
                       <td className="px-3 py-2">
                         <Badge className={meta.cls}>{isCredit ? 'Kreditfaktura' : meta.label}</Badge>
+                        {o.case_id && paidCaseMap.has(o.case_id) && (
+                          <div className="text-[10px] mt-1 inline-flex items-center gap-1 text-emerald-700 font-medium">
+                            <BanknoteIcon className="h-3 w-3" />
+                            MF betald {paidCaseMap.get(o.case_id)}
+                            {o.status === 'order' && <span className="text-amber-700 font-semibold"> · dags att fakturera montör</span>}
+                          </div>
+                        )}
                         {o.invoice_number && (
                           <div className="text-[10px] text-muted-foreground mt-1">
                             {isCredit ? 'Kreditnr' : 'Fakturanr'}: {o.invoice_number}
