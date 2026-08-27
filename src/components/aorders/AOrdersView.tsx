@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight } from 'lucide-react';
+import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight, Banknote as BanknoteIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,7 @@ export function AOrdersView({ currentUser }: Props) {
   const [assignTeam, setAssignTeam] = useState<string>('');
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState<string>('all');
+  const [onlyPayReady, setOnlyPayReady] = useState(false);
   const [invoiceFor, setInvoiceFor] = useState<any | null>(null);
   const [creditFor, setCreditFor] = useState<any | null>(null);
   const [deleteFor, setDeleteFor] = useState<any | null>(null);
@@ -77,6 +78,29 @@ export function AOrdersView({ currentUser }: Props) {
     },
   });
 
+  const { data: payoutDocs = [] } = useQuery({
+    queryKey: ['payout-docs-map'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('case_documents')
+        .select('case_id, invoice_date, created_at')
+        .eq('doc_type', 'mockfjards_payout');
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const paidCaseMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const d of payoutDocs as any[]) {
+      if (!d.case_id) continue;
+      const date = d.invoice_date || (d.created_at ? String(d.created_at).slice(0, 10) : '');
+      const prev = m.get(d.case_id);
+      if (!prev || date > prev) m.set(d.case_id, date);
+    }
+    return m;
+  }, [payoutDocs]);
+
   const pending = useMemo(() => orders.filter(o => !o.team_id), [orders]);
   const totalPending = useMemo(() => pending.reduce((s, o) => s + Number(o.total_amount || 0), 0), [pending]);
   const internalPending = useMemo(() => pending.reduce((s, o) => s + Number(o.internal_extra_hours || 0) * Number(o.internal_hour_rate || 0) + Number(o.internal_extra_amount || 0), 0), [pending]);
@@ -87,6 +111,7 @@ export function AOrdersView({ currentUser }: Props) {
     return orders.filter(o => {
       if (teamFilter === 'unassigned' && o.team_id) return false;
       if (teamFilter !== 'all' && teamFilter !== 'unassigned' && o.team_id !== teamFilter) return false;
+      if (onlyPayReady && !(o.case_id && paidCaseMap.has(o.case_id) && o.status === 'order')) return false;
       if (!q) return true;
       return (
         (o.customer_address || '').toLowerCase().includes(q) ||
@@ -94,7 +119,7 @@ export function AOrdersView({ currentUser }: Props) {
         String(o.order_number || '').includes(q)
       );
     });
-  }, [orders, search, teamFilter]);
+  }, [orders, search, teamFilter, onlyPayReady, paidCaseMap]);
 
   function openNew() { setEditing(null); setFormPrefill(null); setFormMode('standard'); setFormOpen(true); }
   function openNewKomp() { setEditing(null); setFormPrefill(null); setFormMode('komplettering'); setFormOpen(true); }
@@ -319,6 +344,10 @@ export function AOrdersView({ currentUser }: Props) {
                 ))}
               </SelectContent>
             </Select>
+            <label className="flex items-center gap-2 text-sm whitespace-nowrap cursor-pointer">
+              <input type="checkbox" checked={onlyPayReady} onChange={(e) => setOnlyPayReady(e.target.checked)} />
+              MF betald · ej montörsfakturerad
+            </label>
           </div>
           <p className="text-xs text-muted-foreground">
             Visar {filteredHistory.length} av {orders.length} A-ordrar
@@ -367,6 +396,13 @@ export function AOrdersView({ currentUser }: Props) {
                       </td>
                       <td className="px-3 py-2">
                         <Badge className={meta.cls}>{isCredit ? 'Kreditfaktura' : meta.label}</Badge>
+                        {o.case_id && paidCaseMap.has(o.case_id) && (
+                          <div className="text-[10px] mt-1 inline-flex items-center gap-1 text-emerald-700 font-medium">
+                            <BanknoteIcon className="h-3 w-3" />
+                            MF betald {paidCaseMap.get(o.case_id)}
+                            {o.status === 'order' && <span className="text-amber-700 font-semibold"> · dags att fakturera montör</span>}
+                          </div>
+                        )}
                         {o.invoice_number && (
                           <div className="text-[10px] text-muted-foreground mt-1">
                             {isCredit ? 'Kreditnr' : 'Fakturanr'}: {o.invoice_number}
