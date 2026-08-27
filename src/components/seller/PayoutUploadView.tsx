@@ -229,6 +229,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [chosenCase, setChosenCase] = useState<CaseRow | null>(null);
   // Multi-mode: per-order-number manually chosen case override
   const [groupChoices, setGroupChoices] = useState<Record<string, CaseRow | null>>({});
+  const [caseDetailsOpen, setCaseDetailsOpen] = useState<Record<string, boolean>>({});
   const [clearedGroups, setClearedGroups] = useState<Record<string, boolean>>({});
   const [groupSearch, setGroupSearch] = useState<Record<string, string>>({});
   // For montor_invoice: per-line manual case assignment (when address can't auto-match)
