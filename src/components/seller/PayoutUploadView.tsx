@@ -1194,7 +1194,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
               {groups.map(g => {
                 
-                const showSearch = !g.effectiveCase || g.matchSource === 'manual';
+                const showSearch = !g.choice || g.matchSource === 'manual';
                 const results = filteredCasesForGroup(g.order_number);
                 const skipped = isMontorInvoice && isSkipped(g.order_number);
                 return (
