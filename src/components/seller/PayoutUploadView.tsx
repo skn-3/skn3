@@ -509,10 +509,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const autoCase = orderC || strong;
       const override = groupChoices[on] ?? null;
       const cleared = !!clearedGroups[on];
-      const effective = override || (cleared ? null : autoCase);
+      const effective = override?.kind === 'case' ? override.case : (override ? null : (cleared ? null : autoCase));
       const matchSource: Group['matchSource'] =
         override ? 'manual' : cleared ? null : orderC ? 'order' : strong ? 'name' : null;
-      const aOrderMatch = matchSource === null ? findAOrderNameMatch(unlinkedAOrders as any[], groupCustomerName) : null;
+      const choice: GroupChoice | null =
+        override ?? (cleared ? null : (autoCase ? { kind: 'case', case: autoCase } : null));
+      const aOrderCandidates = (matchSource === null || cleared) ? findAOrderCandidates(unlinkedAOrders as any[], groupCustomerName) : [];
       return {
         order_number: on,
         keyKind: 'order',
@@ -526,10 +528,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         addrCandidates: [],
         effectiveCase: effective,
         matchSource,
-        aOrderMatch,
+        choice,
+        aOrderCandidates,
       };
     });
   }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, clearedGroups, lineCaseChoices, unlinkedAOrders]);
+
 
   const unassignedLines = useMemo(
     () => {
