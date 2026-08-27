@@ -1180,15 +1180,24 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             {g.matchSource === 'address' && <Badge variant="outline">{g.addrCandidates[0]?.reason || 'adress'}</Badge>}
                           </AlertTitle>
                           <AlertDescription>
-                            <div className="text-sm">
-                              <div><b>{g.effectiveCase.address}</b></div>
+                            <button
+                              type="button"
+                              className="text-sm text-left w-full rounded hover:bg-muted/60 -mx-1 px-1 py-0.5 transition-colors"
+                              onClick={() => setCaseDetailsOpen(prev => ({ ...prev, [g.order_number]: !prev[g.order_number] }))}
+                              title="Klicka för att granska ärendet"
+                            >
+                              <div className="flex items-center gap-1">
+                                <b>{g.effectiveCase.address}</b>
+                                <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${caseDetailsOpen[g.order_number] ? 'rotate-180' : ''}`} />
+                              </div>
                               <div className="text-muted-foreground">
                                 {g.effectiveCase.customer_name}
                                 {g.matchSource === 'name' && g.nameCandidates[0]?.reason
                                   ? ` · ${g.nameCandidates[0].reason}`
                                   : ''}
                               </div>
-                            </div>
+                            </button>
+                            {caseDetailsOpen[g.order_number] && <CaseInlineDetails c={g.effectiveCase} />}
                             {g.matchSource === 'name' && (
                               <p className="text-xs text-muted-foreground mt-1">
                                 Ordernumret {g.order_number} hittades inte i systemet. Bekräfta att detta är rätt ärende.
