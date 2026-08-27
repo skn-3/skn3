@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter,
   AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogAction,
@@ -283,6 +284,49 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     },
   });
 
+  // Okopplade dokument (parkerade vid import)
+  const { data: unlinkedDocs = [] } = useQuery({
+    queryKey: ['unlinked-case-documents'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('case_documents')
+        .select('id, doc_type, invoice_number, customer_name, total_amount, invoice_date, file_name')
+        .is('case_id', null)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const [unlinkedSearch, setUnlinkedSearch] = useState<Record<string, string>>({});
+
+  const docTypeLabel = (t: string) =>
+    t === 'montor_invoice' ? 'Montörsfaktura'
+    : t === 'sheet_metal_invoice' ? 'Plåtfaktura'
+    : t === 'a_order' ? 'A-order'
+    : 'Mockfjärds-utbetalning';
+
+  const searchCasesFor = (q: string) => {
+    const s = q.trim().toLowerCase();
+    if (!s) return [];
+    return (cases as CaseRow[])
+      .filter(c =>
+        (c.customer_name || '').toLowerCase().includes(s) ||
+        (c.address || '').toLowerCase().includes(s) ||
+        (c.offer_number || '').toLowerCase().includes(s) ||
+        ((c as any).order_number || '').toLowerCase().includes(s)
+      )
+      .slice(0, 8);
+  };
+
+  const linkUnlinkedDoc = async (docId: string, c: CaseRow) => {
+    const { error } = await (supabase as any).from('case_documents').update({ case_id: c.id }).eq('id', docId);
+    if (error) { toast.error(`Kunde inte koppla: ${error.message}`); return; }
+    qc.invalidateQueries({ queryKey: ['unlinked-case-documents'] });
+    qc.invalidateQueries({ queryKey: ['case-documents', c.id] });
+    qc.invalidateQueries({ queryKey: ['cases-all'] });
+    toast.success(`Kopplad till ${c.address}`);
+  };
+
   // Distinct order numbers from line items
   const distinctOrderNumbers = useMemo(() => {
     const set = new Set<string>();
@@ -319,6 +363,13 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const strongAddrMatch = addressMatches[0]?.case || null;
 
   const effectiveCase = chosenCase || orderMatch || strongNameMatch || strongAddrMatch;
+
+  const singleAOrderMatch = useMemo(
+    () => (!isMulti && !effectiveCase ? findAOrderNameMatch(unlinkedAOrders as any[], customerName) : null),
+    [isMulti, effectiveCase, unlinkedAOrders, customerName],
+  );
+  const [singleAOrderAccept, setSingleAOrderAccept] = useState(true);
+  const [allowUnlinked, setAllowUnlinked] = useState(false);
 
   // Multi-mode groups
   type Group = {
@@ -502,6 +553,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const multiSumMismatch = isMulti && totalNum > 0 && Math.abs(groupedSubtotalSum - totalNum) > 0.5;
 
   const reset = () => {
+    setSingleAOrderAccept(true);
+    setAllowUnlinked(false);
     setFile(null);
     setOrderNumber('');
     setInvoiceNumber('');
@@ -586,12 +639,35 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setLineItems(items => items.map((li, i) => (i === lineIdx ? { ...li, order_number: on || null } : li)));
   };
 
-  const performSingleInsert = async (caseId: string) => {
+  const performSingleInsert = async (presetCaseId: string | null) => {
     setSubmitting(true);
     try {
+      let caseId: string | null = presetCaseId;
+      if (!caseId && singleAOrderMatch && singleAOrderAccept) {
+        const ao = singleAOrderMatch.aOrder;
+        const { data: newCase, error: caseErr } = await (supabase as any)
+          .from('cases')
+          .insert({
+            customer_name: ao.customer_name || customerName.trim() || 'Okänd kund',
+            address: ao.customer_address || '—',
+            customer_phone: '',
+            seller: 'Okänd',
+            status: 'fakturerad',
+            carry_help_needed: false,
+            notes: 'Skapad i efterhand vid utbetalningsimport — komplettera säljare.',
+            order_number: ao.order_number != null ? String(ao.order_number) : (orderNumber.trim() || null),
+          })
+          .select('id')
+          .single();
+        if (caseErr) throw caseErr;
+        const { error: linkErr } = await (supabase as any).from('a_orders').update({ case_id: newCase.id }).eq('id', ao.id);
+        if (linkErr) throw linkErr;
+        caseId = newCase.id;
+      }
+
       const safe = sanitizeFileName(file!.name);
       const folder = isSheet ? 'sheet-invoices' : 'payouts';
-      const path = `${caseId}/${folder}/${Date.now()}_${safe}`;
+      const path = `${caseId ?? 'unlinked'}/${folder}/${Date.now()}_${safe}`;
       const { error: upErr } = await supabase.storage
         .from('case-documents')
         .upload(path, file!, { upsert: false, contentType: file!.type || 'application/pdf' });
@@ -618,7 +694,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       });
       if (insErr) throw insErr;
 
-      if (!isSheet && !norm((effectiveCase as any).order_number)) {
+      if (caseId && !isSheet && !norm((effectiveCase as any)?.order_number)) {
         try { await updateCase(caseId, { order_number: orderNumber.trim() } as any); } catch (e) { console.warn(e); }
       }
 
@@ -627,24 +703,32 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         : isCost
         ? `Egen faktura/A-order kopplad: faktura ${invoiceNumber.trim()}, kostnad ${amountNum.toLocaleString('sv-SE')} kr`
         : `Mockfjärds-utbetalning kopplad: faktura ${invoiceNumber.trim()}, belopp ${amountNum.toLocaleString('sv-SE')} kr`;
-      await createCaseEvent({
-        case_id: caseId,
-        event_type: 'note',
-        description: eventDesc,
-        created_by: currentUser,
-      });
+      if (caseId) {
+        await createCaseEvent({
+          case_id: caseId,
+          event_type: 'note',
+          description: eventDesc,
+          created_by: currentUser,
+        });
+      }
 
       logActivity({
         action: isSheet ? 'sheet_invoice_uploaded' : (isCost ? 'cost_doc_uploaded' : 'payout_uploaded'),
         category: 'case',
-        description: `Laddade upp ${shortLabel.toLowerCase()} (faktura ${invoiceNumber.trim()}) för ${effectiveCase!.address}`,
-        case_id: caseId,
+        description: `Laddade upp ${shortLabel.toLowerCase()} (faktura ${invoiceNumber.trim()})${effectiveCase ? ` för ${effectiveCase.address}` : ' utan koppling'}`,
+        case_id: caseId ?? undefined,
         metadata: { doc_type: docType, invoice_number: invoiceNumber.trim(), total_amount: amountNum, order_number: isSheet ? null : orderNumber.trim(), job_address: isSheet ? jobAddress || null : null },
       });
 
-      qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
+      if (caseId) qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
       qc.invalidateQueries({ queryKey: ['cases-all'] });
-      toast.success(isCost ? 'Faktura/A-order kopplad till ärendet' : 'Utbetalning kopplad till ärendet');
+      qc.invalidateQueries({ queryKey: ['unlinked-a-orders'] });
+      qc.invalidateQueries({ queryKey: ['unlinked-case-documents'] });
+      toast.success(
+        caseId
+          ? (isCost ? 'Faktura/A-order kopplad till ärendet' : 'Utbetalning kopplad till ärendet')
+          : 'Importerad utan koppling — hittas under Okopplade dokument'
+      );
       reset();
     } catch (e: any) {
       console.error(e);
@@ -659,9 +743,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     if (!isSheet && !orderNumber.trim()) { toast.error('Ange ordernummer'); return; }
     if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
     if (!totalAmount.trim() || isNaN(Number(totalAmount))) { toast.error('Ange totalbelopp'); return; }
-    if (!effectiveCase) { toast.error('Välj ett ärende att koppla till'); return; }
+    if (!effectiveCase && !(singleAOrderMatch && singleAOrderAccept) && !allowUnlinked) {
+      toast.error('Välj ett ärende att koppla till');
+      return;
+    }
 
-    const caseId = effectiveCase.id;
+    const caseId = effectiveCase?.id ?? null;
     const inv = invoiceNumber.trim();
 
     // Duplicate check
@@ -672,7 +759,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         .eq('doc_type', docType)
         .eq('invoice_number', inv);
       const rows: any[] = existing || [];
-      const sameCaseHit = rows.find(r => r.case_id === caseId);
+      const sameCaseHit = caseId ? rows.find(r => r.case_id === caseId) : null;
       const otherHits = rows.filter(r => r.case_id !== caseId);
       if (sameCaseHit) {
         const otherCases = otherHits.map(r => {
@@ -688,7 +775,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       if (otherHits.length > 0) {
         const labels = otherHits.map(r => {
           const c = (cases as CaseRow[]).find(cc => cc.id === r.case_id);
-          return c ? (c.address || c.customer_name || r.case_id.slice(0, 8)) : r.case_id.slice(0, 8);
+          return c ? (c.address || c.customer_name || (r.case_id ?? '').slice(0, 8)) : (r.case_id ? r.case_id.slice(0, 8) : 'okopplat');
         }).join(', ');
         toast.warning(`Obs: fakturanr ${inv} finns även på: ${labels}`);
       }
@@ -907,7 +994,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       ? (isMontorInvoice
           ? groups.length === 0 || unassignedLines.length > 0 || matchedActiveGroups.length === 0 || unresolvedGroups.length > 0
           : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true))))
-      : !effectiveCase);
+      : !(effectiveCase || (singleAOrderMatch && singleAOrderAccept) || allowUnlinked));
 
   return (
     <>
@@ -1544,6 +1631,32 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             )
           )}
 
+          {!isMulti && !effectiveCase && singleAOrderMatch && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-1.5">
+              <div className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Saknad kundprofil — A-order hittad via namn</div>
+              <div className="text-sm">
+                A-order <strong>#{singleAOrderMatch.aOrder.order_number ?? '—'}</strong> · {singleAOrderMatch.aOrder.customer_name}
+                {singleAOrderMatch.aOrder.customer_address ? ` · ${singleAOrderMatch.aOrder.customer_address}` : ''}
+                {typeof singleAOrderMatch.aOrder.total_amount === 'number' ? ` · montörsvärde ${singleAOrderMatch.aOrder.total_amount.toLocaleString('sv-SE')} kr` : ''}
+              </div>
+              <div className="text-xs text-muted-foreground">{singleAOrderMatch.reason}. Säljregistrering saknas — vid import skapas ärendet i efterhand och A-order + utbetalning kopplas dit.</div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={singleAOrderAccept} onChange={(e) => setSingleAOrderAccept(e.target.checked)} />
+                Skapa ärende och koppla vid import
+              </label>
+            </div>
+          )}
+
+          {!isMulti && !effectiveCase && !(singleAOrderMatch && singleAOrderAccept) && (
+            <label className="flex items-center gap-2 text-sm border rounded-md p-3 bg-muted/30 cursor-pointer">
+              <input type="checkbox" checked={allowUnlinked} onChange={(e) => setAllowUnlinked(e.target.checked)} />
+              <span>
+                <span className="font-medium">Importera ändå utan koppling.</span>{' '}
+                <span className="text-muted-foreground">Dokumentet sparas och listas under Okopplade dokument tills det kopplas till ett ärende.</span>
+              </span>
+            </label>
+          )}
+
           {!isMulti && (!orderMatch || chosenCase) && (
             <div className="space-y-2">
               <Label className="flex items-center gap-1"><Search className="h-3.5 w-3.5" /> Sök ärende manuellt</Label>
@@ -1606,6 +1719,56 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           </div>
         </CardContent>
       </Card>
+
+      {unlinkedDocs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Okopplade dokument ({unlinkedDocs.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(unlinkedDocs as any[]).map(doc => (
+              <div key={doc.id} className="flex flex-wrap items-center justify-between gap-2 border rounded-md p-3">
+                <div className="text-sm min-w-0">
+                  <div className="font-medium">
+                    {docTypeLabel(doc.doc_type)}
+                    {doc.invoice_number ? ` · faktura ${doc.invoice_number}` : ''}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {doc.customer_name || doc.file_name || '—'}
+                    {typeof doc.total_amount === 'number' ? ` · ${doc.total_amount.toLocaleString('sv-SE')} kr` : ''}
+                    {doc.invoice_date ? ` · ${doc.invoice_date}` : ''}
+                  </div>
+                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">Koppla till ärende</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-2 space-y-2" align="end">
+                    <Input
+                      placeholder="Sök adress, kund, offert- eller ordernummer…"
+                      value={unlinkedSearch[doc.id] ?? ''}
+                      onChange={(e) => setUnlinkedSearch(s => ({ ...s, [doc.id]: e.target.value }))}
+                    />
+                    <div className="max-h-64 overflow-y-auto divide-y border rounded-md">
+                      {searchCasesFor(unlinkedSearch[doc.id] ?? '').map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => linkUnlinkedDoc(doc.id, c)}
+                          className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                        >
+                          <div className="font-medium">{c.address}</div>
+                          <div className="text-xs text-muted-foreground">{c.customer_name}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
     <AlertDialog open={!!dupConfirm} onOpenChange={(o) => { if (!o) setDupConfirm(null); }}>
       <AlertDialogContent>
