@@ -284,6 +284,49 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     },
   });
 
+  // Okopplade dokument (parkerade vid import)
+  const { data: unlinkedDocs = [] } = useQuery({
+    queryKey: ['unlinked-case-documents'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('case_documents')
+        .select('id, doc_type, invoice_number, customer_name, total_amount, invoice_date, file_name')
+        .is('case_id', null)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const [unlinkedSearch, setUnlinkedSearch] = useState<Record<string, string>>({});
+
+  const docTypeLabel = (t: string) =>
+    t === 'montor_invoice' ? 'Montörsfaktura'
+    : t === 'sheet_metal_invoice' ? 'Plåtfaktura'
+    : t === 'a_order' ? 'A-order'
+    : 'Mockfjärds-utbetalning';
+
+  const searchCasesFor = (q: string) => {
+    const s = q.trim().toLowerCase();
+    if (!s) return [];
+    return (cases as CaseRow[])
+      .filter(c =>
+        (c.customer_name || '').toLowerCase().includes(s) ||
+        (c.address || '').toLowerCase().includes(s) ||
+        (c.offer_number || '').toLowerCase().includes(s) ||
+        ((c as any).order_number || '').toLowerCase().includes(s)
+      )
+      .slice(0, 8);
+  };
+
+  const linkUnlinkedDoc = async (docId: string, c: CaseRow) => {
+    const { error } = await (supabase as any).from('case_documents').update({ case_id: c.id }).eq('id', docId);
+    if (error) { toast.error(`Kunde inte koppla: ${error.message}`); return; }
+    qc.invalidateQueries({ queryKey: ['unlinked-case-documents'] });
+    qc.invalidateQueries({ queryKey: ['case-documents', c.id] });
+    qc.invalidateQueries({ queryKey: ['cases-all'] });
+    toast.success(`Kopplad till ${c.address}`);
+  };
+
   // Distinct order numbers from line items
   const distinctOrderNumbers = useMemo(() => {
     const set = new Set<string>();
