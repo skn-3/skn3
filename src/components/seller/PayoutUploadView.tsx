@@ -1134,7 +1134,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
               {groups.map(g => {
                 const override = groupChoices[g.order_number] ?? null;
-                const showSearch = !g.autoCase || !!override;
+                const showSearch = !g.effectiveCase || g.matchSource === 'manual';
                 const results = filteredCasesForGroup(g.order_number);
                 const skipped = isMontorInvoice && isSkipped(g.order_number);
                 return (
@@ -1197,7 +1197,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                               variant="ghost"
                               size="sm"
                               className="mt-2"
-                              onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: null }))}
+                              onClick={() => {
+                                setGroupChoices(prev => { const n = { ...prev }; delete n[g.order_number]; return n; });
+                                setClearedGroups(prev => ({ ...prev, [g.order_number]: true }));
+                              }}
                             >
                               Ändra val
                             </Button>
