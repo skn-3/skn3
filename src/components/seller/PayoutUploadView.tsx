@@ -320,6 +320,13 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   const effectiveCase = chosenCase || orderMatch || strongNameMatch || strongAddrMatch;
 
+  const singleAOrderMatch = useMemo(
+    () => (!isMulti && !effectiveCase ? findAOrderNameMatch(unlinkedAOrders as any[], customerName) : null),
+    [isMulti, effectiveCase, unlinkedAOrders, customerName],
+  );
+  const [singleAOrderAccept, setSingleAOrderAccept] = useState(true);
+  const [allowUnlinked, setAllowUnlinked] = useState(false);
+
   // Multi-mode groups
   type Group = {
     order_number: string; // for montor_invoice: display address; for others: order number
