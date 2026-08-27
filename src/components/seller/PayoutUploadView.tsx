@@ -229,6 +229,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [chosenCase, setChosenCase] = useState<CaseRow | null>(null);
   // Multi-mode: per-order-number manually chosen case override
   const [groupChoices, setGroupChoices] = useState<Record<string, CaseRow | null>>({});
+  const [clearedGroups, setClearedGroups] = useState<Record<string, boolean>>({});
   const [groupSearch, setGroupSearch] = useState<Record<string, string>>({});
   // For montor_invoice: per-line manual case assignment (when address can't auto-match)
   const [lineCaseChoices, setLineCaseChoices] = useState<Record<number, CaseRow | null>>({});
@@ -353,7 +354,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     return findNameMatches(cases as CaseRow[], customerName, null, 5);
   }, [orderMatch, cases, customerName, isSheet]);
 
-  const strongNameMatch = nameCandidates[0] && nameCandidates[0].score >= 90 ? nameCandidates[0].case : null;
+  // Auto-acceptera ENDAST exakta namnträffar
+  const strongNameMatch = nameCandidates[0] && nameCandidates[0].score >= 90 && /exakt namn/i.test(nameCandidates[0].reason) ? nameCandidates[0].case : null;
 
   // Adress-kandidater (plåtfaktura)
   const addressMatches = useMemo<AddrCandidate[]>(() => {
@@ -416,8 +418,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         const candidates = addressCandidates(cases as CaseRow[], v.addr);
         const auto = candidates[0]?.case || null;
         const override = groupChoices[groupId] ?? null;
-        const effective = override || auto;
-        const matchSource: Group['matchSource'] = override ? 'manual' : (auto ? 'address' : null);
+        const cleared = !!clearedGroups[groupId];
+        const effective = override || (cleared ? null : auto);
+        const matchSource: Group['matchSource'] = override ? 'manual' : cleared ? null : (auto ? 'address' : null);
         return {
           order_number: groupId,
           keyKind: 'address',
@@ -471,12 +474,14 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const groupCustomerName = lines.find(l => norm(l.customer_name))?.customer_name ?? null;
       const orderC = (cases as any[]).find(c => norm(c.order_number) === on) || null;
       const candidates = orderC ? [] : findNameMatches(cases as CaseRow[], groupCustomerName, null, 5);
-      const strong = candidates[0] && candidates[0].score >= 90 ? candidates[0].case : null;
+      // Auto-acceptera ENDAST exakta namnträffar — delsträngar och ordöverlapp kräver aktivt val
+      const strong = candidates[0] && candidates[0].score >= 90 && /exakt namn/i.test(candidates[0].reason) ? candidates[0].case : null;
       const autoCase = orderC || strong;
       const override = groupChoices[on] ?? null;
-      const effective = override || autoCase;
+      const cleared = !!clearedGroups[on];
+      const effective = override || (cleared ? null : autoCase);
       const matchSource: Group['matchSource'] =
-        override ? 'manual' : orderC ? 'order' : strong ? 'name' : null;
+        override ? 'manual' : cleared ? null : orderC ? 'order' : strong ? 'name' : null;
       const aOrderMatch = matchSource === null ? findAOrderNameMatch(unlinkedAOrders as any[], groupCustomerName) : null;
       return {
         order_number: on,
@@ -494,7 +499,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         aOrderMatch,
       };
     });
-  }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, lineCaseChoices, unlinkedAOrders]);
+  }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, clearedGroups, lineCaseChoices, unlinkedAOrders]);
 
   const unassignedLines = useMemo(
     () => {
@@ -567,6 +572,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setSearch('');
     setChosenCase(null);
     setGroupChoices({});
+    setClearedGroups({});
     setGroupSearch({});
     setLineCaseChoices({});
     setLineSearch({});
@@ -1128,8 +1134,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               )}
 
               {groups.map(g => {
-                const override = groupChoices[g.order_number] ?? null;
-                const showSearch = !g.autoCase || !!override;
+                
+                const showSearch = !g.effectiveCase || g.matchSource === 'manual';
                 const results = filteredCasesForGroup(g.order_number);
                 const skipped = isMontorInvoice && isSkipped(g.order_number);
                 return (
@@ -1192,7 +1198,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                               variant="ghost"
                               size="sm"
                               className="mt-2"
-                              onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: null }))}
+                              onClick={() => {
+                                setGroupChoices(prev => { const n = { ...prev }; delete n[g.order_number]; return n; });
+                                setClearedGroups(prev => ({ ...prev, [g.order_number]: true }));
+                              }}
                             >
                               Ändra val
                             </Button>
@@ -1705,6 +1714,15 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               </AlertDescription>
             </Alert>
           )}
+
+          {isMulti && !isMontorInvoice && (() => {
+            const unresolved = groups.filter(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !isSkipped(g.order_number)).length;
+            return unresolved > 0 ? (
+              <p className="text-xs text-amber-700 text-right">
+                {unresolved} ärendegrupp{unresolved === 1 ? '' : 'er'} saknar val — bekräfta förslag, sök manuellt eller hoppa över innan import.
+              </p>
+            ) : null;
+          })()}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={reset} disabled={submitting}>Rensa</Button>
