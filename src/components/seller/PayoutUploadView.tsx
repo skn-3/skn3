@@ -133,6 +133,29 @@ function findNameMatches(
   return out.slice(0, limit);
 }
 
+// Namnmatchning mot okopplade A-ordrar (samma normalisering/ordöverlapp)
+function findAOrderNameMatch(
+  aOrders: any[],
+  name: string | null | undefined,
+): { aOrder: any; score: number; reason: string } | null {
+  if (!name || !name.trim()) return null;
+  let best: { aOrder: any; score: number; reason: string } | null = null;
+  for (const a of aOrders) {
+    if (!a.customer_name) continue;
+    const cand = findNameMatches(
+      [{ id: a.id, customer_name: a.customer_name, address: a.customer_address } as any],
+      name,
+      null,
+      1,
+    );
+    if (cand[0] && (!best || cand[0].score > best.score)) {
+      best = { aOrder: a, score: cand[0].score, reason: cand[0].reason };
+    }
+  }
+  return best && best.score >= 90 ? best : null;
+}
+
+
 
 type DocType = 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
 
