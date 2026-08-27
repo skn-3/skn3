@@ -213,6 +213,34 @@ function addressCandidates(allCases: CaseRow[], rawAddr: string | null): AddrCan
   return out.slice(0, 5);
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  kontrollmatning: 'Kontrollmätning', km_klar: 'KM klar', vantar_godkannande: 'Väntar godkännande',
+  godkand: 'Godkänd / i produktion', leverans_klar: 'Leverans klar', montage_bokat: 'Montage bokat',
+  montage_klart: 'Montage klart', fakturerad: 'Fakturerad',
+};
+const caseStatusLabel = (s: string | null | undefined) => (s ? (STATUS_LABELS[s] ?? s) : '—');
+
+function CaseInlineDetails({ c }: { c: any }) {
+  const fmtKr0 = (n: any) => (typeof n === 'number' ? `${Math.round(n).toLocaleString('sv-SE')} kr` : null);
+  const rows: [string, string | null][] = [
+    ['Status', caseStatusLabel(c.status)],
+    ['Säljare', c.seller || null],
+    ['Telefon', c.customer_phone || null],
+    ['E-post', c.customer_email || null],
+    ['Ordernr', c.order_number ? String(c.order_number) : null],
+    ['Offertnr', c.offer_number || null],
+    ['Ordervärde', fmtKr0(c.order_value)],
+    ['Skapat', c.created_at ? new Date(c.created_at).toLocaleDateString('sv-SE') : null],
+  ];
+  return (
+    <div className="mt-2 rounded-md border bg-background p-2.5 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+      {rows.filter(([, v]) => v).map(([k, v]) => (
+        <div key={k}><span className="text-muted-foreground">{k}: </span><span className="font-medium">{v}</span></div>
+      ))}
+    </div>
+  );
+}
+
 export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const qc = useQueryClient();
   const [docType, setDocType] = useState<DocType>('mockfjards_payout');
@@ -229,6 +257,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [chosenCase, setChosenCase] = useState<CaseRow | null>(null);
   // Multi-mode: per-order-number manually chosen case override
   const [groupChoices, setGroupChoices] = useState<Record<string, CaseRow | null>>({});
+  const [caseDetailsOpen, setCaseDetailsOpen] = useState<Record<string, boolean>>({});
   const [clearedGroups, setClearedGroups] = useState<Record<string, boolean>>({});
   const [groupSearch, setGroupSearch] = useState<Record<string, string>>({});
   // For montor_invoice: per-line manual case assignment (when address can't auto-match)
@@ -1180,15 +1209,24 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             {g.matchSource === 'address' && <Badge variant="outline">{g.addrCandidates[0]?.reason || 'adress'}</Badge>}
                           </AlertTitle>
                           <AlertDescription>
-                            <div className="text-sm">
-                              <div><b>{g.effectiveCase.address}</b></div>
+                            <button
+                              type="button"
+                              className="text-sm text-left w-full rounded hover:bg-muted/60 -mx-1 px-1 py-0.5 transition-colors"
+                              onClick={() => setCaseDetailsOpen(prev => ({ ...prev, [g.order_number]: !prev[g.order_number] }))}
+                              title="Klicka för att granska ärendet"
+                            >
+                              <div className="flex items-center gap-1">
+                                <b>{g.effectiveCase.address}</b>
+                                <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${caseDetailsOpen[g.order_number] ? 'rotate-180' : ''}`} />
+                              </div>
                               <div className="text-muted-foreground">
                                 {g.effectiveCase.customer_name}
                                 {g.matchSource === 'name' && g.nameCandidates[0]?.reason
                                   ? ` · ${g.nameCandidates[0].reason}`
                                   : ''}
                               </div>
-                            </div>
+                            </button>
+                            {caseDetailsOpen[g.order_number] && <CaseInlineDetails c={g.effectiveCase} />}
                             {g.matchSource === 'name' && (
                               <p className="text-xs text-muted-foreground mt-1">
                                 Ordernumret {g.order_number} hittades inte i systemet. Bekräfta att detta är rätt ärende.
@@ -1704,10 +1742,20 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 <Badge variant="outline">manuellt</Badge>
               </AlertTitle>
               <AlertDescription>
-                <div className="text-sm">
-                  <div><b>{chosenCase.address}</b></div>
+                <button
+                  type="button"
+                  className="text-sm text-left w-full rounded hover:bg-muted/60 -mx-1 px-1 py-0.5 transition-colors"
+                  onClick={() => setCaseDetailsOpen(prev => ({ ...prev, single: !prev.single }))}
+                  title="Klicka för att granska ärendet"
+                >
+                  <div className="flex items-center gap-1">
+                    <b>{chosenCase.address}</b>
+                    <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${caseDetailsOpen['single'] ? 'rotate-180' : ''}`} />
+                  </div>
                   <div className="text-muted-foreground">{chosenCase.customer_name}</div>
-                </div>
+                </button>
+                {caseDetailsOpen['single'] && <CaseInlineDetails c={chosenCase} />}
+
                 <Button variant="ghost" size="sm" className="mt-2" onClick={() => setChosenCase(null)}>
                   Ändra val
                 </Button>
