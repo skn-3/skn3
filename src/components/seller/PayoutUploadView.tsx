@@ -1041,15 +1041,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const matchedActiveGroups = isMontorInvoice
     ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
     : groups.filter(g => g.effectiveCase);
-  const acceptedAOrderGroups = groups.filter(
-    g => !g.effectiveCase && g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true) && !isSkipped(g.order_number)
-  );
-  const acceptedUnlinkedGroups = groups.filter(
-    (g) => !isMontorInvoice && !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && (unlinkedAccepts[g.order_number] ?? false)
-  );
+  const chosenCaseGroups = groups.filter(g => g.choice?.kind === 'case');
+  const chosenAOrderGroups = groups.filter(g => g.choice?.kind === 'aorder');
+  const chosenUnlinkedGroups = groups.filter(g => g.choice?.kind === 'unlinked');
   const unresolvedGroups = isMontorInvoice
     ? groups.filter(g => !g.effectiveCase && !isSkipped(g.order_number))
-    : groups.filter(g => !g.effectiveCase);
+    : groups.filter(g => !g.choice);
 
   const submitDisabled =
     submitting ||
@@ -1058,8 +1055,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     (isMulti
       ? (isMontorInvoice
           ? groups.length === 0 || unassignedLines.length > 0 || matchedActiveGroups.length === 0 || unresolvedGroups.length > 0
-          : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !(unlinkedAccepts[g.order_number] ?? false)))
+          : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.choice))
       : !(effectiveCase || (singleAOrderMatch && singleAOrderAccept) || allowUnlinked));
+
 
   return (
     <>
