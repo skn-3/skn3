@@ -213,6 +213,34 @@ function addressCandidates(allCases: CaseRow[], rawAddr: string | null): AddrCan
   return out.slice(0, 5);
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  kontrollmatning: 'Kontrollmätning', km_klar: 'KM klar', vantar_godkannande: 'Väntar godkännande',
+  godkand: 'Godkänd / i produktion', leverans_klar: 'Leverans klar', montage_bokat: 'Montage bokat',
+  montage_klart: 'Montage klart', fakturerad: 'Fakturerad',
+};
+const caseStatusLabel = (s: string | null | undefined) => (s ? (STATUS_LABELS[s] ?? s) : '—');
+
+function CaseInlineDetails({ c }: { c: any }) {
+  const fmtKr0 = (n: any) => (typeof n === 'number' ? `${Math.round(n).toLocaleString('sv-SE')} kr` : null);
+  const rows: [string, string | null][] = [
+    ['Status', caseStatusLabel(c.status)],
+    ['Säljare', c.seller || null],
+    ['Telefon', c.customer_phone || null],
+    ['E-post', c.customer_email || null],
+    ['Ordernr', c.order_number ? String(c.order_number) : null],
+    ['Offertnr', c.offer_number || null],
+    ['Ordervärde', fmtKr0(c.order_value)],
+    ['Skapat', c.created_at ? new Date(c.created_at).toLocaleDateString('sv-SE') : null],
+  ];
+  return (
+    <div className="mt-2 rounded-md border bg-background p-2.5 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+      {rows.filter(([, v]) => v).map(([k, v]) => (
+        <div key={k}><span className="text-muted-foreground">{k}: </span><span className="font-medium">{v}</span></div>
+      ))}
+    </div>
+  );
+}
+
 export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const qc = useQueryClient();
   const [docType, setDocType] = useState<DocType>('mockfjards_payout');
