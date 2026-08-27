@@ -518,6 +518,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setLineCaseChoices({});
     setLineSearch({});
     setSkippedGroups(new Set());
+    setAOrderAccepts({});
     setExtracted(false);
     setExtractError(null);
   };
@@ -714,7 +715,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         return;
       }
     } else {
-      const missing = groups.filter(g => !g.effectiveCase);
+      const missing = groups.filter(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)));
       if (missing.length > 0) {
         toast.error(`Koppla ärende för: ${missing.map(g => g.order_number).join(', ')}`);
         return;
@@ -762,6 +763,50 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         }
       }
 
+
+      // Saknad kundprofil: skapa ärende i efterhand från A-order + utbetalningsrad
+      const aOrderGroups = groups.filter(
+        (g) => !g.effectiveCase && g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true) && !isSkipped(g.order_number)
+      );
+      let createdCases = 0;
+      for (const g of aOrderGroups) {
+        const ao = g.aOrderMatch!.aOrder;
+        const { data: newCase, error: caseErr } = await (supabase as any)
+          .from('cases')
+          .insert({
+            customer_name: ao.customer_name || g.groupCustomerName || 'Okänd kund',
+            address: ao.customer_address || '—',
+            customer_phone: '',
+            seller: 'Okänd',
+            status: 'fakturerad',
+            carry_help_needed: false,
+            notes: 'Skapad i efterhand vid utbetalningsimport — säljregistrering saknades. Komplettera säljare.',
+            order_number: ao.order_number != null ? String(ao.order_number) : (g.order_number || null),
+          })
+          .select('id')
+          .single();
+        if (caseErr) throw caseErr;
+
+        const { error: linkErr } = await (supabase as any).from('a_orders').update({ case_id: newCase.id }).eq('id', ao.id);
+        if (linkErr) throw linkErr;
+
+        const { error: docErr } = await (supabase as any).from('case_documents').insert({
+          case_id: newCase.id,
+          doc_type: docType,
+          file_path: path,
+          file_name: file.name,
+          order_number: g.order_number,
+          invoice_number: inv,
+          customer_name: g.groupCustomerName || null,
+          invoice_date: invoiceDate || null,
+          total_amount: g.subtotal,
+          currency: 'SEK',
+          line_items: g.lines,
+          uploaded_by: currentUser,
+        });
+        if (docErr) throw docErr;
+        createdCases++;
+      }
 
       for (const g of groupsToInsert) {
         const c = g.effectiveCase!;
@@ -813,6 +858,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       }
 
       qc.invalidateQueries({ queryKey: ['cases-all'] });
+      qc.invalidateQueries({ queryKey: ['unlinked-a-orders'] });
+      const createdSuffix = createdCases > 0 ? ` · ${createdCases} ärende(n) skapade från A-ordrar (saknad kundprofil)` : '';
       const totalSkipped = userSkippedList.length + dupSkipped.length;
       if (isMontorInvoice && userSkippedList.length > 0) {
         try {
@@ -825,11 +872,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         } catch (e) { console.warn(e); }
       }
       if (dupSkipped.length > 0) {
-        toast.success(`${groupsToInsert.length} rader sparade · ${dupSkipped.length} hoppades över (fakturanumret fanns redan på ärendet)`);
+        toast.success(`${groupsToInsert.length} rader sparade · ${dupSkipped.length} hoppades över (fakturanumret fanns redan på ärendet)${createdSuffix}`);
       } else if (isMontorInvoice && userSkippedList.length > 0) {
-        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden (${userSkippedList.length} hoppades över)`);
+        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden (${userSkippedList.length} hoppades över)${createdSuffix}`);
       } else {
-        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden`);
+        toast.success(`Faktura kopplad till ${groupsToInsert.length} ärenden${createdSuffix}`);
       }
       reset();
     } catch (e: any) {
@@ -845,6 +892,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const matchedActiveGroups = isMontorInvoice
     ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
     : groups.filter(g => g.effectiveCase);
+  const acceptedAOrderGroups = groups.filter(
+    g => !g.effectiveCase && g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true) && !isSkipped(g.order_number)
+  );
   const unresolvedGroups = isMontorInvoice
     ? groups.filter(g => !g.effectiveCase && !isSkipped(g.order_number))
     : groups.filter(g => !g.effectiveCase);
@@ -856,7 +906,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     (isMulti
       ? (isMontorInvoice
           ? groups.length === 0 || unassignedLines.length > 0 || matchedActiveGroups.length === 0 || unresolvedGroups.length > 0
-          : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase))
+          : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true))))
       : !effectiveCase);
 
   return (
@@ -1104,6 +1154,26 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                           </AlertDescription>
                         </Alert>
                       ))}
+
+                      {!skipped && g.aOrderMatch && !g.effectiveCase && (
+                        <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 space-y-1.5">
+                          <div className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Saknad kundprofil — A-order hittad via namn</div>
+                          <div className="text-sm">
+                            A-order <strong>#{g.aOrderMatch.aOrder.order_number ?? '—'}</strong> · {g.aOrderMatch.aOrder.customer_name}
+                            {g.aOrderMatch.aOrder.customer_address ? ` · ${g.aOrderMatch.aOrder.customer_address}` : ''}
+                            {typeof g.aOrderMatch.aOrder.total_amount === 'number' ? ` · montörsvärde ${g.aOrderMatch.aOrder.total_amount.toLocaleString('sv-SE')} kr` : ''}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{g.aOrderMatch.reason}. Säljregistrering saknas — vid import skapas ärendet i efterhand och A-order + utbetalning kopplas dit.</div>
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={aOrderAccepts[g.order_number] ?? true}
+                              onChange={(e) => setAOrderAccepts((s) => ({ ...s, [g.order_number]: e.target.checked }))}
+                            />
+                            Skapa ärende och koppla vid import
+                          </label>
+                        </div>
+                      )}
 
                       {!skipped && showSearch && (
                         <div className="space-y-2">
@@ -1530,7 +1600,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               {isMulti
                 ? (isMontorInvoice
                     ? `Bekräfta & koppla till ${matchedActiveGroups.length} ärenden`
-                    : `Bekräfta & koppla till ${groups.length} ärenden`)
+                    : `Bekräfta & koppla till ${matchedActiveGroups.length + acceptedAOrderGroups.length} ärenden`)
                 : 'Bekräfta & koppla'}
             </Button>
           </div>
