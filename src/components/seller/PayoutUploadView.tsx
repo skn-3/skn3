@@ -135,28 +135,21 @@ function findNameMatches(
 }
 
 // Namnmatchning mot okopplade A-ordrar (samma normalisering/ordöverlapp)
-function findAOrderNameMatch(
-  aOrders: any[],
-  name: string | null | undefined,
-): { aOrder: any; score: number; reason: string } | null {
-  if (!name || !name.trim()) return null;
-  let best: { aOrder: any; score: number; reason: string } | null = null;
+type GroupChoice =
+  | { kind: 'case'; case: CaseRow }
+  | { kind: 'aorder'; aOrder: any }
+  | { kind: 'unlinked' };
+
+function findAOrderCandidates(aOrders: any[], name: string | null | undefined, max = 3): { aOrder: any; score: number; reason: string }[] {
+  if (!name || !name.trim()) return [];
+  const scored: { aOrder: any; score: number; reason: string }[] = [];
   for (const a of aOrders) {
     if (!a.customer_name) continue;
-    const cand = findNameMatches(
-      [{ id: a.id, customer_name: a.customer_name, address: a.customer_address } as any],
-      name,
-      null,
-      1,
-    );
-    if (cand[0] && (!best || cand[0].score > best.score)) {
-      best = { aOrder: a, score: cand[0].score, reason: cand[0].reason };
-    }
+    const cand = findNameMatches([{ id: a.id, customer_name: a.customer_name, address: a.customer_address } as any], name, null, 1);
+    if (cand[0] && cand[0].score > 0) scored.push({ aOrder: a, score: cand[0].score, reason: cand[0].reason });
   }
-  return best && best.score >= 90 ? best : null;
+  return scored.sort((x, y) => y.score - x.score).slice(0, max);
 }
-
-
 
 type DocType = 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
 
@@ -256,7 +249,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [search, setSearch] = useState('');
   const [chosenCase, setChosenCase] = useState<CaseRow | null>(null);
   // Multi-mode: per-order-number manually chosen case override
-  const [groupChoices, setGroupChoices] = useState<Record<string, CaseRow | null>>({});
+  const [groupChoices, setGroupChoices] = useState<Record<string, GroupChoice | null>>({});
   const [caseDetailsOpen, setCaseDetailsOpen] = useState<Record<string, boolean>>({});
   const [clearedGroups, setClearedGroups] = useState<Record<string, boolean>>({});
   const [groupSearch, setGroupSearch] = useState<Record<string, string>>({});
@@ -272,6 +265,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       if (next) s.add(key); else s.delete(key);
       return s;
     });
+  };
+  const clearGroupChoice = (key: string) => {
+    setGroupChoices(prev => { const n = { ...prev }; delete n[key]; return n; });
+    setClearedGroups(prev => ({ ...prev, [key]: true }));
   };
   const [submitting, setSubmitting] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -297,8 +294,6 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     : isSheet ? 'Plåtfaktura'
     : (docType === 'a_order' ? 'Faktura/A-order' : 'Utbetalning');
 
-  const [aOrderAccepts, setAOrderAccepts] = useState<Record<string, boolean>>({});
-  const [unlinkedAccepts, setUnlinkedAccepts] = useState<Record<string, boolean>>({});
 
   const { data: cases = [] } = useQuery({ queryKey: ['cases-all'], queryFn: fetchAllCases });
 
@@ -397,7 +392,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const effectiveCase = chosenCase || orderMatch || strongNameMatch || strongAddrMatch;
 
   const singleAOrderMatch = useMemo(
-    () => (!isMulti && !effectiveCase ? findAOrderNameMatch(unlinkedAOrders as any[], customerName) : null),
+    () => {
+      if (isMulti || effectiveCase) return null;
+      const best = findAOrderCandidates(unlinkedAOrders as any[], customerName, 1)[0];
+      return best && best.score >= 90 ? best : null;
+    },
     [isMulti, effectiveCase, unlinkedAOrders, customerName],
   );
   const [singleAOrderAccept, setSingleAOrderAccept] = useState(true);
@@ -417,7 +416,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     addrCandidates: AddrCandidate[];
     effectiveCase: CaseRow | null;
     matchSource: 'order' | 'name' | 'address' | 'manual' | null;
-    aOrderMatch: { aOrder: any; score: number; reason: string } | null;
+    choice: GroupChoice | null;
+    aOrderCandidates: { aOrder: any; score: number; reason: string }[];
   };
 
   // Helper: address key for a montor_invoice line (empty => unassigned)
@@ -449,8 +449,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         const auto = candidates[0]?.case || null;
         const override = groupChoices[groupId] ?? null;
         const cleared = !!clearedGroups[groupId];
-        const effective = override || (cleared ? null : auto);
+        const effective = override?.kind === 'case' ? override.case : (override ? null : (cleared ? null : auto));
         const matchSource: Group['matchSource'] = override ? 'manual' : cleared ? null : (auto ? 'address' : null);
+        const choice: GroupChoice | null = effective ? { kind: 'case', case: effective } : null;
         return {
           order_number: groupId,
           keyKind: 'address',
@@ -464,7 +465,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           addrCandidates: candidates,
           effectiveCase: effective,
           matchSource,
-          aOrderMatch: null,
+          choice,
+          aOrderCandidates: [],
         };
       });
 
@@ -492,7 +494,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         addrCandidates: [],
         effectiveCase: v.case,
         matchSource: 'manual',
-        aOrderMatch: null,
+        choice: { kind: 'case', case: v.case },
+        aOrderCandidates: [],
       }));
       return [...addrGroups, ...manualGroups];
     }
@@ -592,7 +595,6 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const multiSumMismatch = isMulti && totalNum > 0 && Math.abs(groupedSubtotalSum - totalNum) > 0.5;
 
   const reset = () => {
-    setUnlinkedAccepts({});
     setSingleAOrderAccept(true);
     setAllowUnlinked(false);
     setFile(null);
@@ -612,7 +614,6 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setLineCaseChoices({});
     setLineSearch({});
     setSkippedGroups(new Set());
-    setAOrderAccepts({});
     setExtracted(false);
     setExtractError(null);
   };
@@ -843,7 +844,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         return;
       }
     } else {
-      const missing = groups.filter(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !(unlinkedAccepts[g.order_number] ?? false));
+      const missing = groups.filter(g => !g.choice);
       if (missing.length > 0) {
         toast.error(`Koppla ärende för: ${missing.map(g => g.order_number).join(', ')}`);
         return;
