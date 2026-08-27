@@ -1704,10 +1704,20 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 <Badge variant="outline">manuellt</Badge>
               </AlertTitle>
               <AlertDescription>
-                <div className="text-sm">
-                  <div><b>{chosenCase.address}</b></div>
+                <button
+                  type="button"
+                  className="text-sm text-left w-full rounded hover:bg-muted/60 -mx-1 px-1 py-0.5 transition-colors"
+                  onClick={() => setCaseDetailsOpen(prev => ({ ...prev, single: !prev.single }))}
+                  title="Klicka för att granska ärendet"
+                >
+                  <div className="flex items-center gap-1">
+                    <b>{chosenCase.address}</b>
+                    <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${caseDetailsOpen['single'] ? 'rotate-180' : ''}`} />
+                  </div>
                   <div className="text-muted-foreground">{chosenCase.customer_name}</div>
-                </div>
+                </button>
+                {caseDetailsOpen['single'] && <CaseInlineDetails c={chosenCase} />}
+
                 <Button variant="ghost" size="sm" className="mt-2" onClick={() => setChosenCase(null)}>
                   Ändra val
                 </Button>
