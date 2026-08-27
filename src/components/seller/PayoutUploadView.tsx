@@ -135,28 +135,21 @@ function findNameMatches(
 }
 
 // Namnmatchning mot okopplade A-ordrar (samma normalisering/ordöverlapp)
-function findAOrderNameMatch(
-  aOrders: any[],
-  name: string | null | undefined,
-): { aOrder: any; score: number; reason: string } | null {
-  if (!name || !name.trim()) return null;
-  let best: { aOrder: any; score: number; reason: string } | null = null;
+type GroupChoice =
+  | { kind: 'case'; case: CaseRow }
+  | { kind: 'aorder'; aOrder: any }
+  | { kind: 'unlinked' };
+
+function findAOrderCandidates(aOrders: any[], name: string | null | undefined, max = 3): { aOrder: any; score: number; reason: string }[] {
+  if (!name || !name.trim()) return [];
+  const scored: { aOrder: any; score: number; reason: string }[] = [];
   for (const a of aOrders) {
     if (!a.customer_name) continue;
-    const cand = findNameMatches(
-      [{ id: a.id, customer_name: a.customer_name, address: a.customer_address } as any],
-      name,
-      null,
-      1,
-    );
-    if (cand[0] && (!best || cand[0].score > best.score)) {
-      best = { aOrder: a, score: cand[0].score, reason: cand[0].reason };
-    }
+    const cand = findNameMatches([{ id: a.id, customer_name: a.customer_name, address: a.customer_address } as any], name, null, 1);
+    if (cand[0] && cand[0].score > 0) scored.push({ aOrder: a, score: cand[0].score, reason: cand[0].reason });
   }
-  return best && best.score >= 90 ? best : null;
+  return scored.sort((x, y) => y.score - x.score).slice(0, max);
 }
-
-
 
 type DocType = 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
 
@@ -256,7 +249,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [search, setSearch] = useState('');
   const [chosenCase, setChosenCase] = useState<CaseRow | null>(null);
   // Multi-mode: per-order-number manually chosen case override
-  const [groupChoices, setGroupChoices] = useState<Record<string, CaseRow | null>>({});
+  const [groupChoices, setGroupChoices] = useState<Record<string, GroupChoice | null>>({});
   const [caseDetailsOpen, setCaseDetailsOpen] = useState<Record<string, boolean>>({});
   const [clearedGroups, setClearedGroups] = useState<Record<string, boolean>>({});
   const [groupSearch, setGroupSearch] = useState<Record<string, string>>({});
@@ -272,6 +265,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       if (next) s.add(key); else s.delete(key);
       return s;
     });
+  };
+  const clearGroupChoice = (key: string) => {
+    setGroupChoices(prev => { const n = { ...prev }; delete n[key]; return n; });
+    setClearedGroups(prev => ({ ...prev, [key]: true }));
   };
   const [submitting, setSubmitting] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -297,8 +294,6 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     : isSheet ? 'Plåtfaktura'
     : (docType === 'a_order' ? 'Faktura/A-order' : 'Utbetalning');
 
-  const [aOrderAccepts, setAOrderAccepts] = useState<Record<string, boolean>>({});
-  const [unlinkedAccepts, setUnlinkedAccepts] = useState<Record<string, boolean>>({});
 
   const { data: cases = [] } = useQuery({ queryKey: ['cases-all'], queryFn: fetchAllCases });
 
@@ -397,7 +392,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const effectiveCase = chosenCase || orderMatch || strongNameMatch || strongAddrMatch;
 
   const singleAOrderMatch = useMemo(
-    () => (!isMulti && !effectiveCase ? findAOrderNameMatch(unlinkedAOrders as any[], customerName) : null),
+    () => {
+      if (isMulti || effectiveCase) return null;
+      const best = findAOrderCandidates(unlinkedAOrders as any[], customerName, 1)[0];
+      return best && best.score >= 90 ? best : null;
+    },
     [isMulti, effectiveCase, unlinkedAOrders, customerName],
   );
   const [singleAOrderAccept, setSingleAOrderAccept] = useState(true);
@@ -417,7 +416,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     addrCandidates: AddrCandidate[];
     effectiveCase: CaseRow | null;
     matchSource: 'order' | 'name' | 'address' | 'manual' | null;
-    aOrderMatch: { aOrder: any; score: number; reason: string } | null;
+    choice: GroupChoice | null;
+    aOrderCandidates: { aOrder: any; score: number; reason: string }[];
   };
 
   // Helper: address key for a montor_invoice line (empty => unassigned)
@@ -449,8 +449,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         const auto = candidates[0]?.case || null;
         const override = groupChoices[groupId] ?? null;
         const cleared = !!clearedGroups[groupId];
-        const effective = override || (cleared ? null : auto);
+        const effective = override?.kind === 'case' ? override.case : (override ? null : (cleared ? null : auto));
         const matchSource: Group['matchSource'] = override ? 'manual' : cleared ? null : (auto ? 'address' : null);
+        const choice: GroupChoice | null = effective ? { kind: 'case', case: effective } : null;
         return {
           order_number: groupId,
           keyKind: 'address',
@@ -464,7 +465,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           addrCandidates: candidates,
           effectiveCase: effective,
           matchSource,
-          aOrderMatch: null,
+          choice,
+          aOrderCandidates: [],
         };
       });
 
@@ -492,7 +494,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         addrCandidates: [],
         effectiveCase: v.case,
         matchSource: 'manual',
-        aOrderMatch: null,
+        choice: { kind: 'case', case: v.case },
+        aOrderCandidates: [],
       }));
       return [...addrGroups, ...manualGroups];
     }
@@ -509,10 +512,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const autoCase = orderC || strong;
       const override = groupChoices[on] ?? null;
       const cleared = !!clearedGroups[on];
-      const effective = override || (cleared ? null : autoCase);
+      const effective = override?.kind === 'case' ? override.case : (override ? null : (cleared ? null : autoCase));
       const matchSource: Group['matchSource'] =
         override ? 'manual' : cleared ? null : orderC ? 'order' : strong ? 'name' : null;
-      const aOrderMatch = matchSource === null ? findAOrderNameMatch(unlinkedAOrders as any[], groupCustomerName) : null;
+      const choice: GroupChoice | null =
+        override ?? (cleared ? null : (autoCase ? { kind: 'case', case: autoCase } : null));
+      const aOrderCandidates = (matchSource === null || cleared) ? findAOrderCandidates(unlinkedAOrders as any[], groupCustomerName) : [];
       return {
         order_number: on,
         keyKind: 'order',
@@ -526,10 +531,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         addrCandidates: [],
         effectiveCase: effective,
         matchSource,
-        aOrderMatch,
+        choice,
+        aOrderCandidates,
       };
     });
   }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, clearedGroups, lineCaseChoices, unlinkedAOrders]);
+
 
   const unassignedLines = useMemo(
     () => {
@@ -588,7 +595,6 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const multiSumMismatch = isMulti && totalNum > 0 && Math.abs(groupedSubtotalSum - totalNum) > 0.5;
 
   const reset = () => {
-    setUnlinkedAccepts({});
     setSingleAOrderAccept(true);
     setAllowUnlinked(false);
     setFile(null);
@@ -608,7 +614,6 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setLineCaseChoices({});
     setLineSearch({});
     setSkippedGroups(new Set());
-    setAOrderAccepts({});
     setExtracted(false);
     setExtractError(null);
   };
@@ -839,7 +844,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         return;
       }
     } else {
-      const missing = groups.filter(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !(unlinkedAccepts[g.order_number] ?? false));
+      const missing = groups.filter(g => !g.choice);
       if (missing.length > 0) {
         toast.error(`Koppla ärende för: ${missing.map(g => g.order_number).join(', ')}`);
         return;
@@ -861,7 +866,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
       let groupsToInsert = isMontorInvoice
         ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
-        : groups.filter(g => g.effectiveCase);
+        : groups.filter(g => g.choice?.kind === 'case');
+
       const userSkippedList = isMontorInvoice
         ? groups.filter(g => isSkipped(g.order_number))
         : [];
@@ -888,73 +894,69 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       }
 
 
-      // Saknad kundprofil: skapa ärende i efterhand från A-order + utbetalningsrad
-      const aOrderGroups = groups.filter(
-        (g) => !g.effectiveCase && g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true) && !isSkipped(g.order_number)
-      );
       let createdCases = 0;
-      for (const g of aOrderGroups) {
-        const ao = g.aOrderMatch!.aOrder;
-        const { data: newCase, error: caseErr } = await (supabase as any)
-          .from('cases')
-          .insert({
-            customer_name: ao.customer_name || g.groupCustomerName || 'Okänd kund',
-            address: ao.customer_address || '—',
-            customer_phone: '',
-            seller: 'Okänd',
-            status: 'fakturerad',
-            carry_help_needed: false,
-            notes: 'Skapad i efterhand vid utbetalningsimport — säljregistrering saknades. Komplettera säljare.',
-            order_number: ao.order_number != null ? String(ao.order_number) : (g.order_number || null),
-          })
-          .select('id')
-          .single();
-        if (caseErr) throw caseErr;
-
-        const { error: linkErr } = await (supabase as any).from('a_orders').update({ case_id: newCase.id }).eq('id', ao.id);
-        if (linkErr) throw linkErr;
-
-        const { error: docErr } = await (supabase as any).from('case_documents').insert({
-          case_id: newCase.id,
-          doc_type: docType,
-          file_path: path,
-          file_name: file.name,
-          order_number: g.order_number,
-          invoice_number: inv,
-          customer_name: g.groupCustomerName || null,
-          invoice_date: invoiceDate || null,
-          total_amount: g.subtotal,
-          currency: 'SEK',
-          line_items: g.lines,
-          uploaded_by: currentUser,
-        });
-        if (docErr) throw docErr;
-        createdCases++;
-      }
-
-      // Parkerade grupper: importeras utan koppling (case_id null) och kopplas senare
-      const parkedGroups = isMontorInvoice ? [] : groups.filter(
-        (g) => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && (unlinkedAccepts[g.order_number] ?? false)
-      );
       let parkedCount = 0;
-      for (const g of parkedGroups) {
-        const { error: parkErr } = await (supabase as any).from('case_documents').insert({
-          case_id: null,
-          doc_type: docType,
-          file_path: path,
-          file_name: file.name,
-          order_number: g.order_number,
-          invoice_number: inv,
-          customer_name: g.groupCustomerName || null,
-          invoice_date: invoiceDate || null,
-          total_amount: g.subtotal,
-          currency: 'SEK',
-          line_items: g.lines,
-          uploaded_by: currentUser,
-        });
-        if (parkErr) throw parkErr;
-        parkedCount++;
+      if (!isMontorInvoice) {
+        for (const g of groups) {
+          if (g.choice?.kind === 'aorder') {
+            const ao = g.choice.aOrder;
+            const { data: newCase, error: caseErr } = await (supabase as any)
+              .from('cases')
+              .insert({
+                customer_name: ao.customer_name || g.groupCustomerName || 'Okänd kund',
+                address: ao.customer_address || '—',
+                customer_phone: '',
+                seller: 'Okänd',
+                status: 'fakturerad',
+                carry_help_needed: false,
+                notes: 'Skapad i efterhand vid utbetalningsimport — säljregistrering saknades. Komplettera säljare.',
+                order_number: ao.order_number != null ? String(ao.order_number) : (g.order_number || null),
+              })
+              .select('id')
+              .single();
+            if (caseErr) throw caseErr;
+
+            const { error: linkErr } = await (supabase as any).from('a_orders').update({ case_id: newCase.id }).eq('id', ao.id);
+            if (linkErr) throw linkErr;
+
+            const { error: docErr } = await (supabase as any).from('case_documents').insert({
+              case_id: newCase.id,
+              doc_type: docType,
+              file_path: path,
+              file_name: file.name,
+              order_number: g.order_number,
+              invoice_number: inv,
+              customer_name: g.groupCustomerName || null,
+              invoice_date: invoiceDate || null,
+              total_amount: g.subtotal,
+              currency: 'SEK',
+              line_items: g.lines,
+              uploaded_by: currentUser,
+            });
+            if (docErr) throw docErr;
+            createdCases++;
+          } else if (g.choice?.kind === 'unlinked') {
+            const { error: parkErr } = await (supabase as any).from('case_documents').insert({
+              case_id: null,
+              doc_type: docType,
+              file_path: path,
+              file_name: file.name,
+              order_number: g.order_number,
+              invoice_number: inv,
+              customer_name: g.groupCustomerName || null,
+              invoice_date: invoiceDate || null,
+              total_amount: g.subtotal,
+              currency: 'SEK',
+              line_items: g.lines,
+              uploaded_by: currentUser,
+            });
+            if (parkErr) throw parkErr;
+            parkedCount++;
+          }
+        }
       }
+
+
 
       for (const g of groupsToInsert) {
         const c = g.effectiveCase!;
@@ -1041,15 +1043,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const matchedActiveGroups = isMontorInvoice
     ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
     : groups.filter(g => g.effectiveCase);
-  const acceptedAOrderGroups = groups.filter(
-    g => !g.effectiveCase && g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true) && !isSkipped(g.order_number)
-  );
-  const acceptedUnlinkedGroups = groups.filter(
-    (g) => !isMontorInvoice && !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && (unlinkedAccepts[g.order_number] ?? false)
-  );
+  const chosenCaseGroups = groups.filter(g => g.choice?.kind === 'case');
+  const chosenAOrderGroups = groups.filter(g => g.choice?.kind === 'aorder');
+  const chosenUnlinkedGroups = groups.filter(g => g.choice?.kind === 'unlinked');
   const unresolvedGroups = isMontorInvoice
     ? groups.filter(g => !g.effectiveCase && !isSkipped(g.order_number))
-    : groups.filter(g => !g.effectiveCase);
+    : groups.filter(g => !g.choice);
 
   const submitDisabled =
     submitting ||
@@ -1058,8 +1057,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     (isMulti
       ? (isMontorInvoice
           ? groups.length === 0 || unassignedLines.length > 0 || matchedActiveGroups.length === 0 || unresolvedGroups.length > 0
-          : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !(unlinkedAccepts[g.order_number] ?? false)))
+          : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.choice))
       : !(effectiveCase || (singleAOrderMatch && singleAOrderAccept) || allowUnlinked));
+
 
   return (
     <>
@@ -1194,7 +1194,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
               {groups.map(g => {
                 
-                const showSearch = !g.effectiveCase || g.matchSource === 'manual';
+                const showSearch = !g.choice || g.matchSource === 'manual';
                 const results = filteredCasesForGroup(g.order_number);
                 const skipped = isMontorInvoice && isSkipped(g.order_number);
                 return (
@@ -1226,7 +1226,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                           </Button>
                         </div>
                       ) : null}
-                      {!skipped && (g.effectiveCase ? (
+                      {!skipped && (g.choice?.kind === 'case' ? (
                         <Alert>
                           <Check className="h-4 w-4" />
                           <AlertTitle className="flex items-center gap-2">
@@ -1246,61 +1246,59 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                               title="Klicka för att granska ärendet"
                             >
                               <div className="flex items-center gap-1">
-                                <b>{g.effectiveCase.address}</b>
+                                <b>{g.choice.case.address}</b>
                                 <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${caseDetailsOpen[g.order_number] ? 'rotate-180' : ''}`} />
                               </div>
                               <div className="text-muted-foreground">
-                                {g.effectiveCase.customer_name}
+                                {g.choice.case.customer_name}
                                 {g.matchSource === 'name' && g.nameCandidates[0]?.reason
                                   ? ` · ${g.nameCandidates[0].reason}`
                                   : ''}
                               </div>
                             </button>
-                            {caseDetailsOpen[g.order_number] && <CaseInlineDetails c={g.effectiveCase} />}
+                            {caseDetailsOpen[g.order_number] && <CaseInlineDetails c={g.choice.case} />}
                             {g.matchSource === 'name' && (
                               <p className="text-xs text-muted-foreground mt-1">
                                 Ordernumret {g.order_number} hittades inte i systemet. Bekräfta att detta är rätt ärende.
                               </p>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="mt-2"
-                              onClick={() => {
-                                setGroupChoices(prev => { const n = { ...prev }; delete n[g.order_number]; return n; });
-                                setClearedGroups(prev => ({ ...prev, [g.order_number]: true }));
-                              }}
-                            >
+                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
                               Ändra val
                             </Button>
                           </AlertDescription>
                         </Alert>
-                      ) : g.nameCandidates.length > 0 ? (
+                      ) : g.choice?.kind === 'aorder' ? (
                         <Alert>
-                          <Search className="h-4 w-4" />
-                          <AlertTitle>Förslag baserat på kundnamn</AlertTitle>
+                          <Check className="h-4 w-4" />
+                          <AlertTitle>Vald A-order</AlertTitle>
                           <AlertDescription>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Ordernumret {g.order_number} hittades inte. Möjliga ärenden för "{g.groupCustomerName || '—'}":
-                            </p>
-                            <div className="border rounded-md divide-y">
-                              {g.nameCandidates.map(cand => (
-                                <button
-                                  key={cand.case.id}
-                                  type="button"
-                                  onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: cand.case }))}
-                                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                                >
-                                  <div className="font-medium">{cand.case.address}</div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {cand.case.customer_name} · {cand.reason}
-                                  </div>
-                                </button>
-                              ))}
+                            <div className="text-sm">
+                              A-order <strong>#{g.choice.aOrder.order_number ?? '—'}</strong> · {g.choice.aOrder.customer_name}
+                              {g.choice.aOrder.customer_address ? ` · ${g.choice.aOrder.customer_address}` : ''}
+                              {typeof g.choice.aOrder.total_amount === 'number' ? ` · montörsvärde ${g.choice.aOrder.total_amount.toLocaleString('sv-SE')} kr` : ''}
                             </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Kundprofil/ärende skapas automatiskt vid import och kopplas till både A-ordern och utbetalningen.
+                            </p>
+                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
+                              Ändra val
+                            </Button>
                           </AlertDescription>
                         </Alert>
-                      ) : (
+                      ) : g.choice?.kind === 'unlinked' ? (
+                        <Alert>
+                          <Check className="h-4 w-4" />
+                          <AlertTitle>Importeras utan koppling</AlertTitle>
+                          <AlertDescription>
+                            <p className="text-sm text-muted-foreground">
+                              Sparas under Okopplade dokument och kopplas när ärendet finns.
+                            </p>
+                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
+                              Ändra val
+                            </Button>
+                          </AlertDescription>
+                        </Alert>
+                      ) : isMontorInvoice ? (
                         <Alert variant="destructive">
                           <AlertTriangle className="h-4 w-4" />
                           <AlertTitle>Inget ärende kunde matchas</AlertTitle>
@@ -1308,50 +1306,48 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             {g.keyKind === 'address'
                               ? <>Adress "{g.order_number}" matchade inget ärende. Sök manuellt nedan.</>
                               : <>Varken ordernummer {g.order_number} eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade. Sök manuellt nedan.</>}
-                            {isMontorInvoice && (
-                              <div className="mt-2">
-                                <Button variant="outline" size="sm" onClick={() => toggleSkip(g.order_number, true)}>
-                                  Hoppa över denna adress
-                                </Button>
-                              </div>
-                            )}
+                            <div className="mt-2">
+                              <Button variant="outline" size="sm" onClick={() => toggleSkip(g.order_number, true)}>
+                                Hoppa över denna adress
+                              </Button>
+                            </div>
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <Alert>
+                          <Search className="h-4 w-4" />
+                          <AlertTitle>Välj koppling</AlertTitle>
+                          <AlertDescription>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Ordernumret {g.order_number} hittades inte{g.groupCustomerName ? ` — alternativ för "${g.groupCustomerName}"` : ''}. Klicka för att välja:
+                            </p>
+                            <div className="border rounded-md divide-y">
+                              {g.nameCandidates.map(cand => (
+                                <button key={cand.case.id} type="button"
+                                  onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'case', case: cand.case } }))}
+                                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm">
+                                  <div className="font-medium">{cand.case.address}</div>
+                                  <div className="text-xs text-muted-foreground">Ärende · {cand.case.customer_name} · {cand.reason}</div>
+                                </button>
+                              ))}
+                              {g.aOrderCandidates.map(c => (
+                                <button key={c.aOrder.id} type="button"
+                                  onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'aorder', aOrder: c.aOrder } }))}
+                                  className="w-full text-left px-3 py-2 hover:bg-amber-50 text-sm">
+                                  <div className="font-medium">A-order #{c.aOrder.order_number ?? '—'} · {c.aOrder.customer_name}</div>
+                                  <div className="text-xs text-muted-foreground">{c.aOrder.customer_address || ''} · {c.reason} · ärende skapas vid import</div>
+                                </button>
+                              ))}
+                              <button type="button"
+                                onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'unlinked' } }))}
+                                className="w-full text-left px-3 py-2 hover:bg-muted text-sm text-muted-foreground">
+                                Importera utan koppling — koppla senare via Okopplade dokument
+                              </button>
+                            </div>
                           </AlertDescription>
                         </Alert>
                       ))}
 
-                      {!skipped && g.aOrderMatch && !g.effectiveCase && (
-                        <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 space-y-1.5">
-                          <div className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Saknad kundprofil — A-order hittad via namn</div>
-                          <div className="text-sm">
-                            A-order <strong>#{g.aOrderMatch.aOrder.order_number ?? '—'}</strong> · {g.aOrderMatch.aOrder.customer_name}
-                            {g.aOrderMatch.aOrder.customer_address ? ` · ${g.aOrderMatch.aOrder.customer_address}` : ''}
-                            {typeof g.aOrderMatch.aOrder.total_amount === 'number' ? ` · montörsvärde ${g.aOrderMatch.aOrder.total_amount.toLocaleString('sv-SE')} kr` : ''}
-                          </div>
-                          <div className="text-xs text-muted-foreground">{g.aOrderMatch.reason}. Säljregistrering saknas — vid import skapas ärendet i efterhand och A-order + utbetalning kopplas dit.</div>
-                          <label className="flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              checked={aOrderAccepts[g.order_number] ?? true}
-                              onChange={(e) => setAOrderAccepts((s) => ({ ...s, [g.order_number]: e.target.checked }))}
-                            />
-                            Skapa ärende och koppla vid import
-                          </label>
-                        </div>
-                      )}
-
-                      {!skipped && !isMontorInvoice && !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && (
-                        <label className="flex items-center gap-2 text-sm border rounded-md p-2.5 bg-muted/30 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={unlinkedAccepts[g.order_number] ?? false}
-                            onChange={(e) => setUnlinkedAccepts((s) => ({ ...s, [g.order_number]: e.target.checked }))}
-                          />
-                          <span>
-                            <span className="font-medium">Importera utan koppling.</span>{' '}
-                            <span className="text-muted-foreground">Utbetalningen sparas och listas under Okopplade dokument tills ärendet finns.</span>
-                          </span>
-                        </label>
-                      )}
 
                       {!skipped && showSearch && (
                         <div className="space-y-2">
@@ -1370,7 +1366,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                                   key={c.id}
                                   type="button"
                                   onClick={() => {
-                                    setGroupChoices(prev => ({ ...prev, [g.order_number]: c }));
+                                    setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'case', case: c } }));
                                     setGroupSearch(prev => ({ ...prev, [g.order_number]: '' }));
                                   }}
                                   className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
@@ -1538,7 +1534,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 );
               })() : (
                 (() => {
-                  const bookedGroups = [...matchedActiveGroups, ...acceptedAOrderGroups, ...acceptedUnlinkedGroups];
+                  const bookedGroups = groups.filter(g => !!g.choice);
                   const bookedSum = bookedGroups.reduce((s, g) => s + g.subtotal, 0);
                   return (
                     <div className="text-xs text-muted-foreground text-right">
@@ -1815,10 +1811,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           )}
 
           {isMulti && !isMontorInvoice && (() => {
-            const unresolved = groups.filter(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !(unlinkedAccepts[g.order_number] ?? false) && !isSkipped(g.order_number)).length;
+            const unresolved = groups.filter(g => !g.choice && !isSkipped(g.order_number)).length;
             return unresolved > 0 ? (
               <p className="text-xs text-amber-700 text-right">
-                {unresolved} ärendegrupp{unresolved === 1 ? '' : 'er'} saknar val — bekräfta förslag, sök manuellt eller bocka 'Importera utan koppling'.
+                {unresolved} grupp{unresolved === 1 ? '' : 'er'} saknar val — klicka ett alternativ i listan.
               </p>
             ) : null;
           })()}
@@ -1830,8 +1826,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               {isMulti
                 ? (isMontorInvoice
                     ? `Bekräfta & koppla till ${matchedActiveGroups.length} ärenden`
-                    : `Bekräfta & koppla till ${matchedActiveGroups.length + acceptedAOrderGroups.length} ärenden${acceptedUnlinkedGroups.length > 0 ? ` (+${acceptedUnlinkedGroups.length} utan koppling)` : ''}`)
+                    : `Bekräfta & koppla till ${chosenCaseGroups.length + chosenAOrderGroups.length} ärenden${chosenUnlinkedGroups.length > 0 ? ` (+${chosenUnlinkedGroups.length} utan koppling)` : ''}`)
                 : 'Bekräfta & koppla'}
+
             </Button>
           </div>
         </CardContent>
