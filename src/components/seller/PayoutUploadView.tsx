@@ -298,6 +298,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     : (docType === 'a_order' ? 'Faktura/A-order' : 'Utbetalning');
 
   const [aOrderAccepts, setAOrderAccepts] = useState<Record<string, boolean>>({});
+  const [unlinkedAccepts, setUnlinkedAccepts] = useState<Record<string, boolean>>({});
 
   const { data: cases = [] } = useQuery({ queryKey: ['cases-all'], queryFn: fetchAllCases });
 
@@ -587,6 +588,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const multiSumMismatch = isMulti && totalNum > 0 && Math.abs(groupedSubtotalSum - totalNum) > 0.5;
 
   const reset = () => {
+    setUnlinkedAccepts({});
     setSingleAOrderAccept(true);
     setAllowUnlinked(false);
     setFile(null);
@@ -837,7 +839,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         return;
       }
     } else {
-      const missing = groups.filter(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)));
+      const missing = groups.filter(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !(unlinkedAccepts[g.order_number] ?? false));
       if (missing.length > 0) {
         toast.error(`Koppla ärende för: ${missing.map(g => g.order_number).join(', ')}`);
         return;
@@ -859,7 +861,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
       let groupsToInsert = isMontorInvoice
         ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
-        : groups;
+        : groups.filter(g => g.effectiveCase);
       const userSkippedList = isMontorInvoice
         ? groups.filter(g => isSkipped(g.order_number))
         : [];
@@ -930,6 +932,30 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         createdCases++;
       }
 
+      // Parkerade grupper: importeras utan koppling (case_id null) och kopplas senare
+      const parkedGroups = isMontorInvoice ? [] : groups.filter(
+        (g) => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && (unlinkedAccepts[g.order_number] ?? false)
+      );
+      let parkedCount = 0;
+      for (const g of parkedGroups) {
+        const { error: parkErr } = await (supabase as any).from('case_documents').insert({
+          case_id: null,
+          doc_type: docType,
+          file_path: path,
+          file_name: file.name,
+          order_number: g.order_number,
+          invoice_number: inv,
+          customer_name: g.groupCustomerName || null,
+          invoice_date: invoiceDate || null,
+          total_amount: g.subtotal,
+          currency: 'SEK',
+          line_items: g.lines,
+          uploaded_by: currentUser,
+        });
+        if (parkErr) throw parkErr;
+        parkedCount++;
+      }
+
       for (const g of groupsToInsert) {
         const c = g.effectiveCase!;
         const caseId = c.id;
@@ -981,7 +1007,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
       qc.invalidateQueries({ queryKey: ['cases-all'] });
       qc.invalidateQueries({ queryKey: ['unlinked-a-orders'] });
-      const createdSuffix = createdCases > 0 ? ` · ${createdCases} ärende(n) skapade från A-ordrar (saknad kundprofil)` : '';
+      const createdSuffix = (createdCases > 0 ? ` · ${createdCases} ärende(n) skapade från A-ordrar (saknad kundprofil)` : '')
+        + (parkedCount > 0 ? ` · ${parkedCount} importerade utan koppling` : '');
       const totalSkipped = userSkippedList.length + dupSkipped.length;
       if (isMontorInvoice && userSkippedList.length > 0) {
         try {
@@ -1017,6 +1044,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const acceptedAOrderGroups = groups.filter(
     g => !g.effectiveCase && g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true) && !isSkipped(g.order_number)
   );
+  const acceptedUnlinkedGroups = groups.filter(
+    (g) => !isMontorInvoice && !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && (unlinkedAccepts[g.order_number] ?? false)
+  );
   const unresolvedGroups = isMontorInvoice
     ? groups.filter(g => !g.effectiveCase && !isSkipped(g.order_number))
     : groups.filter(g => !g.effectiveCase);
@@ -1028,7 +1058,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     (isMulti
       ? (isMontorInvoice
           ? groups.length === 0 || unassignedLines.length > 0 || matchedActiveGroups.length === 0 || unresolvedGroups.length > 0
-          : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true))))
+          : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !(unlinkedAccepts[g.order_number] ?? false)))
       : !(effectiveCase || (singleAOrderMatch && singleAOrderAccept) || allowUnlinked));
 
   return (
@@ -1309,6 +1339,20 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                         </div>
                       )}
 
+                      {!skipped && !isMontorInvoice && !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && (
+                        <label className="flex items-center gap-2 text-sm border rounded-md p-2.5 bg-muted/30 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={unlinkedAccepts[g.order_number] ?? false}
+                            onChange={(e) => setUnlinkedAccepts((s) => ({ ...s, [g.order_number]: e.target.checked }))}
+                          />
+                          <span>
+                            <span className="font-medium">Importera utan koppling.</span>{' '}
+                            <span className="text-muted-foreground">Utbetalningen sparas och listas under Okopplade dokument tills ärendet finns.</span>
+                          </span>
+                        </label>
+                      )}
+
                       {!skipped && showSearch && (
                         <div className="space-y-2">
                           <Label className="flex items-center gap-1 text-xs">
@@ -1493,10 +1537,17 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                   </div>
                 );
               })() : (
-                <div className="text-xs text-muted-foreground text-right">
-                  Summa delsummor: <span className="font-medium text-foreground">{groupedSubtotalSum.toLocaleString('sv-SE')} kr</span>
-                  {totalNum > 0 && <> av {totalNum.toLocaleString('sv-SE')} kr</>}
-                </div>
+                (() => {
+                  const bookedGroups = [...matchedActiveGroups, ...acceptedAOrderGroups, ...acceptedUnlinkedGroups];
+                  const bookedSum = bookedGroups.reduce((s, g) => s + g.subtotal, 0);
+                  return (
+                    <div className="text-xs text-muted-foreground text-right">
+                      Bokförs: <span className="font-medium text-foreground">{bookedSum.toLocaleString('sv-SE')} kr</span> ({bookedGroups.length} grupper)
+                      {' · '}Summa delsummor: <span className="font-medium text-foreground">{groupedSubtotalSum.toLocaleString('sv-SE')} kr</span>
+                      {totalNum > 0 && <> av {totalNum.toLocaleString('sv-SE')} kr</>}
+                    </div>
+                  );
+                })()
               )}
             </div>
           )}
@@ -1764,10 +1815,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           )}
 
           {isMulti && !isMontorInvoice && (() => {
-            const unresolved = groups.filter(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !isSkipped(g.order_number)).length;
+            const unresolved = groups.filter(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !(unlinkedAccepts[g.order_number] ?? false) && !isSkipped(g.order_number)).length;
             return unresolved > 0 ? (
               <p className="text-xs text-amber-700 text-right">
-                {unresolved} ärendegrupp{unresolved === 1 ? '' : 'er'} saknar val — bekräfta förslag, sök manuellt eller hoppa över innan import.
+                {unresolved} ärendegrupp{unresolved === 1 ? '' : 'er'} saknar val — bekräfta förslag, sök manuellt eller bocka 'Importera utan koppling'.
               </p>
             ) : null;
           })()}
@@ -1779,7 +1830,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               {isMulti
                 ? (isMontorInvoice
                     ? `Bekräfta & koppla till ${matchedActiveGroups.length} ärenden`
-                    : `Bekräfta & koppla till ${matchedActiveGroups.length + acceptedAOrderGroups.length} ärenden`)
+                    : `Bekräfta & koppla till ${matchedActiveGroups.length + acceptedAOrderGroups.length} ärenden${acceptedUnlinkedGroups.length > 0 ? ` (+${acceptedUnlinkedGroups.length} utan koppling)` : ''}`)
                 : 'Bekräfta & koppla'}
             </Button>
           </div>
