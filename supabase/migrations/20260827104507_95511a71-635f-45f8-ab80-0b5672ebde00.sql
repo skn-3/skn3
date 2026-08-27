@@ -1,0 +1,1 @@
+ALTER TABLE public.case_documents ALTER COLUMN case_id DROP NOT NULL;

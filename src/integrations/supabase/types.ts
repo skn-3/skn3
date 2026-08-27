@@ -296,7 +296,7 @@ export type Database = {
       }
       case_documents: {
         Row: {
-          case_id: string
+          case_id: string | null
           created_at: string
           currency: string | null
           customer_name: string | null
@@ -313,7 +313,7 @@ export type Database = {
           uploaded_by: string | null
         }
         Insert: {
-          case_id: string
+          case_id?: string | null
           created_at?: string
           currency?: string | null
           customer_name?: string | null
@@ -330,7 +330,7 @@ export type Database = {
           uploaded_by?: string | null
         }
         Update: {
-          case_id?: string
+          case_id?: string | null
           created_at?: string
           currency?: string | null
           customer_name?: string | null
