@@ -593,12 +593,35 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setLineItems(items => items.map((li, i) => (i === lineIdx ? { ...li, order_number: on || null } : li)));
   };
 
-  const performSingleInsert = async (caseId: string) => {
+  const performSingleInsert = async (presetCaseId: string | null) => {
     setSubmitting(true);
     try {
+      let caseId: string | null = presetCaseId;
+      if (!caseId && singleAOrderMatch && singleAOrderAccept) {
+        const ao = singleAOrderMatch.aOrder;
+        const { data: newCase, error: caseErr } = await (supabase as any)
+          .from('cases')
+          .insert({
+            customer_name: ao.customer_name || customerName.trim() || 'Okänd kund',
+            address: ao.customer_address || '—',
+            customer_phone: '',
+            seller: 'Okänd',
+            status: 'fakturerad',
+            carry_help_needed: false,
+            notes: 'Skapad i efterhand vid utbetalningsimport — komplettera säljare.',
+            order_number: ao.order_number != null ? String(ao.order_number) : (orderNumber.trim() || null),
+          })
+          .select('id')
+          .single();
+        if (caseErr) throw caseErr;
+        const { error: linkErr } = await (supabase as any).from('a_orders').update({ case_id: newCase.id }).eq('id', ao.id);
+        if (linkErr) throw linkErr;
+        caseId = newCase.id;
+      }
+
       const safe = sanitizeFileName(file!.name);
       const folder = isSheet ? 'sheet-invoices' : 'payouts';
-      const path = `${caseId}/${folder}/${Date.now()}_${safe}`;
+      const path = `${caseId ?? 'unlinked'}/${folder}/${Date.now()}_${safe}`;
       const { error: upErr } = await supabase.storage
         .from('case-documents')
         .upload(path, file!, { upsert: false, contentType: file!.type || 'application/pdf' });
@@ -625,7 +648,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       });
       if (insErr) throw insErr;
 
-      if (!isSheet && !norm((effectiveCase as any).order_number)) {
+      if (caseId && !isSheet && !norm((effectiveCase as any)?.order_number)) {
         try { await updateCase(caseId, { order_number: orderNumber.trim() } as any); } catch (e) { console.warn(e); }
       }
 
@@ -634,24 +657,32 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         : isCost
         ? `Egen faktura/A-order kopplad: faktura ${invoiceNumber.trim()}, kostnad ${amountNum.toLocaleString('sv-SE')} kr`
         : `Mockfjärds-utbetalning kopplad: faktura ${invoiceNumber.trim()}, belopp ${amountNum.toLocaleString('sv-SE')} kr`;
-      await createCaseEvent({
-        case_id: caseId,
-        event_type: 'note',
-        description: eventDesc,
-        created_by: currentUser,
-      });
+      if (caseId) {
+        await createCaseEvent({
+          case_id: caseId,
+          event_type: 'note',
+          description: eventDesc,
+          created_by: currentUser,
+        });
+      }
 
       logActivity({
         action: isSheet ? 'sheet_invoice_uploaded' : (isCost ? 'cost_doc_uploaded' : 'payout_uploaded'),
         category: 'case',
-        description: `Laddade upp ${shortLabel.toLowerCase()} (faktura ${invoiceNumber.trim()}) för ${effectiveCase!.address}`,
-        case_id: caseId,
+        description: `Laddade upp ${shortLabel.toLowerCase()} (faktura ${invoiceNumber.trim()})${effectiveCase ? ` för ${effectiveCase.address}` : ' utan koppling'}`,
+        case_id: caseId ?? undefined,
         metadata: { doc_type: docType, invoice_number: invoiceNumber.trim(), total_amount: amountNum, order_number: isSheet ? null : orderNumber.trim(), job_address: isSheet ? jobAddress || null : null },
       });
 
-      qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
+      if (caseId) qc.invalidateQueries({ queryKey: ['case-documents', caseId] });
       qc.invalidateQueries({ queryKey: ['cases-all'] });
-      toast.success(isCost ? 'Faktura/A-order kopplad till ärendet' : 'Utbetalning kopplad till ärendet');
+      qc.invalidateQueries({ queryKey: ['unlinked-a-orders'] });
+      qc.invalidateQueries({ queryKey: ['unlinked-case-documents'] });
+      toast.success(
+        caseId
+          ? (isCost ? 'Faktura/A-order kopplad till ärendet' : 'Utbetalning kopplad till ärendet')
+          : 'Importerad utan koppling — hittas under Okopplade dokument'
+      );
       reset();
     } catch (e: any) {
       console.error(e);
@@ -666,9 +697,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     if (!isSheet && !orderNumber.trim()) { toast.error('Ange ordernummer'); return; }
     if (!invoiceNumber.trim()) { toast.error('Ange fakturanummer'); return; }
     if (!totalAmount.trim() || isNaN(Number(totalAmount))) { toast.error('Ange totalbelopp'); return; }
-    if (!effectiveCase) { toast.error('Välj ett ärende att koppla till'); return; }
+    if (!effectiveCase && !(singleAOrderMatch && singleAOrderAccept) && !allowUnlinked) {
+      toast.error('Välj ett ärende att koppla till');
+      return;
+    }
 
-    const caseId = effectiveCase.id;
+    const caseId = effectiveCase?.id ?? null;
     const inv = invoiceNumber.trim();
 
     // Duplicate check
@@ -679,7 +713,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         .eq('doc_type', docType)
         .eq('invoice_number', inv);
       const rows: any[] = existing || [];
-      const sameCaseHit = rows.find(r => r.case_id === caseId);
+      const sameCaseHit = caseId ? rows.find(r => r.case_id === caseId) : null;
       const otherHits = rows.filter(r => r.case_id !== caseId);
       if (sameCaseHit) {
         const otherCases = otherHits.map(r => {
@@ -695,7 +729,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       if (otherHits.length > 0) {
         const labels = otherHits.map(r => {
           const c = (cases as CaseRow[]).find(cc => cc.id === r.case_id);
-          return c ? (c.address || c.customer_name || r.case_id.slice(0, 8)) : r.case_id.slice(0, 8);
+          return c ? (c.address || c.customer_name || (r.case_id ?? '').slice(0, 8)) : (r.case_id ? r.case_id.slice(0, 8) : 'okopplat');
         }).join(', ');
         toast.warning(`Obs: fakturanr ${inv} finns även på: ${labels}`);
       }
