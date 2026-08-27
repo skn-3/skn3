@@ -266,7 +266,22 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     : isSheet ? 'Plåtfaktura'
     : (docType === 'a_order' ? 'Faktura/A-order' : 'Utbetalning');
 
+  const [aOrderAccepts, setAOrderAccepts] = useState<Record<string, boolean>>({});
+
   const { data: cases = [] } = useQuery({ queryKey: ['cases-all'], queryFn: fetchAllCases });
+
+  // Okopplade A-ordrar (för "Saknad kundprofil"-matchning)
+  const { data: unlinkedAOrders = [] } = useQuery({
+    queryKey: ['unlinked-a-orders'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('a_orders')
+        .select('id, order_number, customer_name, customer_address, total_amount')
+        .is('case_id', null);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   // Distinct order numbers from line items
   const distinctOrderNumbers = useMemo(() => {
@@ -319,6 +334,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     addrCandidates: AddrCandidate[];
     effectiveCase: CaseRow | null;
     matchSource: 'order' | 'name' | 'address' | 'manual' | null;
+    aOrderMatch: { aOrder: any; score: number; reason: string } | null;
   };
 
   // Helper: address key for a montor_invoice line (empty => unassigned)
@@ -364,6 +380,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           addrCandidates: candidates,
           effectiveCase: effective,
           matchSource,
+          aOrderMatch: null,
         };
       });
 
@@ -391,6 +408,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         addrCandidates: [],
         effectiveCase: v.case,
         matchSource: 'manual',
+        aOrderMatch: null,
       }));
       return [...addrGroups, ...manualGroups];
     }
@@ -408,6 +426,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const effective = override || autoCase;
       const matchSource: Group['matchSource'] =
         override ? 'manual' : orderC ? 'order' : strong ? 'name' : null;
+      const aOrderMatch = matchSource === null ? findAOrderNameMatch(unlinkedAOrders as any[], groupCustomerName) : null;
       return {
         order_number: on,
         keyKind: 'order',
@@ -421,9 +440,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         addrCandidates: [],
         effectiveCase: effective,
         matchSource,
+        aOrderMatch,
       };
     });
-  }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, lineCaseChoices]);
+  }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, lineCaseChoices, unlinkedAOrders]);
 
   const unassignedLines = useMemo(
     () => {
