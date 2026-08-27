@@ -1538,7 +1538,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 );
               })() : (
                 (() => {
-                  const bookedGroups = [...matchedActiveGroups, ...acceptedAOrderGroups, ...acceptedUnlinkedGroups];
+                  const bookedGroups = groups.filter(g => !!g.choice);
                   const bookedSum = bookedGroups.reduce((s, g) => s + g.subtotal, 0);
                   return (
                     <div className="text-xs text-muted-foreground text-right">
