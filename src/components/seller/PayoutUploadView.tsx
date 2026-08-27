@@ -1585,6 +1585,32 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             )
           )}
 
+          {!isMulti && !effectiveCase && singleAOrderMatch && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-1.5">
+              <div className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Saknad kundprofil — A-order hittad via namn</div>
+              <div className="text-sm">
+                A-order <strong>#{singleAOrderMatch.aOrder.order_number ?? '—'}</strong> · {singleAOrderMatch.aOrder.customer_name}
+                {singleAOrderMatch.aOrder.customer_address ? ` · ${singleAOrderMatch.aOrder.customer_address}` : ''}
+                {typeof singleAOrderMatch.aOrder.total_amount === 'number' ? ` · montörsvärde ${singleAOrderMatch.aOrder.total_amount.toLocaleString('sv-SE')} kr` : ''}
+              </div>
+              <div className="text-xs text-muted-foreground">{singleAOrderMatch.reason}. Säljregistrering saknas — vid import skapas ärendet i efterhand och A-order + utbetalning kopplas dit.</div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={singleAOrderAccept} onChange={(e) => setSingleAOrderAccept(e.target.checked)} />
+                Skapa ärende och koppla vid import
+              </label>
+            </div>
+          )}
+
+          {!isMulti && !effectiveCase && !(singleAOrderMatch && singleAOrderAccept) && (
+            <label className="flex items-center gap-2 text-sm border rounded-md p-3 bg-muted/30 cursor-pointer">
+              <input type="checkbox" checked={allowUnlinked} onChange={(e) => setAllowUnlinked(e.target.checked)} />
+              <span>
+                <span className="font-medium">Importera ändå utan koppling.</span>{' '}
+                <span className="text-muted-foreground">Dokumentet sparas och listas under Okopplade dokument tills det kopplas till ett ärende.</span>
+              </span>
+            </label>
+          )}
+
           {!isMulti && (!orderMatch || chosenCase) && (
             <div className="space-y-2">
               <Label className="flex items-center gap-1"><Search className="h-3.5 w-3.5" /> Sök ärende manuellt</Label>
