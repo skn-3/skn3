@@ -1226,7 +1226,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                           </Button>
                         </div>
                       ) : null}
-                      {!skipped && (g.effectiveCase ? (
+                      {!skipped && (g.choice?.kind === 'case' ? (
                         <Alert>
                           <Check className="h-4 w-4" />
                           <AlertTitle className="flex items-center gap-2">
@@ -1246,61 +1246,59 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                               title="Klicka för att granska ärendet"
                             >
                               <div className="flex items-center gap-1">
-                                <b>{g.effectiveCase.address}</b>
+                                <b>{g.choice.case.address}</b>
                                 <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${caseDetailsOpen[g.order_number] ? 'rotate-180' : ''}`} />
                               </div>
                               <div className="text-muted-foreground">
-                                {g.effectiveCase.customer_name}
+                                {g.choice.case.customer_name}
                                 {g.matchSource === 'name' && g.nameCandidates[0]?.reason
                                   ? ` · ${g.nameCandidates[0].reason}`
                                   : ''}
                               </div>
                             </button>
-                            {caseDetailsOpen[g.order_number] && <CaseInlineDetails c={g.effectiveCase} />}
+                            {caseDetailsOpen[g.order_number] && <CaseInlineDetails c={g.choice.case} />}
                             {g.matchSource === 'name' && (
                               <p className="text-xs text-muted-foreground mt-1">
                                 Ordernumret {g.order_number} hittades inte i systemet. Bekräfta att detta är rätt ärende.
                               </p>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="mt-2"
-                              onClick={() => {
-                                setGroupChoices(prev => { const n = { ...prev }; delete n[g.order_number]; return n; });
-                                setClearedGroups(prev => ({ ...prev, [g.order_number]: true }));
-                              }}
-                            >
+                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
                               Ändra val
                             </Button>
                           </AlertDescription>
                         </Alert>
-                      ) : g.nameCandidates.length > 0 ? (
+                      ) : g.choice?.kind === 'aorder' ? (
                         <Alert>
-                          <Search className="h-4 w-4" />
-                          <AlertTitle>Förslag baserat på kundnamn</AlertTitle>
+                          <Check className="h-4 w-4" />
+                          <AlertTitle>Vald A-order</AlertTitle>
                           <AlertDescription>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Ordernumret {g.order_number} hittades inte. Möjliga ärenden för "{g.groupCustomerName || '—'}":
-                            </p>
-                            <div className="border rounded-md divide-y">
-                              {g.nameCandidates.map(cand => (
-                                <button
-                                  key={cand.case.id}
-                                  type="button"
-                                  onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: cand.case }))}
-                                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                                >
-                                  <div className="font-medium">{cand.case.address}</div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {cand.case.customer_name} · {cand.reason}
-                                  </div>
-                                </button>
-                              ))}
+                            <div className="text-sm">
+                              A-order <strong>#{g.choice.aOrder.order_number ?? '—'}</strong> · {g.choice.aOrder.customer_name}
+                              {g.choice.aOrder.customer_address ? ` · ${g.choice.aOrder.customer_address}` : ''}
+                              {typeof g.choice.aOrder.total_amount === 'number' ? ` · montörsvärde ${g.choice.aOrder.total_amount.toLocaleString('sv-SE')} kr` : ''}
                             </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Kundprofil/ärende skapas automatiskt vid import och kopplas till både A-ordern och utbetalningen.
+                            </p>
+                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
+                              Ändra val
+                            </Button>
                           </AlertDescription>
                         </Alert>
-                      ) : (
+                      ) : g.choice?.kind === 'unlinked' ? (
+                        <Alert>
+                          <Check className="h-4 w-4" />
+                          <AlertTitle>Importeras utan koppling</AlertTitle>
+                          <AlertDescription>
+                            <p className="text-sm text-muted-foreground">
+                              Sparas under Okopplade dokument och kopplas när ärendet finns.
+                            </p>
+                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
+                              Ändra val
+                            </Button>
+                          </AlertDescription>
+                        </Alert>
+                      ) : isMontorInvoice ? (
                         <Alert variant="destructive">
                           <AlertTriangle className="h-4 w-4" />
                           <AlertTitle>Inget ärende kunde matchas</AlertTitle>
@@ -1308,50 +1306,48 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             {g.keyKind === 'address'
                               ? <>Adress "{g.order_number}" matchade inget ärende. Sök manuellt nedan.</>
                               : <>Varken ordernummer {g.order_number} eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade. Sök manuellt nedan.</>}
-                            {isMontorInvoice && (
-                              <div className="mt-2">
-                                <Button variant="outline" size="sm" onClick={() => toggleSkip(g.order_number, true)}>
-                                  Hoppa över denna adress
-                                </Button>
-                              </div>
-                            )}
+                            <div className="mt-2">
+                              <Button variant="outline" size="sm" onClick={() => toggleSkip(g.order_number, true)}>
+                                Hoppa över denna adress
+                              </Button>
+                            </div>
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <Alert>
+                          <Search className="h-4 w-4" />
+                          <AlertTitle>Välj koppling</AlertTitle>
+                          <AlertDescription>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Ordernumret {g.order_number} hittades inte{g.groupCustomerName ? ` — alternativ för "${g.groupCustomerName}"` : ''}. Klicka för att välja:
+                            </p>
+                            <div className="border rounded-md divide-y">
+                              {g.nameCandidates.map(cand => (
+                                <button key={cand.case.id} type="button"
+                                  onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'case', case: cand.case } }))}
+                                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm">
+                                  <div className="font-medium">{cand.case.address}</div>
+                                  <div className="text-xs text-muted-foreground">Ärende · {cand.case.customer_name} · {cand.reason}</div>
+                                </button>
+                              ))}
+                              {g.aOrderCandidates.map(c => (
+                                <button key={c.aOrder.id} type="button"
+                                  onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'aorder', aOrder: c.aOrder } }))}
+                                  className="w-full text-left px-3 py-2 hover:bg-amber-50 text-sm">
+                                  <div className="font-medium">A-order #{c.aOrder.order_number ?? '—'} · {c.aOrder.customer_name}</div>
+                                  <div className="text-xs text-muted-foreground">{c.aOrder.customer_address || ''} · {c.reason} · ärende skapas vid import</div>
+                                </button>
+                              ))}
+                              <button type="button"
+                                onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'unlinked' } }))}
+                                className="w-full text-left px-3 py-2 hover:bg-muted text-sm text-muted-foreground">
+                                Importera utan koppling — koppla senare via Okopplade dokument
+                              </button>
+                            </div>
                           </AlertDescription>
                         </Alert>
                       ))}
 
-                      {!skipped && g.aOrderMatch && !g.effectiveCase && (
-                        <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 space-y-1.5">
-                          <div className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Saknad kundprofil — A-order hittad via namn</div>
-                          <div className="text-sm">
-                            A-order <strong>#{g.aOrderMatch.aOrder.order_number ?? '—'}</strong> · {g.aOrderMatch.aOrder.customer_name}
-                            {g.aOrderMatch.aOrder.customer_address ? ` · ${g.aOrderMatch.aOrder.customer_address}` : ''}
-                            {typeof g.aOrderMatch.aOrder.total_amount === 'number' ? ` · montörsvärde ${g.aOrderMatch.aOrder.total_amount.toLocaleString('sv-SE')} kr` : ''}
-                          </div>
-                          <div className="text-xs text-muted-foreground">{g.aOrderMatch.reason}. Säljregistrering saknas — vid import skapas ärendet i efterhand och A-order + utbetalning kopplas dit.</div>
-                          <label className="flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              checked={aOrderAccepts[g.order_number] ?? true}
-                              onChange={(e) => setAOrderAccepts((s) => ({ ...s, [g.order_number]: e.target.checked }))}
-                            />
-                            Skapa ärende och koppla vid import
-                          </label>
-                        </div>
-                      )}
-
-                      {!skipped && !isMontorInvoice && !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && (
-                        <label className="flex items-center gap-2 text-sm border rounded-md p-2.5 bg-muted/30 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={unlinkedAccepts[g.order_number] ?? false}
-                            onChange={(e) => setUnlinkedAccepts((s) => ({ ...s, [g.order_number]: e.target.checked }))}
-                          />
-                          <span>
-                            <span className="font-medium">Importera utan koppling.</span>{' '}
-                            <span className="text-muted-foreground">Utbetalningen sparas och listas under Okopplade dokument tills ärendet finns.</span>
-                          </span>
-                        </label>
-                      )}
 
                       {!skipped && showSearch && (
                         <div className="space-y-2">
