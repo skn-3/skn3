@@ -1719,6 +1719,56 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           </div>
         </CardContent>
       </Card>
+
+      {unlinkedDocs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Okopplade dokument ({unlinkedDocs.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(unlinkedDocs as any[]).map(doc => (
+              <div key={doc.id} className="flex flex-wrap items-center justify-between gap-2 border rounded-md p-3">
+                <div className="text-sm min-w-0">
+                  <div className="font-medium">
+                    {docTypeLabel(doc.doc_type)}
+                    {doc.invoice_number ? ` · faktura ${doc.invoice_number}` : ''}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {doc.customer_name || doc.file_name || '—'}
+                    {typeof doc.total_amount === 'number' ? ` · ${doc.total_amount.toLocaleString('sv-SE')} kr` : ''}
+                    {doc.invoice_date ? ` · ${doc.invoice_date}` : ''}
+                  </div>
+                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">Koppla till ärende</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-2 space-y-2" align="end">
+                    <Input
+                      placeholder="Sök adress, kund, offert- eller ordernummer…"
+                      value={unlinkedSearch[doc.id] ?? ''}
+                      onChange={(e) => setUnlinkedSearch(s => ({ ...s, [doc.id]: e.target.value }))}
+                    />
+                    <div className="max-h-64 overflow-y-auto divide-y border rounded-md">
+                      {searchCasesFor(unlinkedSearch[doc.id] ?? '').map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => linkUnlinkedDoc(doc.id, c)}
+                          className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                        >
+                          <div className="font-medium">{c.address}</div>
+                          <div className="text-xs text-muted-foreground">{c.customer_name}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
     <AlertDialog open={!!dupConfirm} onOpenChange={(o) => { if (!o) setDupConfirm(null); }}>
       <AlertDialogContent>
