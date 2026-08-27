@@ -914,7 +914,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       ? (isMontorInvoice
           ? groups.length === 0 || unassignedLines.length > 0 || matchedActiveGroups.length === 0 || unresolvedGroups.length > 0
           : groups.length === 0 || unassignedLines.length > 0 || groups.some(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true))))
-      : !effectiveCase);
+      : !(effectiveCase || (singleAOrderMatch && singleAOrderAccept) || allowUnlinked));
 
   return (
     <>
