@@ -1815,10 +1815,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           )}
 
           {isMulti && !isMontorInvoice && (() => {
-            const unresolved = groups.filter(g => !g.effectiveCase && !(g.aOrderMatch && (aOrderAccepts[g.order_number] ?? true)) && !(unlinkedAccepts[g.order_number] ?? false) && !isSkipped(g.order_number)).length;
+            const unresolved = groups.filter(g => !g.choice && !isSkipped(g.order_number)).length;
             return unresolved > 0 ? (
               <p className="text-xs text-amber-700 text-right">
-                {unresolved} ärendegrupp{unresolved === 1 ? '' : 'er'} saknar val — bekräfta förslag, sök manuellt eller bocka 'Importera utan koppling'.
+                {unresolved} grupp{unresolved === 1 ? '' : 'er'} saknar val — klicka ett alternativ i listan.
               </p>
             ) : null;
           })()}
@@ -1830,8 +1830,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               {isMulti
                 ? (isMontorInvoice
                     ? `Bekräfta & koppla till ${matchedActiveGroups.length} ärenden`
-                    : `Bekräfta & koppla till ${matchedActiveGroups.length + acceptedAOrderGroups.length} ärenden${acceptedUnlinkedGroups.length > 0 ? ` (+${acceptedUnlinkedGroups.length} utan koppling)` : ''}`)
+                    : `Bekräfta & koppla till ${chosenCaseGroups.length + chosenAOrderGroups.length} ärenden${chosenUnlinkedGroups.length > 0 ? ` (+${chosenUnlinkedGroups.length} utan koppling)` : ''}`)
                 : 'Bekräfta & koppla'}
+
             </Button>
           </div>
         </CardContent>
