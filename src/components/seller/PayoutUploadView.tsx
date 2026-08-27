@@ -861,7 +861,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
       let groupsToInsert = isMontorInvoice
         ? groups.filter(g => g.effectiveCase && !isSkipped(g.order_number))
-        : groups.filter(g => g.effectiveCase);
+        : groups.filter(g => g.choice?.kind === 'case');
+
       const userSkippedList = isMontorInvoice
         ? groups.filter(g => isSkipped(g.order_number))
         : [];
