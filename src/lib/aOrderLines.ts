@@ -61,6 +61,7 @@ export function generateAutoLines(input: AutoLineInput): AOrderLine[] {
     lines.push(line('Ersättning Infästnings material', 40.8, totalUnits));
     lines.push(line(facadeType === 'puts' ? 'Rivning putsfasad' : 'Rivning dörr/fönster', RIVNING_PRICE[facadeType], totalUnits));
     lines.push(line(facadeType === 'tra' ? 'Montering Bleck Trähus' : 'Montering Bleck Puts/Stenhus', BLECK_PRICE[facadeType], totalUnits));
+    lines.push(line('Materialkostnad Underbleck', MATERIAL_UB_PRICE, totalUnits));
   }
 
   return lines.filter(l => l.qty > 0);
