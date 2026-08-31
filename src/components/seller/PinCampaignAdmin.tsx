@@ -126,12 +126,14 @@ export function PinCampaignAdmin() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: profiles }, { data: roles }] = await Promise.all([
+    const [{ data: profiles }, { data: roles }, { data: teams }] = await Promise.all([
       supabase.from('profiles').select('id, name, must_change_pin, pin_change_requested_at').order('name'),
       supabase.from('user_roles').select('user_id, role'),
+      supabase.from('montor_teams').select('name').eq('is_active', true).order('name'),
     ]);
     const roleById = Object.fromEntries((roles || []).map((r: any) => [r.user_id, r.role]));
     setRows((profiles || []).map((p: any) => ({ ...p, role: roleById[p.id] })));
+    setActiveTeams((teams || []).map((t: any) => t.name as string));
     setLoading(false);
   };
 
