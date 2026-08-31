@@ -168,12 +168,20 @@ export function PinCampaignAdmin() {
 
   return (
     <Card className="p-6 space-y-6 mt-6">
-      <div>
-        <h2 className="text-lg font-semibold">PIN-byte (6-siffrig PIN)</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Skicka informationsmejl och aktivera tvångsbyte vid nästa inloggning. Automatiska
-          påminnelser dag 2, 4, 6, 8 och 10. Sammanfattning till Daniel dag 11.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">PIN-byte (6-siffrig PIN)</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Skicka informationsmejl och aktivera tvångsbyte vid nästa inloggning. Automatiska
+            påminnelser dag 2, 4, 6, 8 och 10. Sammanfattning till Daniel dag 11.
+          </p>
+        </div>
+        {isAdmin && (
+          <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-1.5" />
+            Ny användare
+          </Button>
+        )}
       </div>
 
       <div className="space-y-3 border-b pb-6">
@@ -288,8 +296,8 @@ export function PinCampaignAdmin() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Användaren {rows.find(r => r.id === pinShownFor)?.name ?? ''} måste byta till en
-            egen PIN vid nästa inloggning.
+            Användaren {rows.find(r => r.id === pinShownFor)?.name ?? pinShownFor ?? ''} tvingas
+            byta till en egen PIN vid nästa inloggning.
           </p>
           <DialogFooter>
             <Button onClick={closePinDialog}>Stäng</Button>
