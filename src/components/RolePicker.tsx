@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SELLERS, MONTORS, COORDINATORS, loginEmailFor, padPinForAuth, type RoleType } from '@/lib/constants';
+import { SELLERS, MONTORS as MONTORS_FALLBACK, COORDINATORS, loginEmailFor, padPinForAuth, type RoleType } from '@/lib/constants';
 import { logActivity } from '@/lib/activityLog';
 import { supabase } from '@/integrations/supabase/client';
+import { useMontorTeams } from '@/hooks/useMontorTeams';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 60;
 
 export function RolePicker() {
+  const { names: montorNames } = useMontorTeams();
   const [roleType, setRoleType] = useState<RoleType | null>(null);
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
@@ -32,7 +34,7 @@ export function RolePicker() {
 
   const people =
     roleType === 'seller' ? SELLERS :
-    roleType === 'montor' ? MONTORS :
+    roleType === 'montor' ? (montorNames.length ? montorNames : [...MONTORS_FALLBACK]) :
     roleType === 'coordinator' ? COORDINATORS : [];
 
   const handleLogin = async () => {

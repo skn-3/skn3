@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { MONTORS } from '@/lib/constants';
+import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { getISOWeek, getISOWeekYear, startOfISOWeek, addWeeks } from 'date-fns';
 import { Users } from 'lucide-react';
 
@@ -14,6 +14,7 @@ function weekKey(year: number, week: number) {
 }
 
 export function CapacityMatrix() {
+  const { names: montorNames } = useMontorTeams();
   const { data: cases } = useQuery({
     queryKey: ['capacity-montage'],
     queryFn: async () => {
@@ -39,7 +40,7 @@ export function CapacityMatrix() {
     });
 
     const grid = new Map<string, Map<string, Cell>>();
-    const teamNames: string[] = [...MONTORS];
+    const teamNames: string[] = [...montorNames];
     const bump = (team: string, wk: string, units: number) => {
       if (!grid.has(team)) grid.set(team, new Map());
       const row = grid.get(team)!;
@@ -66,7 +67,7 @@ export function CapacityMatrix() {
     }));
 
     return { weeks, rows, hasUnassigned };
-  }, [cases]);
+  }, [cases, montorNames]);
 
   const cellTone = (count: number) => {
     if (count === 0) return 'bg-background text-muted-foreground/40';
