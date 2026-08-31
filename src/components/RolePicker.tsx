@@ -1,17 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SELLERS, MONTORS as MONTORS_FALLBACK, COORDINATORS, loginEmailFor, padPinForAuth, type RoleType } from '@/lib/constants';
+import { SELLERS, MONTORS, COORDINATORS, loginEmailFor, padPinForAuth, type RoleType } from '@/lib/constants';
 import { logActivity } from '@/lib/activityLog';
 import { supabase } from '@/integrations/supabase/client';
-import { useMontorTeams } from '@/hooks/useMontorTeams';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 60;
 
 export function RolePicker() {
-  const { names: montorNames } = useMontorTeams();
+  const { data: directory } = useQuery({
+    queryKey: ['login-directory'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('login_directory');
+      if (error) throw error;
+      return (data ?? []) as { name: string; role: string }[];
+    },
+    staleTime: 60 * 1000,
+  });
   const [roleType, setRoleType] = useState<RoleType | null>(null);
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
@@ -32,10 +40,12 @@ export function RolePicker() {
   const lockedRemaining = lockUntil ? Math.max(0, Math.ceil((lockUntil - now) / 1000)) : 0;
   const isLocked = lockedRemaining > 0;
 
-  const people =
+  const fallback =
     roleType === 'seller' ? SELLERS :
-    roleType === 'montor' ? (montorNames.length ? montorNames : [...MONTORS_FALLBACK]) :
+    roleType === 'montor' ? MONTORS :
     roleType === 'coordinator' ? COORDINATORS : [];
+  const fromDb = (directory ?? []).filter((d) => d.role === roleType).map((d) => d.name);
+  const people: readonly string[] = fromDb.length > 0 ? fromDb : fallback;
 
   const handleLogin = async () => {
     if (isLocked || !name || pin.length < 4 || pin.length > 6 || loading) return;
