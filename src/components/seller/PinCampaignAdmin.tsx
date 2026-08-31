@@ -51,7 +51,7 @@ export function PinCampaignAdmin() {
   // Skapa-användare state
   const [createOpen, setCreateOpen] = useState(false);
   const [cName, setCName] = useState('');
-  const [cEmail, setCEmail] = useState('');
+  
   const [cRole, setCRole] = useState<'montor' | 'seller' | 'coordinator'>('montor');
   const [cAdmin, setCAdmin] = useState(false);
   const [cTeam, setCTeam] = useState('');
@@ -61,7 +61,7 @@ export function PinCampaignAdmin() {
     mutationFn: async () => {
       const name = cRole === 'montor' ? cTeam : cName.trim();
       const { data, error } = await supabase.functions.invoke('create-user', {
-        body: { name, email: cEmail.trim(), role: cRole, is_admin: cAdmin },
+        body: { name, role: cRole, is_admin: cAdmin },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -71,7 +71,7 @@ export function PinCampaignAdmin() {
       setCreateOpen(false);
       setNewPin(pin);
       setPinShownFor(name);
-      setCName(''); setCEmail(''); setCTeam(''); setCAdmin(false);
+      setCName(''); setCTeam(''); setCAdmin(false);
       toast.success(`Användare ${name} skapad`);
       load();
     },
@@ -381,23 +381,15 @@ export function PinCampaignAdmin() {
                 </div>
               </>
             )}
-            <div className="space-y-1.5">
-              <Label htmlFor="create-email">E-post (inloggning)</Label>
-              <Input
-                id="create-email"
-                type="email"
-                value={cEmail}
-                onChange={(e) => setCEmail(e.target.value)}
-                autoComplete="off"
-              />
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Inloggning sker med namn + PIN. Kontaktuppgifter (e-post, telefon) anges på montörsteamet.
+            </p>
           </div>
           <DialogFooter>
             <Button
               onClick={() => createMutation.mutate()}
               disabled={
                 createMutation.isPending ||
-                !/.+@.+\..+/.test(cEmail.trim()) ||
                 (cRole === 'montor' ? !cTeam : !cName.trim())
               }
             >
