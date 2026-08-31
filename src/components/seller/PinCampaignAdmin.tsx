@@ -48,6 +48,36 @@ export function PinCampaignAdmin() {
   const [newPin, setNewPin] = useState<string | null>(null);
   const [pinShownFor, setPinShownFor] = useState<string | null>(null);
 
+  // Skapa-användare state
+  const [createOpen, setCreateOpen] = useState(false);
+  const [cName, setCName] = useState('');
+  const [cEmail, setCEmail] = useState('');
+  const [cRole, setCRole] = useState<'montor' | 'seller' | 'coordinator'>('montor');
+  const [cAdmin, setCAdmin] = useState(false);
+  const [cTeam, setCTeam] = useState('');
+  const [activeTeams, setActiveTeams] = useState<string[]>([]);
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const name = cRole === 'montor' ? cTeam : cName.trim();
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: { name, email: cEmail.trim(), role: cRole, is_admin: cAdmin },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return { name, pin: (data as any).pin as string };
+    },
+    onSuccess: ({ name, pin }) => {
+      setCreateOpen(false);
+      setNewPin(pin);
+      setPinShownFor(name);
+      setCName(''); setCEmail(''); setCTeam(''); setCAdmin(false);
+      toast.success(`Användare ${name} skapad`);
+      load();
+    },
+    onError: (e: any) => toast.error(e?.message || 'Kunde inte skapa användare'),
+  });
+
   const resetMutation = useMutation({
     mutationFn: async (targetUserId: string) => {
       const { data, error } = await supabase.functions.invoke('reset-user-pin', {
