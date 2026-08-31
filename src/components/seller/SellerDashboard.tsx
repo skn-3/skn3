@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchAllCases, fetchAllDeviations, fetchAllVisits, fetchAllCaseEvents, updateDeviation } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { STATUS_LABELS, SELLERS, MONTORS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, HOUR_RATE, LOST_REASONS, COMPETITORS } from '@/lib/constants';
+import { STATUS_LABELS, SELLERS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, HOUR_RATE, LOST_REASONS, COMPETITORS } from '@/lib/constants';
+import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Loader2, TrendingDown, ShieldAlert, Info } from 'lucide-react';
 import { Tooltip as UiTooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { formatAmount, formatAddressWithCity } from '@/lib/utils';
@@ -36,6 +37,7 @@ function getCaseCityKeyLocal(c: { city?: string | null; address: string }): stri
 }
 
 export function SellerDashboard({ sellerName }: SellerDashboardProps) {
+  const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const queryClient = useQueryClient();
   const [filterSeller, setFilterSeller] = useState<string>('all');
   const [filterMontor, setFilterMontor] = useState<string>('all');

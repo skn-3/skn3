@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, sendNotificationEmail, updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
-import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
+import { EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
+import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,7 @@ interface SignedCaseDialogProps {
 }
 
 export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialogProps) {
+  const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [form, setForm] = useState({

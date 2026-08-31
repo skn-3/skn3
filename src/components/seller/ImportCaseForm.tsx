@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, fetchAllCases, createVisit, type CaseRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
-import { MONTORS, SELLERS, STATUS_LABELS, SELLER_PIPELINE_COLUMNS, HOUR_RATE } from '@/lib/constants';
+import { SELLERS, STATUS_LABELS, SELLER_PIPELINE_COLUMNS, HOUR_RATE } from '@/lib/constants';
+import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -104,6 +105,7 @@ export function findPotentialDuplicates(
 }
 
 export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
+  const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const queryClient = useQueryClient();
   const [importCount, setImportCount] = useState(0);
   const [pasteText, setPasteText] = useState('');
