@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, sendNotificationEmail, updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
-import { MONTORS, EMAIL_MAP, HOUR_RATE } from '@/lib/constants';
+import { HOUR_RATE } from '@/lib/constants';
+import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,7 @@ interface SignedCaseDialogProps {
 }
 
 export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialogProps) {
+  const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [form, setForm] = useState({
@@ -96,10 +98,10 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         created_by: sellerName,
       });
 
-      if (form.team && EMAIL_MAP[form.team]) {
+      if (form.team && montorEmailOf(form.team)) {
         try {
           await sendNotificationEmail({
-            to: EMAIL_MAP[form.team],
+            to: montorEmailOf(form.team),
             subject: `NYTT ÄRENDE — ${form.address}`,
             body: `
               <h2>Nytt ärende tilldelat</h2>
@@ -116,7 +118,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           await createCaseEvent({
             case_id: newCase.id,
             event_type: 'notification',
-            description: `Mail skickat till ${EMAIL_MAP[form.team]} (nytt ärende)`,
+            description: `Mail skickat till ${montorEmailOf(form.team)} (nytt ärende)`,
             created_by: sellerName,
           });
         } catch (emailErr) {

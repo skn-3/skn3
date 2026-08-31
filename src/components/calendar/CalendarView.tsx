@@ -4,7 +4,8 @@ import { Calendar, dateFnsLocalizer, Views, type View, type ToolbarProps } from 
 import { format, parse, startOfWeek, getDay, addHours, startOfDay, endOfDay, setISOWeek, setYear, startOfISOWeek, endOfISOWeek } from 'date-fns';
 import { sv } from 'date-fns/locale';
 import { fetchAllCases, type CaseRow } from '@/lib/supabaseClient';
-import { MONTORS, SELLERS } from '@/lib/constants';
+import { SELLERS } from '@/lib/constants';
+import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -206,6 +207,7 @@ function FullEvent({ event }: { event: CalEvent }) {
 }
 
 export function CalendarView({ onSelectCase }: CalendarViewProps) {
+  const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
   const [view, setView] = useState<View>(isMobile ? Views.AGENDA : Views.MONTH);
   const [date, setDate] = useState(new Date());

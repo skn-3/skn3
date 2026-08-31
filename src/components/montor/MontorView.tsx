@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { fetchCases, type CaseRow } from '@/lib/supabaseClient';
-import { MONTORS, type UserRole } from '@/lib/constants';
+import { type UserRole } from '@/lib/constants';
+import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { AppHeader } from '@/components/AppHeader';
 import { MontorCaseList } from '@/components/montor/MontorCaseList';
 import { MontorCaseDetail } from '@/components/montor/MontorCaseDetail';
@@ -42,6 +43,7 @@ function matchesSearch(c: CaseRow, term: string): boolean {
 }
 
 export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialCaseId, onInitialCaseHandled }: MontorViewProps) {
+  const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('alla');
   const [adminFilter, setAdminFilter] = useState<string>('alla');

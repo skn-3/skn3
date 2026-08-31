@@ -5,7 +5,8 @@ import { fetchCaseById, createCaseEvent } from '@/lib/supabaseClient';
 import { logActivity } from '@/lib/activityLog';
 import { supabase } from '@/integrations/supabase/client';
 import { useRole } from '@/hooks/useRole';
-import { MONTOR_PHONES, SHEET_METAL_RECIPIENT, SHEET_METAL_CC } from '@/lib/constants';
+import { SHEET_METAL_RECIPIENT, SHEET_METAL_CC } from '@/lib/constants';
+import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -59,6 +60,7 @@ const newProfile = (): OrderProfile => ({
 });
 
 export default function SheetMetalOrderPage() {
+  const { teams: montorTeams, phoneOf: montorPhoneOf } = useMontorTeams();
   const { caseId } = useParams<{ caseId: string }>();
   const navigate = useNavigate();
   const { role } = useRole();
@@ -115,7 +117,7 @@ export default function SheetMetalOrderPage() {
     const doc = buildSheetMetalOrderPdf({
       caseAddress: caseData.address,
       montorName: montor || 'Ej angiven',
-      montorPhone: MONTOR_PHONES[montor] || '',
+      montorPhone: montorPhoneOf(montor),
       notes,
       profiles: profiles.map(p => ({
         mode: p.mode, type: p.type, color: p.color, with_gables: p.with_gables,
@@ -138,7 +140,7 @@ export default function SheetMetalOrderPage() {
         cc: SHEET_METAL_CC,
         delivery_address: caseData.address,
         montor_name: montor || 'Ej angiven',
-        montor_phone: MONTOR_PHONES[montor] || '',
+        montor_phone: montorPhoneOf(montor),
         notes,
         created_by: role.name,
         profiles: profiles.map(p => ({
@@ -157,7 +159,7 @@ export default function SheetMetalOrderPage() {
       const pdfDoc = buildSheetMetalOrderPdf({
         caseAddress: caseData.address,
         montorName: montor || 'Ej angiven',
-        montorPhone: MONTOR_PHONES[montor] || '',
+        montorPhone: montorPhoneOf(montor),
         notes,
         profiles: payload.profiles as any,
         createdBy: role.name,
@@ -173,7 +175,7 @@ export default function SheetMetalOrderPage() {
         status: 'skickad',
         delivery_address: caseData.address,
         montor_name: montor,
-        montor_phone: MONTOR_PHONES[montor] || null,
+        montor_phone: montorPhoneOf(montor) || null,
         notes,
         profiles: payload.profiles.map(p => ({ ...p, image_data_url: p.image_data_url ? '[bifogad]' : undefined })) as any,
       });
@@ -232,7 +234,7 @@ export default function SheetMetalOrderPage() {
             <Card className="p-4 bg-muted/40">
               <div className="text-sm">
                 <strong>Leveransadress:</strong> {caseData.address}<br />
-                <strong>Montör:</strong> {montor || caseData.team || '—'} {MONTOR_PHONES[montor] && <span className="text-muted-foreground">— Tel: {MONTOR_PHONES[montor]}</span>}
+                <strong>Montör:</strong> {montor || caseData.team || '—'} {montorPhoneOf(montor) && <span className="text-muted-foreground">— Tel: {montorPhoneOf(montor)}</span>}
               </div>
             </Card>
 
@@ -407,8 +409,8 @@ export default function SheetMetalOrderPage() {
                 <select className="block w-full border rounded-md px-3 py-2 text-sm bg-background"
                   value={montor} onChange={e => setMontor(e.target.value)}>
                   <option value="">Välj montör</option>
-                  {Object.entries(MONTOR_PHONES).map(([n, ph]) => (
-                    <option key={n} value={n}>{n} — {ph}</option>
+                  {montorTeams.map((t) => (
+                    <option key={t.id} value={t.name}>{t.name}{t.phone ? ` — ${t.phone}` : ''}</option>
                   ))}
                 </select>
               </div>

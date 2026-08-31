@@ -15,7 +15,8 @@ import {
   type CaseRow,
   type DeviationRow,
 } from '@/lib/supabaseClient';
-import { MONTORS, STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE } from '@/lib/constants';
+import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE } from '@/lib/constants';
+import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -55,6 +56,7 @@ function PhoneLink({ phone }: { phone: string | null }) {
 }
 
 export function CoordinatorInbox({ coordinatorName }: Props) {
+  const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [bookingCase, setBookingCase] = useState<CaseRow | null>(null);
@@ -376,6 +378,7 @@ function Section({
 function BookingSheet({
   c, onClose, coordinatorName, onDone,
 }: { c: CaseRow | null; onClose: () => void; coordinatorName: string; onDone: () => void }) {
+  const { names: MONTORS } = useMontorTeams();
   const [team, setTeam] = useState<string>(c?.team || '');
   const [kmTeam, setKmTeam] = useState<string>(c?.km_team || '');
   const [montageDate, setMontageDate] = useState<string>(c?.montage_date || '');

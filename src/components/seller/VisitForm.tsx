@@ -9,7 +9,8 @@ import {
 } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { searchOrders } from '@/integrations/orderGateway';
-import { MONTORS, EMAIL_MAP, HOUR_RATE, STATUS_LABELS } from '@/lib/constants';
+import { HOUR_RATE, STATUS_LABELS } from '@/lib/constants';
+import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -86,6 +87,7 @@ const emptyForm = () => ({
 });
 
 export function VisitForm({ sellerName }: VisitFormProps) {
+  const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const queryClient = useQueryClient();
   const [form, setForm] = useState(emptyForm());
 
@@ -285,10 +287,10 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       });
 
       // 4) Montörmail
-      if (form.team && EMAIL_MAP[form.team]) {
+      if (form.team && montorEmailOf(form.team)) {
         try {
           await sendNotificationEmail({
-            to: EMAIL_MAP[form.team],
+            to: montorEmailOf(form.team),
             subject: `NYTT ÄRENDE — ${form.address}`,
             body: `
               <h2>Nytt ärende tilldelat</h2>
@@ -305,7 +307,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           await createCaseEvent({
             case_id: newCase.id,
             event_type: 'notification',
-            description: `Mail skickat till ${EMAIL_MAP[form.team]} (nytt ärende)`,
+            description: `Mail skickat till ${montorEmailOf(form.team)} (nytt ärende)`,
             created_by: sellerName,
           });
         } catch (emailErr) {
