@@ -1366,6 +1366,13 @@ export type Database = {
       auth_user_name: { Args: never; Returns: string }
       auth_user_role: { Args: never; Returns: string }
       fix_a_order_sequence: { Args: never; Returns: undefined }
+      login_directory: {
+        Args: never
+        Returns: {
+          name: string
+          role: string
+        }[]
+      }
       next_yearly_number: { Args: { p_series: string }; Returns: string }
     }
     Enums: {
