@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function deriveLoginEmail(name: string): string {
+  const local = name.trim().toLowerCase().replace(/\s+/g, '.');
+  return `${local}@caseflow.local`;
+}
+
 function generatePin(): string {
   const bytes = new Uint8Array(6);
   crypto.getRandomValues(bytes);
@@ -22,13 +27,12 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const name = String(body?.name ?? '').trim();
-    const email = String(body?.email ?? '').trim().toLowerCase();
     const role = body?.role as 'seller' | 'montor' | 'coordinator';
     const isAdmin = !!body?.is_admin && role !== 'montor';
 
     if (!name) throw new Error('Namn saknas');
-    if (!/.+@.+\..+/.test(email)) throw new Error('Ogiltig e-postadress');
     if (!['seller', 'montor', 'coordinator'].includes(role)) throw new Error('Ogiltig roll');
+    const email = deriveLoginEmail(name);
 
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
@@ -38,8 +42,8 @@ Deno.serve(async (req) => {
       if (!team) throw new Error(`Inget aktivt montörsteam heter "${name}" — skapa teamet först`);
     }
 
-    const { data: existing } = await admin.from('profiles').select('id').eq('login_email', email).maybeSingle();
-    if (existing) throw new Error('E-postadressen används redan');
+    const { data: existing } = await admin.from('profiles').select('id').ilike('name', name).maybeSingle();
+    if (existing) throw new Error(`Användaren "${name}" finns redan`);
 
     const pin = generatePin();
     const { data: created, error: authErr } = await admin.auth.admin.createUser({
