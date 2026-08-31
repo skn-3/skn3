@@ -322,6 +322,90 @@ export function PinCampaignAdmin() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ny användare</DialogTitle>
+            <DialogDescription>
+              Skapa ett konto med tillfällig 6-siffrig PIN. Användaren tvingas byta vid
+              första inloggning.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Roll</Label>
+              <Select value={cRole} onValueChange={(v) => setCRole(v as typeof cRole)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="montor">Montör</SelectItem>
+                  <SelectItem value="seller">Säljare</SelectItem>
+                  <SelectItem value="coordinator">Koordinator</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {cRole === 'montor' ? (
+              <div className="space-y-1.5">
+                <Label>Team</Label>
+                <Select value={cTeam} onValueChange={setCTeam}>
+                  <SelectTrigger><SelectValue placeholder="Välj montörsteam" /></SelectTrigger>
+                  <SelectContent>
+                    {activeTeams.map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Montörens användarnamn blir teamets namn; det är så ärenden kopplas till
+                  montören. Saknas teamet, skapa det först under Montörsteam.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="create-name">Namn</Label>
+                  <Input
+                    id="create-name"
+                    value={cName}
+                    onChange={(e) => setCName(e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="create-admin"
+                    checked={cAdmin}
+                    onCheckedChange={(v) => setCAdmin(v === true)}
+                  />
+                  <Label htmlFor="create-admin" className="font-normal">Administratör</Label>
+                </div>
+              </>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="create-email">E-post (inloggning)</Label>
+              <Input
+                id="create-email"
+                type="email"
+                value={cEmail}
+                onChange={(e) => setCEmail(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => createMutation.mutate()}
+              disabled={
+                createMutation.isPending ||
+                !/.+@.+\..+/.test(cEmail.trim()) ||
+                (cRole === 'montor' ? !cTeam : !cName.trim())
+              }
+            >
+              {createMutation.isPending ? 'Skapar…' : 'Skapa användare'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
