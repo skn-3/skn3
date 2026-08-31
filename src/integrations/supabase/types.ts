@@ -807,6 +807,7 @@ export type Database = {
           name: string
           next_invoice_number: number
           org_nr: string | null
+          phone: string | null
         }
         Insert: {
           address?: string | null
@@ -821,6 +822,7 @@ export type Database = {
           name: string
           next_invoice_number?: number
           org_nr?: string | null
+          phone?: string | null
         }
         Update: {
           address?: string | null
@@ -835,6 +837,7 @@ export type Database = {
           name?: string
           next_invoice_number?: number
           org_nr?: string | null
+          phone?: string | null
         }
         Relationships: []
       }
