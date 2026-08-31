@@ -39,6 +39,8 @@ const WINDOW_PRICE: Record<FacadeType, number> = { tra: 352, sten: 624, puts: 62
 const DOOR_PRICE: Record<FacadeType, number> = { tra: 764.8, sten: 1078.8, puts: 1078.8 };
 const RIVNING_PRICE: Record<FacadeType, number> = { tra: 154.8, sten: 154.8, puts: 186.7 };
 const BLECK_PRICE: Record<FacadeType, number> = { tra: 79.8, sten: 131.8, puts: 131.8 };
+// Materialkostnad för underbleck — samma pris oavsett fasad (matchar tillbehörskatalogen)
+const MATERIAL_UB_PRICE = 450;
 
 export function generateAutoLines(input: AutoLineInput): AOrderLine[] {
   const { windowCount, doorCount, roofWindowCount, facadeType, kmDistance } = input;
@@ -59,6 +61,7 @@ export function generateAutoLines(input: AutoLineInput): AOrderLine[] {
     lines.push(line('Ersättning Infästnings material', 40.8, totalUnits));
     lines.push(line(facadeType === 'puts' ? 'Rivning putsfasad' : 'Rivning dörr/fönster', RIVNING_PRICE[facadeType], totalUnits));
     lines.push(line(facadeType === 'tra' ? 'Montering Bleck Trähus' : 'Montering Bleck Puts/Stenhus', BLECK_PRICE[facadeType], totalUnits));
+    lines.push(line('Materialkostnad Underbleck', MATERIAL_UB_PRICE, totalUnits));
   }
 
   return lines.filter(l => l.qty > 0);
