@@ -4,6 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -14,7 +18,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation } from '@tanstack/react-query';
 import { useRole } from '@/hooks/useRole';
-import { Copy, KeyRound } from 'lucide-react';
+import { Copy, KeyRound, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Row {
@@ -43,6 +47,36 @@ export function PinCampaignAdmin() {
   const [resetTarget, setResetTarget] = useState<Row | null>(null);
   const [newPin, setNewPin] = useState<string | null>(null);
   const [pinShownFor, setPinShownFor] = useState<string | null>(null);
+
+  // Skapa-användare state
+  const [createOpen, setCreateOpen] = useState(false);
+  const [cName, setCName] = useState('');
+  const [cEmail, setCEmail] = useState('');
+  const [cRole, setCRole] = useState<'montor' | 'seller' | 'coordinator'>('montor');
+  const [cAdmin, setCAdmin] = useState(false);
+  const [cTeam, setCTeam] = useState('');
+  const [activeTeams, setActiveTeams] = useState<string[]>([]);
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const name = cRole === 'montor' ? cTeam : cName.trim();
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: { name, email: cEmail.trim(), role: cRole, is_admin: cAdmin },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return { name, pin: (data as any).pin as string };
+    },
+    onSuccess: ({ name, pin }) => {
+      setCreateOpen(false);
+      setNewPin(pin);
+      setPinShownFor(name);
+      setCName(''); setCEmail(''); setCTeam(''); setCAdmin(false);
+      toast.success(`Användare ${name} skapad`);
+      load();
+    },
+    onError: (e: any) => toast.error(e?.message || 'Kunde inte skapa användare'),
+  });
 
   const resetMutation = useMutation({
     mutationFn: async (targetUserId: string) => {
@@ -92,12 +126,14 @@ export function PinCampaignAdmin() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: profiles }, { data: roles }] = await Promise.all([
+    const [{ data: profiles }, { data: roles }, { data: teams }] = await Promise.all([
       supabase.from('profiles').select('id, name, must_change_pin, pin_change_requested_at').order('name'),
       supabase.from('user_roles').select('user_id, role'),
+      supabase.from('montor_teams').select('name').eq('is_active', true).order('name'),
     ]);
     const roleById = Object.fromEntries((roles || []).map((r: any) => [r.user_id, r.role]));
     setRows((profiles || []).map((p: any) => ({ ...p, role: roleById[p.id] })));
+    setActiveTeams((teams || []).map((t: any) => t.name as string));
     setLoading(false);
   };
 
@@ -132,12 +168,20 @@ export function PinCampaignAdmin() {
 
   return (
     <Card className="p-6 space-y-6 mt-6">
-      <div>
-        <h2 className="text-lg font-semibold">PIN-byte (6-siffrig PIN)</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Skicka informationsmejl och aktivera tvångsbyte vid nästa inloggning. Automatiska
-          påminnelser dag 2, 4, 6, 8 och 10. Sammanfattning till Daniel dag 11.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">PIN-byte (6-siffrig PIN)</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Skicka informationsmejl och aktivera tvångsbyte vid nästa inloggning. Automatiska
+            påminnelser dag 2, 4, 6, 8 och 10. Sammanfattning till Daniel dag 11.
+          </p>
+        </div>
+        {isAdmin && (
+          <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-1.5" />
+            Ny användare
+          </Button>
+        )}
       </div>
 
       <div className="space-y-3 border-b pb-6">
@@ -252,8 +296,8 @@ export function PinCampaignAdmin() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Användaren {rows.find(r => r.id === pinShownFor)?.name ?? ''} måste byta till en
-            egen PIN vid nästa inloggning.
+            Användaren {rows.find(r => r.id === pinShownFor)?.name ?? pinShownFor ?? ''} tvingas
+            byta till en egen PIN vid nästa inloggning.
           </p>
           <DialogFooter>
             <Button onClick={closePinDialog}>Stäng</Button>
@@ -278,6 +322,90 @@ export function PinCampaignAdmin() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ny användare</DialogTitle>
+            <DialogDescription>
+              Skapa ett konto med tillfällig 6-siffrig PIN. Användaren tvingas byta vid
+              första inloggning.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Roll</Label>
+              <Select value={cRole} onValueChange={(v) => setCRole(v as typeof cRole)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="montor">Montör</SelectItem>
+                  <SelectItem value="seller">Säljare</SelectItem>
+                  <SelectItem value="coordinator">Koordinator</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {cRole === 'montor' ? (
+              <div className="space-y-1.5">
+                <Label>Team</Label>
+                <Select value={cTeam} onValueChange={setCTeam}>
+                  <SelectTrigger><SelectValue placeholder="Välj montörsteam" /></SelectTrigger>
+                  <SelectContent>
+                    {activeTeams.map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Montörens användarnamn blir teamets namn; det är så ärenden kopplas till
+                  montören. Saknas teamet, skapa det först under Montörsteam.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="create-name">Namn</Label>
+                  <Input
+                    id="create-name"
+                    value={cName}
+                    onChange={(e) => setCName(e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="create-admin"
+                    checked={cAdmin}
+                    onCheckedChange={(v) => setCAdmin(v === true)}
+                  />
+                  <Label htmlFor="create-admin" className="font-normal">Administratör</Label>
+                </div>
+              </>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="create-email">E-post (inloggning)</Label>
+              <Input
+                id="create-email"
+                type="email"
+                value={cEmail}
+                onChange={(e) => setCEmail(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => createMutation.mutate()}
+              disabled={
+                createMutation.isPending ||
+                !/.+@.+\..+/.test(cEmail.trim()) ||
+                (cRole === 'montor' ? !cTeam : !cName.trim())
+              }
+            >
+              {createMutation.isPending ? 'Skapar…' : 'Skapa användare'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.public-case-status]
 verify_jwt = false
+
+[functions.create-user]
+verify_jwt = false
