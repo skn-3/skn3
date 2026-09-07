@@ -38,7 +38,7 @@ export default function WeeklyPresentation() {
     queryKey: ['weekly-presentation-data'],
     queryFn: async () => {
       const [casesRes, visitsRes, offersRes] = await Promise.all([
-        (supabase as any).from('cases').select('id, created_at, seller, order_value, customer_name, address, status'),
+        (supabase as any).from('cases').select('id, created_at, seller, order_value, customer_name, address, status, visit_id'),
         (supabase as any).from('visits').select('id, date, seller, result, customer_name, address, lost, lost_reason, lost_competitor, lost_comment'),
         (supabase as any).from('offers').select('id, accepted_at, status, customer_name, title, total_after_rot'),
       ]);
