@@ -88,7 +88,7 @@ export default function WeeklyPresentation() {
 
     const trend = Array.from({ length: 8 }, (_, i) => {
       const w = weekRange(offset - 7 + i);
-      const v = sum(cases.filter((c) => inWeek(c.created_at, w)), (c) => Number(c.order_value));
+      const v = sum(cases.filter((c) => inWeek(dealDate(c), w)), (c) => Number(c.order_value));
       return { name: `v.${w.num}`, value: Math.round(v), current: i === 7 };
     });
 
