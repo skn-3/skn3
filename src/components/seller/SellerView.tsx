@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { VelfacPdfCleaner } from '@/components/tools/VelfacPdfCleaner';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Presentation } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/lib/constants';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { AppHeader } from '@/components/AppHeader';
@@ -33,6 +35,7 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
   const [tab, setTab] = useState<SellerTab>('pipeline');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // Deep-link: open case panel when ?case=<id> is provided
   useEffect(() => {
@@ -72,7 +75,10 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
       </AppHeader>
 
       <main className="py-4 md:py-6 max-w-screen-2xl mx-auto">
-        <div className="flex justify-end px-3 md:px-0 mb-3">
+        <div className="flex justify-end gap-2 px-3 md:px-0 mb-3">
+          <Button variant="outline" size="sm" onClick={() => navigate('/veckomote')}>
+            <Presentation className="h-4 w-4 mr-1" /> Veckomöte
+          </Button>
           <VelfacPdfCleaner />
         </div>
 
