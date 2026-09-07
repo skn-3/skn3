@@ -38,7 +38,7 @@ export default function WeeklyPresentation() {
     queryKey: ['weekly-presentation-data'],
     queryFn: async () => {
       const [casesRes, visitsRes, offersRes] = await Promise.all([
-        (supabase as any).from('cases').select('id, created_at, seller, order_value, customer_name, address, status'),
+        (supabase as any).from('cases').select('id, created_at, seller, order_value, customer_name, address, status, visit_id'),
         (supabase as any).from('visits').select('id, date, seller, result, customer_name, address, lost, lost_reason, lost_competitor, lost_comment'),
         (supabase as any).from('offers').select('id, accepted_at, status, customer_name, title, total_after_rot'),
       ]);
@@ -54,8 +54,12 @@ export default function WeeklyPresentation() {
     const inWeek = (iso: string | null, w: { start: Date; end: Date }) =>
       !!iso && new Date(iso) >= w.start && new Date(iso) < w.end;
 
-    const wkCases = cases.filter((c) => inWeek(c.created_at, wk));
-    const prevCases = cases.filter((c) => inWeek(c.created_at, prev));
+    // Affärens datum = besöksdatumet för kopplat besök, annars registreringsdatum
+    const visitDateById = new Map(visits.map((v) => [v.id, v.date] as const));
+    const dealDate = (c: any): string | null => (c.visit_id && visitDateById.get(c.visit_id)) || c.created_at;
+
+    const wkCases = cases.filter((c) => inWeek(dealDate(c), wk));
+    const prevCases = cases.filter((c) => inWeek(dealDate(c), prev));
     const wkVisits = visits.filter((v) => inWeek(v.date, wk));
     const wkLost = visits.filter((v) => v.lost && inWeek(v.date, wk));
     const wkOffers = offers.filter((o) => inWeek(o.accepted_at, wk));
@@ -84,7 +88,7 @@ export default function WeeklyPresentation() {
 
     const trend = Array.from({ length: 8 }, (_, i) => {
       const w = weekRange(offset - 7 + i);
-      const v = sum(cases.filter((c) => inWeek(c.created_at, w)), (c) => Number(c.order_value));
+      const v = sum(cases.filter((c) => inWeek(dealDate(c), w)), (c) => Number(c.order_value));
       return { name: `v.${w.num}`, value: Math.round(v), current: i === 7 };
     });
 
