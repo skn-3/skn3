@@ -54,8 +54,12 @@ export default function WeeklyPresentation() {
     const inWeek = (iso: string | null, w: { start: Date; end: Date }) =>
       !!iso && new Date(iso) >= w.start && new Date(iso) < w.end;
 
-    const wkCases = cases.filter((c) => inWeek(c.created_at, wk));
-    const prevCases = cases.filter((c) => inWeek(c.created_at, prev));
+    // Affärens datum = besöksdatumet för kopplat besök, annars registreringsdatum
+    const visitDateById = new Map(visits.map((v) => [v.id, v.date] as const));
+    const dealDate = (c: any): string | null => (c.visit_id && visitDateById.get(c.visit_id)) || c.created_at;
+
+    const wkCases = cases.filter((c) => inWeek(dealDate(c), wk));
+    const prevCases = cases.filter((c) => inWeek(dealDate(c), prev));
     const wkVisits = visits.filter((v) => inWeek(v.date, wk));
     const wkLost = visits.filter((v) => v.lost && inWeek(v.date, wk));
     const wkOffers = offers.filter((o) => inWeek(o.accepted_at, wk));
