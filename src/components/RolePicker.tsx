@@ -59,6 +59,7 @@ export function RolePicker() {
     setLoading(false);
 
     if (error) {
+      console.warn('Inloggning misslyckades:', email, error.message, error);
       const nextAttempts = attempts + 1;
       setAttempts(nextAttempts);
       logActivity({
@@ -66,6 +67,7 @@ export function RolePicker() {
         category: 'auth',
         description: `Misslyckat inloggningsförsök som ${roleType} (${name})`,
         actor: { name, role: roleType ?? 'unknown' },
+        metadata: { error_message: error.message, email },
       });
       if (nextAttempts >= MAX_ATTEMPTS) {
         setLockUntil(Date.now() + LOCKOUT_SECONDS * 1000);
