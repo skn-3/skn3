@@ -155,7 +155,12 @@ Deno.serve(async (req) => {
         action: "pin_reset",
         category: "auth",
         description: `${actorName} återställde PIN-kod för ${targetProfile.name}`,
-        metadata: { target_user_id: targetUserId, target_name: targetProfile.name },
+        metadata: {
+          target_user_id: targetUserId,
+          target_name: targetProfile.name,
+          login_email: expectedEmail,
+          removed_orphan_user_id: removedOrphanId,
+        },
       });
     } catch (logErr) {
       console.error("activity_log insert failed (ignored):", logErr);
