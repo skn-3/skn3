@@ -737,7 +737,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             <Clock className="h-4 w-4" /> Historik
           </h3>
           <div className="space-y-2">
-            {events?.map(e => (
+            {events?.filter(e => e.event_type !== 'economy' && e.event_type !== 'deviation_cost').map(e => (
               <div key={e.id} className="flex gap-2 text-sm">
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {new Date(e.created_at).toLocaleString('sv-SE', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}

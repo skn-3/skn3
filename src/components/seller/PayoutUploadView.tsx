@@ -748,7 +748,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       if (caseId) {
         await createCaseEvent({
           case_id: caseId,
-          event_type: 'note',
+          event_type: 'economy',
           description: eventDesc,
           created_by: currentUser,
         });
@@ -989,7 +989,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           : `Mockfjärds-utbetalning kopplad (del av faktura ${inv}): belopp ${g.subtotal.toLocaleString('sv-SE')} kr`;
         await createCaseEvent({
           case_id: caseId,
-          event_type: 'note',
+          event_type: 'economy',
           description: eventDesc,
           created_by: currentUser,
         });
