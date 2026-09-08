@@ -97,9 +97,34 @@ Deno.serve(async (req) => {
 
     const newPin = generatePin();
 
-    // Sätt nytt lösenord (samma metod som seed-users använder för password)
+    // Härled förväntad login-email med SAMMA regel som create-user
+    const expectedEmail = `${targetProfile.name.trim().toLowerCase().replace(/\s+/g, ".")}@caseflow.local`;
+
+    // Om adressen ägs av en ANNAN auth-användare utan profil: radera den föräldralösa
+    let removedOrphanId: string | null = null;
+    try {
+      const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const owner = list?.users?.find(
+        (u) => (u.email ?? "").toLowerCase() === expectedEmail && u.id !== targetUserId,
+      );
+      if (owner) {
+        const { data: ownerProfile } = await admin
+          .from("profiles").select("id").eq("id", owner.id).maybeSingle();
+        if (!ownerProfile) {
+          await admin.auth.admin.deleteUser(owner.id);
+          removedOrphanId = owner.id;
+        }
+      }
+    } catch (orphanErr) {
+      console.error("orphan check failed (ignored):", orphanErr);
+    }
+
+    // Sätt nytt lösenord + säkerställ korrekt, bekräftad och obannad e-post
     const { error: updErr } = await admin.auth.admin.updateUserById(targetUserId, {
       password: newPin,
+      email: expectedEmail,
+      email_confirm: true,
+      ban_duration: "none",
     });
     if (updErr) {
       return new Response(JSON.stringify({ error: updErr.message, step: 'updateUserById' }), {
@@ -107,8 +132,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Tvinga personligt PIN-byte vid nästa login
-    await admin.from("profiles").update({ must_change_pin: true }).eq("id", targetUserId);
+    // Tvinga personligt PIN-byte vid nästa login + synka login_email
+    await admin
+      .from("profiles")
+      .update({ must_change_pin: true, login_email: expectedEmail })
+      .eq("id", targetUserId);
 
     // Hämta admin-namn för actor_name (matchar auth_user_name())
     const adminUserId = claimsData.claims.sub as string;
@@ -127,7 +155,12 @@ Deno.serve(async (req) => {
         action: "pin_reset",
         category: "auth",
         description: `${actorName} återställde PIN-kod för ${targetProfile.name}`,
-        metadata: { target_user_id: targetUserId, target_name: targetProfile.name },
+        metadata: {
+          target_user_id: targetUserId,
+          target_name: targetProfile.name,
+          login_email: expectedEmail,
+          removed_orphan_user_id: removedOrphanId,
+        },
       });
     } catch (logErr) {
       console.error("activity_log insert failed (ignored):", logErr);
