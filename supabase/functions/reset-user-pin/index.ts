@@ -132,8 +132,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Tvinga personligt PIN-byte vid nästa login
-    await admin.from("profiles").update({ must_change_pin: true }).eq("id", targetUserId);
+    // Tvinga personligt PIN-byte vid nästa login + synka login_email
+    await admin
+      .from("profiles")
+      .update({ must_change_pin: true, login_email: expectedEmail })
+      .eq("id", targetUserId);
 
     // Hämta admin-namn för actor_name (matchar auth_user_name())
     const adminUserId = claimsData.claims.sub as string;
