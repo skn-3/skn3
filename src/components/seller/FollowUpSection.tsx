@@ -67,7 +67,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
             const daysSince = Math.floor((today.getTime() - new Date(v.date).getTime()) / (1000 * 60 * 60 * 24));
 
             return (
-              <div key={v.id} className="flex items-center justify-between bg-white rounded-lg p-3 text-sm border border-yellow-200">
+              <div key={v.id} className="flex items-center justify-between bg-card rounded-lg p-3 text-sm border border-yellow-200">
                 <div className="space-y-0.5">
                   <div className="font-medium text-foreground">{v.address}</div>
                   <div className="text-muted-foreground">{v.customer_name}</div>

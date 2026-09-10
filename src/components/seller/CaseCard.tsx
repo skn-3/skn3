@@ -60,7 +60,7 @@ const DELIVERY_TONE_CLASSES: Record<DeliveryBadge['tone'], string> = {
   red: 'border-red-400 bg-red-100 text-red-800',
   orange: 'border-orange-300 bg-orange-100 text-orange-800',
   yellow: 'border-yellow-300 bg-yellow-100 text-yellow-800',
-  gray: 'border-gray-300 bg-gray-100 text-gray-700',
+  gray: 'border-border bg-muted text-muted-foreground',
 };
 
 // Storleksindikator för antal enheter — vivid azurblå, enbart vänsterkant.

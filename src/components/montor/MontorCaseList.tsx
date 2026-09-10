@@ -22,7 +22,7 @@ const statusColor: Record<string, string> = {
   montage_pagar: 'bg-indigo-100 text-indigo-800',
   montage_klart: 'bg-green-200 text-green-900',
 
-  fakturerad: 'bg-gray-100 text-gray-700',
+  fakturerad: 'bg-muted text-muted-foreground',
   pausad: 'bg-red-100 text-red-800',
 };
 

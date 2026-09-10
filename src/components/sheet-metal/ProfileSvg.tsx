@@ -52,7 +52,7 @@ export function ProfileSvg({ m, type }: Props) {
   const label = type === 'l-profil' ? 'L-Profil' : 'Underbleck';
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto bg-white border rounded-lg">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto bg-white border rounded-lg" /* avsiktligt alltid ljus */>
       <text x={W / 2} y={20} textAnchor="middle" fontSize="14" fontWeight="bold" fill="#22C55E">
         {label}
       </text>

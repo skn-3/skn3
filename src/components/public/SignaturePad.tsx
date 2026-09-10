@@ -137,7 +137,7 @@ export function SignaturePad({ name, onChange }: { name: string; onChange: (data
           </Button>
         )}
       </div>
-      <div className="rounded-md border bg-white overflow-hidden" style={{ maxWidth: W }}>
+      <div className="rounded-md border bg-white overflow-hidden" /* avsiktligt alltid ljus */ style={{ maxWidth: W }}>
         <canvas
           ref={canvasRef}
           style={{ width: '100%', height: H, touchAction: 'none', cursor: mode === 'rita' ? 'crosshair' : 'default' }}
