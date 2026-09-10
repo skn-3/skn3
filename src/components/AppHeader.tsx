@@ -48,7 +48,8 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
       <div className="md:hidden">
         <div className="flex h-12 items-center justify-between px-3">
           <div className="flex items-center gap-2 min-w-0">
-            <img src="/logo.png" alt="SmartKlimat" className="h-9 w-9 rounded-full object-contain shrink-0" />
+            <img src="/logo.png" alt="SmartKlimat" className="h-9 w-9 rounded-full object-contain shrink-0 dark:hidden" />
+            <img src="/brand/logo-stamp-vit-n3.png" alt="SmartKlimat" className="h-9 w-9 rounded-full object-contain shrink-0 hidden dark:block" />
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -100,7 +101,8 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
       {/* Desktop: single row */}
       <div className="hidden md:flex h-14 items-center justify-between px-6 gap-4">
         <div className="flex items-center gap-3 shrink-0">
-          <img src="/logo.png" alt="SmartKlimat" className="h-10 w-10 rounded-full object-contain" />
+          <img src="/logo.png" alt="SmartKlimat" className="h-10 w-10 rounded-full object-contain dark:hidden" />
+          <img src="/brand/logo-stamp-vit-n3.png" alt="SmartKlimat" className="h-10 w-10 rounded-full object-contain hidden dark:block" />
           <span className="text-lg font-bold text-card-foreground">SmartKlimat</span>
         </div>
 
