@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/lib/constants';
-import { LogOut, Eye, Calendar, KeyRound, Sun, Moon } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import { LogOut, Eye, Calendar, KeyRound } from 'lucide-react';
+import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,9 +38,6 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
   const initials = getInitials(role.name);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
-  const { resolvedTheme, setTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-  const toggleTheme = () => setTheme(isDark ? 'light' : 'dark');
 
   return (
     <header className="sticky top-0 z-50 border-b bg-card shadow-sm">
@@ -51,45 +48,44 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
             <img src="/logo.png" alt="SmartKlimat" className="h-9 w-9 rounded-full object-contain shrink-0 dark:hidden" />
             <img src="/brand/logo-stamp-vit-n3.png" alt="SmartKlimat" className="h-9 w-9 rounded-full object-contain shrink-0 hidden dark:block" />
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="h-9 w-9 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center hover:opacity-90 transition-opacity"
-                aria-label="Användarmeny"
-              >
-                {initials}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="font-normal">
-                <div className="text-xs text-muted-foreground">{roleLabel}</div>
-                <div className="text-sm font-medium truncate">{role.name}</div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {toggles.map((t) => (
-                <DropdownMenuItem key={t.label} onClick={t.onClick}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  {t.label}
+          <div className="flex items-center gap-1 shrink-0">
+            <ThemeToggle userKey={role.name} withPromo />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="h-9 w-9 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center hover:opacity-90 transition-opacity"
+                  aria-label="Användarmeny"
+                >
+                  {initials}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="text-xs text-muted-foreground">{roleLabel}</div>
+                  <div className="text-sm font-medium truncate">{role.name}</div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {toggles.map((t) => (
+                  <DropdownMenuItem key={t.label} onClick={t.onClick}>
+                    <Eye className="h-4 w-4 mr-2" />
+                    {t.label}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuItem onClick={() => setCalendarOpen(true)}>
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Min kalender
                 </DropdownMenuItem>
-              ))}
-              <DropdownMenuItem onClick={() => setCalendarOpen(true)}>
-                <Calendar className="h-4 w-4 mr-2" />
-                Min kalender
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setPinOpen(true)}>
-                <KeyRound className="h-4 w-4 mr-2" />
-                Byt PIN
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={toggleTheme}>
-                {isDark ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
-                Byt tema
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onChangeRole}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Logga ut
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem onClick={() => setPinOpen(true)}>
+                  <KeyRound className="h-4 w-4 mr-2" />
+                  Byt PIN
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onChangeRole}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logga ut
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
         {children && (
           <div className="border-t px-1 py-1">
@@ -129,9 +125,7 @@ export function AppHeader({ role, onChangeRole, toggleView, toggleViews, childre
             <LogOut className="h-4 w-4 mr-1" />
             Logga ut
           </Button>
-          <Button variant="ghost" size="icon" onClick={toggleTheme} title="Byt tema" aria-label="Byt tema">
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
+          <ThemeToggle userKey={role.name} withPromo />
         </div>
       </div>
       <MyCalendarDialog open={calendarOpen} onOpenChange={setCalendarOpen} userName={role.name} />
