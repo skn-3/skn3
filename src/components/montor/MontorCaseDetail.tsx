@@ -75,6 +75,20 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     queryFn: () => fetchCaseCosts(caseData.id),
   });
 
+  const { data: myAOrders = [] } = useQuery({
+    queryKey: ['montor-aorders', caseData.id],
+    enabled: !!caseData.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('a_orders')
+        .select('id, order_number, created_at, total_amount, status, pdf_path')
+        .eq('case_id', caseData.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['case', initialCaseData.id] });
     queryClient.invalidateQueries({ queryKey: ['cases'] });
