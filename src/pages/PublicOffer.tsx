@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { buildOfferPdfBlob } from '@/lib/offerPdf';
 import { SignaturePad } from '@/components/public/SignaturePad';
 import { toast } from 'sonner';
+import { useForceLight } from '@/hooks/useForceLight';
 
 type PublicOfferData = {
   offer_number: string | null;
@@ -74,6 +75,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 }
 
 export default function PublicOffer() {
+  useForceLight();
   const { token } = useParams<{ token: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

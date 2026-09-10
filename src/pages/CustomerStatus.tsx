@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle2, Circle, Ruler, Truck, Hammer, PartyPopper, TreePine, Phone, Mail } from 'lucide-react';
+import { useForceLight } from '@/hooks/useForceLight';
 
 const ORDER = ['ny','vantar_km','km_bokad','km_klar','vantar_godkannande','godkand','i_produktion','leverans_klar','montage_bokat','montage_pagar','montage_klart','fakturerad'];
 
@@ -11,6 +12,7 @@ function fmtDate(d: string | null | undefined) {
 }
 
 export default function CustomerStatus() {
+  useForceLight();
   const { token } = useParams<{ token: string }>();
 
   const { data, isLoading, isError } = useQuery({

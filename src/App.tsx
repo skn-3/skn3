@@ -11,10 +11,12 @@ import PublicOffer from "./pages/PublicOffer.tsx";
 import CustomerStatus from "./pages/CustomerStatus.tsx";
 import WeeklyPresentation from "./pages/WeeklyPresentation.tsx";
 import ErrorBoundary from "./components/ErrorBoundary.tsx";
+import { ThemeProvider } from "next-themes";
 
 const queryClient = new QueryClient();
 
 const App = () => (
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -35,6 +37,7 @@ const App = () => (
       </ErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;
