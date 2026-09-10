@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
 import { canEnterStatus } from '@/lib/statusRules';
 import { logActivity } from '@/lib/activityLog';
@@ -11,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2, X, Receipt, Wrench, Pencil, Calendar as CalendarIcon } from 'lucide-react';
+import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2, X, Receipt, Wrench, Pencil, Calendar as CalendarIcon, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { celebrateMontageDone } from '@/lib/celebrate';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
@@ -19,6 +20,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { MontorLitteraSection } from '@/components/montor/MontorLitteraSection';
+import { openDocumentInNewTab } from '@/lib/openDocument';
 
 interface Props {
   caseData: CaseRow;
@@ -72,6 +74,20 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const { data: costs } = useQuery({
     queryKey: ['case_costs', caseData.id],
     queryFn: () => fetchCaseCosts(caseData.id),
+  });
+
+  const { data: myAOrders = [] } = useQuery({
+    queryKey: ['montor-aorders', caseData.id],
+    enabled: !!caseData.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('a_orders')
+        .select('id, order_number, created_at, total_amount, status, pdf_path')
+        .eq('case_id', caseData.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
   });
 
   const invalidate = () => {
@@ -622,6 +638,40 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
           <SheetMetalOrdersSection caseId={caseData.id} variant="mobile" />
         </section>
+
+        {myAOrders.length > 0 && (
+          <section className="py-4 border-t space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+              <FileText className="h-4 w-4" /> Ersättning — dina A-ordrar
+            </h3>
+            <div className="space-y-2">
+              {myAOrders.map((o: any) => (
+                <div key={o.id} className="rounded-lg border p-3 text-sm flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium">A-order #{o.order_number ?? '—'}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {o.created_at ? new Date(o.created_at).toLocaleDateString('sv-SE') : ''} · {typeof o.total_amount === 'number' ? `${Math.round(o.total_amount).toLocaleString('sv-SE')} kr` : ''}{o.status === 'credited' ? ' · kreditfaktura' : ''}
+                    </div>
+                  </div>
+                  {o.pdf_path ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openDocumentInNewTab(async () => {
+                        const { data } = await supabase.storage.from('case-documents').createSignedUrl(o.pdf_path, 600);
+                        return data?.signedUrl ?? null;
+                      })}
+                    >
+                      <FileText className="h-4 w-4 mr-1" /> Öppna PDF
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">PDF ej genererad</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <MontorLitteraSection
           caseId={caseData.id}
