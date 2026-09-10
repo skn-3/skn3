@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SELLERS, MONTORS, COORDINATORS, loginEmailFor, padPinForAuth, type RoleType } from '@/lib/constants';
 import { logActivity } from '@/lib/activityLog';
 import { supabase } from '@/integrations/supabase/client';
+import { ThemeToggle } from '@/components/shared/ThemeToggle';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 60;
@@ -97,7 +98,11 @@ export function RolePicker() {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="w-full max-w-md space-y-8 rounded-xl border bg-card p-8 shadow-lg">
         <div className="flex flex-col items-center gap-3">
-          <img src="/logo.png" alt="SmartKlimat" className="h-[120px] w-[120px] rounded-full object-contain" />
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="SmartKlimat" className="h-[120px] w-[120px] rounded-full object-contain dark:hidden" />
+            <img src="/brand/logo-stamp-vit-n3.png" alt="SmartKlimat" className="h-[120px] w-[120px] rounded-full object-contain hidden dark:block" />
+            <ThemeToggle />
+          </div>
           <h1 className="text-2xl font-bold text-card-foreground">SmartKlimat N3prenad</h1>
           <p className="text-muted-foreground">Välj din roll för att komma igång</p>
         </div>
