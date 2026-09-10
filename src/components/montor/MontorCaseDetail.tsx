@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
 import { canEnterStatus } from '@/lib/statusRules';
 import { logActivity } from '@/lib/activityLog';
