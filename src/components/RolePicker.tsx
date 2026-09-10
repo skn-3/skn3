@@ -95,13 +95,15 @@ export function RolePicker() {
   }, [lockUntil, lockedRemaining]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="relative flex min-h-screen items-center justify-center bg-background">
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md space-y-8 rounded-xl border bg-card p-8 shadow-lg">
         <div className="flex flex-col items-center gap-3">
           <div className="flex items-center gap-2">
             <img src="/logo.png" alt="SmartKlimat" className="h-[120px] w-[120px] rounded-full object-contain dark:hidden" />
             <img src="/brand/logo-stamp-vit-n3.png" alt="SmartKlimat" className="h-[120px] w-[120px] rounded-full object-contain hidden dark:block" />
-            <ThemeToggle />
           </div>
           <h1 className="text-2xl font-bold text-card-foreground">SmartKlimat N3prenad</h1>
           <p className="text-muted-foreground">Välj din roll för att komma igång</p>
