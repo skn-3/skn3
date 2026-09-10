@@ -4,12 +4,13 @@ import { fetchVisits, fetchCases, fetchAllDeviations, fetchInsightHistory, recor
 import { supabase } from '@/integrations/supabase/client';
 import { formatAmount } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, TrendingUp, Flame, Calendar, Target, Sparkles, CheckCircle2, AlertTriangle, Wrench, MapPin, Clock, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRight, TrendingUp, Flame, Calendar, Target, Sparkles, CheckCircle2, AlertTriangle, Wrench, MapPin, Clock, Volume2, VolumeX, Moon, X } from 'lucide-react';
 import type { UserRole } from '@/lib/constants';
 import { selectFromSellerData, selectFromMontorData } from '@/lib/insights/engine';
 import { InsightCard } from '@/components/insights/InsightCard';
 import { getSoundEnabled, setSoundEnabled } from '@/lib/insights/sound';
 import { normalizeCityKey, cityDisplayName } from '@/lib/city';
+import { ThemeToggle, useDarkModePromo } from '@/components/shared/ThemeToggle';
 
 
 
@@ -772,6 +773,8 @@ function MontorDashboard({ name }: { name: string }) {
 // ============ MAIN ============
 
 export function WelcomeDashboard({ role, onContinue }: Props) {
+  const { active: promoActive, dismiss: promoDismiss } = useDarkModePromo(role.name);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
@@ -784,6 +787,25 @@ export function WelcomeDashboard({ role, onContinue }: Props) {
             {role.type === 'seller' ? sellerTagline() : montorTagline()}
           </p>
         </div>
+
+        {promoActive && (
+          <div className="mb-6 rounded-xl border bg-card p-4 shadow-sm animate-fade-in">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Moon className="h-5 w-5 text-primary" />
+                </div>
+                <p className="text-sm text-card-foreground">
+                  Nyhet: Mörkt läge.{' '}
+                  <span className="text-muted-foreground">Byt med knappen — här eller i menyn uppe till höger.</span>
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={promoDismiss} aria-label="Stäng">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
 
         {role.type === 'seller'
           ? <SellerDashboard name={role.name} />
