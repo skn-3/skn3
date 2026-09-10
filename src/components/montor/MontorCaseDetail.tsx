@@ -639,6 +639,40 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <SheetMetalOrdersSection caseId={caseData.id} variant="mobile" />
         </section>
 
+        {myAOrders.length > 0 && (
+          <section className="py-4 border-t space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+              <FileText className="h-4 w-4" /> Ersättning — dina A-ordrar
+            </h3>
+            <div className="space-y-2">
+              {myAOrders.map((o: any) => (
+                <div key={o.id} className="rounded-lg border p-3 text-sm flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium">A-order #{o.order_number ?? '—'}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {o.created_at ? new Date(o.created_at).toLocaleDateString('sv-SE') : ''} · {typeof o.total_amount === 'number' ? `${Math.round(o.total_amount).toLocaleString('sv-SE')} kr` : ''}{o.status === 'credited' ? ' · kreditfaktura' : ''}
+                    </div>
+                  </div>
+                  {o.pdf_path ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openDocumentInNewTab(async () => {
+                        const { data } = await supabase.storage.from('case-documents').createSignedUrl(o.pdf_path, 600);
+                        return data?.signedUrl ?? null;
+                      })}
+                    >
+                      <FileText className="h-4 w-4 mr-1" /> Öppna PDF
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">PDF ej genererad</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <MontorLitteraSection
           caseId={caseData.id}
           currentUser={currentUser}
