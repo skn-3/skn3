@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2, X, Receipt, Wrench, Pencil, Calendar as CalendarIcon } from 'lucide-react';
+import { ArrowLeft, Phone, AlertTriangle, Clock, Camera, CheckCircle2, X, Receipt, Wrench, Pencil, Calendar as CalendarIcon, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { celebrateMontageDone } from '@/lib/celebrate';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
@@ -19,6 +19,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { MontorLitteraSection } from '@/components/montor/MontorLitteraSection';
+import { openDocumentInNewTab } from '@/lib/openDocument';
 
 interface Props {
   caseData: CaseRow;
