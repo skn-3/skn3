@@ -38,11 +38,11 @@ describe('generateAutoLines — fasadberoende priser', () => {
     expect(puts).toBeGreaterThan(tra);
   });
 
-  it('Materialkostnad Underbleck: 450 kr per enhet, oberoende av fasad', () => {
+  it('Materialkostnad Underbleck: 450,30 kr per enhet, oberoende av fasad', () => {
     for (const facadeType of ['tra', 'sten', 'puts'] as const) {
       const lines = generateAutoLines({ ...base, facadeType });
       const ub = lines.find(l => l.name === 'Materialkostnad Underbleck');
-      expect(ub?.unit_price).toBe(450);
+      expect(ub?.unit_price).toBe(450.3);
       expect(ub?.qty).toBe(base.windowCount + base.doorCount);
     }
   });
