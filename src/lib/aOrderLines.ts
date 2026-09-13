@@ -50,7 +50,7 @@ export function generateAutoLines(input: AutoLineInput): AOrderLine[] {
 
   if (kmRT > 0) lines.push(line('Etablering Bilersättning', 6.63, kmRT));
   if (kmRT > 0) lines.push(line('Etablering restid', 11.73, kmRT));
-  lines.push(line('Etablering Grundpris', 703, 1));
+  lines.push(line('Etablering Grundpris', 703.8, 1));
 
   if (windowCount > 0) lines.push(line('Montering Fönster', WINDOW_PRICE[facadeType], windowCount));
   if (doorCount > 0) lines.push(line('Montering Dörr (+Ädelträlist)', DOOR_PRICE[facadeType], doorCount));

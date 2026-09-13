@@ -9,27 +9,27 @@ function priceOf(lines: ReturnType<typeof generateAutoLines>, name: string) {
 }
 
 describe('generateAutoLines — fasadberoende priser', () => {
-  it('trä: fönster 352, dörr 764.8, bleck 79.8, rivning 154.8', () => {
+  it('trä: fönster 351.9, dörr 764.8, bleck 79.77, rivning 154.84', () => {
     const lines = generateAutoLines({ ...base, facadeType: 'tra' });
-    expect(priceOf(lines, 'Montering Fönster')).toBe(352);
+    expect(priceOf(lines, 'Montering Fönster')).toBe(351.9);
     expect(priceOf(lines, 'Montering Dörr (+Ädelträlist)')).toBe(764.8);
-    expect(priceOf(lines, 'Montering Bleck Trähus')).toBe(79.8);
-    expect(priceOf(lines, 'Rivning dörr/fönster')).toBe(154.8);
+    expect(priceOf(lines, 'Montering Bleck Trähus')).toBe(79.77);
+    expect(priceOf(lines, 'Rivning dörr/fönster')).toBe(154.84);
   });
 
-  it('sten: fönster 624, dörr 1078.8, bleck 131.8', () => {
+  it('sten: fönster 624.04, dörr 1079.16, bleck 131.38', () => {
     const lines = generateAutoLines({ ...base, facadeType: 'sten' });
-    expect(priceOf(lines, 'Montering Fönster')).toBe(624);
-    expect(priceOf(lines, 'Montering Dörr (+Ädelträlist)')).toBe(1078.8);
-    expect(priceOf(lines, 'Montering Bleck Puts/Stenhus')).toBe(131.8);
+    expect(priceOf(lines, 'Montering Fönster')).toBe(624.04);
+    expect(priceOf(lines, 'Montering Dörr (+Ädelträlist)')).toBe(1079.16);
+    expect(priceOf(lines, 'Montering Bleck Puts/Stenhus')).toBe(131.38);
   });
 
-  it('puts: fönster och dörr har STENPRIS (624 / 1078.8), rivning putsfasad 186.7', () => {
+  it('puts: fönster och dörr har STENPRIS (624.04 / 1079.16), rivning putsfasad 187.68', () => {
     const lines = generateAutoLines({ ...base, facadeType: 'puts' });
-    expect(priceOf(lines, 'Montering Fönster')).toBe(624);
-    expect(priceOf(lines, 'Montering Dörr (+Ädelträlist)')).toBe(1078.8);
-    expect(priceOf(lines, 'Rivning putsfasad')).toBe(186.7);
-    expect(priceOf(lines, 'Montering Bleck Puts/Stenhus')).toBe(131.8);
+    expect(priceOf(lines, 'Montering Fönster')).toBe(624.04);
+    expect(priceOf(lines, 'Montering Dörr (+Ädelträlist)')).toBe(1079.16);
+    expect(priceOf(lines, 'Rivning putsfasad')).toBe(187.68);
+    expect(priceOf(lines, 'Montering Bleck Puts/Stenhus')).toBe(131.38);
   });
 
   it('summan reagerar på fasadbyte', () => {
