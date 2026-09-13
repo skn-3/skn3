@@ -66,6 +66,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [doorCount, setDoorCount] = useState<number>(order?.door_count ?? 0);
   const [roofWindowCount, setRoofWindowCount] = useState<number>(order?.roof_window_count ?? 0);
   const [kmDistance, setKmDistance] = useState<number>(order?.km_distance ?? 0);
+  const [kmError, setKmError] = useState(false);
+  const kmInputRef = useRef<HTMLInputElement>(null);
   const [scheduledDelivery, setScheduledDelivery] = useState<boolean>(order?.scheduled_delivery ?? false);
   const [deliveryTime, setDeliveryTime] = useState<string>(order?.delivery_time?.toString().slice(0, 5) ?? '');
   const [description, setDescription] = useState<string>(order?.description ?? prefill?.description ?? '');
@@ -417,6 +419,14 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   }
 
   async function doSend() {
+    if (!isKomp && (!kmDistance || kmDistance <= 0)) {
+      setConfirmSend(false);
+      setKmError(true);
+      toast.error('Fyll i avstånd (km) innan A-ordern skickas');
+      kmInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => kmInputRef.current?.focus(), 300);
+      return;
+    }
     setSending(true);
     try {
       const orderId = await save({ silent: true });
@@ -514,7 +524,17 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
                 </div>
                 <div>
                   <Label>KM-avstånd</Label>
-                  <Input type="number" min={0} value={kmDistance} onChange={e => setKmDistance(Number(e.target.value) || 0)} />
+                  <Input
+                    ref={kmInputRef}
+                    type="number"
+                    min={0}
+                    value={kmDistance}
+                    className={kmError ? 'border-destructive focus-visible:ring-destructive' : undefined}
+                    onChange={e => { setKmDistance(Number(e.target.value) || 0); setKmError(false); }}
+                  />
+                  {kmError && (
+                    <p className="text-xs text-destructive mt-1">Fyll i avstånd (km) innan A-ordern skickas</p>
+                  )}
                 </div>
                 <div>
                   <Label>Antal fönster</Label>
