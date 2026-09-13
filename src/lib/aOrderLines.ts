@@ -34,13 +34,13 @@ function line(name: string, price: number, qty: number): AOrderLine {
 }
 
 
-const WINDOW_PRICE: Record<FacadeType, number> = { tra: 352, sten: 624, puts: 624 };
-// Dörr inkl ädelträlist
-const DOOR_PRICE: Record<FacadeType, number> = { tra: 764.8, sten: 1078.8, puts: 1078.8 };
-const RIVNING_PRICE: Record<FacadeType, number> = { tra: 154.8, sten: 154.8, puts: 186.7 };
-const BLECK_PRICE: Record<FacadeType, number> = { tra: 79.8, sten: 131.8, puts: 131.8 };
+const WINDOW_PRICE: Record<FacadeType, number> = { tra: 351.9, sten: 624.04, puts: 624.04 };
+// Dörr inkl ädelträlist (140,76)
+const DOOR_PRICE: Record<FacadeType, number> = { tra: 764.8, sten: 1079.16, puts: 1079.16 };
+const RIVNING_PRICE: Record<FacadeType, number> = { tra: 154.84, sten: 154.84, puts: 187.68 };
+const BLECK_PRICE: Record<FacadeType, number> = { tra: 79.77, sten: 131.38, puts: 131.38 };
 // Materialkostnad för underbleck — samma pris oavsett fasad (matchar tillbehörskatalogen)
-const MATERIAL_UB_PRICE = 450;
+const MATERIAL_UB_PRICE = 450.3;
 
 export function generateAutoLines(input: AutoLineInput): AOrderLine[] {
   const { windowCount, doorCount, roofWindowCount, facadeType, kmDistance } = input;
@@ -50,7 +50,7 @@ export function generateAutoLines(input: AutoLineInput): AOrderLine[] {
 
   if (kmRT > 0) lines.push(line('Etablering Bilersättning', 6.63, kmRT));
   if (kmRT > 0) lines.push(line('Etablering restid', 11.73, kmRT));
-  lines.push(line('Etablering Grundpris', 703, 1));
+  lines.push(line('Etablering Grundpris', 703.8, 1));
 
   if (windowCount > 0) lines.push(line('Montering Fönster', WINDOW_PRICE[facadeType], windowCount));
   if (doorCount > 0) lines.push(line('Montering Dörr (+Ädelträlist)', DOOR_PRICE[facadeType], doorCount));
