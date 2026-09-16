@@ -456,15 +456,15 @@ function SellerDashboard({ name }: { name: string }) {
           <InsightsLayer kind="seller" name={name} data={{ visits, cases }} />
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Card>
+            <Card role="button" tabIndex={0} onClick={() => setKpiDialog('visits')} className="cursor-pointer hover:bg-muted/40 transition-colors">
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Besök denna vecka</div>
               <div className="text-4xl font-bold mt-2 text-foreground"><CountUp value={stats.visitsThisWeek} /></div>
             </Card>
-            <Card>
+            <Card role="button" tabIndex={0} onClick={() => setKpiDialog('signed')} className="cursor-pointer hover:bg-muted/40 transition-colors">
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Signerade</div>
               <div className="text-4xl font-bold mt-2 text-primary"><CountUp value={stats.signedThisWeek} /></div>
             </Card>
-            <Card>
+            <Card role="button" tabIndex={0} onClick={() => setKpiDialog('signed')} className="cursor-pointer hover:bg-muted/40 transition-colors">
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Sålt värde</div>
               <div className="text-3xl font-bold mt-2 text-foreground">
                 <CountUp value={stats.sumSigned} formatter={(n) => formatAmount(n)} />
@@ -477,6 +477,21 @@ function SellerDashboard({ name }: { name: string }) {
               </div>
             </Card>
           </div>
+
+          <Card>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">Senaste affärerna</div>
+            <div className="space-y-1.5">
+              {latestDeals.map((c: any) => (
+                <div key={c.id} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="truncate">{c.address} <span className="text-muted-foreground">— {c.seller || '—'}</span></span>
+                  <span className="whitespace-nowrap tabular-nums">
+                    <span className="font-semibold">{fmtKr(Number(c.order_value) || 0)}</span>
+                    <span className="text-muted-foreground"> — {timeAgo(c.created_at)}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Card>
 
           {(offerStats.waitingCount > 0 || offerStats.expiringSoonCount > 0 || offerStats.readyToInvoiceCount > 0) && (
             <div>
