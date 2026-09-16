@@ -109,9 +109,9 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+function Card({ children, className = '', ...rest }: { children: React.ReactNode; className?: string } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`rounded-xl border bg-card p-5 shadow-sm animate-fade-in ${className}`}>
+    <div className={`rounded-xl border bg-card p-5 shadow-sm animate-fade-in ${className}`} {...rest}>
       {children}
     </div>
   );
