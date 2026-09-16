@@ -638,6 +638,46 @@ function SellerDashboard({ name }: { name: string }) {
           </div>
         </>
       )}
+
+      <Dialog open={kpiDialog === 'visits'} onOpenChange={(o) => !o && setKpiDialog(null)}>
+        <DialogContent className="max-h-[70vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Besök denna vecka ({weekVisits.length})</DialogTitle></DialogHeader>
+          {weekVisits.length === 0 && <p className="text-muted-foreground text-sm">Inga besök registrerade denna vecka.</p>}
+          <div className="space-y-2">
+            {weekVisits.map((v: any) => (
+              <div key={v.id} className="flex items-center justify-between gap-3 rounded-md border p-2.5 text-sm">
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{v.address || v.customer_name}</div>
+                  <div className="text-xs text-muted-foreground">{v.customer_name} · {new Date(v.date).toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+                </div>
+                <span className={`text-xs font-semibold whitespace-nowrap ${v.result === 'signerat' ? 'text-primary' : v.lost ? 'text-red-500' : 'text-muted-foreground'}`}>
+                  {v.result === 'signerat' ? 'Signerat' : v.lost ? 'Tappad' : 'Pågående'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={kpiDialog === 'signed'} onOpenChange={(o) => !o && setKpiDialog(null)}>
+        <DialogContent className="max-h-[70vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Signerade denna vecka ({weekSigned.length}) · {fmtKr(weekSigned.reduce((s: number, c: any) => s + (Number(c.order_value) || 0), 0))}</DialogTitle>
+          </DialogHeader>
+          {weekSigned.length === 0 && <p className="text-muted-foreground text-sm">Inga signeringar denna vecka ännu.</p>}
+          <div className="space-y-2">
+            {weekSigned.map((c: any) => (
+              <div key={c.id} className="flex items-center justify-between gap-3 rounded-md border p-2.5 text-sm">
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{c.address}</div>
+                  <div className="text-xs text-muted-foreground">{c.customer_name} · {new Date(c.created_at).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })}</div>
+                </div>
+                <span className="tabular-nums font-semibold whitespace-nowrap">{fmtKr(Number(c.order_value) || 0)}</span>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
