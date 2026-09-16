@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { buildMontorDebitPdf } from '@/lib/montorDebitPdf';
+import { buildSelfBillingPdf } from '@/lib/selfBillingPdf';
 import { loadAOrderLogo } from '@/lib/aOrderPdf';
 import { calcInvoiceTotals } from '@/lib/invoiceMath';
 
@@ -18,6 +19,8 @@ export interface CreateDebitInvoiceArgs {
   caseId?: string | null;
   /** Valfria detaljerade rader (qty/unit/á-pris) — annars byggs de av `lines` */
   detailedLines?: { description: string; qty: number; unit: string; unit_price: number; amount: number }[];
+  /** 'debit' = N3prenad fakturerar montören (standard). 'self_billing' = självfaktura/avräkning. */
+  kind?: 'debit' | 'self_billing';
 }
 
 /**
@@ -27,7 +30,20 @@ export interface CreateDebitInvoiceArgs {
 export async function createAndSendDebitInvoice(
   args: CreateDebitInvoiceArgs,
 ): Promise<{ id: string; invoice_number: string; total: number }> {
-  const { team, title, description, vatMode, date, dueDate, createdBy, caseId } = args;
+  const { title, description, vatMode, date, dueDate, createdBy, caseId } = args;
+  const kind = args.kind ?? 'debit';
+  let team = args.team;
+
+  if (kind === 'self_billing') {
+    // Hämta hela teamraden (bankgiro/serie finns inte i useMontorTeams-urvalet)
+    const { data: full } = await (supabase as any)
+      .from('montor_teams').select('*').eq('id', team.id).maybeSingle();
+    if (full) team = full;
+    if (!String(team.bankgiro || '').trim()) {
+      throw new Error(`Teamet ${team.company_name || team.name} saknar bankgiro — komplettera under Montörsteam innan fakturering.`);
+    }
+  }
+
 
   const pdfLines = args.detailedLines ?? args.lines.map(l => ({
     description: l.name,
