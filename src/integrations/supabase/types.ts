@@ -725,6 +725,7 @@ export type Database = {
           due_date: string | null
           id: string
           invoice_number: string | null
+          kind: string
           line_items: Json
           pdf_path: string | null
           sent_at: string | null
@@ -745,6 +746,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           invoice_number?: string | null
+          kind?: string
           line_items?: Json
           pdf_path?: string | null
           sent_at?: string | null
@@ -765,6 +767,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           invoice_number?: string | null
+          kind?: string
           line_items?: Json
           pdf_path?: string | null
           sent_at?: string | null
@@ -1373,6 +1376,7 @@ export type Database = {
           role: string
         }[]
       }
+      next_team_invoice_number: { Args: { p_team_id: string }; Returns: string }
       next_yearly_number: { Args: { p_series: string }; Returns: string }
     }
     Enums: {

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { buildMontorDebitPdf } from '@/lib/montorDebitPdf';
+import { buildSelfBillingPdf } from '@/lib/selfBillingPdf';
 import { loadAOrderLogo } from '@/lib/aOrderPdf';
 import { calcInvoiceTotals } from '@/lib/invoiceMath';
 
@@ -18,6 +19,8 @@ export interface CreateDebitInvoiceArgs {
   caseId?: string | null;
   /** Valfria detaljerade rader (qty/unit/á-pris) — annars byggs de av `lines` */
   detailedLines?: { description: string; qty: number; unit: string; unit_price: number; amount: number }[];
+  /** 'debit' = N3prenad fakturerar montören (standard). 'self_billing' = självfaktura/avräkning. */
+  kind?: 'debit' | 'self_billing';
 }
 
 /**
@@ -27,7 +30,20 @@ export interface CreateDebitInvoiceArgs {
 export async function createAndSendDebitInvoice(
   args: CreateDebitInvoiceArgs,
 ): Promise<{ id: string; invoice_number: string; total: number }> {
-  const { team, title, description, vatMode, date, dueDate, createdBy, caseId } = args;
+  const { title, description, vatMode, date, dueDate, createdBy, caseId } = args;
+  const kind = args.kind ?? 'debit';
+  let team = args.team;
+
+  if (kind === 'self_billing') {
+    // Hämta hela teamraden (bankgiro/serie finns inte i useMontorTeams-urvalet)
+    const { data: full } = await (supabase as any)
+      .from('montor_teams').select('*').eq('id', team.id).maybeSingle();
+    if (full) team = full;
+    if (!String(team.bankgiro || '').trim()) {
+      throw new Error(`Teamet ${team.company_name || team.name} saknar bankgiro — komplettera under Montörsteam innan fakturering.`);
+    }
+  }
+
 
   const pdfLines = args.detailedLines ?? args.lines.map(l => ({
     description: l.name,
@@ -40,7 +56,17 @@ export async function createAndSendDebitInvoice(
   const { subtotal, vatAmount, total } = calcInvoiceTotals(pdfLines, vatMode);
 
   const { data: { user } } = await supabase.auth.getUser();
-  const insertPayload = {
+
+  // Självfakturor numreras ur teamets egen serie (atomisk inkrementering i databasen)
+  let invoiceNumber: string | null = null;
+  if (kind === 'self_billing') {
+    const { data: nr, error: nrErr } = await (supabase as any)
+      .rpc('next_team_invoice_number', { p_team_id: team.id });
+    if (nrErr) throw nrErr;
+    invoiceNumber = nr as string;
+  }
+
+  const insertPayload: Record<string, unknown> = {
     created_by: user?.id ?? null,
     date,
     due_date: dueDate || null,
@@ -52,7 +78,9 @@ export async function createAndSendDebitInvoice(
     vat_mode: vatMode,
     subtotal, vat_amount: vatAmount, total,
     status: 'sent',
+    kind,
   };
+  if (invoiceNumber) insertPayload.invoice_number = invoiceNumber;
 
   const { data: inserted, error: insErr } = await (supabase as any)
     .from('montor_debit_invoices').insert(insertPayload).select('*').maybeSingle();
@@ -60,13 +88,14 @@ export async function createAndSendDebitInvoice(
   if (!inserted) throw new Error('Kunde inte skapa faktura');
 
   const logo = await loadAOrderLogo();
-  const doc = buildMontorDebitPdf({
+  const pdfArgs = {
     invoiceNumber: inserted.invoice_number,
     date, dueDate: dueDate || null,
     team, title, description,
     lines: pdfLines, vatMode, subtotal, vatAmount, total,
     logoDataUrl: logo,
-  });
+  };
+  const doc = kind === 'self_billing' ? buildSelfBillingPdf(pdfArgs) : buildMontorDebitPdf(pdfArgs);
   const pdf_base64 = doc.output('datauristring').split(',')[1] || '';
 
   const { error: sendErr } = await supabase.functions.invoke('send-montor-debit-invoice', {
@@ -78,7 +107,9 @@ export async function createAndSendDebitInvoice(
     await (supabase as any).from('case_events').insert({
       case_id: caseId,
       event_type: 'note',
-      description: `Debetfaktura ${inserted.invoice_number} skickad till ${team.company_name || team.name} (${fmt(total)})`,
+      description: kind === 'self_billing'
+        ? `Självfaktura ${inserted.invoice_number} skickad till ${team.company_name || team.name} (${fmt(total)})`
+        : `Debetfaktura ${inserted.invoice_number} skickad till ${team.company_name || team.name} (${fmt(total)})`,
       created_by: createdBy || 'System',
     });
   }

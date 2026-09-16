@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { buildMontorDebitPdf } from '@/lib/montorDebitPdf';
+import { buildSelfBillingPdf } from '@/lib/selfBillingPdf';
 import { loadAOrderLogo } from '@/lib/aOrderPdf';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { useRole } from '@/hooks/useRole';
@@ -28,7 +29,7 @@ export function MontorDebitInvoicesView() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('montor_debit_invoices')
-        .select('*, montor_teams(id, name, company_name, org_nr, address, email, invoice_email)')
+        .select('*, montor_teams(id, name, company_name, org_nr, address, email, invoice_email, bankgiro)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as any[];
@@ -46,7 +47,8 @@ export function MontorDebitInvoicesView() {
         if (ok) return;
       }
       const logo = await loadAOrderLogo();
-      const doc = buildMontorDebitPdf({
+      const build = inv.kind === 'self_billing' ? buildSelfBillingPdf : buildMontorDebitPdf;
+      const doc = build({
         invoiceNumber: inv.invoice_number,
         date: inv.date, dueDate: inv.due_date,
         team: inv.montor_teams || {},
@@ -70,7 +72,8 @@ export function MontorDebitInvoicesView() {
     setBusyId(inv.id);
     try {
       const logo = await loadAOrderLogo();
-      const doc = buildMontorDebitPdf({
+      const build = inv.kind === 'self_billing' ? buildSelfBillingPdf : buildMontorDebitPdf;
+      const doc = build({
         invoiceNumber: inv.invoice_number,
         date: inv.date, dueDate: inv.due_date,
         team: inv.montor_teams || {},
@@ -110,7 +113,7 @@ export function MontorDebitInvoicesView() {
           <tr>
             <th className="px-3 py-2 text-left">Nr</th>
             <th className="px-3 py-2 text-left">Datum</th>
-            <th className="px-3 py-2 text-left">Montör (kund)</th>
+            <th className="px-3 py-2 text-left">Montör</th>
             <th className="px-3 py-2 text-left">Moms</th>
             <th className="px-3 py-2 text-right">Summa</th>
             <th className="px-3 py-2 text-left">Status</th>
@@ -126,7 +129,12 @@ export function MontorDebitInvoicesView() {
             const meta = STATUS[inv.status] || STATUS.sent;
             return (
               <tr key={inv.id} className="hover:bg-muted/30">
-                <td className="px-3 py-2 font-mono">{inv.invoice_number}</td>
+                <td className="px-3 py-2 font-mono">
+                  {inv.invoice_number}
+                  {inv.kind === 'self_billing' && (
+                    <Badge variant="outline" className="ml-2 font-sans text-[10px]">Självfaktura</Badge>
+                  )}
+                </td>
                 <td className="px-3 py-2">{inv.date}</td>
                 <td className="px-3 py-2">{inv.montor_teams?.company_name || inv.montor_teams?.name || '—'}</td>
                 <td className="px-3 py-2 text-xs">{inv.vat_mode === 'vanlig' ? '25%' : 'Omvänd'}</td>
