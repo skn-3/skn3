@@ -11,9 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
-import { buildMontorDebitPdf } from '@/lib/montorDebitPdf';
-import { loadAOrderLogo } from '@/lib/aOrderPdf';
 import { calcInvoiceTotals } from '@/lib/invoiceMath';
+import { createAndSendDebitInvoice } from '@/lib/debitInvoice';
 
 type Line = { id: string; description: string; qty: number; unit: string; unit_price: number; amount: number };
 
