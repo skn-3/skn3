@@ -60,8 +60,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       ok: true,
       km_one_way: Math.round(meters / 1000),
-      from_resolved: a.label,
-      to_resolved: b.label,
+      from_resolved: a.label + (a.precision === 'gata' ? ' (gatunivå)' : ''),
+      to_resolved: b.label + (b.precision === 'gata' ? ' (gatunivå)' : ''),
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e?.message ?? 'Kunde inte beräkna avståndet' }), {
