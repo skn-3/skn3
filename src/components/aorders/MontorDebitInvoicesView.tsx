@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { buildMontorDebitPdf } from '@/lib/montorDebitPdf';
+import { buildSelfBillingPdf } from '@/lib/selfBillingPdf';
 import { loadAOrderLogo } from '@/lib/aOrderPdf';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { useRole } from '@/hooks/useRole';
@@ -28,7 +29,7 @@ export function MontorDebitInvoicesView() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('montor_debit_invoices')
-        .select('*, montor_teams(id, name, company_name, org_nr, address, email, invoice_email)')
+        .select('*, montor_teams(id, name, company_name, org_nr, address, email, invoice_email, bankgiro)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as any[];
@@ -46,7 +47,8 @@ export function MontorDebitInvoicesView() {
         if (ok) return;
       }
       const logo = await loadAOrderLogo();
-      const doc = buildMontorDebitPdf({
+      const build = inv.kind === 'self_billing' ? buildSelfBillingPdf : buildMontorDebitPdf;
+      const doc = build({
         invoiceNumber: inv.invoice_number,
         date: inv.date, dueDate: inv.due_date,
         team: inv.montor_teams || {},
@@ -70,7 +72,8 @@ export function MontorDebitInvoicesView() {
     setBusyId(inv.id);
     try {
       const logo = await loadAOrderLogo();
-      const doc = buildMontorDebitPdf({
+      const build = inv.kind === 'self_billing' ? buildSelfBillingPdf : buildMontorDebitPdf;
+      const doc = build({
         invoiceNumber: inv.invoice_number,
         date: inv.date, dueDate: inv.due_date,
         team: inv.montor_teams || {},
