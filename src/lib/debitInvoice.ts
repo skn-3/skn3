@@ -112,9 +112,6 @@ export async function createAndSendDebitInvoice(
         : `Debetfaktura ${inserted.invoice_number} skickad till ${team.company_name || team.name} (${fmt(total)})`,
       created_by: createdBy || 'System',
     });
-
-      created_by: createdBy || 'System',
-    });
   }
 
   return { id: inserted.id, invoice_number: inserted.invoice_number, total };
