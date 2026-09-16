@@ -5,13 +5,34 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function geocode(q: string): Promise<{ lat: string; lon: string; label: string } | null> {
+type GeoHit = { lat: string; lon: string; label: string; precision: 'exakt' | 'gata' };
+
+async function geocodeOnce(q: string): Promise<{ lat: string; lon: string; label: string } | null> {
   const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=se&q=${encodeURIComponent(q)}`;
   const res = await fetch(url, { headers: { 'User-Agent': 'N3prenad-CaseFlow/1.0 (n3prenad@smartklimat.org)' } });
   if (!res.ok) return null;
   const arr = await res.json();
   if (!arr?.[0]) return null;
   return { lat: arr[0].lat, lon: arr[0].lon, label: arr[0].display_name?.split(',').slice(0, 2).join(',') ?? q };
+}
+
+async function geocode(raw: string): Promise<GeoHit | null> {
+  const cleaned = raw.trim().replace(/\s+/g, ' ').replace(/,?\s*lgh\s*\d+/i, '');
+  // Varianter: full adress -> utan postnummer -> utan husnummer (gatunivå)
+  const noPostal = cleaned.replace(/,?\s*\d{3}\s?\d{2}\s+/g, ', ');
+  const noHouseNo = noPostal.replace(/\s+\d+[a-zA-Z]?\s*(,|$)/, '$1');
+  const variants: { q: string; precision: 'exakt' | 'gata' }[] = [
+    { q: cleaned, precision: 'exakt' },
+    { q: noPostal, precision: 'exakt' },
+    { q: noHouseNo, precision: 'gata' },
+  ].filter((v, i, a) => v.q.trim() && a.findIndex((x) => x.q === v.q) === i);
+
+  for (let i = 0; i < variants.length; i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 1100)); // Nominatims taktgräns
+    const hit = await geocodeOnce(variants[i].q);
+    if (hit) return { ...hit, precision: variants[i].precision };
+  }
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -39,8 +60,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       ok: true,
       km_one_way: Math.round(meters / 1000),
-      from_resolved: a.label,
-      to_resolved: b.label,
+      from_resolved: a.label + (a.precision === 'gata' ? ' (gatunivå)' : ''),
+      to_resolved: b.label + (b.precision === 'gata' ? ' (gatunivå)' : ''),
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e?.message ?? 'Kunde inte beräkna avståndet' }), {
