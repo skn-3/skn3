@@ -272,6 +272,7 @@ export function AOrdersView({ currentUser }: Props) {
           <TabsTrigger value="history">Historik</TabsTrigger>
           <TabsTrigger value="debit">Montörsfakturor</TabsTrigger>
           <TabsTrigger value="import">Importera fakturor</TabsTrigger>
+          <TabsTrigger value="km">KM-utbetalning</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending" className="space-y-4">
@@ -464,6 +465,10 @@ export function AOrdersView({ currentUser }: Props) {
 
         <TabsContent value="import">
           <ImportInvoicesView />
+        </TabsContent>
+
+        <TabsContent value="km">
+          <KmPayoutView currentUser={currentUser} />
         </TabsContent>
       </Tabs>
 
