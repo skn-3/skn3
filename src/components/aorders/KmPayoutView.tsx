@@ -328,6 +328,7 @@ export function KmPayoutView({ currentUser }: Props) {
           date: isoDate(today),
           dueDate: isoDate(addDays(today, 10)),
           createdBy: currentUser,
+          kind: 'self_billing',
         });
         invoices.push({ team: (team as any).company_name || team.name, invoice_number: res.invoice_number, total: res.total });
       }
