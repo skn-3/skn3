@@ -29,6 +29,7 @@ export interface BuildSelfBillingPdfArgs {
   vatAmount: number;
   total: number;
   logoDataUrl?: string | null;
+  isCredit?: boolean;
 }
 
 const DARK: [number, number, number] = [51, 51, 51];
@@ -48,7 +49,7 @@ export function vatFromOrgNr(orgNr?: string | null): string {
 }
 
 export function buildSelfBillingPdf(args: BuildSelfBillingPdfArgs): jsPDF {
-  const { invoiceNumber, date, dueDate, team, title, description, lines, vatMode, subtotal, vatAmount, total, logoDataUrl } = args;
+  const { invoiceNumber, date, dueDate, team, title, description, lines, vatMode, subtotal, vatAmount, total, logoDataUrl, isCredit } = args;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   const margin = 15;
   const pageW = 210;
@@ -75,9 +76,9 @@ export function buildSelfBillingPdf(args: BuildSelfBillingPdfArgs): jsPDF {
   doc.setTextColor(120, 120, 120);
   doc.text(date, pageW - margin, 14, { align: 'right' });
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(32);
+  doc.setFontSize(isCredit ? 22 : 32);
   doc.setTextColor(...DARK);
-  doc.text('FAKTURA', pageW - margin, 30, { align: 'right' });
+  doc.text(isCredit ? 'KREDITFAKTURA' : 'FAKTURA', pageW - margin, 30, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(120, 120, 120);
@@ -224,7 +225,7 @@ export function buildSelfBillingPdf(args: BuildSelfBillingPdfArgs): jsPDF {
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.text('Att utbetala:', 150, sy + 2, { align: 'right' });
+  doc.text(isCredit ? 'Kreditbelopp:' : 'Att utbetala:', 150, sy + 2, { align: 'right' });
   doc.text(fmtKr(total), pageW - margin, sy + 2, { align: 'right' });
 
   // BETALNINGSRUTA
@@ -236,12 +237,14 @@ export function buildSelfBillingPdf(args: BuildSelfBillingPdfArgs): jsPDF {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...DARK);
-  doc.text('UTBETALNING', margin + 4, by + 6);
+  doc.text(isCredit ? 'KREDITERING' : 'UTBETALNING', margin + 4, by + 6);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   const payText = doc.splitTextToSize(
-    `Betalning sker till säljarens bankgiro: ${team.bankgiro || '—'} (${team.company_name || team.name || '—'}). ` +
-    `Ange fakturanummer ${invoiceNumber} vid betalning.`,
+    isCredit
+      ? 'Krediten kvittas i första hand mot kommande utbetalningar mellan parterna. Är originalfakturan redan reglerad sker återbetalning till SmartKlimat N3prenad, bankgiro 5032-4573.'
+      : `Betalning sker till säljarens bankgiro: ${team.bankgiro || '—'} (${team.company_name || team.name || '—'}). ` +
+        `Ange fakturanummer ${invoiceNumber} vid betalning.`,
     pageW - margin * 2 - 8,
   );
   let py = by + 11;
