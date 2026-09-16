@@ -24,6 +24,7 @@ import { MockfjardsInvoiceImportDialog } from './MockfjardsInvoiceImportDialog';
 import { InvoiceAOrderDialog } from './InvoiceAOrderDialog';
 import { CreditAOrderDialog } from './CreditAOrderDialog';
 import { ImportInvoicesView } from './ImportInvoicesView';
+import { KmPayoutView } from './KmPayoutView';
 import { MontorDebitInvoiceDialog } from './MontorDebitInvoiceDialog';
 import { MontorDebitInvoicesView } from './MontorDebitInvoicesView';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
