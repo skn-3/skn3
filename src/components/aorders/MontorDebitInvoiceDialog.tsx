@@ -11,9 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
-import { buildMontorDebitPdf } from '@/lib/montorDebitPdf';
-import { loadAOrderLogo } from '@/lib/aOrderPdf';
 import { calcInvoiceTotals } from '@/lib/invoiceMath';
+import { createAndSendDebitInvoice } from '@/lib/debitInvoice';
 
 type Line = { id: string; description: string; qty: number; unit: string; unit_price: number; amount: number };
 
@@ -94,49 +93,20 @@ export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser }: Pr
       const pdfLines = lines.map(l => ({
         description: l.description, qty: l.qty, unit: l.unit, unit_price: l.unit_price, amount: l.amount,
       }));
-      const { data: { user } } = await supabase.auth.getUser();
-      const insertPayload = {
-        created_by: user?.id ?? null,
-        date, due_date: dueDate || null,
-        team_id: team.id,
-        case_id: caseId || null,
-        title: title || null,
-        description: description || null,
-        line_items: pdfLines,
-        vat_mode: vatMode,
-        subtotal, vat_amount: vatAmount, total,
-        status: 'sent',
-      };
-      const { data: inserted, error: insErr } = await (supabase as any)
-        .from('montor_debit_invoices').insert(insertPayload).select('*').maybeSingle();
-      if (insErr) throw insErr;
-      if (!inserted) throw new Error('Kunde inte skapa faktura');
-
-      const logo = await loadAOrderLogo();
-      const doc = buildMontorDebitPdf({
-        invoiceNumber: inserted.invoice_number,
-        date, dueDate: dueDate || null,
-        team, title, description,
-        lines: pdfLines, vatMode, subtotal, vatAmount, total,
-        logoDataUrl: logo,
+      const res = await createAndSendDebitInvoice({
+        team,
+        title,
+        description,
+        lines: pdfLines.map(l => ({ name: l.description, amount: l.amount })),
+        detailedLines: pdfLines,
+        vatMode,
+        date,
+        dueDate: dueDate || null,
+        createdBy: currentUser,
+        caseId: caseId || null,
       });
-      const pdf_base64 = doc.output('datauristring').split(',')[1] || '';
 
-      const { error: sendErr } = await supabase.functions.invoke('send-montor-debit-invoice', {
-        body: { debit_invoice_id: inserted.id, pdf_base64 },
-      });
-      if (sendErr) throw sendErr;
-
-      if (caseId) {
-        await (supabase as any).from('case_events').insert({
-          case_id: caseId,
-          event_type: 'note',
-          description: `Debetfaktura ${inserted.invoice_number} skickad till ${team.company_name || team.name} (${fmt(total)})`,
-          created_by: currentUser || 'System',
-        });
-      }
-
-      toast.success(`Faktura ${inserted.invoice_number} skickad`);
+      toast.success(`Faktura ${res.invoice_number} skickad`);
       qc.invalidateQueries({ queryKey: ['montor_debit_invoices'] });
       onOpenChange(false);
     } catch (e: any) {
