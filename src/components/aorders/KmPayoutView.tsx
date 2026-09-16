@@ -484,6 +484,50 @@ export function KmPayoutView({ currentUser }: Props) {
                       <AlertTriangle className="h-3 w-3" /> Schablon 100 km? Verifiera verklig körsträcka.
                     </div>
                   )}
+                  {schablon && (() => {
+                    const team = teams.find(t => t.id === r.teamId);
+                    const hasCase = r.caseChoice?.kind === 'case';
+                    const dc = distCalc[r.key];
+                    if (!r.teamId || !hasCase) return null;
+                    if (!team?.address) {
+                      return (
+                        <div className="text-[11px] text-amber-600 mt-1">
+                          Teamet saknar utgångsadress — lägg in den under Montörsteam.
+                        </div>
+                      );
+                    }
+                    if (dc?.status === 'loading') {
+                      return (
+                        <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Beräknar körsträcka...
+                        </div>
+                      );
+                    }
+                    if (dc?.status === 'done' && dc.km != null) {
+                      return (
+                        <div className="text-[11px] mt-1 space-y-1">
+                          <div className="text-green-700 dark:text-green-400">Beräknat: {dc.km} km enkel väg ({dc.label})</div>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => patch(r.key, { kmQty: dc.km })}>
+                              Använd {dc.km}
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => patch(r.key, { kmQty: dc.km! * 2 })}>
+                              Använd {dc.km * 2} t/r
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (dc?.status === 'error') {
+                      return (
+                        <div className="text-[11px] text-amber-600 mt-1 space-y-1">
+                          <div>{dc.error} — ange km manuellt.</div>
+                          <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => runDistance(r)}>Försök igen</Button>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">Grundavgift</div>
