@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchVisits, fetchCases, fetchAllDeviations, fetchInsightHistory, recordInsightsShown, type CaseRow, type VisitRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatAmount } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, TrendingUp, Flame, Calendar, Target, Sparkles, CheckCircle2, AlertTriangle, Wrench, MapPin, Clock, Volume2, VolumeX, Moon, X } from 'lucide-react';
@@ -92,6 +93,22 @@ function isoDate(d: Date | string): string {
   return new Date(d).toISOString().slice(0, 10);
 }
 
+function fmtKr(n: number): string {
+  return `${Math.round(n).toLocaleString('sv-SE')} kr`;
+}
+
+function timeAgo(iso: string): string {
+  const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return 'nyss';
+  if (m < 60) return `${m} min sedan`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} tim sedan`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return 'igår';
+  if (d <= 14) return `${d} dagar sedan`;
+  return new Date(iso).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
+}
+
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={`rounded-xl border bg-card p-5 shadow-sm animate-fade-in ${className}`}>
@@ -175,6 +192,7 @@ function InsightsLayer({
 
 
 function SellerDashboard({ name }: { name: string }) {
+  const [kpiDialog, setKpiDialog] = useState<null | 'visits' | 'signed'>(null);
   const { data: visits = [], isLoading: vL } = useQuery({
     queryKey: ['welcome-visits', name],
     queryFn: () => fetchVisits({ seller: name }) as Promise<VisitRow[]>,
@@ -182,6 +200,20 @@ function SellerDashboard({ name }: { name: string }) {
   const { data: cases = [] } = useQuery({
     queryKey: ['welcome-cases-seller', name],
     queryFn: () => fetchCases({ seller: name }) as Promise<CaseRow[]>,
+  });
+
+  const { data: latestDeals = [] } = useQuery({
+    queryKey: ['latest-deals-all'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('cases')
+        .select('id, address, seller, order_value, created_at')
+        .order('created_at', { ascending: false })
+        .limit(8);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
   });
 
   const { data: offerOverview } = useQuery({
