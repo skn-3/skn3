@@ -116,3 +116,97 @@ export async function createAndSendDebitInvoice(
 
   return { id: inserted.id, invoice_number: inserted.invoice_number, total };
 }
+
+export interface CreateCreditInvoiceArgs {
+  originalId: string;
+  reason: string;
+  createdBy: string;
+}
+
+/** Krediterar en montörsfaktura (självfaktura eller debetfaktura) med negerade belopp. */
+export async function createAndSendCreditInvoice(
+  args: CreateCreditInvoiceArgs,
+): Promise<{ id: string; invoice_number: string; total: number }> {
+  const { originalId, reason, createdBy } = args;
+
+  const { data: original, error: oErr } = await (supabase as any)
+    .from('montor_debit_invoices').select('*').eq('id', originalId).maybeSingle();
+  if (oErr) throw oErr;
+  if (!original) throw new Error('Originalfakturan hittades inte');
+
+  const { data: team, error: tErr } = await (supabase as any)
+    .from('montor_teams').select('*').eq('id', original.team_id).maybeSingle();
+  if (tErr) throw tErr;
+  if (!team) throw new Error('Montörsteamet hittades inte');
+
+  const kind: 'debit' | 'self_billing' = original.kind === 'self_billing' ? 'self_billing' : 'debit';
+
+  const { data: nr, error: nrErr } = await (supabase as any)
+    .rpc('next_team_invoice_number', { p_team_id: team.id });
+  if (nrErr) throw nrErr;
+
+  const neg = (n: unknown) => -Math.abs(Number(n) || 0);
+  const lines = (original.line_items || []).map((li: any) => ({
+    ...li,
+    unit_price: neg(li.unit_price),
+    amount: neg(li.amount),
+  }));
+  const subtotal = neg(original.subtotal);
+  const vatAmount = neg(original.vat_amount);
+  const total = neg(original.total);
+  const date = new Date().toISOString().slice(0, 10);
+  const description = `Avser kreditering av faktura ${original.invoice_number}. Orsak: ${reason}`;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: inserted, error: insErr } = await (supabase as any)
+    .from('montor_debit_invoices').insert({
+      created_by: user?.id ?? null,
+      invoice_number: nr as string,
+      date,
+      due_date: null,
+      team_id: team.id,
+      case_id: original.case_id ?? null,
+      title: 'Kreditfaktura',
+      description,
+      line_items: lines,
+      vat_mode: original.vat_mode,
+      subtotal, vat_amount: vatAmount, total,
+      status: 'sent',
+      kind,
+      credited_from_invoice_id: originalId,
+    }).select('*').maybeSingle();
+  if (insErr) throw insErr;
+  if (!inserted) throw new Error('Kunde inte skapa kreditfaktura');
+
+  const logo = await loadAOrderLogo();
+  const pdfArgs = {
+    invoiceNumber: inserted.invoice_number,
+    date, dueDate: null,
+    team, title: 'Kreditfaktura', description,
+    lines, vatMode: original.vat_mode as 'omvand' | 'vanlig',
+    subtotal, vatAmount, total,
+    logoDataUrl: logo,
+    isCredit: true,
+  };
+  const doc = kind === 'self_billing' ? buildSelfBillingPdf(pdfArgs) : buildMontorDebitPdf(pdfArgs);
+  const pdf_base64 = doc.output('datauristring').split(',')[1] || '';
+
+  const { error: sendErr } = await supabase.functions.invoke('send-montor-debit-invoice', {
+    body: { debit_invoice_id: inserted.id, pdf_base64 },
+  });
+  if (sendErr) throw sendErr;
+
+  await (supabase as any).from('montor_debit_invoices').update({ status: 'credited' }).eq('id', originalId);
+
+  if (original.case_id) {
+    await (supabase as any).from('case_events').insert({
+      case_id: original.case_id,
+      event_type: 'note',
+      description: `Kreditfaktura ${inserted.invoice_number} skickad — krediterar ${original.invoice_number} (${fmt(total)})`,
+      created_by: createdBy || 'System',
+    });
+  }
+
+  return { id: inserted.id, invoice_number: inserted.invoice_number, total };
+}
+
