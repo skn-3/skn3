@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Upload, Loader2, AlertTriangle, Check, Search, FileText } from 'lucide-react';
@@ -138,10 +138,41 @@ export function KmPayoutView({ currentUser }: Props) {
     invoices: { team: string; invoice_number: string; total: number }[];
   }>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [distCalc, setDistCalc] = useState<Record<string, { status: 'loading' | 'done' | 'error'; km?: number; label?: string; error?: string }>>({});
 
   const reset = () => {
     setStage('upload'); setRows([]); setSkipped(0); setProgress(null); setResult(null); setSearch({});
+    setDistCalc({});
   };
+
+  const runDistance = async (row: KmRow) => {
+    const team = teams.find((t) => t.id === row.teamId);
+    const caseAddr = row.caseChoice?.kind === 'case' ? (row.caseChoice.case.address as string | null) : null;
+    if (!team?.address || !caseAddr) return;
+    setDistCalc((s) => ({ ...s, [row.key]: { status: 'loading' } }));
+    try {
+      const { data, error } = await supabase.functions.invoke('calc-distance', { body: { from: team.address, to: caseAddr } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setDistCalc((s) => ({ ...s, [row.key]: { status: 'done', km: (data as any).km_one_way, label: `${team.name} → ${caseAddr}` } }));
+    } catch (e: any) {
+      setDistCalc((s) => ({ ...s, [row.key]: { status: 'error', error: e?.message || 'Kunde inte beräkna' } }));
+    }
+  };
+
+  // Auto-beräkna körsträcka för rader på schablon 100 km — en rad i taget (geokodarens takt).
+  useEffect(() => {
+    if (stage !== 'review') return;
+    const next = rows.find((r) =>
+      r.kmQty === 100 &&
+      r.caseChoice?.kind === 'case' &&
+      r.teamId &&
+      teams.find((t) => t.id === r.teamId)?.address &&
+      !distCalc[r.key]
+    );
+    if (next) runDistance(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, rows, distCalc, teams]);
 
   async function handleFiles(files: FileList | File[]) {
     const list = Array.from(files).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
