@@ -5,7 +5,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-type GeoHit = { lat: string; lon: string; label: string; precision: 'exakt' | 'gata' };
+type GeoHit = { lat: string; lon: string; label: string; precision: 'exakt' | 'gata' | 'omrade' };
+
+async function geocodePhoton(q: string): Promise<{ lat: string; lon: string; label: string } | null> {
+  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=default&bbox=10.5,55.0,24.5,69.5`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'N3prenad-CaseFlow/1.0 (n3prenad@smartklimat.org)' } });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const f = data?.features?.[0];
+  const coords = f?.geometry?.coordinates;
+  if (!coords || typeof coords[0] !== 'number' || typeof coords[1] !== 'number') return null;
+  const p = f.properties ?? {};
+  const place = p.city ?? p.town ?? p.village ?? p.municipality ?? p.county;
+  const parts = [p.name ?? [p.street, p.housenumber].filter(Boolean).join(' '), place].filter(Boolean);
+  return { lon: String(coords[0]), lat: String(coords[1]), label: parts.length ? parts.join(', ') : q };
+}
 
 async function geocodeOnce(q: string): Promise<{ lat: string; lon: string; label: string } | null> {
   const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=se&q=${encodeURIComponent(q)}`;
@@ -18,22 +32,33 @@ async function geocodeOnce(q: string): Promise<{ lat: string; lon: string; label
 
 async function geocode(raw: string): Promise<GeoHit | null> {
   const cleaned = raw.trim().replace(/\s+/g, ' ').replace(/,?\s*lgh\s*\d+/i, '');
-  // Varianter: full adress -> utan postnummer -> utan husnummer (gatunivå)
+  // Varianter: full adress -> utan postnummer -> utan husnummer (gatunivå) -> första ord + ort (områdesnivå)
   const noPostal = cleaned.replace(/,?\s*\d{3}\s?\d{2}\s+/g, ', ');
   const noHouseNo = noPostal.replace(/\s+\d+[a-zA-Z]?\s*(,|$)/, '$1');
-  const variants: { q: string; precision: 'exakt' | 'gata' }[] = [
+  const firstWord = noHouseNo.split(',')[0].trim().split(/\s+/)[0] ?? '';
+  const city = cleaned.split(',').slice(-1)[0]?.replace(/\d{3}\s?\d{2}/, '').trim() ?? '';
+  const area = [firstWord, city].filter(Boolean).join(', ');
+  const variants: { q: string; precision: GeoHit['precision'] }[] = [
     { q: cleaned, precision: 'exakt' },
     { q: noPostal, precision: 'exakt' },
     { q: noHouseNo, precision: 'gata' },
+    { q: area, precision: 'omrade' },
   ].filter((v, i, a) => v.q.trim() && a.findIndex((x) => x.q === v.q) === i);
 
-  for (let i = 0; i < variants.length; i++) {
-    if (i > 0) await new Promise((r) => setTimeout(r, 1100)); // Nominatims taktgräns
-    const hit = await geocodeOnce(variants[i].q);
-    if (hit) return { ...hit, precision: variants[i].precision };
+  for (const v of variants) {
+    // Primärt: Photon (fuzzy, ingen paus krävs)
+    const photon = await geocodePhoton(v.q);
+    if (photon) return { ...photon, precision: v.precision };
+    // Backup: Nominatim med taktgräns
+    await new Promise((r) => setTimeout(r, 1100));
+    const nom = await geocodeOnce(v.q);
+    if (nom) return { ...nom, precision: v.precision };
   }
-  return null;
+  const tested = variants.map((v) => `"${v.q}"`).join(', ');
+  throw new Error(`Hittade inte adressen "${raw.trim()}" — testade: ${tested}`);
 }
+
+const precisionSuffix = (p: GeoHit['precision']) => p === 'gata' ? ' (gatunivå)' : p === 'omrade' ? ' (områdesnivå)' : '';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -44,11 +69,7 @@ Deno.serve(async (req) => {
     if (!from?.trim() || !to?.trim()) throw new Error('Både från- och till-adress krävs');
 
     const a = await geocode(from.trim());
-    if (!a) throw new Error(`Hittade inte adressen: ${from}`);
-    // Nominatim vill ha max 1 anrop/sekund
-    await new Promise((r) => setTimeout(r, 1100));
     const b = await geocode(to.trim());
-    if (!b) throw new Error(`Hittade inte adressen: ${to}`);
 
     const routeUrl = `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`;
     const routeRes = await fetch(routeUrl);
@@ -60,8 +81,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       ok: true,
       km_one_way: Math.round(meters / 1000),
-      from_resolved: a.label + (a.precision === 'gata' ? ' (gatunivå)' : ''),
-      to_resolved: b.label + (b.precision === 'gata' ? ' (gatunivå)' : ''),
+      from_resolved: a.label + precisionSuffix(a.precision),
+      to_resolved: b.label + precisionSuffix(b.precision),
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e?.message ?? 'Kunde inte beräkna avståndet' }), {
