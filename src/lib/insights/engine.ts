@@ -84,7 +84,12 @@ function recencyScore(daysAgo: number) {
   return 5;
 }
 
+const prepositionFor = (place: string) =>
+  /(vägen|gatan|gränd|gränden|stigen|torget|backen|leden|allén|alleen|plan|bron|kajen|udden|slingan)$/i.test((place || '').trim())
+    ? 'på' : 'i';
+
 // ============ SELLER GENERATORS ============
+
 
 const SELLER_GENERATORS: SellerGenerator[] = [
   // ---- REKORD (tier 1) ----
@@ -368,7 +373,7 @@ const SELLER_GENERATORS: SellerGenerator[] = [
       tier: 2, category: 'geo',
       score: 65 + recencyScore(ageDays),
       emoji: '🚀',
-      title: `Första affären i ${winner.city}!`,
+      title: `Första affären ${prepositionFor(winner.city)} ${winner.city}!`,
       subtitle: 'Ny ort erövrad',
       animation: 'rocket',
       highlight: winner.city,
