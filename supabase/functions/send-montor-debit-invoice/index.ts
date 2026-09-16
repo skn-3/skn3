@@ -16,6 +16,28 @@ function sanitizeFilename(s: string) {
   return String(s || '').normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
 }
 
+function buildCreditHtml(opts: { number: string; original: string; customer: string; total: string }) {
+  return `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+<tr><td style="padding:24px 28px 8px;">
+<h1 style="margin:0 0 8px;font-size:22px;color:#1f2937;">KREDITFAKTURA ${esc(opts.number)}</h1>
+<div style="font-size:16px;font-weight:bold;color:#1a1a1a;">${esc(opts.customer)}</div>
+</td></tr>
+<tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;"/></td></tr>
+<tr><td style="padding:0 28px;">
+<p style="margin:8px 0;">Bifogad kreditfaktura krediterar faktura <strong>${esc(opts.original)}</strong>.</p>
+<p style="margin:8px 0;color:#374151;"><strong>Kreditbelopp:</strong> ${esc(opts.total)}</p>
+<p style="margin:8px 0;">${esc('${CREDIT}')}</p>
+</td></tr>
+<tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/></td></tr>
+<tr><td style="padding:0 28px 24px;color:#6b7280;font-size:12px;">
+SmartKlimat N3prenad AB &middot; 559026-6630 &middot; Morsstigen 3, 141 71 Segeltorp
+</td></tr>
+</table></td></tr></table></body></html>`;
+}
+
 function buildHtml(opts: { number: string; customer: string; total: string; vatMode: string; dueDate?: string | null; selfBilling?: boolean; bankgiro?: string | null }) {
   if (opts.selfBilling) {
     return `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/></head>
@@ -97,16 +119,29 @@ Deno.serve(async (req) => {
     if (!recipient) return new Response(JSON.stringify({ error: 'Montörsteamet saknar e-post' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const isSelfBilling = (inv as any).kind === 'self_billing';
+    const isCredit = Number(inv.total || 0) < 0 || !!(inv as any).credited_from_invoice_id;
+    let originalNumber = '';
+    if ((inv as any).credited_from_invoice_id) {
+      const { data: orig } = await admin
+        .from('montor_debit_invoices').select('invoice_number')
+        .eq('id', (inv as any).credited_from_invoice_id).maybeSingle();
+      originalNumber = orig?.invoice_number ? String(orig.invoice_number) : '';
+    }
     const number = String(inv.invoice_number);
     const companySafe = sanitizeFilename(team.company_name || team.name || 'kund');
-    const filename = `${isSelfBilling ? 'SJALVFAKTURA' : 'FAKTURA'}-${number}-${companySafe}.pdf`;
+    const filename = `${isCredit ? 'KREDITFAKTURA' : isSelfBilling ? 'SJALVFAKTURA' : 'FAKTURA'}-${number}-${companySafe}.pdf`;
 
     const pdfBytes = Uint8Array.from(atob(pdf_base64), c => c.charCodeAt(0));
     const pdfPath = `montor-debit/${inv.id}.pdf`;
     await admin.storage.from('case-documents').upload(pdfPath, pdfBytes, { contentType: 'application/pdf', upsert: true });
 
     const totalStr = Math.round(Number(inv.total || 0)).toLocaleString('sv-SE') + ' kr';
-    const html = buildHtml({
+    const html = isCredit ? buildCreditHtml({
+      number,
+      original: originalNumber || '—',
+      customer: team.company_name || team.name || '',
+      total: totalStr,
+    }) : buildHtml({
       number,
       customer: team.company_name || team.name || '',
       total: totalStr,
@@ -115,7 +150,9 @@ Deno.serve(async (req) => {
       selfBilling: isSelfBilling,
       bankgiro: team.bankgiro,
     });
-    const subject = isSelfBilling
+    const subject = isCredit
+      ? `Kreditfaktura ${number} — avser ${originalNumber || '—'}`
+      : isSelfBilling
       ? `Sj\u00e4lvfaktura / avr\u00e4kning ${number} fr\u00e5n SmartKlimat N3prenad \u2014 ${team.company_name || team.name || ''}`.trim()
       : `FAKTURA ${number} — ${team.company_name || team.name || ''}`.trim();
 
