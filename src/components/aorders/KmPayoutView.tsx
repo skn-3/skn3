@@ -138,7 +138,7 @@ export function KmPayoutView({ currentUser }: Props) {
     invoices: { team: string; invoice_number: string; total: number }[];
   }>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [distCalc, setDistCalc] = useState<Record<string, { status: 'loading' | 'done' | 'error'; km?: number; label?: string; error?: string }>>({});
+  const [distCalc, setDistCalc] = useState<Record<string, { status: 'loading' | 'done' | 'error'; km?: number; label?: string; suspicious?: boolean; error?: string }>>({});
 
   const reset = () => {
     setStage('upload'); setRows([]); setSkipped(0); setProgress(null); setResult(null); setSearch({});
@@ -154,7 +154,7 @@ export function KmPayoutView({ currentUser }: Props) {
       const { data, error } = await supabase.functions.invoke('calc-distance', { body: { from: team.address, to: caseAddr } });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      setDistCalc((s) => ({ ...s, [row.key]: { status: 'done', km: (data as any).km_one_way, label: `${team.name} → ${caseAddr}` } }));
+      setDistCalc((s) => ({ ...s, [row.key]: { status: 'done', km: (data as any).km_one_way, suspicious: (data as any).suspicious === true, label: `${(data as any).from_resolved} → ${(data as any).to_resolved}` } }));
     } catch (e: any) {
       setDistCalc((s) => ({ ...s, [row.key]: { status: 'error', error: e?.message || 'Kunde inte beräkna' } }));
     }
@@ -396,11 +396,14 @@ export function KmPayoutView({ currentUser }: Props) {
         <div className="rounded-md border divide-y text-sm">
           {result.invoices.map(inv => (
             <div key={inv.invoice_number} className="px-3 py-2 flex justify-between">
-              <span>{inv.team} → {inv.invoice_number}</span>
+              <span>{inv.invoice_number} → {inv.team}</span>
               <span className="font-medium">{fmt(inv.total)}</span>
             </div>
           ))}
         </div>
+        <p className="text-xs text-muted-foreground">
+          Fakturorna hittas under fliken Montörsfakturor. Mail har skickats till respektive teams fakturaadress.
+        </p>
         <Button variant="outline" onClick={reset}>Ny import</Button>
       </div>
     );
@@ -504,9 +507,21 @@ export function KmPayoutView({ currentUser }: Props) {
                       );
                     }
                     if (dc?.status === 'done' && dc.km != null) {
+                      if (dc.suspicious) {
+                        return (
+                          <div className="text-[11px] text-amber-600 mt-1 space-y-1">
+                            <div className="flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              Orimligt långt ({dc.km} km) — ärendets adress saknar troligen ort. Komplettera adressen på ärendet och tryck Försök igen.
+                            </div>
+                            <div className="text-muted-foreground">{dc.label}</div>
+                            <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => runDistance(r)}>Försök igen</Button>
+                          </div>
+                        );
+                      }
                       return (
                         <div className="text-[11px] mt-1 space-y-1">
-                          <div className="text-green-700 dark:text-green-400">Beräknat: {dc.km} km enkel väg ({dc.label})</div>
+                          <div className="text-green-700 dark:text-green-400">Beräknat: {dc.km} km enkel väg — {dc.label}</div>
                           <div className="flex gap-1">
                             <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => patch(r.key, { kmQty: dc.km })}>
                               Använd {dc.km}

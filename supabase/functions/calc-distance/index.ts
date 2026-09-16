@@ -8,7 +8,7 @@ const corsHeaders = {
 type GeoHit = { lat: string; lon: string; label: string; precision: 'exakt' | 'gata' | 'omrade' };
 
 async function geocodePhoton(q: string): Promise<{ lat: string; lon: string; label: string } | null> {
-  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=default&bbox=10.5,55.0,24.5,69.5`;
+  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=default&bbox=10.5,55.0,24.5,69.5&lat=59.33&lon=18.06`;
   const res = await fetch(url, { headers: { 'User-Agent': 'N3prenad-CaseFlow/1.0 (n3prenad@smartklimat.org)' } });
   if (!res.ok) return null;
   const data = await res.json();
@@ -78,9 +78,11 @@ Deno.serve(async (req) => {
     const meters = route?.routes?.[0]?.distance;
     if (typeof meters !== 'number') throw new Error('Ingen rutt hittades mellan adresserna');
 
+    const kmOneWay = Math.round(meters / 1000);
     return new Response(JSON.stringify({
       ok: true,
-      km_one_way: Math.round(meters / 1000),
+      km_one_way: kmOneWay,
+      suspicious: kmOneWay > 150 ? true : undefined,
       from_resolved: a.label + precisionSuffix(a.precision),
       to_resolved: b.label + precisionSuffix(b.precision),
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
