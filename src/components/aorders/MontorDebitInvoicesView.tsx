@@ -110,7 +110,7 @@ export function MontorDebitInvoicesView() {
           <tr>
             <th className="px-3 py-2 text-left">Nr</th>
             <th className="px-3 py-2 text-left">Datum</th>
-            <th className="px-3 py-2 text-left">Montör (kund)</th>
+            <th className="px-3 py-2 text-left">Montör</th>
             <th className="px-3 py-2 text-left">Moms</th>
             <th className="px-3 py-2 text-right">Summa</th>
             <th className="px-3 py-2 text-left">Status</th>
@@ -126,7 +126,12 @@ export function MontorDebitInvoicesView() {
             const meta = STATUS[inv.status] || STATUS.sent;
             return (
               <tr key={inv.id} className="hover:bg-muted/30">
-                <td className="px-3 py-2 font-mono">{inv.invoice_number}</td>
+                <td className="px-3 py-2 font-mono">
+                  {inv.invoice_number}
+                  {inv.kind === 'self_billing' && (
+                    <Badge variant="outline" className="ml-2 font-sans text-[10px]">Självfaktura</Badge>
+                  )}
+                </td>
                 <td className="px-3 py-2">{inv.date}</td>
                 <td className="px-3 py-2">{inv.montor_teams?.company_name || inv.montor_teams?.name || '—'}</td>
                 <td className="px-3 py-2 text-xs">{inv.vat_mode === 'vanlig' ? '25%' : 'Omvänd'}</td>
