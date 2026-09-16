@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { EMAIL_MAP, MONTOR_PHONES } from '@/lib/constants';
 
-export interface MontorTeam { id: string; name: string; email: string | null; phone: string | null; is_active: boolean }
+export interface MontorTeam { id: string; name: string; email: string | null; phone: string | null; address: string | null; is_active: boolean }
 
 // Enda källan för montörsteam. Statiska kartor i constants.ts är endast fallback för äldre data.
 export function useMontorTeams() {
@@ -11,7 +11,7 @@ export function useMontorTeams() {
     queryKey: ['montor-teams-active'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from('montor_teams').select('id, name, email, phone, is_active')
+        .from('montor_teams').select('id, name, email, phone, address, is_active')
         .eq('is_active', true).order('name');
       if (error) throw error;
       return (data ?? []) as MontorTeam[];
