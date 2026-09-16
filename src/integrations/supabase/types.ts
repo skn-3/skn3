@@ -720,6 +720,7 @@ export type Database = {
           case_id: string | null
           created_at: string
           created_by: string | null
+          credited_from_invoice_id: string | null
           date: string
           description: string | null
           due_date: string | null
@@ -741,6 +742,7 @@ export type Database = {
           case_id?: string | null
           created_at?: string
           created_by?: string | null
+          credited_from_invoice_id?: string | null
           date?: string
           description?: string | null
           due_date?: string | null
@@ -762,6 +764,7 @@ export type Database = {
           case_id?: string | null
           created_at?: string
           created_by?: string | null
+          credited_from_invoice_id?: string | null
           date?: string
           description?: string | null
           due_date?: string | null
@@ -785,6 +788,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "montor_debit_invoices_credited_from_invoice_id_fkey"
+            columns: ["credited_from_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "montor_debit_invoices"
             referencedColumns: ["id"]
           },
           {

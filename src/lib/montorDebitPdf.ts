@@ -28,6 +28,7 @@ export interface BuildMontorDebitPdfArgs {
   vatAmount: number;
   total: number;
   logoDataUrl?: string | null;
+  isCredit?: boolean;
 }
 
 const DARK: [number, number, number] = [51, 51, 51];
@@ -43,7 +44,7 @@ function fmtKr(n: number) {
 }
 
 export function buildMontorDebitPdf(args: BuildMontorDebitPdfArgs): jsPDF {
-  const { invoiceNumber, date, dueDate, team, title, description, lines, vatMode, subtotal, vatAmount, total, logoDataUrl } = args;
+  const { invoiceNumber, date, dueDate, team, title, description, lines, vatMode, subtotal, vatAmount, total, logoDataUrl, isCredit } = args;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   const margin = 15;
   const pageW = 210;
@@ -70,9 +71,9 @@ export function buildMontorDebitPdf(args: BuildMontorDebitPdfArgs): jsPDF {
   doc.setTextColor(120, 120, 120);
   doc.text(date, pageW - margin, 14, { align: 'right' });
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(32);
+  doc.setFontSize(isCredit ? 22 : 32);
   doc.setTextColor(...DARK);
-  doc.text('FAKTURA', pageW - margin, 30, { align: 'right' });
+  doc.text(isCredit ? 'KREDITFAKTURA' : 'FAKTURA', pageW - margin, 30, { align: 'right' });
   doc.setFontSize(14);
   doc.text(`#${invoiceNumber}`, pageW - margin, 38, { align: 'right' });
   if (dueDate) {
@@ -189,7 +190,7 @@ export function buildMontorDebitPdf(args: BuildMontorDebitPdfArgs): jsPDF {
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.text('Att betala:', 150, sy + 2, { align: 'right' });
+  doc.text(isCredit ? 'Kreditbelopp:' : 'Att betala:', 150, sy + 2, { align: 'right' });
   doc.text(fmtKr(total), pageW - margin, sy + 2, { align: 'right' });
 
   // FOOTER left
@@ -197,12 +198,21 @@ export function buildMontorDebitPdf(args: BuildMontorDebitPdfArgs): jsPDF {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...DARK);
-  doc.text('BANKGIRO: 5032-4573', margin, fy);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text('SmartKlimat N3prenad AB | 559026-6630', margin, fy + 5);
-  doc.text('Betalningsvillkor: 10 dagar netto.', margin, fy + 10);
-  doc.text('Momsreg. nr SE559026663001  Godkänd för F-skatt', margin, fy + 15);
+  if (isCredit) {
+    doc.text('KREDITERING', margin, fy);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    let cy = fy + 5;
+    doc.splitTextToSize('Krediten kvittas i första hand mot kommande utbetalningar mellan parterna. Är originalfakturan redan reglerad sker återbetalning till SmartKlimat N3prenad, bankgiro 5032-4573.', pageW - margin * 2).forEach((ln: string) => { doc.text(ln, margin, cy); cy += 4; });
+    doc.text('SmartKlimat N3prenad AB | 559026-6630', margin, cy + 1);
+  } else {
+    doc.text('BANKGIRO: 5032-4573', margin, fy);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('SmartKlimat N3prenad AB | 559026-6630', margin, fy + 5);
+    doc.text('Betalningsvillkor: 10 dagar netto.', margin, fy + 10);
+    doc.text('Momsreg. nr SE559026663001  Godkänd för F-skatt', margin, fy + 15);
+  }
 
   // Bottom bar
   const barY = 282;

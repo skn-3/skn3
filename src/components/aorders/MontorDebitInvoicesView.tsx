@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, Send, Loader2, CheckCircle2, Ban } from 'lucide-react';
+import { FileText, Send, Loader2, CheckCircle2, Ban, Undo2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { createAndSendCreditInvoice } from '@/lib/debitInvoice';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -17,12 +20,16 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   sent: { label: 'Skickad', cls: 'bg-blue-500 hover:bg-blue-500/90 text-white' },
   paid: { label: 'Betald', cls: 'bg-green-600 hover:bg-green-600/90 text-white' },
   cancelled: { label: 'Makulerad', cls: 'bg-red-500 hover:bg-red-500/90 text-white' },
+  credited: { label: 'Krediterad', cls: 'bg-muted text-muted-foreground hover:bg-muted' },
 };
 
 export function MontorDebitInvoicesView() {
   const qc = useQueryClient();
   const { role } = useRole();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [creditTarget, setCreditTarget] = useState<any | null>(null);
+  const [creditReason, setCreditReason] = useState('');
+  const [creditBusy, setCreditBusy] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['montor_debit_invoices'],
@@ -106,7 +113,34 @@ export function MontorDebitInvoicesView() {
     qc.invalidateQueries({ queryKey: ['montor_debit_invoices'] });
   }
 
+  const numberById = useMemo(() => {
+    const m: Record<string, string> = {};
+    rows.forEach(r => { m[r.id] = r.invoice_number; });
+    return m;
+  }, [rows]);
+
+  async function doCredit() {
+    if (!creditTarget || !creditReason.trim()) return;
+    setCreditBusy(true);
+    try {
+      const res = await createAndSendCreditInvoice({
+        originalId: creditTarget.id,
+        reason: creditReason.trim(),
+        createdBy: role?.name || 'System',
+      });
+      toast.success(`Kreditfaktura ${res.invoice_number} skapad och skickad`);
+      setCreditTarget(null);
+      setCreditReason('');
+      qc.invalidateQueries({ queryKey: ['montor_debit_invoices'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte kreditera');
+    } finally {
+      setCreditBusy(false);
+    }
+  }
+
   return (
+    <>
     <div className="rounded-md border overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
@@ -134,6 +168,11 @@ export function MontorDebitInvoicesView() {
                   {inv.kind === 'self_billing' && (
                     <Badge variant="outline" className="ml-2 font-sans text-[10px]">Självfaktura</Badge>
                   )}
+                  {Number(inv.total) < 0 && (
+                    <div className="font-sans text-[10px] text-muted-foreground mt-0.5">
+                      Avser {numberById[inv.credited_from_invoice_id] || '—'}
+                    </div>
+                  )}
                 </td>
                 <td className="px-3 py-2">{inv.date}</td>
                 <td className="px-3 py-2">{inv.montor_teams?.company_name || inv.montor_teams?.name || '—'}</td>
@@ -157,6 +196,11 @@ export function MontorDebitInvoicesView() {
                         <Send className="h-3 w-3" />
                       </Button>
                     )}
+                    {role?.isAdmin && ['sent', 'paid'].includes(inv.status) && Number(inv.total) > 0 && !inv.credited_from_invoice_id && (
+                      <Button size="sm" variant="ghost" onClick={() => { setCreditTarget(inv); setCreditReason(''); }} title="Kreditera">
+                        <Undo2 className="h-3 w-3" />
+                      </Button>
+                    )}
                     {role?.isAdmin && inv.status === 'sent' && (
                       <>
                         <Button size="sm" variant="ghost" onClick={() => setStatus(inv, 'paid')} title="Markera betald" className="text-green-700">
@@ -175,5 +219,33 @@ export function MontorDebitInvoicesView() {
         </tbody>
       </table>
     </div>
+
+    <Dialog open={!!creditTarget} onOpenChange={(o) => { if (!o && !creditBusy) { setCreditTarget(null); setCreditReason(''); } }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Kreditera faktura {creditTarget?.invoice_number}</DialogTitle>
+          <DialogDescription>
+            {creditTarget?.montor_teams?.company_name || creditTarget?.montor_teams?.name || '—'} · {fmt(Number(creditTarget?.total || 0))}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Orsak till kreditering</label>
+          <Textarea
+            value={creditReason}
+            onChange={(e) => setCreditReason(e.target.value)}
+            placeholder="T.ex. fel antal km, dubbelfakturerad rad..."
+            rows={3}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setCreditTarget(null)} disabled={creditBusy}>Avbryt</Button>
+          <Button onClick={doCredit} disabled={creditBusy || !creditReason.trim()}>
+            {creditBusy && <Loader2 className="h-3 w-3 animate-spin mr-2" />}
+            Skapa & skicka kreditfaktura
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
