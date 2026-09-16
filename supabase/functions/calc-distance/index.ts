@@ -69,11 +69,7 @@ Deno.serve(async (req) => {
     if (!from?.trim() || !to?.trim()) throw new Error('Både från- och till-adress krävs');
 
     const a = await geocode(from.trim());
-    if (!a) throw new Error(`Hittade inte adressen: ${from}`);
-    // Nominatim vill ha max 1 anrop/sekund
-    await new Promise((r) => setTimeout(r, 1100));
     const b = await geocode(to.trim());
-    if (!b) throw new Error(`Hittade inte adressen: ${to}`);
 
     const routeUrl = `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`;
     const routeRes = await fetch(routeUrl);
