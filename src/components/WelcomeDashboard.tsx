@@ -420,6 +420,15 @@ function SellerDashboard({ name }: { name: string }) {
 
   const empty = visits.length === 0;
 
+  // Veckolistor för KPI-dialoger — samma veckodefinition som stats (startOfWeek).
+  const weekStart = startOfWeek(new Date());
+  const weekVisits = visits
+    .filter(v => new Date(v.date) >= weekStart)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const weekSigned = cases
+    .filter(c => c.created_at && new Date(c.created_at) >= weekStart)
+    .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
+
   // Zero-state encouragement (no visits this week)
   let zeroNudge: string | null = null;
   if (!empty && stats.visitsThisWeek === 0) {
