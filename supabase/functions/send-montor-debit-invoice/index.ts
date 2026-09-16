@@ -29,7 +29,7 @@ function buildCreditHtml(opts: { number: string; original: string; customer: str
 <tr><td style="padding:0 28px;">
 <p style="margin:8px 0;">Bifogad kreditfaktura krediterar faktura <strong>${esc(opts.original)}</strong>.</p>
 <p style="margin:8px 0;color:#374151;"><strong>Kreditbelopp:</strong> ${esc(opts.total)}</p>
-<p style="margin:8px 0;">${esc('${CREDIT}')}</p>
+<p style="margin:8px 0;">Krediten kvittas i första hand mot kommande utbetalningar mellan parterna. Är originalfakturan redan reglerad sker återbetalning till SmartKlimat N3prenad, bankgiro 5032-4573.</p>
 </td></tr>
 <tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/></td></tr>
 <tr><td style="padding:0 28px 24px;color:#6b7280;font-size:12px;">
