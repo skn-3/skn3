@@ -1208,23 +1208,44 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           </AlertDialog>
 
           {/* Timjustering efter KM — tydlig genväg */}
-          {isSeller && caseData.extra_hours_requested > 0 && caseData.extra_hours_approved === 0 && caseData.status === 'vantar_godkannande' && (
-            <div className="px-4 pt-2">
-              <Button
-                className="w-full bg-amber-500 text-white hover:bg-amber-600"
-                onClick={() => { setHoursSoldInput(String(caseData.extra_hours_requested ?? 0)); setHoursDialogOpen(true); }}
-              >
-                <Clock className="h-4 w-4 mr-2" />
-                Justera timmar ({caseData.extra_hours_requested} begärda)
-              </Button>
-            </div>
-          )}
+          {(() => {
+            const requestedMode = caseData.extra_hours_requested > 0 && caseData.extra_hours_approved === 0 && caseData.status === 'vantar_godkannande';
+            const manualStatuses = ['vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand'];
+            const showManual = !requestedMode && manualStatuses.includes(caseData.status);
+            if (!isSeller || (!requestedMode && !showManual)) return null;
+            const sold = caseData.extra_hours_sold ?? 0;
+            const approved = caseData.extra_hours_approved ?? 0;
+            const openDialog = () => {
+              setHoursSoldInput(String(requestedMode ? (caseData.extra_hours_requested ?? 0) : sold));
+              setHoursApprovedInput(String(approved));
+              setHoursDialogOpen(true);
+            };
+            return (
+              <div className="px-4 pt-2">
+                {requestedMode ? (
+                  <Button className="w-full bg-amber-500 text-white hover:bg-amber-600" onClick={openDialog}>
+                    <Clock className="h-4 w-4 mr-2" />
+                    Justera timmar ({caseData.extra_hours_requested} begärda)
+                  </Button>
+                ) : (
+                  <Button variant="outline" className="w-full" onClick={openDialog}>
+                    <Clock className="h-4 w-4 mr-2" />
+                    Justera timmar
+                    {(sold > 0 || approved > 0) && (
+                      <span className="ml-2 text-xs text-muted-foreground">({sold} sålda · {approved} godkända)</span>
+                    )}
+                  </Button>
+                )}
+              </div>
+            );
+          })()}
 
           <Dialog open={hoursDialogOpen} onOpenChange={setHoursDialogOpen}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Justera timmar</DialogTitle>
               </DialogHeader>
+              {caseData.extra_hours_requested > 0 && caseData.extra_hours_approved === 0 && caseData.status === 'vantar_godkannande' ? (
               <div className="space-y-3">
                 <div className="rounded-md bg-amber-500/10 p-3 text-sm">
                   Montören har begärt <strong>{caseData.extra_hours_requested} timmar</strong>.
@@ -1271,6 +1292,54 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   </Button>
                 </div>
               </div>
+              ) : (() => {
+                const soldNum = Math.max(0, Math.floor(Number(hoursSoldInput) || 0));
+                const apprNum = Math.max(0, Math.floor(Number(hoursApprovedInput) || 0));
+                const result = (soldNum - apprNum) * HOUR_RATE;
+                return (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Sålda timmar mot kund</Label>
+                      <Input type="number" min={0} value={hoursSoldInput} onChange={(e) => setHoursSoldInput(e.target.value)} />
+                      <p className="text-sm text-muted-foreground">
+                        {(soldNum * HOUR_RATE).toLocaleString('sv-SE')} kr ex moms
+                        <span className="text-xs"> ({HOUR_RATE} kr/tim)</span>
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Godkända timmar (ersättning montör)</Label>
+                      <Input type="number" min={0} value={hoursApprovedInput} onChange={(e) => setHoursApprovedInput(e.target.value)} />
+                      <p className="text-sm text-muted-foreground">
+                        {(apprNum * HOUR_RATE).toLocaleString('sv-SE')} kr ex moms
+                        <span className="text-xs"> ({HOUR_RATE} kr/tim)</span>
+                      </p>
+                    </div>
+                    <div className={`rounded-md p-3 text-sm font-medium ${result >= 0 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'}`}>
+                      Resultat extra timmar: {result.toLocaleString('sv-SE')} kr
+                    </div>
+                    <div className="flex justify-end pt-1">
+                      <Button
+                        disabled={adjustHoursMutation.isPending}
+                        onClick={async () => {
+                          if (Number(hoursSoldInput) < 0 || Number(hoursApprovedInput) < 0) {
+                            toast.error('Timmar kan inte vara negativa');
+                            return;
+                          }
+                          if (soldNum !== (caseData.extra_hours_sold ?? 0)) {
+                            await adjustHoursMutation.mutateAsync({ field: 'extra_hours_sold', newValue: soldNum });
+                          }
+                          if (apprNum !== (caseData.extra_hours_approved ?? 0)) {
+                            await adjustHoursMutation.mutateAsync({ field: 'extra_hours_approved', newValue: apprNum });
+                          }
+                          setHoursDialogOpen(false);
+                        }}
+                      >
+                        Spara
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </DialogContent>
           </Dialog>
 
