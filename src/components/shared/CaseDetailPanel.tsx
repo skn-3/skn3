@@ -1591,6 +1591,40 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             )}
           </section>
 
+          {/* Ordernoteringar (läsläge) — flikarna finns även i redigeringsläget ovan */}
+          {(isSeller || isCoordinator) && (
+          <section className="p-4 space-y-2 border-t">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Ordernoteringar</h3>
+              {!editingCase && (
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={openEdit} aria-label="Redigera ordernoteringar">
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+            <Tabs defaultValue="saljare">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="saljare">Säljare</TabsTrigger>
+                <TabsTrigger value="montor">Montör</TabsTrigger>
+              </TabsList>
+              <TabsContent value="saljare" className="mt-2">
+                {caseData.notes && String(caseData.notes).trim() !== '' ? (
+                  <p className="text-sm whitespace-pre-wrap">{caseData.notes}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Inga noteringar ännu</p>
+                )}
+              </TabsContent>
+              <TabsContent value="montor" className="mt-2">
+                {((caseData as any).montor_notes) && String((caseData as any).montor_notes).trim() !== '' ? (
+                  <p className="text-sm whitespace-pre-wrap">{(caseData as any).montor_notes}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Inga noteringar ännu</p>
+                )}
+              </TabsContent>
+            </Tabs>
+          </section>
+          )}
+
           {/* EKONOMI (intäkt / kostnad / vinst) — A-ordrarna listas i A-ORDER-sektionen nedan. */}
           {!isCoordinator && (
           <section className="p-4 space-y-3 border-t">
