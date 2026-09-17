@@ -96,6 +96,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [hoursEdit, setHoursEdit] = useState<{ field: 'extra_hours_sold' | 'extra_hours_approved'; value: string } | null>(null);
   const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
   const [hoursSoldInput, setHoursSoldInput] = useState('');
+  const [hoursApprovedInput, setHoursApprovedInput] = useState('');
   const [editForm, setEditForm] = useState({
     order_value: caseData.order_value != null ? String(caseData.order_value) : '',
     tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
