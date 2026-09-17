@@ -663,8 +663,9 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                 <div className="space-y-1.5">
                   <Label>KM-montör (valfritt)</Label>
                   <Select
-                    value={form.km_team || '__none__'}
+                    value={(isGotland ? CONGARD_TEAM : form.km_team) || '__none__'}
                     onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}
+                    disabled={isGotland}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Ingen vald" />
@@ -678,12 +679,16 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
+                  {isGotland && (
+                    <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Montage-montör (valfritt)</Label>
                   <Select
-                    value={form.team || '__none__'}
+                    value={(isGotland ? CONGARD_TEAM : form.team) || '__none__'}
                     onValueChange={(v) => update('team', v === '__none__' ? '' : v)}
+                    disabled={isGotland}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Ingen vald" />
@@ -697,6 +702,9 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
+                  {isGotland && (
+                    <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label>Google Drive-länk</Label>
