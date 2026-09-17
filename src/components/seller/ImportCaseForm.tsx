@@ -213,7 +213,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   };
 
   const aiClass = (key: string) =>
-    aiFilled.has(key) ? 'bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-800' : '';
+    aiFilled.has(key) ? 'bg-green-50 dark:bg-green-950/40 border-green-300 dark:bg-green-950/30 dark:border-green-800' : '';
 
   const [form, setForm] = useState({
     customer_name: '',

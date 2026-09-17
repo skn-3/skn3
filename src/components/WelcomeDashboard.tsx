@@ -502,7 +502,7 @@ function SellerDashboard({ name }: { name: string }) {
                   <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Väntar på svar</div>
                   <div className="text-3xl font-bold mt-2 text-foreground"><CountUp value={offerStats.waitingCount} /></div>
                 </Card>
-                <Card className={offerStats.expiringSoonCount > 0 ? 'border-orange-300 bg-orange-50/50 dark:bg-orange-950/20' : ''}>
+                <Card className={offerStats.expiringSoonCount > 0 ? 'border-orange-300 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/40 dark:bg-orange-950/20' : ''}>
                   <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Går ut inom 3 dagar</div>
                   <div className={`text-3xl font-bold mt-2 ${offerStats.expiringSoonCount > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-foreground'}`}>
                     <CountUp value={offerStats.expiringSoonCount} />
@@ -594,10 +594,10 @@ function SellerDashboard({ name }: { name: string }) {
             {/* Veckostreak visas via InsightsLayer (streak_weeks_signed) för att undvika dubblett. */}
 
             {stats.followUps > 0 && (
-              <Card className="border-orange-300 bg-orange-50/50 dark:bg-orange-950/20">
+              <Card className="border-orange-300 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/40 dark:bg-orange-950/20">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-6 w-6 text-orange-600" />
+                    <Calendar className="h-6 w-6 text-orange-600 dark:text-orange-400" />
                     <div>
                       <div className="font-bold"><CountUp value={stats.followUps} /> återkopplingar väntar</div>
                       <div className="text-xs text-muted-foreground">Idag eller försenade</div>
@@ -818,9 +818,9 @@ function MontorDashboard({ name }: { name: string }) {
         )}
 
         {stats.openDeviations > 0 && (
-          <Card className="border-orange-300">
+          <Card className="border-orange-300 dark:border-orange-800">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="h-6 w-6 text-orange-600" />
+              <AlertTriangle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
               <div>
                 <div className="font-bold"><CountUp value={stats.openDeviations} /> öppna avvikelser</div>
                 <div className="text-xs text-muted-foreground">På dina jobb</div>
@@ -831,9 +831,9 @@ function MontorDashboard({ name }: { name: string }) {
       </div>
 
       {(stats.carryWarnings.length > 0 || stats.scheduledWarnings.length > 0) && (
-        <Card className="border-amber-300 bg-amber-50/50 dark:bg-amber-950/20">
+        <Card className="border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/40 dark:bg-amber-950/20">
           <div className="font-semibold mb-2 flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-600" /> Förvarningar
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" /> Förvarningar
           </div>
           <ul className="space-y-1 text-sm">
             {stats.carryWarnings.map((u, i) => (

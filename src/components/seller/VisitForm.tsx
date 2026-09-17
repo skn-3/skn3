@@ -520,7 +520,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
             value="aterkoppla"
             icon={RefreshCcw}
             label="Återkoppla"
-            activeClass="border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+            activeClass="border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-300 dark:text-amber-400"
           />
           <ResultButton
             value="nej"

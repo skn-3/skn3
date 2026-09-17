@@ -36,7 +36,7 @@ export function KlimatKompenseradBadge({ caseId, compact }: Props) {
   if (compact) {
     return (
       <span
-        className="inline-flex items-center gap-1 rounded-full border border-green-300 bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800"
+        className="inline-flex items-center gap-1 rounded-full border border-green-300 dark:border-green-800 bg-green-100 dark:bg-green-900/40 px-2 py-0.5 text-[10px] font-medium text-green-800 dark:text-green-300"
         title={`Klimatkompenserad · ${comp.tree_count} träd`}
       >
         <TreePine className="h-3 w-3" />
@@ -54,7 +54,7 @@ export function KlimatKompenseradBadge({ caseId, compact }: Props) {
         href={proofUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-xs text-green-700 hover:underline inline-flex items-center gap-1"
+        className="text-xs text-green-700 dark:text-green-300 hover:underline inline-flex items-center gap-1"
         onClick={(e) => e.stopPropagation()}
       >
         Visa bevis <ExternalLink className="h-3 w-3" />

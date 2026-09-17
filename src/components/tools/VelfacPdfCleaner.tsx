@@ -169,7 +169,7 @@ export function VelfacPdfCleaner() {
                   ))}
                 </ul>
                 {!result.villkorCheck && (
-                  <div className="text-xs text-amber-700">OBS: villkorssidan kunde inte auto-detekteras på den här enheten — bläddra igenom resultatet innan du skickar det.</div>
+                  <div className="text-xs text-amber-700 dark:text-amber-300">OBS: villkorssidan kunde inte auto-detekteras på den här enheten — bläddra igenom resultatet innan du skickar det.</div>
                 )}
               </div>
               <div className="flex gap-2">

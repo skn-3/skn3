@@ -340,9 +340,9 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
 
   const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
     draft: { label: 'Utkast', cls: 'bg-muted text-muted-foreground' },
-    sent: { label: 'Skickad', cls: 'bg-blue-100 text-blue-800' },
-    accepted: { label: 'Accepterad', cls: 'bg-green-100 text-green-800' },
-    declined: { label: 'Avböjd', cls: 'bg-red-100 text-red-800' },
+    sent: { label: 'Skickad', cls: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300' },
+    accepted: { label: 'Accepterad', cls: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300' },
+    declined: { label: 'Avböjd', cls: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300' },
   };
   const statusMeta = STATUS_BADGE[currentStatus] || STATUS_BADGE.draft;
 
@@ -373,14 +373,14 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
               <div className="text-muted-foreground">Skapad: {new Date((offer as any).created_at).toLocaleString('sv-SE')}</div>
               {offer.sent_at && <div className="text-muted-foreground">Skickad till kund: {new Date(offer.sent_at).toLocaleString('sv-SE')}</div>}
               {offer.accepted_at && (
-                <div className="text-green-700">
+                <div className="text-green-700 dark:text-green-300">
                   Accepterad: {new Date(offer.accepted_at).toLocaleString('sv-SE')} av {offer.accept_name || '—'}
                   {(offer as any).accept_ip ? ` · IP ${(offer as any).accept_ip}` : ''}
                   {(offer as any).accept_user_agent ? ` · ${String((offer as any).accept_user_agent).slice(0, 60)}...` : ''}
                 </div>
               )}
               {(offer as any).declined_at && (
-                <div className="text-red-700">
+                <div className="text-red-700 dark:text-red-300">
                   Avböjd: {new Date((offer as any).declined_at).toLocaleString('sv-SE')}
                   {(offer as any).decline_name ? ` av ${(offer as any).decline_name}` : ''}
                   {(offer as any).decline_reason ? ` — "${(offer as any).decline_reason}"` : ''}
@@ -389,7 +389,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
               {offer.signed_pdf_path && (
                 <button
                   type="button"
-                  className="underline text-green-700 hover:text-green-900 mt-1"
+                  className="underline text-green-700 dark:text-green-300 hover:text-green-900 mt-1"
                   onClick={() => openDocumentInNewTab(async () => {
                     const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(offer.signed_pdf_path!, 3600, { download: offerFileName(offer as any, 'avtal') });
                     if (error || !data?.signedUrl) { toast.error('Kunde inte öppna avtalet'); return null; }
@@ -404,7 +404,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
           {currentStatus === 'accepted' && (
             <div className="flex flex-wrap items-center gap-2 text-xs">
               {uppdragInfo ? (
-                <span className="inline-flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-1.5">
+                <span className="inline-flex items-center gap-2 text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-md px-3 py-1.5">
                   <Briefcase className="h-3.5 w-3.5" />
                   Uppdrag skapat: <strong>{uppdragInfo.uppdrag_number || uppdragInfo.id.slice(0, 8)}</strong>
                 </span>
@@ -497,7 +497,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
                 </div>
 
                 {ueTotalExcl != null && Math.abs(ueSumExcl - ueTotalExcl) > 1 && (
-                  <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <div className="flex items-start gap-2 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                     <span>
                       Raderna summerar till {fmtKr(ueSumExcl)}, men UE-offerten anger {fmtKr(ueTotalExcl)}
@@ -543,7 +543,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
                   <div className="text-xs text-muted-foreground">
                     UE ex moms <span className="font-medium text-foreground tabular-nums">{fmtKr(ueSumExcl)}</span> · påslag {markupPercent}% · ditt pris ex moms <span className="font-medium text-foreground tabular-nums">{fmtKr(ueSumCustomer)}</span>
                     {' · '}
-                    <span className="font-semibold text-green-600">
+                    <span className="font-semibold text-green-600 dark:text-green-400">
                       vår vinst {fmtKr(ueSumCustomer - ueSumExcl)} kr
                     </span>
                     <span className="text-muted-foreground">
@@ -801,7 +801,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
                   <div className="flex justify-between text-primary"><span>Preliminärt ROT-avdrag ({rotPercent}%)</span><span className="tabular-nums">−{fmtKr(totals.rot_amount)}</span></div>
                   <div className="flex justify-between font-semibold text-primary text-base pt-1"><span>Total ordersumma efter ROT</span><span className="tabular-nums">{fmtKr(totals.total_after_rot)}</span></div>
                   {totals.rot_amount > 50000 && (
-                    <div className="flex items-start gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2 mt-2 text-xs">
+                    <div className="flex items-start gap-2 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md p-2 mt-2 text-xs">
                       <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                       <span>ROT-avdraget överstiger 50 000 kr/person/år – kontrollera att kunden har avdragsutrymme.</span>
                     </div>

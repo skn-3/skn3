@@ -349,7 +349,7 @@ export function MontorLitteraSection({
                 <div><span className="text-muted-foreground">Tillbehör:</span> {till.length}</div>
               </div>
               {diff.length > 0 && (
-                <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 flex items-center gap-1">
+                <div className="mt-2 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded px-2 py-1 flex items-center gap-1">
                   <Pencil className="h-3 w-3" /> Ändrat: {diff.join(', ')}
                 </div>
               )}
@@ -371,12 +371,12 @@ export function MontorLitteraSection({
         </Button>
       )}
       {allSubmitted && (
-        <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800 flex items-center gap-2">
+        <div className="rounded-lg border border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950/40 p-3 text-sm text-green-800 dark:text-green-300 flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4" /> Inskickad till kontoret. Du kan fortfarande justera och skicka in på nytt vid behov.
         </div>
       )}
       {allHandled && (
-        <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800 flex items-center gap-2">
+        <div className="rounded-lg border border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950/40 p-3 text-sm text-green-800 dark:text-green-300 flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4" /> Kontoret har hanterat alla ändringar.
         </div>
       )}

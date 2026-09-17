@@ -119,7 +119,7 @@ export function AOrderPricesAdmin() {
               </>
             ))}
             {newP && (
-              <tr className="border-t bg-amber-50">
+              <tr className="border-t bg-amber-50 dark:bg-amber-950/40">
                 <td className="p-2"><Input className="h-8" placeholder="Namn *" value={newP.name} onChange={e => setNewP({ ...newP, name: e.target.value })} /></td>
                 <td className="p-2"><Input className="h-8 w-28" type="number" step="0.01" value={newP.price} onChange={e => setNewP({ ...newP, price: Number(e.target.value) || 0 })} /></td>
                 <td className="p-2"><Input className="h-8 w-40" placeholder="Kategori" value={newP.category || ''} onChange={e => setNewP({ ...newP, category: e.target.value })} /></td>

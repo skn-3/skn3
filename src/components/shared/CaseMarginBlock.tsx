@@ -35,12 +35,12 @@ export function CaseMarginBlock({ caseId, orderValue }: { caseId: string; orderV
   const otherCost = eco.cost - eco.montorCost - eco.sheetCost;
 
   const tone = !eco.hasMontor
-    ? 'border-amber-200 bg-amber-50/50'
+    ? 'border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/40'
     : profit < 0
-      ? 'border-red-200 bg-red-50/50'
+      ? 'border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/40'
       : marginPct != null && marginPct < 15
-        ? 'border-amber-200 bg-amber-50/50'
-        : 'border-emerald-200 bg-emerald-50/50';
+        ? 'border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/40'
+        : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/40';
 
   return (
     <div className={`rounded-lg border p-4 space-y-3 ${tone}`}>
@@ -64,12 +64,12 @@ export function CaseMarginBlock({ caseId, orderValue }: { caseId: string; orderV
         <div className="col-span-2">
           <p className="text-slate-500 text-xs">Marginal</p>
           {eco.hasMontor ? (
-            <p className={`font-semibold text-base flex items-center gap-1 ${profit < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+            <p className={`font-semibold text-base flex items-center gap-1 ${profit < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
               {profit < 0 ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
               {kr(profit)}{marginPct != null ? ` (${marginPct} %)` : ''}
             </p>
           ) : (
-            <p className="text-amber-600 text-sm font-medium flex items-center gap-1">
+            <p className="text-amber-600 dark:text-amber-400 text-sm font-medium flex items-center gap-1">
               <AlertTriangle className="w-4 h-4" />
               Montörskostnad saknas
             </p>

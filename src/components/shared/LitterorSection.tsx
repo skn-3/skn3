@@ -345,7 +345,7 @@ export function LitterorSection({ caseId, isAdmin, currentUser }: { caseId: stri
       </div>
 
       {inskickade > 0 && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
           {inskickade} littera inskickade av montören — granska ändringarna nedan, för in dem i Mockfjärds KP och markera som hanterade.
         </div>
       )}
@@ -380,7 +380,7 @@ export function LitterorSection({ caseId, isAdmin, currentUser }: { caseId: stri
                 const isOpen = expanded.has(r.id);
                 return (
                   <Fragment key={r.id}>
-                    <TableRow className={r.cm_status === 'inskickad' ? 'bg-amber-50/50' : undefined}>
+                    <TableRow className={r.cm_status === 'inskickad' ? 'bg-amber-50/50 dark:bg-amber-950/40' : undefined}>
                       <TableCell className="w-8 p-2 align-top">
                         <button onClick={() => toggle(r.id)} className="p-1 rounded hover:bg-muted text-muted-foreground" aria-label="Visa detaljer">
                           {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -410,14 +410,14 @@ export function LitterorSection({ caseId, isAdmin, currentUser }: { caseId: stri
                         <div className="flex flex-col gap-0.5">
                           <Badge variant={st.variant}>{st.label}</Badge>
                           {hasChanges && r.cm_status !== 'ej_paborjad' && (
-                            <span className="text-[10px] font-medium text-amber-700">Ändringar</span>
+                            <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300">Ändringar</span>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
                           {(r.cm_status === 'inskickad' || r.cm_status === 'justerad') && (
-                            <Button size="sm" variant="outline" className="text-green-700 border-green-300 hover:bg-green-50" disabled={hanteradMutation.isPending} onClick={() => hanteradMutation.mutate(r)}>
+                            <Button size="sm" variant="outline" className="text-green-700 dark:text-green-300 border-green-300 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-950/60" disabled={hanteradMutation.isPending} onClick={() => hanteradMutation.mutate(r)}>
                               <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Hanterad
                             </Button>
                           )}
@@ -453,22 +453,22 @@ export function LitterorSection({ caseId, isAdmin, currentUser }: { caseId: stri
                         <TableCell colSpan={10} className="bg-muted/30">
                           <div className="space-y-3 py-1">
                             {hasChanges ? (
-                              <div className="rounded-md border border-amber-200 bg-amber-50/60 p-2 space-y-1.5">
-                                <div className="text-xs font-semibold text-amber-900">Montörens ändringar (original → ändrat)</div>
+                              <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/40 p-2 space-y-1.5">
+                                <div className="text-xs font-semibold text-amber-900 dark:text-amber-300">Montörens ändringar (original → ändrat)</div>
                                 {fieldChanges.map((c, i) => (
-                                  <div key={`f${i}`} className="text-xs text-amber-900">{c}</div>
+                                  <div key={`f${i}`} className="text-xs text-amber-900 dark:text-amber-300">{c}</div>
                                 ))}
                                 {tillChanges.map((c, i) => (
                                   <div key={`t${i}`} className="text-xs">
-                                    {c.kind === 'added' && <span className="text-green-700 font-medium">Tillagt: {c.label}</span>}
-                                    {c.kind === 'removed' && <span className="text-red-700 font-medium">Borttaget: {c.label}</span>}
+                                    {c.kind === 'added' && <span className="text-green-700 dark:text-green-300 font-medium">Tillagt: {c.label}</span>}
+                                    {c.kind === 'removed' && <span className="text-red-700 dark:text-red-300 font-medium">Borttaget: {c.label}</span>}
                                     {c.kind === 'changed' && (
-                                      <span className="text-amber-900"><span className="font-medium">{c.label}</span> — {c.details?.join('; ')}</span>
+                                      <span className="text-amber-900 dark:text-amber-300"><span className="font-medium">{c.label}</span> — {c.details?.join('; ')}</span>
                                     )}
                                   </div>
                                 ))}
                                 {r.montor_note && r.montor_note.trim() && (
-                                  <div className="text-xs text-amber-900"><span className="font-medium">Övriga justeringar:</span> {r.montor_note}</div>
+                                  <div className="text-xs text-amber-900 dark:text-amber-300"><span className="font-medium">Övriga justeringar:</span> {r.montor_note}</div>
                                 )}
                               </div>
                             ) : (

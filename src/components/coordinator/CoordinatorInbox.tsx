@@ -47,7 +47,7 @@ function PhoneLink({ phone }: { phone: string | null }) {
     <a
       href={`tel:${clean}`}
       onClick={(e) => e.stopPropagation()}
-      className="inline-flex items-center gap-1.5 text-base md:text-lg font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+      className="inline-flex items-center gap-1.5 text-base md:text-lg font-bold text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 hover:underline"
     >
       <Phone className="h-4 w-4" />
       {phone}
@@ -271,7 +271,7 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
                     key={d.id}
                     className={cn(
                       'rounded-xl border bg-card p-4 shadow-sm space-y-2',
-                      old && 'border-red-300 bg-red-50/50'
+                      old && 'border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/40'
                     )}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
@@ -354,9 +354,9 @@ function Section({
   title, count, emptyText, tone, children,
 }: { title: string; count: number; emptyText: string; tone: 'amber' | 'blue' | 'red'; children: React.ReactNode }) {
   const toneClass =
-    tone === 'amber' ? 'bg-amber-100 text-amber-800' :
-    tone === 'blue' ? 'bg-blue-100 text-blue-800' :
-    'bg-red-100 text-red-800';
+    tone === 'amber' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' :
+    tone === 'blue' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300' :
+    'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300';
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-3">
@@ -366,7 +366,7 @@ function Section({
         </span>
       </div>
       {count === 0 ? (
-        <div className="rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 p-6 text-center text-emerald-700">
+        <div className="rounded-xl border-2 border-dashed border-emerald-200 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/40 p-6 text-center text-emerald-700 dark:text-emerald-300">
           <Check className="h-6 w-6 inline-block mr-1.5" />
           {emptyText}
         </div>

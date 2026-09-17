@@ -124,7 +124,7 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
         <div className="space-y-3 text-sm">
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div><span className="text-muted-foreground">Mottagare:</span> <strong>{recipient || '— saknas —'}</strong></div>
-            <div><span className="text-muted-foreground">Fakturanummer:</span> <strong className="text-green-700">{invoiceNumber}</strong></div>
+            <div><span className="text-muted-foreground">Fakturanummer:</span> <strong className="text-green-700 dark:text-green-300">{invoiceNumber}</strong></div>
             <div><span className="text-muted-foreground">Kund:</span> <strong>{order?.customer_name || '—'}</strong></div>
             <div><span className="text-muted-foreground">Adress:</span> <strong>{order?.customer_address}</strong></div>
           </div>
@@ -149,16 +149,16 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
             </div>
             <div className="px-3 py-2 border-t flex items-center justify-between bg-muted/30">
               <span className="text-sm text-muted-foreground">Totalt</span>
-              <span className="text-base font-semibold text-green-700">{fmt(total)}</span>
+              <span className="text-base font-semibold text-green-700 dark:text-green-300">{fmt(total)}</span>
             </div>
           </div>
         </div>
         <DialogFooter className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           {!team && (
-            <div className="text-xs text-red-600 sm:mr-auto">Ordern saknar montörsteam — tilldela först.</div>
+            <div className="text-xs text-red-600 dark:text-red-400 sm:mr-auto">Ordern saknar montörsteam — tilldela först.</div>
           )}
           {team && !recipient && (
-            <div className="text-xs text-red-600 sm:mr-auto">Teamet saknar e-post (fyll i under Admin → Montörsteam).</div>
+            <div className="text-xs text-red-600 dark:text-red-400 sm:mr-auto">Teamet saknar e-post (fyll i under Admin → Montörsteam).</div>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Avbryt</Button>
           <Button onClick={go} disabled={busy || !team || !recipient || lines.length === 0} className="bg-green-600 hover:bg-green-700">

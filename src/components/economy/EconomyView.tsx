@@ -531,7 +531,7 @@ export function EconomyView() {
                             <div>Montörsbetalning: {fmtKr(e.costBreakdown.montor)}</div>
                             <div>Egna kostnader (case_costs): {fmtKr(e.costBreakdown.caseCosts)}</div>
                             {(e.costBreakdown.reklMontor + e.costBreakdown.reklOvrig) > 0 && (
-                              <div className="text-amber-700 dark:text-amber-400 font-medium">
+                              <div className="text-amber-700 dark:text-amber-300 dark:text-amber-400 font-medium">
                                 Reklamationskostnader: {fmtKr(e.costBreakdown.reklMontor + e.costBreakdown.reklOvrig)}
                                 <span className="ml-1 text-xs font-normal">(varav montörsansvar: {fmtKr(e.costBreakdown.reklMontor)})</span>
                               </div>
@@ -728,7 +728,7 @@ export function EconomyView() {
               ({entreprenad.marginPct == null ? '–' : fmtPct(entreprenad.marginPct)})
             </div>
           </Card>
-          <Card className={`p-4 ${entreprenad.unbilledCount > 0 ? 'border-orange-400 bg-orange-50/60 dark:bg-orange-950/20' : ''}`}>
+          <Card className={`p-4 ${entreprenad.unbilledCount > 0 ? 'border-orange-400 bg-orange-50/60 dark:bg-orange-950/40 dark:bg-orange-950/20' : ''}`}>
             <div className="text-xs text-muted-foreground">Ofakturerat</div>
             <div className={`text-2xl font-semibold mt-1 ${entreprenad.unbilledCount > 0 ? 'text-orange-600 dark:text-orange-400' : ''}`}>
               {entreprenad.unbilledCount} st

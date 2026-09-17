@@ -10,20 +10,20 @@ interface Props {
 }
 
 const statusColor: Record<string, string> = {
-  ny: 'bg-blue-100 text-blue-800',
-  vantar_km: 'bg-yellow-100 text-yellow-800',
-  km_bokad: 'bg-sky-100 text-sky-800',
-  km_klar: 'bg-teal-100 text-teal-800',
-  vantar_godkannande: 'bg-orange-100 text-orange-800',
-  godkand: 'bg-emerald-100 text-emerald-800',
-  i_produktion: 'bg-indigo-100 text-indigo-800',
-  leverans_klar: 'bg-purple-100 text-purple-800',
-  montage_bokat: 'bg-green-100 text-green-800',
-  montage_pagar: 'bg-indigo-100 text-indigo-800',
-  montage_klart: 'bg-green-200 text-green-900',
+  ny: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300',
+  vantar_km: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300',
+  km_bokad: 'bg-sky-100 dark:bg-sky-900/40 text-sky-800 dark:text-sky-300',
+  km_klar: 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-300',
+  vantar_godkannande: 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300',
+  godkand: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300',
+  i_produktion: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300',
+  leverans_klar: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300',
+  montage_bokat: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300',
+  montage_pagar: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300',
+  montage_klart: 'bg-green-200 text-green-900 dark:text-green-300',
 
   fakturerad: 'bg-muted text-muted-foreground',
-  pausad: 'bg-red-100 text-red-800',
+  pausad: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300',
 };
 
 export function MontorCaseList({ cases, unresolvedDeviationCaseIds, onSelect }: Props) {
@@ -64,7 +64,7 @@ export function MontorCaseList({ cases, unresolvedDeviationCaseIds, onSelect }: 
                 )}
               </div>
               {hasDeviation && (
-                <div className="flex items-center gap-1 text-amber-600 text-xs font-medium mt-1">
+                <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs font-medium mt-1">
                   <AlertTriangle className="h-3.5 w-3.5" /> Öppen reklamation
                 </div>
               )}
