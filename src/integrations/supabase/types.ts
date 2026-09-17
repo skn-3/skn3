@@ -416,6 +416,7 @@ export type Database = {
           media_consent: boolean
           montage_date: string | null
           montage_time: string | null
+          montor_notes: string | null
           notes: string | null
           offer_number: string | null
           order_number: string | null
@@ -455,6 +456,7 @@ export type Database = {
           media_consent?: boolean
           montage_date?: string | null
           montage_time?: string | null
+          montor_notes?: string | null
           notes?: string | null
           offer_number?: string | null
           order_number?: string | null
@@ -494,6 +496,7 @@ export type Database = {
           media_consent?: boolean
           montage_date?: string | null
           montage_time?: string | null
+          montor_notes?: string | null
           notes?: string | null
           offer_number?: string | null
           order_number?: string | null
@@ -595,6 +598,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "deviations_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      future_jobs: {
+        Row: {
+          address: string | null
+          case_id: string | null
+          contact_date: string
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          description: string
+          id: string
+          phone: string | null
+          reminded_at: string | null
+          seller: string
+          status: string
+        }
+        Insert: {
+          address?: string | null
+          case_id?: string | null
+          contact_date: string
+          created_at?: string
+          created_by?: string | null
+          customer_name: string
+          description: string
+          id?: string
+          phone?: string | null
+          reminded_at?: string | null
+          seller: string
+          status?: string
+        }
+        Update: {
+          address?: string | null
+          case_id?: string | null
+          contact_date?: string
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string
+          description?: string
+          id?: string
+          phone?: string | null
+          reminded_at?: string | null
+          seller?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "future_jobs_case_id_fkey"
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
