@@ -80,6 +80,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
     .sort((a, b) => a.label.localeCompare(b.label, 'sv'));
 
   const cases = allCases.filter((c) => {
+    if (!hasRealSeller(c as any)) return false;
     if (filterSeller !== 'all' && c.seller !== filterSeller) return false;
     if (filterMontor !== 'all' && c.team !== filterMontor) return false;
     if (filterCity !== 'all' && getCaseCityKeyLocal(c as any) !== filterCity) return false;
