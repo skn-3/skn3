@@ -234,8 +234,9 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
           extra_hours_sold: Number(form.extra_hours_sold) || 0,
           units: form.units !== '' ? Math.max(0, Math.floor(Number(form.units))) : null,
-          team: form.team || null,
-          km_team: form.km_team || null,
+          team: effectiveTeam,
+          km_team: effectiveKmTeam,
+          is_gotland: isGotland,
           google_drive_link: form.google_drive_link || null,
           notes: form.notes || null,
           seller: sellerName,
@@ -288,15 +289,15 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       await createCaseEvent({
         case_id: newCase.id,
         event_type: 'status_change',
-        description: `Ärende skapat, tilldelad montör: ${form.team || 'Ej tilldelad'}`,
+        description: `Ärende skapat, tilldelad montör: ${effectiveTeam || 'Ej tilldelad'}`,
         created_by: sellerName,
       });
 
       // 4) Montörmail
-      if (form.team && montorEmailOf(form.team)) {
+      if (effectiveTeam && montorEmailOf(effectiveTeam)) {
         try {
           await sendNotificationEmail({
-            to: montorEmailOf(form.team),
+            to: montorEmailOf(effectiveTeam),
             subject: `NYTT ÄRENDE — ${form.address}`,
             body: `
               <h2>Nytt ärende tilldelat</h2>
