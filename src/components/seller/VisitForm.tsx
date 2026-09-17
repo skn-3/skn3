@@ -314,7 +314,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           await createCaseEvent({
             case_id: newCase.id,
             event_type: 'notification',
-            description: `Mail skickat till ${montorEmailOf(form.team)} (nytt ärende)`,
+            description: `Mail skickat till ${montorEmailOf(effectiveTeam!)} (nytt ärende)`,
             created_by: sellerName,
           });
         } catch (emailErr) {
@@ -493,6 +493,11 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+          {isGotland && (
+            <div className="mt-2">
+              <GotlandBadge />
             </div>
           )}
           {existingCase && (
