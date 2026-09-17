@@ -181,12 +181,18 @@ Deno.serve(async (req) => {
 
     // Helper filters
     const inRange = (d: string, s: string, e: string) => d >= s && d < e;
-    const weekCases = allCases.filter(c => inRange(c.created_at, wkStart, wkEnd));
-    const prevWeekCases = allCases.filter(c => inRange(c.created_at, prevStart, prevEnd));
+    // Säljstatistik räknar endast ärenden med en riktig säljare
+    const hasRealSeller = (c: any) => {
+      const sv = (c?.seller ?? '').trim();
+      return !!sv && sv.toLowerCase() !== 'okänd';
+    };
+    const statCases = allCases.filter(hasRealSeller);
+    const weekCases = statCases.filter(c => inRange(c.created_at, wkStart, wkEnd));
+    const prevWeekCases = statCases.filter(c => inRange(c.created_at, prevStart, prevEnd));
     const weekVisits = allVisits.filter(v => inRange(v.date, wkStart.slice(0, 10), wkEnd.slice(0, 10)));
     const prevWeekVisits = allVisits.filter(v => inRange(v.date, prevStart.slice(0, 10), prevEnd.slice(0, 10)));
-    const monthCases = allCases.filter(c => c.created_at >= mStart);
-    const ytdCases = allCases.filter(c => c.created_at >= yStart);
+    const monthCases = statCases.filter(c => c.created_at >= mStart);
+    const ytdCases = statCases.filter(c => c.created_at >= yStart);
     const weekDevs = allDevs.filter(d => inRange(d.created_at, wkStart, wkEnd));
     const unresolvedDevs = allDevs.filter(d => !d.resolved);
 
