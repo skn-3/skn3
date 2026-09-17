@@ -428,7 +428,7 @@ export function KmPayoutView({ currentUser }: Props) {
         </div>
         <div className="flex items-center gap-3">
           {missing > 0 && (
-            <span className="text-xs text-amber-600">{missing} kundrader saknar ärendeval eller montör.</span>
+            <span className="text-xs text-amber-600 dark:text-amber-400">{missing} kundrader saknar ärendeval eller montör.</span>
           )}
           <Button variant="ghost" onClick={reset} disabled={busy}>Avbryt</Button>
           <Button onClick={book} disabled={busy || missing > 0} className="gap-2">
@@ -472,7 +472,7 @@ export function KmPayoutView({ currentUser }: Props) {
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">Km</div>
                   {editable ? (
-                    <div className={`rounded-md ${schablon ? 'bg-yellow-100 dark:bg-yellow-900/30' : ''}`}>
+                    <div className={`rounded-md ${schablon ? 'bg-yellow-100 dark:bg-yellow-900/40 dark:bg-yellow-900/30' : ''}`}>
                       <Input
                         type="number"
                         className="h-8"
@@ -484,7 +484,7 @@ export function KmPayoutView({ currentUser }: Props) {
                     <div className="h-8 flex items-center text-muted-foreground">—</div>
                   )}
                   {schablon && (
-                    <div className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
+                    <div className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" /> Schablon 100 km? Verifiera verklig körsträcka.
                     </div>
                   )}
@@ -495,7 +495,7 @@ export function KmPayoutView({ currentUser }: Props) {
                     if (!r.teamId || !hasCase) return null;
                     if (!team?.address) {
                       return (
-                        <div className="text-[11px] text-amber-600 mt-1">
+                        <div className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
                           Teamet saknar utgångsadress — lägg in den under Montörsteam.
                         </div>
                       );
@@ -510,7 +510,7 @@ export function KmPayoutView({ currentUser }: Props) {
                     if (dc?.status === 'done' && dc.km != null) {
                       if (dc.suspicious) {
                         return (
-                          <div className="text-[11px] text-amber-600 mt-1 space-y-1">
+                          <div className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 space-y-1">
                             <div className="flex items-center gap-1">
                               <AlertTriangle className="h-3 w-3" />
                               Orimligt långt ({dc.km} km) — ärendets adress saknar troligen ort. Komplettera adressen på ärendet och tryck Försök igen.
@@ -522,7 +522,7 @@ export function KmPayoutView({ currentUser }: Props) {
                       }
                       return (
                         <div className="text-[11px] mt-1 space-y-1">
-                          <div className="text-green-700 dark:text-green-400">Beräknat: {dc.km} km enkel väg — {dc.label}</div>
+                          <div className="text-green-700 dark:text-green-300 dark:text-green-400">Beräknat: {dc.km} km enkel väg — {dc.label}</div>
                           <div className="flex gap-1">
                             <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => patch(r.key, { kmQty: dc.km })}>
                               Använd {dc.km}
@@ -536,7 +536,7 @@ export function KmPayoutView({ currentUser }: Props) {
                     }
                     if (dc?.status === 'error') {
                       return (
-                        <div className="text-[11px] text-amber-600 mt-1 space-y-1">
+                        <div className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 space-y-1">
                           <div>{dc.error} — ange km manuellt.</div>
                           <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => runDistance(r)}>Försök igen</Button>
                         </div>
@@ -571,7 +571,7 @@ export function KmPayoutView({ currentUser }: Props) {
               <div className="border-t pt-2">
                 {r.caseChoice?.kind === 'case' ? (
                   <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-green-700 dark:text-green-400 flex items-center gap-1">
+                    <span className="text-green-700 dark:text-green-300 dark:text-green-400 flex items-center gap-1">
                       <Check className="h-4 w-4" />
                       {r.caseChoice.case.customer_name} — {r.caseChoice.case.address}
                     </span>

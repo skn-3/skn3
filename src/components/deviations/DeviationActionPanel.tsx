@@ -59,12 +59,12 @@ export const DEVIATION_STATUS_META: Record<
   { label: string; className: string }
 > = {
   ny: { label: 'Ny', className: 'bg-muted text-muted-foreground' },
-  under_atgard: { label: 'Under åtgärd', className: 'bg-blue-100 text-blue-800' },
+  under_atgard: { label: 'Under åtgärd', className: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300' },
   vantar_leverans: {
     label: 'Väntar leverans',
-    className: 'bg-orange-100 text-orange-800',
+    className: 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300',
   },
-  klar: { label: 'Klar', className: 'bg-emerald-100 text-emerald-800' },
+  klar: { label: 'Klar', className: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300' },
   avskriven: { label: 'Avskriven', className: 'bg-zinc-200 text-zinc-700' },
 };
 
@@ -250,7 +250,7 @@ export function DeviationActionPanel({ deviation, caseData, currentUser, onDone 
           {typLabel} · Ansvar: {respLabel}
         </span>
         {deliveryInfo && status === 'vantar_leverans' && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 text-orange-800 border border-orange-200 px-2.5 py-1 text-xs font-semibold">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800 px-2.5 py-1 text-xs font-semibold">
             <Truck className="h-3.5 w-3.5" />
             Leverans v{deliveryInfo.week} {deliveryInfo.year}
             {deliveryInfo.days >= 0
@@ -287,8 +287,8 @@ export function DeviationActionPanel({ deviation, caseData, currentUser, onDone 
         )}
 
       {deviation.responsible === 'okant' && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
-          <div className="flex items-center gap-2 text-amber-800 text-sm font-medium">
+        <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 space-y-2">
+          <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 text-sm font-medium">
             <AlertCircle className="h-4 w-4" />
             Sätt ansvar först för att kunna åtgärda
           </div>

@@ -1333,7 +1333,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                               {g.aOrderCandidates.map(c => (
                                 <button key={c.aOrder.id} type="button"
                                   onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'aorder', aOrder: c.aOrder } }))}
-                                  className="w-full text-left px-3 py-2 hover:bg-amber-50 text-sm">
+                                  className="w-full text-left px-3 py-2 hover:bg-amber-50 dark:hover:bg-amber-950/60 text-sm">
                                   <div className="font-medium">A-order #{c.aOrder.order_number ?? '—'} · {c.aOrder.customer_name}</div>
                                   <div className="text-xs text-muted-foreground">{c.aOrder.customer_address || ''} · {c.reason} · ärende skapas vid import</div>
                                 </button>
@@ -1726,8 +1726,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           )}
 
           {!isMulti && !effectiveCase && singleAOrderMatch && (
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-1.5">
-              <div className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Saknad kundprofil — A-order hittad via namn</div>
+            <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 space-y-1.5">
+              <div className="text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wide">Saknad kundprofil — A-order hittad via namn</div>
               <div className="text-sm">
                 A-order <strong>#{singleAOrderMatch.aOrder.order_number ?? '—'}</strong> · {singleAOrderMatch.aOrder.customer_name}
                 {singleAOrderMatch.aOrder.customer_address ? ` · ${singleAOrderMatch.aOrder.customer_address}` : ''}
@@ -1813,7 +1813,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           {isMulti && !isMontorInvoice && (() => {
             const unresolved = groups.filter(g => !g.choice && !isSkipped(g.order_number)).length;
             return unresolved > 0 ? (
-              <p className="text-xs text-amber-700 text-right">
+              <p className="text-xs text-amber-700 dark:text-amber-300 text-right">
                 {unresolved} grupp{unresolved === 1 ? '' : 'er'} saknar val — klicka ett alternativ i listan.
               </p>
             ) : null;

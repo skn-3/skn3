@@ -142,7 +142,7 @@ export function UppdragView() {
                     {cost != null ? (
                       <>
                         <div className="text-muted-foreground">Kostnad <span className="tabular-nums">{fmtKr(cost)}</span></div>
-                        <div className={margin! >= 0 ? 'text-green-700' : 'text-red-700'}>
+                        <div className={margin! >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}>
                           Marginal <span className="tabular-nums font-medium">{fmtKr(margin!)}</span>
                           {marginPct != null && <span className="text-muted-foreground"> ({marginPct.toFixed(1)} %)</span>}
                         </div>

@@ -82,9 +82,9 @@ const MAX_RANGE_DAYS = 90;
 
 function roleColor(role: string | null): string {
   switch (role) {
-    case 'seller': return 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300';
-    case 'montor': return 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300';
-    case 'coordinator': return 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300';
+    case 'seller': return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 border-emerald-300 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300';
+    case 'montor': return 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 border-blue-300 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+    case 'coordinator': return 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 border-orange-300 dark:border-orange-800 dark:bg-orange-900/30 dark:text-orange-300';
     case 'system': return 'bg-muted text-muted-foreground border-border';
     default: return 'bg-muted text-muted-foreground border-border';
   }
@@ -92,12 +92,12 @@ function roleColor(role: string | null): string {
 
 function categoryColor(cat: string): string {
   switch (cat) {
-    case 'auth': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
-    case 'case': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
-    case 'deviation': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-    case 'order': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
+    case 'auth': return 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
+    case 'case': return 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+    case 'deviation': return 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+    case 'order': return 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
     case 'system': return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300';
-    case 'data': return 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300';
+    case 'data': return 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300';
     default: return 'bg-muted text-muted-foreground';
   }
 }

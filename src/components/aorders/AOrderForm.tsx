@@ -670,9 +670,9 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
           </div>
 
           {/* Internal block */}
-          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+          <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <div className="text-xs font-semibold text-amber-900 uppercase">Internt — visas EJ för montör</div>
+              <div className="text-xs font-semibold text-amber-900 dark:text-amber-300 uppercase">Internt — visas EJ för montör</div>
               {effectiveCaseId && (
                 <Button
                   type="button"
@@ -708,7 +708,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
                 <Input type="number" step="1" value={internalExtraAmount} onChange={e => setInternalExtraAmount(Number(e.target.value) || 0)} />
               </div>
             </div>
-            <div className="text-sm text-amber-900">Internt värde: <span className="font-semibold">{fmt(internalValue)}</span></div>
+            <div className="text-sm text-amber-900 dark:text-amber-300">Internt värde: <span className="font-semibold">{fmt(internalValue)}</span></div>
           </div>
 
 

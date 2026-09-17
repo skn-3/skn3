@@ -1105,7 +1105,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       Vill du ändra status från <strong>{STATUS_LABELS[caseData.status] || caseData.status}</strong> till <strong>{pendingStatus ? (STATUS_LABELS[pendingStatus] || pendingStatus) : ''}</strong>?
                     </div>
                     {bigJump && (
-                      <div className="text-orange-600 font-medium">
+                      <div className="text-orange-600 dark:text-orange-400 font-medium">
                         ⚠ Du hoppar över flera steg i processen. Är du säker?
                       </div>
                     )}
@@ -1562,7 +1562,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               const cost = caseData.extra_hours_approved * HOUR_RATE;
               const result = revenue - cost;
               return (
-                <div className={`text-sm font-semibold mt-1 ${result >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                <div className={`text-sm font-semibold mt-1 ${result >= 0 ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
                   Resultat extra timmar: {result >= 0 ? '+' : ''}{result.toLocaleString('sv-SE')} kr
                 </div>
               );
@@ -1645,7 +1645,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   </div>
                   <div className="rounded-md border p-2">
                     <div className="text-[11px] uppercase text-muted-foreground tracking-wider">Vinst</div>
-                    <div className={`text-sm font-semibold ${profit != null ? (profit >= 0 ? 'text-green-600' : 'text-destructive') : ''}`}>
+                    <div className={`text-sm font-semibold ${profit != null ? (profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-destructive') : ''}`}>
                       {profit != null ? `${profit.toLocaleString('sv-SE')} kr` : '–'}
                       {margin != null && (
                         <span className="text-xs text-muted-foreground ml-1">({margin.toFixed(1)}%)</span>
@@ -1828,7 +1828,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                           {amount != null && <> · {fmtOfferKr(amount)}</>}
                         </div>
                         {o.status === 'accepted' && o.accept_name && (
-                          <div className="text-[10px] text-green-700 mt-0.5">
+                          <div className="text-[10px] text-green-700 dark:text-green-300 mt-0.5">
                             Accepterad av {o.accept_name}{o.accepted_at ? ` • ${new Date(o.accepted_at).toLocaleString('sv-SE')}` : ''}
                           </div>
                         )}
@@ -1847,7 +1847,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                           <button
                             type="button"
                             onClick={() => openPayoutPdf(o.signed_pdf_path)}
-                            className="text-xs text-green-700 hover:underline inline-flex items-center gap-1 whitespace-nowrap"
+                            className="text-xs text-green-700 dark:text-green-300 hover:underline inline-flex items-center gap-1 whitespace-nowrap"
                             title="Signerad PDF med verifikat"
                           >
                             <ExternalLink className="h-3 w-3" /> Signerad
@@ -2162,7 +2162,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <Button disabled={statusMutation.isPending} onClick={() => changeStatus('fakturerad', 'Markerad som fakturerad')} size="sm">{statusMutation.isPending ? 'Sparar...' : 'Markera fakturerad'}</Button>
             )}
 
-            <Button variant="outline" size="sm" className="border-orange-400 text-orange-700 hover:bg-orange-50" onClick={() => navigate(`/case/${caseData.id}/rapportera`)}>
+            <Button variant="outline" size="sm" className="border-orange-400 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/60" onClick={() => navigate(`/case/${caseData.id}/rapportera`)}>
               <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera problem
             </Button>
           </section>
@@ -2209,7 +2209,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <div className="font-medium text-card-foreground flex items-center gap-2 flex-wrap">
                       <span>{c.description}</span>
                       {(c as any).category === 'reklamation' && (
-                        <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 text-[10px] px-1.5 py-0">
+                        <Badge variant="outline" className="border-amber-400 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-[10px] px-1.5 py-0">
                           Reklamation{(c as any).responsible ? ` · ${DEVIATION_RESPONSIBLE.find(r => r.value === (c as any).responsible)?.label || (c as any).responsible}` : ''}
                         </Badge>
                       )}
@@ -2292,7 +2292,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       <Button
                         size="sm"
                         variant="outline"
-                        className="mt-1 text-green-700 border-green-400 hover:bg-green-50"
+                        className="mt-1 text-green-700 dark:text-green-300 border-green-400 hover:bg-green-50 dark:hover:bg-green-950/60"
                         disabled={resolveMutation.isPending}
                         onClick={() => resolveMutation.mutate(d)}
                       >

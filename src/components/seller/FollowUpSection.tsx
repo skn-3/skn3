@@ -49,10 +49,10 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
   if (activeVisits.length === 0) return null;
 
   return (
-    <div className="mx-4 md:mx-0 rounded-xl border border-yellow-300 bg-yellow-50 p-4 space-y-3">
+    <div className="mx-4 md:mx-0 rounded-xl border border-yellow-300 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/30 p-4 space-y-3">
       <button
         type="button"
-        className="w-full flex items-center gap-2 text-sm font-semibold text-yellow-800 cursor-pointer hover:text-yellow-900 transition-colors"
+        className="w-full flex items-center gap-2 text-sm font-semibold text-yellow-800 dark:text-yellow-300 cursor-pointer hover:text-yellow-900 transition-colors"
         onClick={() => setCollapsed(c => !c)}
       >
         {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -67,7 +67,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
             const daysSince = Math.floor((today.getTime() - new Date(v.date).getTime()) / (1000 * 60 * 60 * 24));
 
             return (
-              <div key={v.id} className="flex items-center justify-between bg-card rounded-lg p-3 text-sm border border-yellow-200">
+              <div key={v.id} className="flex items-center justify-between bg-card rounded-lg p-3 text-sm border border-yellow-200 dark:border-yellow-800">
                 <div className="space-y-0.5">
                   <div className="font-medium text-foreground">{v.address}</div>
                   <div className="text-muted-foreground">{v.customer_name}</div>

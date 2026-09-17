@@ -378,7 +378,7 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
       </div>
 
       {conflictCount > 0 && (
-        <div className="flex items-center gap-2 rounded-md border border-yellow-400/50 bg-yellow-50 dark:bg-yellow-950/30 px-3 py-2 text-sm text-yellow-900 dark:text-yellow-200">
+        <div className="flex items-center gap-2 rounded-md border border-yellow-400/50 bg-yellow-50 dark:bg-yellow-950/30 px-3 py-2 text-sm text-yellow-900 dark:text-yellow-300 dark:text-yellow-200">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
           <span>{conflictCount} montagekonflikter upptäckta — granska markerade ärenden</span>
         </div>

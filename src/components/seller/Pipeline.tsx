@@ -15,12 +15,12 @@ import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
 
 const STATUS_ACCENT: Record<string, string> = {
-  montage_pagar: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  montage_bokat: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  montage_klart: 'bg-green-100 text-green-800 border-green-200',
-  godkand: 'bg-blue-100 text-blue-800 border-blue-200',
-  i_produktion: 'bg-blue-100 text-blue-800 border-blue-200',
-  leverans_klar: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  montage_pagar: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+  montage_bokat: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+  montage_klart: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800',
+  godkand: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+  i_produktion: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+  leverans_klar: 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
 };
 function statusBadgeClass(status: string) {
   return STATUS_ACCENT[status] || 'bg-muted text-muted-foreground border-border';
@@ -346,8 +346,8 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
           onClick={() => { setOnlyFlagged(v => !v); setOnlyKmInbox(false); }}
           className={`mx-3 md:mx-0 flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors text-left w-[calc(100%-1.5rem)] md:w-auto ${
             onlyFlagged
-              ? 'bg-amber-200 border-amber-400 text-amber-900'
-              : 'bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200'
+              ? 'bg-amber-200 border-amber-400 text-amber-900 dark:text-amber-300'
+              : 'bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:bg-amber-200'
           }`}
         >
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
@@ -364,8 +364,8 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
           onClick={() => { setOnlyKmInbox(v => !v); setOnlyFlagged(false); }}
           className={`mx-3 md:mx-0 flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors text-left w-[calc(100%-1.5rem)] md:w-auto ${
             onlyKmInbox
-              ? 'bg-sky-200 border-sky-400 text-sky-900'
-              : 'bg-sky-100 border-sky-300 text-sky-800 hover:bg-sky-200'
+              ? 'bg-sky-200 border-sky-400 text-sky-900 dark:text-sky-300'
+              : 'bg-sky-100 dark:bg-sky-900/40 border-sky-300 dark:border-sky-800 text-sky-800 dark:text-sky-300 hover:bg-sky-200'
           }`}
         >
           <Ruler className="h-4 w-4 flex-shrink-0" />

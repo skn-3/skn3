@@ -133,7 +133,7 @@ export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser }: Pr
                   {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.company_name || t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {team && !recipient && <div className="text-[11px] text-red-600 mt-1">Teamet saknar e-post.</div>}
+              {team && !recipient && <div className="text-[11px] text-red-600 dark:text-red-400 mt-1">Teamet saknar e-post.</div>}
             </div>
             <div>
               <Label className="text-xs">Ärendekoppling (valfritt)</Label>

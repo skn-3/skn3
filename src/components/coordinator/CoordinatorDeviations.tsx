@@ -107,7 +107,7 @@ export function CoordinatorDeviations({ coordinatorName, onSelectCase }: Props) 
               key={d.id}
               className={cn(
                 'rounded-xl border bg-card p-4 shadow-sm space-y-2',
-                old && 'border-red-300 bg-red-50/50'
+                old && 'border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/40'
               )}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">

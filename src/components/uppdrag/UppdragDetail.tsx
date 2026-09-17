@@ -220,7 +220,7 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
                 <span className="ml-2">(inkl moms {fmtKr(u.revenue_incl_vat || 0)} − handpenning {fmtKr(u.handpenning_amount || 0)} − ROT {fmtKr(u.rot_amount || 0)})</span>
               </div>
               {!u.handpenning_pdf_path && (
-                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                <div className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded p-2">
                   Generera handpenningsfakturan först – referensnumret används i avräkningen.
                 </div>
               )}

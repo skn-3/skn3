@@ -203,10 +203,10 @@ export function MontorDebitInvoicesView() {
                     )}
                     {role?.isAdmin && inv.status === 'sent' && (
                       <>
-                        <Button size="sm" variant="ghost" onClick={() => setStatus(inv, 'paid')} title="Markera betald" className="text-green-700">
+                        <Button size="sm" variant="ghost" onClick={() => setStatus(inv, 'paid')} title="Markera betald" className="text-green-700 dark:text-green-300">
                           <CheckCircle2 className="h-3 w-3" />
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setStatus(inv, 'cancelled')} title="Makulera" className="text-red-600">
+                        <Button size="sm" variant="ghost" onClick={() => setStatus(inv, 'cancelled')} title="Makulera" className="text-red-600 dark:text-red-400">
                           <Ban className="h-3 w-3" />
                         </Button>
                       </>

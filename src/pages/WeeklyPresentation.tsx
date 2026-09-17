@@ -142,7 +142,7 @@ export default function WeeklyPresentation() {
             value={fmtKr(S.total)}
             sub={
               delta != null ? (
-                <span className={delta >= 0 ? 'text-emerald-600 font-semibold' : 'text-red-600 font-semibold'}>
+                <span className={delta >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-red-600 dark:text-red-400 font-semibold'}>
                   {delta >= 0 ? '+' : ''}{delta}% vs v.{prev.num}
                 </span>
               ) : (
@@ -180,7 +180,7 @@ export default function WeeklyPresentation() {
                       <td className="py-2 pr-3">{r.signings}</td>
                       <td className="py-2 pr-3">{r.hitRate != null ? `${r.hitRate}%` : '—'}</td>
                       <td className="py-2 pr-3">{fmtKr(r.value)}</td>
-                      <td className={`py-2 ${d != null ? (d >= 0 ? 'text-emerald-600' : 'text-red-600') : ''}`}>
+                      <td className={`py-2 ${d != null ? (d >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400') : ''}`}>
                         {d == null ? '—' : `${d >= 0 ? '+' : ''}${d}%`}
                       </td>
                     </tr>
@@ -225,7 +225,7 @@ export default function WeeklyPresentation() {
                 <div key={v.id} className="text-sm border-b last:border-0 pb-2 last:pb-0">
                   <div className="flex items-center justify-between gap-3">
                     <span className="truncate font-medium">{v.address || v.customer_name} · {v.seller}</span>
-                    <span className="text-red-600 shrink-0">
+                    <span className="text-red-600 dark:text-red-400 shrink-0">
                       {v.lost_reason || 'okänd anledning'}{v.lost_competitor ? ` · ${v.lost_competitor}` : ''}
                     </span>
                   </div>

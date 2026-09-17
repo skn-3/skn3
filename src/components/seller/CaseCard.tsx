@@ -57,9 +57,9 @@ function getDeliveryCountdownBadge(c: any): DeliveryBadge | null {
 }
 
 const DELIVERY_TONE_CLASSES: Record<DeliveryBadge['tone'], string> = {
-  red: 'border-red-400 bg-red-100 text-red-800',
-  orange: 'border-orange-300 bg-orange-100 text-orange-800',
-  yellow: 'border-yellow-300 bg-yellow-100 text-yellow-800',
+  red: 'border-red-400 bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300',
+  orange: 'border-orange-300 dark:border-orange-800 bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300',
+  yellow: 'border-yellow-300 dark:border-yellow-800 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300',
   gray: 'border-border bg-muted text-muted-foreground',
 };
 
@@ -199,7 +199,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
       {(deliveryBadge || tidsBadge || kmInbox || dwellBadge || hoursBadge || (warnings && warnings.length > 0)) && (
         <div className="flex flex-wrap gap-1 pt-1">
           {hoursBadge && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
               <Clock className="h-3 w-3" />
               Timmar
             </span>
@@ -216,8 +216,8 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
             <span
               className={
                 tidsBadge.urgent
-                  ? 'inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800 animate-pulse'
-                  : 'inline-flex items-center gap-1 rounded-full border border-orange-300 bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-800'
+                  ? 'inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:text-red-300 animate-pulse'
+                  : 'inline-flex items-center gap-1 rounded-full border border-orange-300 dark:border-orange-800 bg-orange-100 dark:bg-orange-900/40 px-2 py-0.5 text-[10px] font-medium text-orange-800 dark:text-orange-300'
               }
             >
               <Clock className="h-3 w-3" />
@@ -228,8 +228,8 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
             <span
               className={
                 dwellBadge.tone === 'red'
-                  ? 'inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800'
-                  : 'inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800'
+                  ? 'inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:text-red-300'
+                  : 'inline-flex items-center gap-1 rounded-full border border-amber-300 dark:border-amber-800 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-300'
               }
             >
               <Clock className="h-3 w-3" />
@@ -237,7 +237,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
             </span>
           )}
           {kmInbox && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-800">
+            <span className="inline-flex items-center gap-1 rounded-full border border-sky-300 dark:border-sky-800 bg-sky-100 dark:bg-sky-900/40 px-2 py-0.5 text-[10px] font-medium text-sky-800 dark:text-sky-300">
               <Ruler className="h-3 w-3" />
               KM-ändringar väntar
             </span>
@@ -245,7 +245,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
           {warnings?.map((w) => (
             <span
               key={w}
-              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800"
+              className="inline-flex items-center gap-1 rounded-full border border-amber-300 dark:border-amber-800 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-300"
             >
               <AlertTriangle className="h-3 w-3" />
               {w}

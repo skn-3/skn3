@@ -124,7 +124,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   );
   const allTotalValue = signedThisYear.reduce((sum, c) => sum + (Number(c.order_value) || 0), 0);
   const budgetPct = Math.min(100, (allTotalValue / BUDGET) * 100);
-  const budgetColor = budgetPct > 50 ? 'text-green-600' : budgetPct > 25 ? 'text-yellow-600' : 'text-destructive';
+  const budgetColor = budgetPct > 50 ? 'text-green-600 dark:text-green-400' : budgetPct > 25 ? 'text-yellow-600 dark:text-yellow-400' : 'text-destructive';
 
   // Per seller table
   const perSeller = SELLERS.map((s) => {
@@ -557,13 +557,13 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
         });
         if (flagged.length === 0) return null;
         return (
-          <div className="rounded-xl border border-orange-300 bg-orange-50 p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-orange-900 mb-2">
+          <div className="rounded-xl border border-orange-300 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40 p-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-orange-900 dark:text-orange-300 mb-2">
               Datakvalitet — Tidsstyrd leverans utan tid (inom 7 dagar)
             </h3>
             <div className="space-y-2">
               {flagged.map((c: any) => (
-                <div key={c.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border border-orange-200 bg-card p-2">
+                <div key={c.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border border-orange-200 dark:border-orange-800 bg-card p-2">
                   <div className="text-sm min-w-0">
                     <div className="font-medium text-card-foreground break-words">{formatAddressWithCity(c.address, c.city)}</div>
                     <div className="text-xs text-muted-foreground">{c.customer_name} · {c.team || 'ingen montör'}</div>
@@ -701,7 +701,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
           DATAKVALITET — {outlierCases.length > 0 ? `${outlierCases.length} ärenden att granska` : 'ärenden att granska'}
         </h3>
         {outlierCases.length === 0 ? (
-          <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-3 py-2 text-sm text-green-700 dark:text-green-300">
+          <div className="rounded-md bg-green-50 dark:bg-green-950/40 dark:bg-green-950/30 border border-green-200 dark:border-green-800 dark:border-green-900 px-3 py-2 text-sm text-green-700 dark:text-green-300">
             Ingen avvikande data — allt ser bra ut ✓
           </div>
         ) : (
@@ -1039,8 +1039,8 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
             <p className="text-sm font-medium text-card-foreground">{formatAmount(approvedCost)}</p>
             <p className="text-xs text-muted-foreground">Godkända (kostnad)</p>
           </div>
-          <div className={`text-center p-3 rounded-lg ${netResult >= 0 ? 'bg-green-50' : 'bg-destructive/10'}`}>
-            <p className={`text-2xl font-bold ${netResult >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+          <div className={`text-center p-3 rounded-lg ${netResult >= 0 ? 'bg-green-50 dark:bg-green-950/40' : 'bg-destructive/10'}`}>
+            <p className={`text-2xl font-bold ${netResult >= 0 ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
               {netResult >= 0 ? '+' : ''}{formatAmount(netResult)}
             </p>
             <p className="text-xs text-muted-foreground">Nettoresultat</p>
@@ -1079,7 +1079,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
                       <td className="py-1.5 text-right">{c.approved}</td>
                       <td className="py-1.5 text-right">{c.revenue.toLocaleString('sv-SE')}</td>
                       <td className="py-1.5 text-right">{c.cost.toLocaleString('sv-SE')}</td>
-                      <td className={`py-1.5 text-right font-semibold ${c.result >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                      <td className={`py-1.5 text-right font-semibold ${c.result >= 0 ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
                         {c.result >= 0 ? '+' : ''}{c.result.toLocaleString('sv-SE')}
                       </td>
                     </tr>
@@ -1224,11 +1224,11 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
 
       {/* Pending follow-ups */}
       {pendingFollowUps.length > 0 && (
-        <div className="rounded-xl border border-yellow-300 bg-yellow-50 p-4">
-          <h3 className="text-sm font-semibold text-yellow-800 uppercase tracking-wider mb-3">Återkopplingar att följa upp</h3>
+        <div className="rounded-xl border border-yellow-300 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/30 p-4">
+          <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-300 uppercase tracking-wider mb-3">Återkopplingar att följa upp</h3>
           <div className="space-y-2">
             {pendingFollowUps.map((v) => (
-              <div key={v.id} className="flex justify-between text-sm border-b border-yellow-200 pb-2">
+              <div key={v.id} className="flex justify-between text-sm border-b border-yellow-200 dark:border-yellow-800 pb-2">
                 <div>
                   <span className="font-medium text-foreground">{v.customer_name}</span>
                   <span className="text-muted-foreground ml-2">{v.address}</span>

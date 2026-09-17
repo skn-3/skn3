@@ -267,7 +267,7 @@ export function CleanAddressesView({ currentUser }: Props) {
       </div>
 
       {missing.length === 0 ? (
-        <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-4 py-3 text-sm text-green-700 dark:text-green-300">
+        <div className="rounded-md bg-green-50 dark:bg-green-950/40 dark:bg-green-950/30 border border-green-200 dark:border-green-800 dark:border-green-900 px-4 py-3 text-sm text-green-700 dark:text-green-300">
           Inga ärenden saknar ort — allt är städat ✓
         </div>
       ) : (
@@ -343,7 +343,7 @@ export function CleanAddressesView({ currentUser }: Props) {
         </div>
 
         {normalizationGroups.length === 0 ? (
-          <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 px-4 py-3 text-sm text-green-700 dark:text-green-300">
+          <div className="rounded-md bg-green-50 dark:bg-green-950/40 dark:bg-green-950/30 border border-green-200 dark:border-green-800 dark:border-green-900 px-4 py-3 text-sm text-green-700 dark:text-green-300">
             Alla orter är redan kanoniska ✓
           </div>
         ) : (

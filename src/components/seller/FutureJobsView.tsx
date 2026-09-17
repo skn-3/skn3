@@ -40,8 +40,8 @@ export function countDueFutureJobs(rows: FutureJobRow[] | undefined): number {
 
 function countdown(dateStr: string): { label: string; cls: string } {
   const days = differenceInCalendarDays(new Date(dateStr + 'T00:00:00'), new Date(new Date().toDateString()));
-  if (days < 0) return { label: `Försenad ${Math.abs(days)} dagar`, cls: 'border-red-400 bg-red-100 text-red-800' };
-  if (days === 0) return { label: 'Idag', cls: 'border-amber-400 bg-amber-100 text-amber-800' };
+  if (days < 0) return { label: `Försenad ${Math.abs(days)} dagar`, cls: 'border-red-400 bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300' };
+  if (days === 0) return { label: 'Idag', cls: 'border-amber-400 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' };
   return { label: `Om ${days} dagar`, cls: 'border-border bg-muted text-muted-foreground' };
 }
 

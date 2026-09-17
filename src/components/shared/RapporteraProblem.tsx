@@ -267,7 +267,7 @@ export default function RapporteraProblem() {
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="font-bold text-card-foreground flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-orange-600" />
+            <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
             Rapportera problem
           </h1>
           <p className="text-xs text-muted-foreground truncate">{caseData.address}</p>
@@ -317,10 +317,10 @@ export default function RapporteraProblem() {
                 className={`flex-1 py-3 rounded-lg border text-sm font-medium min-h-[48px] transition-colors ${
                   priority === p
                     ? p === 'hog'
-                      ? 'bg-red-100 border-red-400 text-red-800'
+                      ? 'bg-red-100 dark:bg-red-900/40 border-red-400 text-red-800 dark:text-red-300'
                       : p === 'medium'
-                      ? 'bg-yellow-100 border-yellow-400 text-yellow-800'
-                      : 'bg-green-100 border-green-400 text-green-800'
+                      ? 'bg-yellow-100 dark:bg-yellow-900/40 border-yellow-400 text-yellow-800 dark:text-yellow-300'
+                      : 'bg-green-100 dark:bg-green-900/40 border-green-400 text-green-800 dark:text-green-300'
                     : 'bg-muted text-muted-foreground'
                 }`}
               >

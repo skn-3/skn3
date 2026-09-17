@@ -71,9 +71,9 @@ export function CapacityMatrix() {
 
   const cellTone = (count: number) => {
     if (count === 0) return 'bg-background text-muted-foreground/40';
-    if (count <= 2) return 'bg-emerald-50 text-emerald-900';
-    if (count <= 4) return 'bg-amber-50 text-amber-900';
-    return 'bg-red-50 text-red-900 font-semibold';
+    if (count <= 2) return 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300';
+    if (count <= 4) return 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300';
+    return 'bg-red-50 dark:bg-red-950/40 text-red-900 dark:text-red-300 font-semibold';
   };
 
   const curWeek = getISOWeek(new Date());

@@ -392,17 +392,17 @@ export function AOrdersView({ currentUser }: Props) {
                       <td className="px-3 py-2">
                         {o.montor_teams?.name ? o.montor_teams.name : <Badge className="bg-yellow-500 hover:bg-yellow-500/90 text-white">Ej tilldelad</Badge>}
                       </td>
-                      <td className={`px-3 py-2 text-right ${isCredit ? 'text-red-600' : ''}`}>
+                      <td className={`px-3 py-2 text-right ${isCredit ? 'text-red-600 dark:text-red-400' : ''}`}>
                         {fmt(o.total_amount)}
                         {intern > 0 && <div className="text-[10px] text-muted-foreground">internt {fmt(intern)}</div>}
                       </td>
                       <td className="px-3 py-2">
                         <Badge className={meta.cls}>{isCredit ? 'Kreditfaktura' : meta.label}</Badge>
                         {o.case_id && paidCaseMap.has(o.case_id) && (
-                          <div className="text-[10px] mt-1 inline-flex items-center gap-1 text-emerald-700 font-medium">
+                          <div className="text-[10px] mt-1 inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300 font-medium">
                             <BanknoteIcon className="h-3 w-3" />
                             MF betald {paidCaseMap.get(o.case_id)}
-                            {o.status === 'order' && <span className="text-amber-700 font-semibold"> · dags att fakturera montör</span>}
+                            {o.status === 'order' && <span className="text-amber-700 dark:text-amber-300 font-semibold"> · dags att fakturera montör</span>}
                           </div>
                         )}
                         {o.invoice_number && (
@@ -412,7 +412,7 @@ export function AOrdersView({ currentUser }: Props) {
                           </div>
                         )}
                         {isCredit && o.credited_from_order_id && (
-                          <div className="text-[10px] text-red-600 mt-0.5">avser tidigare faktura</div>
+                          <div className="text-[10px] text-red-600 dark:text-red-400 mt-0.5">avser tidigare faktura</div>
                         )}
                         {o.order_sent_at && !o.invoice_number && (
                           <div className="text-[10px] text-muted-foreground mt-1">Skickad {new Date(o.order_sent_at).toLocaleDateString('sv-SE')} → {o.montor_teams?.email || '—'}</div>
@@ -424,17 +424,17 @@ export function AOrdersView({ currentUser }: Props) {
                             {busyId === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
                           </Button>
                           {o.status === 'order' && o.team_id && (
-                            <Button size="sm" variant="ghost" onClick={() => setInvoiceFor(o)} title="Fakturera" className="text-green-700">
+                            <Button size="sm" variant="ghost" onClick={() => setInvoiceFor(o)} title="Fakturera" className="text-green-700 dark:text-green-300">
                               <Receipt className="h-3 w-3" />
                             </Button>
                           )}
                            {o.status === 'invoiced' && (
-                            <Button size="sm" variant="ghost" onClick={() => setCreditFor(o)} title="Kreditera" className="text-red-600">
+                            <Button size="sm" variant="ghost" onClick={() => setCreditFor(o)} title="Kreditera" className="text-red-600 dark:text-red-400">
                               <RotateCcw className="h-3 w-3" />
                             </Button>
                           )}
                           {o.status === 'credited' && !o.credited_from_order_id && (
-                            <Button size="sm" variant="ghost" onClick={() => setInvoiceFor(o)} title="Fakturera igen" className="text-green-700">
+                            <Button size="sm" variant="ghost" onClick={() => setInvoiceFor(o)} title="Fakturera igen" className="text-green-700 dark:text-green-300">
                               <Receipt className="h-3 w-3" />
                             </Button>
                           )}
@@ -444,7 +444,7 @@ export function AOrdersView({ currentUser }: Props) {
                             </Button>
                           )}
                           {role?.isAdmin && o.status === 'order' && (
-                            <Button size="sm" variant="ghost" onClick={() => setDeleteFor(o)} title="Radera A-order" className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                            <Button size="sm" variant="ghost" onClick={() => setDeleteFor(o)} title="Radera A-order" className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/60">
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           )}

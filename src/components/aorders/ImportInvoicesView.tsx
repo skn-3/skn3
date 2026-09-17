@@ -249,7 +249,7 @@ export function ImportInvoicesView() {
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-xs">Ärende ({f.caseMatchKind === 'exact' ? <span className="text-green-700">exakt</span> : f.caseMatchKind === 'street' ? <span className="text-yellow-700">gatunamn</span> : <span className="text-muted-foreground">manuell</span>})</Label>
+                    <Label className="text-xs">Ärende ({f.caseMatchKind === 'exact' ? <span className="text-green-700 dark:text-green-300">exakt</span> : f.caseMatchKind === 'street' ? <span className="text-yellow-700 dark:text-yellow-300">gatunamn</span> : <span className="text-muted-foreground">manuell</span>})</Label>
                     <CaseCombobox
                       cases={cases as any[]}
                       value={f.case_id || ''}
@@ -274,7 +274,7 @@ export function ImportInvoicesView() {
                 </div>
 
                 {f.duplicate && (
-                  <div className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-300 rounded p-2">
+                  <div className="text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-300 dark:border-yellow-800 rounded p-2">
                     Fakturanumret <strong>{f.parsed.invoice_number}</strong> finns redan i systemet. Byt nummer eller hoppa över.
                   </div>
                 )}

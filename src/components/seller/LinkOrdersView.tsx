@@ -133,9 +133,9 @@ function bestMatch(order: OrderRow, cases: CaseLite[]): Match {
 }
 
 const strengthBadge: Record<Strength, { label: string; cls: string }> = {
-  high:   { label: 'Hög träff',   cls: 'bg-green-100 text-green-800 border-green-300' },
-  medium: { label: 'Medel träff', cls: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  low:    { label: 'Låg träff',   cls: 'bg-orange-100 text-orange-800 border-orange-300' },
+  high:   { label: 'Hög träff',   cls: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-300 dark:border-green-800' },
+  medium: { label: 'Medel träff', cls: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 border-yellow-300 dark:border-yellow-800' },
+  low:    { label: 'Låg träff',   cls: 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800' },
   none:   { label: 'Ingen träff', cls: 'bg-muted text-muted-foreground border-border' },
 };
 
@@ -263,7 +263,7 @@ export function LinkOrdersView({ currentUser }: LinkOrdersViewProps) {
                         {order.order_number ? `Order #${order.order_number}` : (order.invoice_number ? `Faktura ${order.invoice_number}` : 'Order')}
                       </span>
                       {order._orphan && (
-                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300 gap-1">
+                        <Badge variant="outline" className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-800 gap-1">
                           <AlertTriangle className="h-3 w-3" />
                           Tidigare kopplad till raderat ärende
                         </Badge>

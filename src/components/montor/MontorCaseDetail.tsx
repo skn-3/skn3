@@ -608,7 +608,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               <p className="text-sm">
                 <span className="text-muted-foreground">Status:</span>{' '}
                 {caseData.extra_hours_approved > 0 ? (
-                  <span className="font-medium text-green-600">Godkända ({caseData.extra_hours_approved} st)</span>
+                  <span className="font-medium text-green-600 dark:text-green-400">Godkända ({caseData.extra_hours_approved} st)</span>
                 ) : caseData.status === 'vantar_godkannande' ? (
                   <span className="font-medium" style={{ color: '#D97706' }}>Väntar på godkännande</span>
                 ) : (
@@ -621,7 +621,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           {/* Single "Rapportera problem" button */}
           <Button
             variant="outline"
-            className="w-full min-h-[48px] border-orange-400 text-orange-700 hover:bg-orange-50"
+            className="w-full min-h-[48px] border-orange-400 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/60"
             onClick={() => navigate(`/case/${caseData.id}/rapportera`)}
           >
             <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera problem
@@ -732,7 +732,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   <div className="font-medium text-card-foreground flex items-center gap-2 flex-wrap">
                     <span>{c.description}</span>
                     {c.category === 'reklamation' && (
-                      <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 text-[10px] px-1.5 py-0">
+                      <Badge variant="outline" className="border-amber-400 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-[10px] px-1.5 py-0">
                         Reklamation{c.responsible ? ` · ${DEVIATION_RESPONSIBLE.find(r => r.value === c.responsible)?.label || c.responsible}` : ''}
                       </Badge>
                     )}
@@ -772,7 +772,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                     <Badge variant={d.resolved ? 'secondary' : 'destructive'}>
                       {DEVIATION_TYPES.find(dt => dt.value === d.type)?.label || d.type}
                     </Badge>
-                    <Badge variant={d.resolved ? 'secondary' : 'destructive'} className={d.resolved ? 'bg-green-100 text-green-800 border-green-300' : ''}>
+                    <Badge variant={d.resolved ? 'secondary' : 'destructive'} className={d.resolved ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-300 dark:border-green-800' : ''}>
                       {d.resolved ? 'Löst' : 'Olöst'}
                     </Badge>
                   </div>
@@ -798,7 +798,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   <Button
                     size="sm"
                     variant="outline"
-                    className="mt-1 text-green-700 border-green-400 hover:bg-green-50"
+                    className="mt-1 text-green-700 dark:text-green-300 border-green-400 hover:bg-green-50 dark:hover:bg-green-950/60"
                     disabled={resolveMutation.isPending}
                     onClick={() => resolveMutation.mutate(d)}
                   >

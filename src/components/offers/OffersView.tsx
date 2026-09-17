@@ -41,10 +41,10 @@ export type OfferRow = {
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   draft: { label: 'Utkast', cls: 'bg-muted text-muted-foreground' },
-  sent: { label: 'Skickad', cls: 'bg-blue-100 text-blue-800' },
-  accepted: { label: 'Accepterad', cls: 'bg-green-100 text-green-800' },
-  declined: { label: 'Avböjd', cls: 'bg-red-100 text-red-800' },
-  expired: { label: 'Utgången', cls: 'bg-yellow-100 text-yellow-800' },
+  sent: { label: 'Skickad', cls: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300' },
+  accepted: { label: 'Accepterad', cls: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300' },
+  declined: { label: 'Avböjd', cls: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300' },
+  expired: { label: 'Utgången', cls: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300' },
 };
 
 interface OffersViewProps {
@@ -376,7 +376,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); openSignedPdf.mutate(o); }}
-                        className="text-xs text-green-700 hover:underline inline-flex items-center gap-1 mr-3"
+                        className="text-xs text-green-700 dark:text-green-300 hover:underline inline-flex items-center gap-1 mr-3"
                         title="Öppna signerat avtal"
                       >
                         <FileCheck className="h-3 w-3" /> Avtal
@@ -480,7 +480,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
             <AlertDialogDescription>
               Detta går inte att ångra.
               {hasLinkedUppdrag && (
-                <span className="block mt-2 text-amber-700">
+                <span className="block mt-2 text-amber-700 dark:text-amber-300">
                   Ett uppdrag är kopplat till offerten — uppdraget påverkas inte.
                 </span>
               )}

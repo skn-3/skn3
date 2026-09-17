@@ -134,7 +134,7 @@ export function MontorTeamsAdmin() {
             {isLoading && <tr><td colSpan={12} className="p-4 text-center text-muted-foreground">Laddar...</td></tr>}
             {!isLoading && teams.map(row)}
             {newTeam && (
-              <tr className="border-t bg-amber-50">
+              <tr className="border-t bg-amber-50 dark:bg-amber-950/40">
                 <td className="p-2"><Input className="h-8" placeholder="Namn *" value={newTeam.name} onChange={e => setNewTeam({ ...newTeam, name: e.target.value })} /></td>
                 <td className="p-2"><Input className="h-8" value={newTeam.company_name || ''} onChange={e => setNewTeam({ ...newTeam, company_name: e.target.value })} /></td>
                 <td className="p-2"><Input className="h-8" value={newTeam.org_nr || ''} onChange={e => setNewTeam({ ...newTeam, org_nr: e.target.value })} /></td>

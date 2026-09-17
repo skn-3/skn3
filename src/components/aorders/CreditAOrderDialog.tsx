@@ -127,11 +127,11 @@ export function CreditAOrderDialog({ open, onOpenChange, order, currentUser, onC
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-red-600">Kreditera faktura {origNo}</DialogTitle>
+          <DialogTitle className="text-red-600 dark:text-red-400">Kreditera faktura {origNo}</DialogTitle>
         </DialogHeader>
         <div className="text-sm space-y-3">
           <p className="text-muted-foreground">
-            En kreditfaktura skapas med nummer <strong className="text-red-600">{creditNumber}</strong> och
+            En kreditfaktura skapas med nummer <strong className="text-red-600 dark:text-red-400">{creditNumber}</strong> och
             skickas till <strong>{recipient || '— saknas —'}</strong>. Originalfakturan markeras som krediterad.
           </p>
           <div className="rounded-md border p-3 bg-muted/30">
@@ -143,17 +143,17 @@ export function CreditAOrderDialog({ open, onOpenChange, order, currentUser, onC
               <div>Antal rader: <strong>{negLines.length}</strong></div>
             </div>
           </div>
-          <div className="rounded-md border border-red-300 p-3 bg-red-50">
-            <div className="text-xs uppercase text-red-700 mb-2">Kreditfaktura</div>
-            <div className="text-2xl font-semibold text-red-600">{fmt(total)}</div>
+          <div className="rounded-md border border-red-300 dark:border-red-800 p-3 bg-red-50 dark:bg-red-950/40">
+            <div className="text-xs uppercase text-red-700 dark:text-red-300 mb-2">Kreditfaktura</div>
+            <div className="text-2xl font-semibold text-red-600 dark:text-red-400">{fmt(total)}</div>
           </div>
         </div>
         <DialogFooter className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           {!team && (
-            <div className="text-xs text-red-600 sm:mr-auto">Ordern saknar montörsteam — tilldela först.</div>
+            <div className="text-xs text-red-600 dark:text-red-400 sm:mr-auto">Ordern saknar montörsteam — tilldela först.</div>
           )}
           {team && !recipient && (
-            <div className="text-xs text-red-600 sm:mr-auto">Teamet saknar e-post (fyll i under Admin → Montörsteam).</div>
+            <div className="text-xs text-red-600 dark:text-red-400 sm:mr-auto">Teamet saknar e-post (fyll i under Admin → Montörsteam).</div>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Avbryt</Button>
           <Button onClick={go} disabled={busy || !team || !recipient || negLines.length === 0} className="bg-red-600 hover:bg-red-700">

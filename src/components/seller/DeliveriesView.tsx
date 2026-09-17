@@ -53,9 +53,9 @@ function CaseRowItem({
   onSelectCase: (c: CaseRow) => void;
 }) {
   const toneCls: Record<string, string> = {
-    red: 'border-red-200',
-    amber: 'border-amber-200',
-    sky: 'border-sky-200',
+    red: 'border-red-200 dark:border-red-800',
+    amber: 'border-amber-200 dark:border-amber-800',
+    sky: 'border-sky-200 dark:border-sky-800',
     muted: 'border-border',
   };
   return (
@@ -108,9 +108,9 @@ function Section({
   empty: string;
 }) {
   const toneCls: Record<string, string> = {
-    red: 'text-red-700',
-    amber: 'text-amber-700',
-    sky: 'text-sky-700',
+    red: 'text-red-700 dark:text-red-300',
+    amber: 'text-amber-700 dark:text-amber-300',
+    sky: 'text-sky-700 dark:text-sky-300',
     muted: 'text-muted-foreground',
   };
   return (
