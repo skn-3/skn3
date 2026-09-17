@@ -44,6 +44,9 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
     media_consent: false,
     carry_help_needed: false,
     scheduled_delivery: false,
+    future_job: false,
+    future_job_description: '',
+    future_job_date: '',
   });
 
   const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value } as any));
@@ -90,6 +93,20 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
       } as any);
 
       await updateVisit(visit.id, { result: 'signerat', case_id: newCase.id } as any);
+
+      if (form.future_job && form.future_job_description.trim() && form.future_job_date) {
+        const { error: fjErr } = await supabase.from('future_jobs').insert({
+          case_id: newCase.id,
+          customer_name: form.customer_name,
+          address: form.address || null,
+          phone: form.customer_phone || null,
+          seller: sellerName,
+          description: form.future_job_description.trim(),
+          contact_date: form.future_job_date,
+          created_by: sellerName,
+        });
+        if (fjErr) console.error('future_jobs insert failed:', fjErr);
+      }
 
       await createCaseEvent({
         case_id: newCase.id,
@@ -279,6 +296,25 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
               <span className="text-xs text-muted-foreground pl-6">Tiden anges senare, veckan innan leverans</span>
             )}
           </label>
+        </div>
+
+        <div className="space-y-2 rounded-lg border p-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <Checkbox checked={form.future_job} onCheckedChange={(c) => update('future_job', c === true)} />
+            Kund vill utföra ett annat jobb
+          </label>
+          {form.future_job && (
+            <div className="space-y-2 pl-6">
+              <div className="space-y-1.5">
+                <Label>Vad vill kunden utföra? *</Label>
+                <Textarea rows={2} value={form.future_job_description} onChange={(e) => update('future_job_description', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>När ska kunden kontaktas? *</Label>
+                <Input type="date" value={form.future_job_date} onChange={(e) => update('future_job_date', e.target.value)} />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2">
