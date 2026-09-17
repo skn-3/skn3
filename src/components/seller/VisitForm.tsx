@@ -9,7 +9,8 @@ import {
 } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { searchOrders } from '@/integrations/orderGateway';
-import { HOUR_RATE, STATUS_LABELS } from '@/lib/constants';
+import { HOUR_RATE, STATUS_LABELS, detectGotland } from '@/lib/constants';
+import { GotlandBadge, GOTLAND_LOCK_HINT, CONGARD_TEAM } from '@/components/shared/GotlandBadge';
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -178,6 +179,11 @@ export function VisitForm({ sellerName }: VisitFormProps) {
     );
     setShowSuggestions(false);
   };
+
+  // ===== Gotland-detektion (live på ort + adress) =====
+  const isGotland = detectGotland(form.city, form.address);
+  const effectiveTeam = isGotland ? CONGARD_TEAM : form.team || null;
+  const effectiveKmTeam = isGotland ? CONGARD_TEAM : form.km_team || null;
 
   // ===== Validering =====
   const tbNum = form.tb_percent === '' ? null : Number(form.tb_percent);
