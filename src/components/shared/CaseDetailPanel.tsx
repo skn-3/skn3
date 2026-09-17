@@ -24,7 +24,8 @@ import type { DeviationRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { celebrateInvoiced } from '@/lib/celebrate';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -93,6 +94,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [editingCase, setEditingCase] = useState(false);
   const [ovConfirmOpen, setOvConfirmOpen] = useState(false);
   const [hoursEdit, setHoursEdit] = useState<{ field: 'extra_hours_sold' | 'extra_hours_approved'; value: string } | null>(null);
+  const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
+  const [hoursSoldInput, setHoursSoldInput] = useState('');
   const [editForm, setEditForm] = useState({
     order_value: caseData.order_value != null ? String(caseData.order_value) : '',
     tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
@@ -107,6 +110,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     customer_email: caseData.customer_email || '',
     city: (caseData as any).city || '',
     notes: caseData.notes || '',
+    montor_notes: (caseData as any).montor_notes || '',
     media_consent: !!(caseData as any).media_consent,
     carry_help_needed: !!(caseData as any).carry_help_needed,
     scheduled_delivery: !!(caseData as any).scheduled_delivery,
@@ -137,6 +141,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       customer_email: caseData.customer_email || '',
       city: (caseData as any).city || '',
       notes: caseData.notes || '',
+      montor_notes: (caseData as any).montor_notes || '',
       media_consent: !!(caseData as any).media_consent,
       carry_help_needed: !!(caseData as any).carry_help_needed,
       scheduled_delivery: !!(caseData as any).scheduled_delivery,
@@ -171,6 +176,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         customer_email: editForm.customer_email || null,
         city: editForm.city || null,
         notes: editForm.notes || null,
+        montor_notes: editForm.montor_notes || null,
         media_consent: editForm.media_consent,
         carry_help_needed: editForm.carry_help_needed,
         scheduled_delivery: editForm.scheduled_delivery,
@@ -209,6 +215,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const oldCity = ((caseData as any).city || '') as string;
       if (oldCity !== editForm.city) changes.push(`Ort ändrad till ${editForm.city || '—'}`);
       if ((caseData.notes || '') !== editForm.notes) changes.push('Anteckning uppdaterad');
+      if ((((caseData as any).montor_notes || '') as string) !== editForm.montor_notes) changes.push('Montörsnotering uppdaterad');
       const oldMedia = !!(caseData as any).media_consent;
       const oldCarry = !!(caseData as any).carry_help_needed;
       const oldScheduled = !!(caseData as any).scheduled_delivery;
