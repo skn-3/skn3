@@ -145,6 +145,9 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
   const tidsBadge = getScheduledDeliveryBadge(caseData as any);
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
   const dwellBadge = getDwellBadge(caseData as any);
+  const hoursBadge = (caseData as any).extra_hours_requested > 0
+    && (caseData as any).extra_hours_approved === 0
+    && caseData.status === 'vantar_godkannande';
   const units = (caseData as any).units as number | null | undefined;
   const intensity = unitsIntensity(units);
   const cardStyle: CSSProperties | undefined = intensity != null
@@ -193,8 +196,14 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
           )}
         </div>
       </div>
-      {(deliveryBadge || tidsBadge || kmInbox || dwellBadge || (warnings && warnings.length > 0)) && (
+      {(deliveryBadge || tidsBadge || kmInbox || dwellBadge || hoursBadge || (warnings && warnings.length > 0)) && (
         <div className="flex flex-wrap gap-1 pt-1">
+          {hoursBadge && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+              <Clock className="h-3 w-3" />
+              Timmar
+            </span>
+          )}
           {deliveryBadge && (
             <span
               className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${DELIVERY_TONE_CLASSES[deliveryBadge.tone]}${deliveryBadge.tone === 'red' ? ' font-semibold' : ''}`}
