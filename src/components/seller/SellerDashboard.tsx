@@ -43,6 +43,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   const [filterSeller, setFilterSeller] = useState<string>('all');
   const [filterMontor, setFilterMontor] = useState<string>('all');
   const [filterCity, setFilterCity] = useState<string>('all');
+  const [filterGotland, setFilterGotland] = useState<'all' | 'only' | 'excl'>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [includeImported, setIncludeImported] = useState(true);
@@ -67,7 +68,15 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   if (loadingCases) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   // Filter imported cases if toggle is off
-  const allCases = (allCasesRaw || []).filter(c => includeImported || !(c as any).imported);
+  const allCases = (allCasesRaw || []).filter(c => {
+    if (!(includeImported || !(c as any).imported)) return false;
+    const g = !!(c as any).is_gotland;
+    if (filterGotland === 'only' && !g) return false;
+    if (filterGotland === 'excl' && g) return false;
+    return true;
+  });
+
+  const congardBalance = allCases.reduce((sum, c) => sum + (Number((c as any).congard_hours) || 0), 0);
 
   // Extract all cities for filter (kanoniska nycklar + visningsnamn)
   const cityOptionMap = new Map<string, string>();
@@ -476,6 +485,17 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
             </Select>
           </div>
           <div className="space-y-1">
+            <Label className="text-xs">Gotland</Label>
+            <Select value={filterGotland} onValueChange={(v) => setFilterGotland(v as 'all' | 'only' | 'excl')}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alla ärenden</SelectItem>
+                <SelectItem value="only">Endast Gotland</SelectItem>
+                <SelectItem value="excl">Exkl. Gotland</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
             <Label className="text-xs">Från</Label>
             <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
           </div>
@@ -489,6 +509,16 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
           </div>
         </div>
       </div>
+
+      {filterGotland === 'only' && (
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-sm text-muted-foreground">Congard timsaldo</p>
+          <p className={`text-3xl font-bold ${congardBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+            {congardBalance >= 0 ? '+' : '−'}{Math.abs(congardBalance).toLocaleString('sv-SE')} tim
+          </p>
+          <p className="text-xs text-muted-foreground">debet/kredit mot Congard</p>
+        </div>
+      )}
 
       {/* ROW 1: KPI cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

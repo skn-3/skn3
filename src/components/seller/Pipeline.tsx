@@ -151,7 +151,7 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
   }, [filteredCases, debouncedSearch]);
 
   const flaggedCount = useMemo(
-    () => searchedCases.filter(c => getWarnings(c, ordersByCaseId ?? null).length > 0).length,
+    () => searchedCases.filter(c => !(c as any).is_gotland && getWarnings(c, ordersByCaseId ?? null).length > 0).length,
     [searchedCases, ordersByCaseId],
   );
 
