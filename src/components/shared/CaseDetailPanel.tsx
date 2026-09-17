@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { detectGotland } from '@/lib/constants';
+import { GotlandBadge, GOTLAND_LOCK_HINT, CONGARD_TEAM } from '@/components/shared/GotlandBadge';
 import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail, deleteCase } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, COORDINATOR_CC, SELLERS, HOUR_RATE, SELLER_PIPELINE_COLUMNS } from '@/lib/constants';
@@ -97,6 +99,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
   const [hoursSoldInput, setHoursSoldInput] = useState('');
   const [hoursApprovedInput, setHoursApprovedInput] = useState('');
+  const [congardInput, setCongardInput] = useState('');
   const [editForm, setEditForm] = useState({
     order_value: caseData.order_value != null ? String(caseData.order_value) : '',
     tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
@@ -126,6 +129,20 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     delivery_year: (caseData as any).delivery_year != null ? String((caseData as any).delivery_year) : String(new Date().getFullYear()),
   });
 
+
+  const editIsGotland = detectGotland(editForm.city, caseData.address);
+  useEffect(() => {
+    setEditForm((f) => {
+      if (editIsGotland) {
+        if (f.team === CONGARD_TEAM && f.km_team === CONGARD_TEAM) return f;
+        return { ...f, team: CONGARD_TEAM, km_team: CONGARD_TEAM };
+      }
+      if (f.team === CONGARD_TEAM || f.km_team === CONGARD_TEAM) {
+        return { ...f, team: '', km_team: '' };
+      }
+      return f;
+    });
+  }, [editIsGotland]);
 
   const openEdit = () => {
     setEditForm({
@@ -176,6 +193,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         customer_phone: editForm.customer_phone,
         customer_email: editForm.customer_email || null,
         city: editForm.city || null,
+        is_gotland: editIsGotland,
         notes: editForm.notes || null,
         montor_notes: editForm.montor_notes || null,
         media_consent: editForm.media_consent,
@@ -774,6 +792,28 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onError: (e: Error) => toast.error(e.message),
   });
 
+
+  const congardMutation = useMutation({
+    mutationFn: async (newValue: number) => {
+      if (!Number.isFinite(newValue)) throw new Error('Ogiltigt värde');
+      const oldValue = Number((caseData as any).congard_hours ?? 0);
+      await updateCase(caseData.id, { congard_hours: newValue } as any);
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'congard_hours',
+        description: `Congard-timmar ändrade från ${oldValue} till ${newValue}`,
+        created_by: currentUser,
+      });
+    },
+    onSuccess: () => {
+      setCongardInput('');
+      queryClient.invalidateQueries({ queryKey: ['cases'] });
+      queryClient.invalidateQueries({ queryKey: ['case', caseData.id] });
+      queryClient.invalidateQueries({ queryKey: ['case-events', caseData.id] });
+      toast.success('Congard-timmar sparade');
+    },
+    onError: (e: any) => toast.error(e.message || 'Kunde inte spara'),
+  });
 
   const adjustHoursMutation = useMutation({
     mutationFn: async ({ field, newValue }: { field: 'extra_hours_sold' | 'extra_hours_approved'; newValue: number }) => {
@@ -1379,23 +1419,25 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">KM-montör (valfritt)</Label>
-                    <Select value={editForm.km_team || '__none__'} onValueChange={(v) => setEditForm(f => ({ ...f, km_team: v === '__none__' ? '' : v }))}>
+                    <Select disabled={editIsGotland} value={editForm.km_team || '__none__'} onValueChange={(v) => setEditForm(f => ({ ...f, km_team: v === '__none__' ? '' : v }))}>
                       <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">— Ingen vald —</SelectItem>
                         {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {editIsGotland && <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>}
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Montage-montör (valfritt)</Label>
-                    <Select value={editForm.team || '__none__'} onValueChange={(v) => setEditForm(f => ({ ...f, team: v === '__none__' ? '' : v }))}>
+                    <Select disabled={editIsGotland} value={editForm.team || '__none__'} onValueChange={(v) => setEditForm(f => ({ ...f, team: v === '__none__' ? '' : v }))}>
                       <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">— Ingen vald —</SelectItem>
                         {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {editIsGotland && <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>}
                   </div>
                   {!isCoordinator && (
                     <div className="space-y-1">
@@ -1424,6 +1466,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   <div className="space-y-1 col-span-2">
                     <Label className="text-xs">Ort *</Label>
                     <Input value={editForm.city} onChange={(e) => setEditForm(f => ({ ...f, city: e.target.value }))} />
+                    {editIsGotland && <div><GotlandBadge /></div>}
                   </div>
                   <div className="space-y-1 col-span-2">
                     <Label className="text-xs">Google Drive-länk</Label>
@@ -1660,6 +1703,37 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               </a>
             )}
           </section>
+
+          {/* Congard-timmar — endast Gotlandsärenden */}
+          {(caseData as any).is_gotland && (isSeller || isCoordinator) && (
+            <section className="p-4 space-y-2 border-t">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Congard-timmar</h3>
+                <GotlandBadge />
+              </div>
+              <p className="text-sm">
+                Nuvarande saldo: <strong>{Number((caseData as any).congard_hours ?? 0)} tim</strong>
+              </p>
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="number"
+                  step={0.5}
+                  className="max-w-[160px]"
+                  value={congardInput}
+                  placeholder={String(Number((caseData as any).congard_hours ?? 0))}
+                  onChange={(e) => setCongardInput(e.target.value)}
+                />
+                <Button
+                  size="sm"
+                  disabled={congardMutation.isPending || congardInput.trim() === ''}
+                  onClick={() => congardMutation.mutate(Number(congardInput))}
+                >
+                  Spara
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Plus = timmar tillgodo hos Congard, minus = skuld.</p>
+            </section>
+          )}
 
           {/* Ordernoteringar (läsläge) — flikarna finns även i redigeringsläget ovan */}
           {(isSeller || isCoordinator) && (
