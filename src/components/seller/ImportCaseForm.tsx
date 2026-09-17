@@ -248,6 +248,9 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     media_consent: false,
     carry_help_needed: false,
     scheduled_delivery: false,
+    future_job: false,
+    future_job_description: '',
+    future_job_date: '',
   });
 
 
@@ -301,6 +304,20 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         description: 'Ärende importerat manuellt',
         created_by: 'Admin (import)',
       });
+
+      if (form.future_job && form.future_job_description.trim() && form.future_job_date) {
+        const { error: fjErr } = await supabase.from('future_jobs').insert({
+          case_id: newCase.id,
+          customer_name: form.customer_name,
+          address: form.address || null,
+          phone: form.customer_phone || null,
+          seller: form.seller,
+          description: form.future_job_description.trim(),
+          contact_date: form.future_job_date,
+          created_by: sellerName,
+        });
+        if (fjErr) console.error('future_jobs insert failed:', fjErr);
+      }
 
       // Auto-skapa en visits-rad så importerade ärenden räknas i besöksstatistiken
       try {
