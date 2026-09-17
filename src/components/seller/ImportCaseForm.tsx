@@ -828,7 +828,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
       <Button
         onClick={handleSubmit}
-        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
+        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || (form.future_job && (!form.future_job_description.trim() || !form.future_job_date)) || mutation.isPending}
         className="w-full sm:w-auto"
       >
         <Upload className="h-4 w-4 mr-2" />
