@@ -1206,6 +1206,73 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </AlertDialogContent>
           </AlertDialog>
 
+          {/* Timjustering efter KM — tydlig genväg */}
+          {isSeller && caseData.extra_hours_requested > 0 && caseData.extra_hours_approved === 0 && caseData.status === 'vantar_godkannande' && (
+            <div className="px-4 pt-2">
+              <Button
+                className="w-full bg-amber-500 text-white hover:bg-amber-600"
+                onClick={() => { setHoursSoldInput(String(caseData.extra_hours_requested ?? 0)); setHoursDialogOpen(true); }}
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                Justera timmar ({caseData.extra_hours_requested} begärda)
+              </Button>
+            </div>
+          )}
+
+          <Dialog open={hoursDialogOpen} onOpenChange={setHoursDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Justera timmar</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="rounded-md bg-amber-500/10 p-3 text-sm">
+                  Montören har begärt <strong>{caseData.extra_hours_requested} timmar</strong>.
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Sålda timmar mot kund</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={hoursSoldInput}
+                    onChange={(e) => setHoursSoldInput(e.target.value)}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {(Math.max(0, Number(hoursSoldInput) || 0) * HOUR_RATE).toLocaleString('sv-SE')} kr ex moms
+                    <span className="text-xs"> ({HOUR_RATE} kr/tim)</span>
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-end pt-1">
+                  <Button
+                    variant="outline"
+                    disabled={approveHoursMutation.isPending || rejectHoursMutation.isPending}
+                    onClick={async () => {
+                      const sold = Math.max(0, Math.floor(Number(hoursSoldInput) || 0));
+                      if (sold !== (caseData.extra_hours_sold ?? 0)) {
+                        await adjustHoursMutation.mutateAsync({ field: 'extra_hours_sold', newValue: sold });
+                      }
+                      rejectHoursMutation.mutate(undefined, { onSuccess: () => setHoursDialogOpen(false) });
+                    }}
+                  >
+                    Avslå
+                  </Button>
+                  <Button
+                    className="bg-amber-500 text-white hover:bg-amber-600"
+                    disabled={approveHoursMutation.isPending || rejectHoursMutation.isPending}
+                    onClick={async () => {
+                      const sold = Math.max(0, Math.floor(Number(hoursSoldInput) || 0));
+                      if (sold !== (caseData.extra_hours_sold ?? 0)) {
+                        await adjustHoursMutation.mutateAsync({ field: 'extra_hours_sold', newValue: sold });
+                      }
+                      approveHoursMutation.mutate(undefined, { onSuccess: () => setHoursDialogOpen(false) });
+                    }}
+                  >
+                    Godkänn timmar
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {/* Order info */}
           <section className="p-4 space-y-2">
             <div className="flex items-center justify-between">
@@ -1293,8 +1360,19 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <Input value={editForm.google_drive_link} onChange={(e) => setEditForm(f => ({ ...f, google_drive_link: e.target.value }))} />
                   </div>
                   <div className="space-y-1 col-span-2">
-                    <Label className="text-xs">Anteckning</Label>
-                    <Textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+                    <Label className="text-xs">Ordernoteringar</Label>
+                    <Tabs defaultValue="saljare">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="saljare">Ordernoteringar Säljare</TabsTrigger>
+                        <TabsTrigger value="montor">Ordernoteringar Montör</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="saljare" className="mt-2">
+                        <Textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} placeholder="Noteringar för säljare..." />
+                      </TabsContent>
+                      <TabsContent value="montor" className="mt-2">
+                        <Textarea rows={3} value={editForm.montor_notes} onChange={(e) => setEditForm(f => ({ ...f, montor_notes: e.target.value }))} placeholder="Noteringar till montören..." />
+                      </TabsContent>
+                    </Tabs>
                   </div>
                   {!isCoordinator && (
                     <div className="col-span-2 space-y-2 rounded-md border p-2 bg-background">
