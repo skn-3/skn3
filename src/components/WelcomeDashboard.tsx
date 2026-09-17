@@ -12,6 +12,7 @@ import { InsightCard } from '@/components/insights/InsightCard';
 import { getSoundEnabled, setSoundEnabled } from '@/lib/insights/sound';
 import { normalizeCityKey, cityDisplayName } from '@/lib/city';
 import { ThemeToggle, useDarkModePromo } from '@/components/shared/ThemeToggle';
+import { hasRealSeller } from '@/lib/sellerStats';
 
 
 
@@ -199,7 +200,7 @@ function SellerDashboard({ name }: { name: string }) {
   });
   const { data: cases = [] } = useQuery({
     queryKey: ['welcome-cases-seller', name],
-    queryFn: () => fetchCases({ seller: name }) as Promise<CaseRow[]>,
+    queryFn: async () => ((await fetchCases({ seller: name })) as CaseRow[]).filter(hasRealSeller),
   });
 
   const { data: latestDeals = [] } = useQuery({
@@ -209,9 +210,9 @@ function SellerDashboard({ name }: { name: string }) {
         .from('cases')
         .select('id, address, seller, order_value, created_at')
         .order('created_at', { ascending: false })
-        .limit(8);
+        .limit(40);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).filter(hasRealSeller).slice(0, 8);
     },
     staleTime: 60_000,
   });
@@ -426,7 +427,7 @@ function SellerDashboard({ name }: { name: string }) {
     .filter(v => new Date(v.date) >= weekStart)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const weekSigned = cases
-    .filter(c => c.created_at && new Date(c.created_at) >= weekStart)
+    .filter(c => hasRealSeller(c) && c.created_at && new Date(c.created_at) >= weekStart)
     .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
 
   // Zero-state encouragement (no visits this week)
