@@ -639,16 +639,34 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <SheetMetalOrdersSection caseId={caseData.id} variant="mobile" />
         </section>
 
-        {((caseData as any).montor_notes || '').trim() && (
-          <section className="py-4 border-t space-y-2">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Ordernoteringar
-            </h3>
-            <p className="rounded-lg border p-3 text-sm whitespace-pre-wrap">
-              {(caseData as any).montor_notes}
-            </p>
-          </section>
-        )}
+        {(() => {
+          const sellerNotes = (caseData.notes || '').trim();
+          const montorNotes = ((caseData as any).montor_notes || '').trim();
+          if (!sellerNotes && !montorNotes) return null;
+          return (
+            <section className="py-4 border-t space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Ordernoteringar
+              </h3>
+              {sellerNotes && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Ordernoteringar Säljare</p>
+                  <p className="rounded-lg border p-3 text-sm whitespace-pre-wrap">
+                    {(caseData.notes || '').trim()}
+                  </p>
+                </div>
+              )}
+              {montorNotes && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Ordernoteringar Montör</p>
+                  <p className="rounded-lg border p-3 text-sm whitespace-pre-wrap">
+                    {(caseData as any).montor_notes}
+                  </p>
+                </div>
+              )}
+            </section>
+          );
+        })()}
 
         {myAOrders.length > 0 && (
           <section className="py-4 border-t space-y-2">
