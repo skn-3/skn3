@@ -16,6 +16,8 @@ import { AdminView } from './AdminView';
 import { EconomyView } from '@/components/economy/EconomyView';
 import { OffersHub } from '@/components/offers/OffersHub';
 import { AOrdersView } from '@/components/aorders/AOrdersView';
+import { FutureJobsView, fetchFutureJobs, countDueFutureJobs } from './FutureJobsView';
+import { useQuery } from '@tanstack/react-query';
 
 
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
@@ -61,6 +63,8 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
 
   const isAdmin = !!role.isAdmin;
 
+  const { data: futureJobs } = useQuery({ queryKey: ['future_jobs'], queryFn: fetchFutureJobs });
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader
@@ -71,7 +75,7 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
           ...(onToggleCoordinatorView ? [{ label: 'Visa koordinatorvy', onClick: onToggleCoordinatorView }] : []),
         ]}
       >
-        <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} />
+        <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} futureJobsDue={countDueFutureJobs(futureJobs)} />
       </AppHeader>
 
       <main className="py-4 md:py-6 max-w-screen-2xl mx-auto">
@@ -105,6 +109,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         )}
         {tab === 'aorders' && (
           <AOrdersView currentUser={role.name} />
+        )}
+        {tab === 'futurejobs' && (
+          <FutureJobsView currentUser={role.name} onSelectCase={setSelectedCase} />
         )}
         {tab === 'admin' && isAdmin && (
           <AdminView currentUser={role.name} />

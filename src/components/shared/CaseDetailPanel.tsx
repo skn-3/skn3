@@ -24,7 +24,8 @@ import type { DeviationRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { celebrateInvoiced } from '@/lib/celebrate';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -93,6 +94,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [editingCase, setEditingCase] = useState(false);
   const [ovConfirmOpen, setOvConfirmOpen] = useState(false);
   const [hoursEdit, setHoursEdit] = useState<{ field: 'extra_hours_sold' | 'extra_hours_approved'; value: string } | null>(null);
+  const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
+  const [hoursSoldInput, setHoursSoldInput] = useState('');
   const [editForm, setEditForm] = useState({
     order_value: caseData.order_value != null ? String(caseData.order_value) : '',
     tb_percent: caseData.tb_percent != null ? String(caseData.tb_percent) : '',
@@ -107,6 +110,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     customer_email: caseData.customer_email || '',
     city: (caseData as any).city || '',
     notes: caseData.notes || '',
+    montor_notes: (caseData as any).montor_notes || '',
     media_consent: !!(caseData as any).media_consent,
     carry_help_needed: !!(caseData as any).carry_help_needed,
     scheduled_delivery: !!(caseData as any).scheduled_delivery,
@@ -137,6 +141,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       customer_email: caseData.customer_email || '',
       city: (caseData as any).city || '',
       notes: caseData.notes || '',
+      montor_notes: (caseData as any).montor_notes || '',
       media_consent: !!(caseData as any).media_consent,
       carry_help_needed: !!(caseData as any).carry_help_needed,
       scheduled_delivery: !!(caseData as any).scheduled_delivery,
@@ -171,6 +176,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         customer_email: editForm.customer_email || null,
         city: editForm.city || null,
         notes: editForm.notes || null,
+        montor_notes: editForm.montor_notes || null,
         media_consent: editForm.media_consent,
         carry_help_needed: editForm.carry_help_needed,
         scheduled_delivery: editForm.scheduled_delivery,
@@ -209,6 +215,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const oldCity = ((caseData as any).city || '') as string;
       if (oldCity !== editForm.city) changes.push(`Ort ändrad till ${editForm.city || '—'}`);
       if ((caseData.notes || '') !== editForm.notes) changes.push('Anteckning uppdaterad');
+      if ((((caseData as any).montor_notes || '') as string) !== editForm.montor_notes) changes.push('Montörsnotering uppdaterad');
       const oldMedia = !!(caseData as any).media_consent;
       const oldCarry = !!(caseData as any).carry_help_needed;
       const oldScheduled = !!(caseData as any).scheduled_delivery;
@@ -1199,6 +1206,73 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </AlertDialogContent>
           </AlertDialog>
 
+          {/* Timjustering efter KM — tydlig genväg */}
+          {isSeller && caseData.extra_hours_requested > 0 && caseData.extra_hours_approved === 0 && caseData.status === 'vantar_godkannande' && (
+            <div className="px-4 pt-2">
+              <Button
+                className="w-full bg-amber-500 text-white hover:bg-amber-600"
+                onClick={() => { setHoursSoldInput(String(caseData.extra_hours_requested ?? 0)); setHoursDialogOpen(true); }}
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                Justera timmar ({caseData.extra_hours_requested} begärda)
+              </Button>
+            </div>
+          )}
+
+          <Dialog open={hoursDialogOpen} onOpenChange={setHoursDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Justera timmar</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="rounded-md bg-amber-500/10 p-3 text-sm">
+                  Montören har begärt <strong>{caseData.extra_hours_requested} timmar</strong>.
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Sålda timmar mot kund</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={hoursSoldInput}
+                    onChange={(e) => setHoursSoldInput(e.target.value)}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {(Math.max(0, Number(hoursSoldInput) || 0) * HOUR_RATE).toLocaleString('sv-SE')} kr ex moms
+                    <span className="text-xs"> ({HOUR_RATE} kr/tim)</span>
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-end pt-1">
+                  <Button
+                    variant="outline"
+                    disabled={approveHoursMutation.isPending || rejectHoursMutation.isPending}
+                    onClick={async () => {
+                      const sold = Math.max(0, Math.floor(Number(hoursSoldInput) || 0));
+                      if (sold !== (caseData.extra_hours_sold ?? 0)) {
+                        await adjustHoursMutation.mutateAsync({ field: 'extra_hours_sold', newValue: sold });
+                      }
+                      rejectHoursMutation.mutate(undefined, { onSuccess: () => setHoursDialogOpen(false) });
+                    }}
+                  >
+                    Avslå
+                  </Button>
+                  <Button
+                    className="bg-amber-500 text-white hover:bg-amber-600"
+                    disabled={approveHoursMutation.isPending || rejectHoursMutation.isPending}
+                    onClick={async () => {
+                      const sold = Math.max(0, Math.floor(Number(hoursSoldInput) || 0));
+                      if (sold !== (caseData.extra_hours_sold ?? 0)) {
+                        await adjustHoursMutation.mutateAsync({ field: 'extra_hours_sold', newValue: sold });
+                      }
+                      approveHoursMutation.mutate(undefined, { onSuccess: () => setHoursDialogOpen(false) });
+                    }}
+                  >
+                    Godkänn timmar
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {/* Order info */}
           <section className="p-4 space-y-2">
             <div className="flex items-center justify-between">
@@ -1286,8 +1360,19 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <Input value={editForm.google_drive_link} onChange={(e) => setEditForm(f => ({ ...f, google_drive_link: e.target.value }))} />
                   </div>
                   <div className="space-y-1 col-span-2">
-                    <Label className="text-xs">Anteckning</Label>
-                    <Textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+                    <Label className="text-xs">Ordernoteringar</Label>
+                    <Tabs defaultValue="saljare">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="saljare">Ordernoteringar Säljare</TabsTrigger>
+                        <TabsTrigger value="montor">Ordernoteringar Montör</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="saljare" className="mt-2">
+                        <Textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} placeholder="Noteringar för säljare..." />
+                      </TabsContent>
+                      <TabsContent value="montor" className="mt-2">
+                        <Textarea rows={3} value={editForm.montor_notes} onChange={(e) => setEditForm(f => ({ ...f, montor_notes: e.target.value }))} placeholder="Noteringar till montören..." />
+                      </TabsContent>
+                    </Tabs>
                   </div>
                   {!isCoordinator && (
                     <div className="col-span-2 space-y-2 rounded-md border p-2 bg-background">

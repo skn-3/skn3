@@ -1,11 +1,12 @@
 import { cn } from '@/lib/utils';
 
-export type SellerTab = 'pipeline' | 'deliveries' | 'calendar' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'economy' | 'admin';
+export type SellerTab = 'pipeline' | 'deliveries' | 'calendar' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'futurejobs' | 'economy' | 'admin';
 
 interface SellerNavProps {
   active: SellerTab;
   onChange: (tab: SellerTab) => void;
   isAdmin?: boolean;
+  futureJobsDue?: number;
 }
 
 const PRIMARY_TABS: { value: SellerTab; label: string }[] = [
@@ -17,9 +18,10 @@ const PRIMARY_TABS: { value: SellerTab; label: string }[] = [
   { value: 'offers', label: 'Offerter' },
   
   { value: 'aorders', label: 'A-ordrar' },
+  { value: 'futurejobs', label: 'Återkontakter' },
 ];
 
-export function SellerNav({ active, onChange, isAdmin }: SellerNavProps) {
+export function SellerNav({ active, onChange, isAdmin, futureJobsDue = 0 }: SellerNavProps) {
   const tabs: { value: SellerTab; label: string }[] = [
     ...PRIMARY_TABS,
     ...(isAdmin ? [{ value: 'economy' as SellerTab, label: 'Ekonomi' }] : []),
@@ -40,6 +42,11 @@ export function SellerNav({ active, onChange, isAdmin }: SellerNavProps) {
           )}
         >
           {t.label}
+          {t.value === 'futurejobs' && futureJobsDue > 0 && (
+            <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">
+              {futureJobsDue}
+            </span>
+          )}
         </button>
       ))}
     </nav>

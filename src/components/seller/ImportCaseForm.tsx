@@ -248,6 +248,9 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
     media_consent: false,
     carry_help_needed: false,
     scheduled_delivery: false,
+    future_job: false,
+    future_job_description: '',
+    future_job_date: '',
   });
 
 
@@ -301,6 +304,20 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         description: 'Ärende importerat manuellt',
         created_by: 'Admin (import)',
       });
+
+      if (form.future_job && form.future_job_description.trim() && form.future_job_date) {
+        const { error: fjErr } = await supabase.from('future_jobs').insert({
+          case_id: newCase.id,
+          customer_name: form.customer_name,
+          address: form.address || null,
+          phone: form.customer_phone || null,
+          seller: form.seller,
+          description: form.future_job_description.trim(),
+          contact_date: form.future_job_date,
+          created_by: sellerName,
+        });
+        if (fjErr) console.error('future_jobs insert failed:', fjErr);
+      }
 
       // Auto-skapa en visits-rad så importerade ärenden räknas i besöksstatistiken
       try {
@@ -383,6 +400,9 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         media_consent: false,
         carry_help_needed: false,
         scheduled_delivery: false,
+        future_job: false,
+        future_job_description: '',
+        future_job_date: '',
       }));
     },
     onError: (err: Error) => {
@@ -739,6 +759,25 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         </label>
       </div>
 
+      <div className="space-y-2 rounded-lg border p-3">
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <Checkbox checked={form.future_job} onCheckedChange={(c) => update('future_job', c === true)} />
+          Kund vill utföra ett annat jobb
+        </label>
+        {form.future_job && (
+          <div className="space-y-2 pl-6">
+            <div className="space-y-1.5">
+              <Label>Vad vill kunden utföra? *</Label>
+              <Textarea rows={2} value={form.future_job_description} onChange={(e) => update('future_job_description', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>När ska kunden kontaktas? *</Label>
+              <Input type="date" value={form.future_job_date} onChange={(e) => update('future_job_date', e.target.value)} />
+            </div>
+          </div>
+        )}
+      </div>
+
 
       {dupCandidates.length > 0 && (
         <Alert
@@ -789,7 +828,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
       <Button
         onClick={handleSubmit}
-        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || mutation.isPending}
+        disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || (form.future_job && (!form.future_job_description.trim() || !form.future_job_date)) || mutation.isPending}
         className="w-full sm:w-auto"
       >
         <Upload className="h-4 w-4 mr-2" />

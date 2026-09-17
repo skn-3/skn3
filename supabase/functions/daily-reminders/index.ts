@@ -230,6 +230,55 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ===================== PÅMINNELSE 2b: Återkontakter (säljare) =====================
+    {
+      const todayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm' }).format(new Date());
+      const { data: jobs } = await supabase
+        .from('future_jobs')
+        .select('*')
+        .eq('status', 'open')
+        .lte('contact_date', todayStr)
+        .is('reminded_at', null);
+
+      if (jobs && jobs.length > 0) {
+        const grouped: Record<string, any[]> = {};
+        for (const j of jobs as any[]) {
+          if (!grouped[j.seller]) grouped[j.seller] = [];
+          grouped[j.seller].push(j);
+        }
+
+        for (const [seller, items] of Object.entries(grouped)) {
+          const email = EMAIL_MAP[seller];
+          if (!email) continue;
+
+          const rows = items.map((j: any) => [
+            j.customer_name,
+            j.address || '—',
+            j.description,
+            j.contact_date,
+          ]);
+          const table = buildListTable(['Kund', 'Adress', 'Vad kunden vill', 'Planerat datum'], rows);
+          const subject = `Återkontakt: ${items.length} kunder att kontakta`;
+          const html = wrapInTemplate(
+            subject,
+            `<p style="margin:0 0 16px 0;">Hej ${seller}! Du har <strong>${items.length}</strong> kund(er) som ville utföra ett annat jobb:</p>${table}`,
+            buildCtaButton('Öppna appen', '#F59E0B'),
+          );
+
+          await sendEmail(LOVABLE_API_KEY, RESEND_API_KEY, email, subject, html);
+
+          const nowIso = new Date().toISOString();
+          await supabase
+            .from('future_jobs')
+            .update({ reminded_at: nowIso })
+            .in('id', items.map((j: any) => j.id));
+
+          results.push(`Reminder 2b (future jobs): Sent to ${seller} (${items.length} jobs)`);
+        }
+      }
+    }
+
+
     // ===================== PÅMINNELSE 3: Olösta reklamationer (montör) =====================
     {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
