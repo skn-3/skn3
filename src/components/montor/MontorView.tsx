@@ -194,7 +194,10 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
       <AppHeader
         role={role}
         onChangeRole={onChangeRole}
-        toggleView={isAdmin && onToggleView ? { label: 'Visa säljarvy', onClick: onToggleView } : undefined}
+        viewOptions={isAdmin && onToggleView ? [
+          { label: 'Montörvy', active: true },
+          { label: 'Säljarvy', onClick: onToggleView },
+        ] : undefined}
       />
 
 
