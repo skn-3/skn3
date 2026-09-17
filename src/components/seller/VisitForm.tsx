@@ -9,7 +9,8 @@ import {
 } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { searchOrders } from '@/integrations/orderGateway';
-import { HOUR_RATE, STATUS_LABELS } from '@/lib/constants';
+import { HOUR_RATE, STATUS_LABELS, detectGotland } from '@/lib/constants';
+import { GotlandBadge, GOTLAND_LOCK_HINT, CONGARD_TEAM } from '@/components/shared/GotlandBadge';
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -179,6 +180,11 @@ export function VisitForm({ sellerName }: VisitFormProps) {
     setShowSuggestions(false);
   };
 
+  // ===== Gotland-detektion (live på ort + adress) =====
+  const isGotland = detectGotland(form.city, form.address);
+  const effectiveTeam = isGotland ? CONGARD_TEAM : form.team || null;
+  const effectiveKmTeam = isGotland ? CONGARD_TEAM : form.km_team || null;
+
   // ===== Validering =====
   const tbNum = form.tb_percent === '' ? null : Number(form.tb_percent);
   const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
@@ -228,8 +234,9 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
           extra_hours_sold: Number(form.extra_hours_sold) || 0,
           units: form.units !== '' ? Math.max(0, Math.floor(Number(form.units))) : null,
-          team: form.team || null,
-          km_team: form.km_team || null,
+          team: effectiveTeam,
+          km_team: effectiveKmTeam,
+          is_gotland: isGotland,
           google_drive_link: form.google_drive_link || null,
           notes: form.notes || null,
           seller: sellerName,
@@ -282,15 +289,15 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       await createCaseEvent({
         case_id: newCase.id,
         event_type: 'status_change',
-        description: `Ärende skapat, tilldelad montör: ${form.team || 'Ej tilldelad'}`,
+        description: `Ärende skapat, tilldelad montör: ${effectiveTeam || 'Ej tilldelad'}`,
         created_by: sellerName,
       });
 
       // 4) Montörmail
-      if (form.team && montorEmailOf(form.team)) {
+      if (effectiveTeam && montorEmailOf(effectiveTeam)) {
         try {
           await sendNotificationEmail({
-            to: montorEmailOf(form.team),
+            to: montorEmailOf(effectiveTeam),
             subject: `NYTT ÄRENDE — ${form.address}`,
             body: `
               <h2>Nytt ärende tilldelat</h2>
@@ -307,7 +314,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           await createCaseEvent({
             case_id: newCase.id,
             event_type: 'notification',
-            description: `Mail skickat till ${montorEmailOf(form.team)} (nytt ärende)`,
+            description: `Mail skickat till ${montorEmailOf(effectiveTeam!)} (nytt ärende)`,
             created_by: sellerName,
           });
         } catch (emailErr) {
@@ -488,6 +495,11 @@ export function VisitForm({ sellerName }: VisitFormProps) {
               ))}
             </div>
           )}
+          {isGotland && (
+            <div className="mt-2">
+              <GotlandBadge />
+            </div>
+          )}
           {existingCase && (
             <Alert variant="warning" className="mt-2">
               <AlertTriangle className="h-4 w-4" />
@@ -651,8 +663,9 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                 <div className="space-y-1.5">
                   <Label>KM-montör (valfritt)</Label>
                   <Select
-                    value={form.km_team || '__none__'}
+                    value={(isGotland ? CONGARD_TEAM : form.km_team) || '__none__'}
                     onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}
+                    disabled={isGotland}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Ingen vald" />
@@ -666,12 +679,16 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
+                  {isGotland && (
+                    <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Montage-montör (valfritt)</Label>
                   <Select
-                    value={form.team || '__none__'}
+                    value={(isGotland ? CONGARD_TEAM : form.team) || '__none__'}
                     onValueChange={(v) => update('team', v === '__none__' ? '' : v)}
+                    disabled={isGotland}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Ingen vald" />
@@ -685,6 +702,9 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
+                  {isGotland && (
+                    <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label>Google Drive-länk</Label>
