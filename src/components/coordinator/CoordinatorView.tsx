@@ -54,7 +54,10 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
       <AppHeader
         role={role}
         onChangeRole={onChangeRole}
-        toggleView={onToggleSellerView ? { label: 'Tillbaka till säljarvy', onClick: onToggleSellerView } : undefined}
+        viewOptions={onToggleSellerView ? [
+          { label: 'Koordinatorvy', active: true },
+          { label: 'Säljarvy', onClick: onToggleSellerView },
+        ] : undefined}
       >
         <CoordinatorNav active={tab} onChange={setTab} />
       </AppHeader>
