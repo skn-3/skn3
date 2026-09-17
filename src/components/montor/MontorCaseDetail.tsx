@@ -639,6 +639,17 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <SheetMetalOrdersSection caseId={caseData.id} variant="mobile" />
         </section>
 
+        {((caseData as any).montor_notes || '').trim() && (
+          <section className="py-4 border-t space-y-2">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Ordernoteringar
+            </h3>
+            <p className="rounded-lg border p-3 text-sm whitespace-pre-wrap">
+              {(caseData as any).montor_notes}
+            </p>
+          </section>
+        )}
+
         {myAOrders.length > 0 && (
           <section className="py-4 border-t space-y-2">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
