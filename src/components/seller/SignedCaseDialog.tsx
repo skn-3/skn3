@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, sendNotificationEmail, updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { HOUR_RATE } from '@/lib/constants';
 import { useMontorTeams } from '@/hooks/useMontorTeams';
+import { detectGotland } from '@/lib/constants';
+import { GotlandBadge, GOTLAND_LOCK_HINT, CONGARD_TEAM } from '@/components/shared/GotlandBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,6 +53,20 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
 
   const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value } as any));
 
+  const isGotland = detectGotland(form.city, form.address);
+  useEffect(() => {
+    setForm((f) => {
+      if (isGotland) {
+        if (f.team === CONGARD_TEAM && f.km_team === CONGARD_TEAM) return f;
+        return { ...f, team: CONGARD_TEAM, km_team: CONGARD_TEAM } as any;
+      }
+      if (f.team === CONGARD_TEAM || f.km_team === CONGARD_TEAM) {
+        return { ...f, team: '', km_team: '' } as any;
+      }
+      return f;
+    });
+  }, [isGotland]);
+
   const tbNum = form.tb_percent === '' ? null : Number(form.tb_percent);
   const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
   const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
@@ -83,6 +99,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         units: Math.max(1, Math.floor(Number(form.units))),
         team: form.team || null,
         km_team: form.km_team || null,
+        is_gotland: isGotland,
         google_drive_link: form.google_drive_link || null,
         notes: form.notes || null,
         seller: sellerName,
@@ -208,6 +225,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           <div className="space-y-1.5">
             <Label>Ort *</Label>
             <Input value={form.city} onChange={(e) => update('city', e.target.value)} />
+            {isGotland && <div><GotlandBadge /></div>}
           </div>
           <div className="space-y-1.5">
             <Label>Offertnummer</Label>
@@ -244,7 +262,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           </div>
           <div className="space-y-1.5">
             <Label>KM-montör (valfritt)</Label>
-            <Select value={form.km_team || '__none__'} onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}>
+            <Select disabled={isGotland} value={form.km_team || '__none__'} onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">— Ingen vald —</SelectItem>
@@ -253,10 +271,11 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
                 ))}
               </SelectContent>
             </Select>
+            {isGotland && <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Montage-montör (valfritt)</Label>
-            <Select value={form.team || '__none__'} onValueChange={(v) => update('team', v === '__none__' ? '' : v)}>
+            <Select disabled={isGotland} value={form.team || '__none__'} onValueChange={(v) => update('team', v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">— Ingen vald —</SelectItem>
@@ -265,6 +284,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
                 ))}
               </SelectContent>
             </Select>
+            {isGotland && <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Google Drive-länk</Label>

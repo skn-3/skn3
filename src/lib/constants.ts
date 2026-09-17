@@ -128,3 +128,43 @@ export const COMPETITORS = [
   { value: 'skanska_byggvaror', label: 'Skånska Byggvaror' },
   { value: 'annan', label: 'Annan' },
 ] as const;
+
+export const GOTLAND_POSTORTER = [
+  'Visby',
+  'Klintehamn',
+  'Romakloster',
+  'Hemse',
+  'Slite',
+  'Lärbro',
+  'Gotlands Tofta',
+  'Stånga',
+  'Havdhem',
+  'Tingstäde',
+  'Katthammarsvik',
+  'Burgsvik',
+  'Fårösund',
+  'Ljugarn',
+  'Fårö',
+  'Dalhem',
+] as const;
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Matchar orten som eget ord (skiftlägesokänsligt). 'Tofta' ensamt matchar aldrig. */
+function containsOrt(text: string): boolean {
+  return GOTLAND_POSTORTER.some((ort) => {
+    const re = new RegExp(`(^|[^\\p{L}])${escapeRe(ort)}($|[^\\p{L}])`, 'iu');
+    return re.test(text);
+  });
+}
+
+/** True om orten/adressen pekar på Gotland. */
+export function detectGotland(city?: string, address?: string): boolean {
+  const c = (city ?? '').trim().toLowerCase();
+  if (c && GOTLAND_POSTORTER.some((o) => o.toLowerCase() === c)) return true;
+  const a = (address ?? '').trim();
+  if (!a) return false;
+  const idx = a.indexOf(',');
+  if (idx === -1) return false;
+  return containsOrt(a.substring(idx + 1));
+}

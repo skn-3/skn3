@@ -396,6 +396,7 @@ export type Database = {
           address: string
           carry_help_needed: boolean
           city: string | null
+          congard_hours: number
           created_at: string
           customer_email: string | null
           customer_name: string
@@ -410,6 +411,7 @@ export type Database = {
           google_drive_link: string | null
           id: string
           imported: boolean
+          is_gotland: boolean
           km_date: string | null
           km_team: string | null
           km_time: string | null
@@ -436,6 +438,7 @@ export type Database = {
           address: string
           carry_help_needed?: boolean
           city?: string | null
+          congard_hours?: number
           created_at?: string
           customer_email?: string | null
           customer_name: string
@@ -450,6 +453,7 @@ export type Database = {
           google_drive_link?: string | null
           id?: string
           imported?: boolean
+          is_gotland?: boolean
           km_date?: string | null
           km_team?: string | null
           km_time?: string | null
@@ -476,6 +480,7 @@ export type Database = {
           address?: string
           carry_help_needed?: boolean
           city?: string | null
+          congard_hours?: number
           created_at?: string
           customer_email?: string | null
           customer_name?: string
@@ -490,6 +495,7 @@ export type Database = {
           google_drive_link?: string | null
           id?: string
           imported?: boolean
+          is_gotland?: boolean
           km_date?: string | null
           km_team?: string | null
           km_time?: string | null

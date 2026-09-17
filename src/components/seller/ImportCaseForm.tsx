@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, fetchAllCases, createVisit, type CaseRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { SELLERS, STATUS_LABELS, SELLER_PIPELINE_COLUMNS, HOUR_RATE } from '@/lib/constants';
+import { detectGotland } from '@/lib/constants';
+import { GotlandBadge, GOTLAND_LOCK_HINT, CONGARD_TEAM } from '@/components/shared/GotlandBadge';
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -254,6 +256,20 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
   });
 
 
+  const isGotland = detectGotland(form.city, form.address);
+  useEffect(() => {
+    setForm((f) => {
+      if (isGotland) {
+        if (f.team === CONGARD_TEAM && f.km_team === CONGARD_TEAM) return f;
+        return { ...f, team: CONGARD_TEAM, km_team: CONGARD_TEAM };
+      }
+      if (f.team === CONGARD_TEAM || f.km_team === CONGARD_TEAM) {
+        return { ...f, team: '', km_team: '' };
+      }
+      return f;
+    });
+  }, [isGotland]);
+
   const mutation = useMutation({
     mutationFn: async (vars: { dupReasons?: string[] } = {}) => {
       const caseData: any = {
@@ -271,6 +287,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         units: form.units !== '' ? Math.max(0, Math.floor(Number(form.units))) : null,
         team: form.team || null,
         km_team: form.km_team || null,
+        is_gotland: isGotland,
         seller: form.seller,
         status: form.status,
         google_drive_link: form.google_drive_link || null,
@@ -590,6 +607,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         <div className="space-y-1.5">
           <Label>Ort *</Label>
           <Input value={form.city} onChange={(e) => update('city', e.target.value)} />
+          {isGotland && <div><GotlandBadge /></div>}
         </div>
 
         <div className="space-y-1.5">
@@ -620,7 +638,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         </div>
         <div className="space-y-1.5">
           <Label>KM-montör (valfritt)</Label>
-          <Select value={form.km_team || '__none__'} onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}>
+          <Select disabled={isGotland} value={form.km_team || '__none__'} onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}>
             <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">— Ingen vald —</SelectItem>
@@ -629,10 +647,11 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
               ))}
             </SelectContent>
           </Select>
+          {isGotland && <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>}
         </div>
         <div className="space-y-1.5">
           <Label>Montage-montör (valfritt)</Label>
-          <Select value={form.team || '__none__'} onValueChange={(v) => update('team', v === '__none__' ? '' : v)}>
+          <Select disabled={isGotland} value={form.team || '__none__'} onValueChange={(v) => update('team', v === '__none__' ? '' : v)}>
             <SelectTrigger className={cn(aiClass('team'))}><SelectValue placeholder="Ingen vald" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">— Ingen vald —</SelectItem>
@@ -641,6 +660,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
               ))}
             </SelectContent>
           </Select>
+          {isGotland && <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>}
         </div>
 
         <div className="space-y-1.5">

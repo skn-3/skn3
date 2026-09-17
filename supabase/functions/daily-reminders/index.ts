@@ -138,6 +138,7 @@ Deno.serve(async (req) => {
         .from('cases')
         .select('*')
         .eq('status', 'vantar_km')
+        .eq('is_gotland', false)
         .lt('created_at', sevenDaysAgo);
 
       if (cases && cases.length > 0) {
@@ -462,6 +463,7 @@ Deno.serve(async (req) => {
         .from('cases')
         .select('*')
         .not('status', 'in', '("montage_klart","fakturerad","pausad")')
+        .eq('is_gotland', false)
         .lt('updated_at', tenDaysAgo);
 
       if (stuckCases && stuckCases.length > 0) {
