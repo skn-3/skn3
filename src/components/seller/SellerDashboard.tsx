@@ -21,6 +21,7 @@ import {
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { extractCityFromAddress, normalizeCityKey, cityDisplayName } from '@/lib/city';
+import { hasRealSeller } from '@/lib/sellerStats';
 
 interface SellerDashboardProps {
   sellerName: string;
@@ -80,6 +81,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
     .sort((a, b) => a.label.localeCompare(b.label, 'sv'));
 
   const cases = allCases.filter((c) => {
+    if (!hasRealSeller(c as any)) return false;
     if (filterSeller !== 'all' && c.seller !== filterSeller) return false;
     if (filterMontor !== 'all' && c.team !== filterMontor) return false;
     if (filterCity !== 'all' && getCaseCityKeyLocal(c as any) !== filterCity) return false;
@@ -116,6 +118,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
   // Budget progress — only cases from current year, company-wide (not affected by seller/city/date filters)
   const currentYear = new Date().getFullYear();
   const signedThisYear = allCases.filter(c =>
+    hasRealSeller(c as any) &&
     c.created_at &&
     new Date(c.created_at).getFullYear() === currentYear
   );
@@ -125,7 +128,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
 
   // Per seller table
   const perSeller = SELLERS.map((s) => {
-    const sc = (allCases || []).filter((c) => c.seller === s);
+    const sc = (allCases || []).filter((c) => hasRealSeller(c as any) && c.seller === s);
     return { name: s, count: sc.length, value: sc.reduce((sum, c) => sum + (Number(c.order_value) || 0), 0) };
   });
 

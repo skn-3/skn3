@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, Maximize2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { hasRealSeller } from '@/lib/sellerStats';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const fmtKr = (n: number) => `${Math.round(n).toLocaleString('sv-SE')} kr`;
@@ -48,7 +49,7 @@ export default function WeeklyPresentation() {
   });
 
   const S = useMemo(() => {
-    const cases = (data?.cases ?? []) as any[];
+    const cases = ((data?.cases ?? []) as any[]).filter(hasRealSeller);
     const visits = (data?.visits ?? []) as any[];
     const offers = (data?.offers ?? []) as any[];
     const inWeek = (iso: string | null, w: { start: Date; end: Date }) =>
