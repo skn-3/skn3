@@ -273,7 +273,7 @@ export function KmPayoutView({ currentUser }: Props) {
     setRows(rs => rs.map(r => (r.key === key ? { ...r, ...p } : r)));
 
   const missing = rows.filter(r => !r.caseChoice || !r.teamId).length;
-  const grandTotal = useMemo(() => rows.reduce((s, r) => s + rowTotal(r), 0), [rows]);
+  const grandTotal = useMemo(() => rows.reduce((s, r) => s + rowTotalWithHour(r), 0), [rows]);
 
   async function book() {
     setBusy(true);
