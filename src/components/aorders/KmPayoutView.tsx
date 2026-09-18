@@ -323,14 +323,26 @@ export function KmPayoutView({ currentUser }: Props) {
         const team = teams.find(t => t.id === teamId);
         if (!team) continue;
         const nums = Array.from(new Set(teamRows.map(r => r.invoice_number).filter(Boolean)));
+        const customerLines = teamRows.map(r => ({
+          description: `Kontrollmätning — ${r.customer_name || 'Okänd kund'} (${r.kmQty ?? '—'} km, ${r.enheterQty} enh)`,
+          qty: 1,
+          unit: 'st',
+          unit_price: rowTotal(r),
+          amount: rowTotal(r),
+        }));
+        const hourLine = {
+          description: 'Arbetstid kontrollmätning (1 tim per mätning)',
+          qty: teamRows.length,
+          unit: 'tim',
+          unit_price: HOUR_RATE,
+          amount: teamRows.length * HOUR_RATE,
+        };
         const res = await createAndSendDebitInvoice({
           team,
           title: 'Kontrollmätningar',
           description: `Avser Mockfjärds faktura ${nums.join(', ')}`,
-          lines: teamRows.map(r => ({
-            name: `Kontrollmätning — ${r.customer_name || 'Okänd kund'} (${r.kmQty ?? '—'} km, ${r.enheterQty} enh)`,
-            amount: rowTotal(r),
-          })),
+          lines: customerLines.map(l => ({ name: l.description, amount: l.amount })),
+          detailedLines: [...customerLines, hourLine],
           vatMode: 'omvand',
           date: isoDate(today),
           dueDate: isoDate(addDays(today, 10)),
