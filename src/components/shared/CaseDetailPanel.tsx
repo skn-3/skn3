@@ -764,7 +764,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const approveHoursMutation = useMutation({
     mutationFn: async () => {
       const requested = caseData.extra_hours_requested ?? 0;
-      await updateCase(caseData.id, { extra_hours_approved: requested, status: 'km_klar' });
+      await updateCase(caseData.id, { extra_hours_approved: requested, status: 'km_klar', hours_confirmed_at: new Date().toISOString() } as any);
       await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${requested}`, created_by: currentUser });
       logActivity({
         category: 'case',
@@ -781,7 +781,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const rejectHoursMutation = useMutation({
     mutationFn: async () => {
       const requested = caseData.extra_hours_requested ?? 0;
-      await updateCase(caseData.id, { extra_hours_approved: 0, status: 'km_klar' });
+      await updateCase(caseData.id, { extra_hours_approved: 0, status: 'km_klar', hours_confirmed_at: new Date().toISOString() } as any);
       await createCaseEvent({ case_id: caseData.id, event_type: 'hours_rejected', description: 'Extra timmar avslagna', created_by: currentUser });
       logActivity({
         category: 'case',
