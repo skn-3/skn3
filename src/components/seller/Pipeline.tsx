@@ -180,12 +180,18 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
     [searchedCases, kmInboxCaseIds],
   );
 
+  const sellerStepsCount = useMemo(
+    () => searchedCases.filter(c => sellerStepsFor(c as any).incomplete).length,
+    [searchedCases],
+  );
+
   const visibleCases = useMemo(() => {
     let list = searchedCases;
     if (onlyFlagged) list = list.filter(c => getWarnings(c, ordersByCaseId ?? null).length > 0);
     if (onlyKmInbox) list = list.filter(c => kmInboxCaseIds?.has(c.id));
+    if (onlySellerSteps) list = list.filter(c => sellerStepsFor(c as any).incomplete);
     return list;
-  }, [searchedCases, onlyFlagged, onlyKmInbox, ordersByCaseId, kmInboxCaseIds]);
+  }, [searchedCases, onlyFlagged, onlyKmInbox, onlySellerSteps, ordersByCaseId, kmInboxCaseIds]);
 
   if (isLoading) {
     return (
