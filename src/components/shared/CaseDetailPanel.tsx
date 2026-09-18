@@ -1036,6 +1036,66 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           </Button>
         </div>
 
+        {steps.incomplete && (
+          <div className="m-4 rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-950/40 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-red-800 dark:text-red-300">
+              <AlertTriangle className="h-4 w-4" />
+              Obligatoriska säljarsteg kvar
+            </div>
+            {steps.hoursDone ? (
+              <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
+                <Check className="h-4 w-4" /> Timmar bekräftade
+              </div>
+            ) : (
+              <Button
+                className="w-full bg-red-600 text-white hover:bg-red-700"
+                onClick={() => {
+                  setHoursSoldInput(String(caseData.extra_hours_requested > 0 && caseData.extra_hours_approved === 0 && caseData.status === 'vantar_godkannande'
+                    ? (caseData.extra_hours_requested ?? 0)
+                    : (caseData.extra_hours_sold ?? 0)));
+                  setHoursApprovedInput(String(caseData.extra_hours_approved ?? 0));
+                  setHoursDialogOpen(true);
+                }}
+              >
+                <Clock className="h-4 w-4 mr-2" /> Justera timmar
+              </Button>
+            )}
+            {steps.deliveryDone ? (
+              <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
+                <Check className="h-4 w-4" /> Leveransvecka: v.{(caseData as any).delivery_week}
+              </div>
+            ) : (
+              <Button className="w-full bg-red-600 text-white hover:bg-red-700" onClick={openWeekDialog}>
+                <CalendarIcon className="h-4 w-4 mr-2" /> Välj leveransvecka
+              </Button>
+            )}
+          </div>
+        )}
+
+        <Dialog open={weekDialogOpen} onOpenChange={setWeekDialogOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Välj leveransvecka</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Select value={weekChoice} onValueChange={setWeekChoice}>
+                <SelectTrigger><SelectValue placeholder="Välj vecka..." /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {weekOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <div className="flex justify-end">
+                <Button
+                  disabled={!weekChoice || deliveryWeekMutation.isPending}
+                  onClick={() => deliveryWeekMutation.mutate(weekChoice)}
+                >
+                  Spara
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <div className="divide-y">
           {/* Customer info */}
           <section className="p-4 space-y-2">
