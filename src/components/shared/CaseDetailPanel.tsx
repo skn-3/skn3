@@ -47,6 +47,7 @@ import { AOrderForm } from '@/components/aorders/AOrderForm';
 import { fmtKr as fmtOfferKr } from '@/lib/offerCalc';
 import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
 import { openDocumentInNewTab } from '@/lib/openDocument';
+import { sellerStepsFor, upcomingWeekOptions } from '@/lib/sellerSteps';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -97,6 +98,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [ovConfirmOpen, setOvConfirmOpen] = useState(false);
   const [hoursEdit, setHoursEdit] = useState<{ field: 'extra_hours_sold' | 'extra_hours_approved'; value: string } | null>(null);
   const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
+  const [weekDialogOpen, setWeekDialogOpen] = useState(false);
+  const [weekChoice, setWeekChoice] = useState('');
   const [hoursSoldInput, setHoursSoldInput] = useState('');
   const [hoursApprovedInput, setHoursApprovedInput] = useState('');
   const [congardInput, setCongardInput] = useState('');
