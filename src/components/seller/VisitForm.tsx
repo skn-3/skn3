@@ -201,7 +201,12 @@ export function VisitForm({ sellerName }: VisitFormProps) {
     baseValid &&
     !!form.result &&
     (form.result !== 'aterkoppla' || !!form.follow_up_date) &&
-    (form.result !== 'signerat' || (!!form.customer_phone.trim() && !!form.city.trim() && !tbInvalid && unitsValid));
+    (form.result !== 'signerat' ||
+      (!!form.customer_phone.trim() &&
+        !!form.city.trim() &&
+        !tbInvalid &&
+        unitsValid &&
+        (!form.future_job || (!!form.future_job_description.trim() && !!form.future_job_date))));
 
   // ===== Spara =====
   const mutation = useMutation({
