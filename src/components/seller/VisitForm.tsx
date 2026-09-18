@@ -778,6 +778,36 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                   )}
                 </label>
               </div>
+
+              <div className="space-y-2 rounded-lg border p-3">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <Checkbox
+                    checked={form.future_job}
+                    onCheckedChange={(c) => update('future_job', c === true)}
+                  />
+                  Kund vill utföra ett annat jobb
+                </label>
+                {form.future_job && (
+                  <div className="space-y-2 pl-6">
+                    <div className="space-y-1.5">
+                      <Label>Vad vill kunden utföra? *</Label>
+                      <Textarea
+                        rows={2}
+                        value={form.future_job_description}
+                        onChange={(e) => update('future_job_description', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>När ska kunden kontaktas? *</Label>
+                      <Input
+                        type="date"
+                        value={form.future_job_date}
+                        onChange={(e) => update('future_job_date', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
