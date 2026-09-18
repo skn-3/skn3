@@ -366,6 +366,24 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
         </button>
       )}
 
+      {sellerStepsCount > 0 && (
+        <button
+          type="button"
+          onClick={() => { setOnlySellerSteps(v => !v); setOnlyFlagged(false); setOnlyKmInbox(false); }}
+          className={`mx-3 md:mx-0 flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors text-left w-[calc(100%-1.5rem)] md:w-auto ${
+            onlySellerSteps
+              ? 'bg-red-200 border-red-400 text-red-900 dark:bg-red-900/60 dark:text-red-200'
+              : 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-800 text-red-800 dark:text-red-300 hover:bg-red-200'
+          }`}
+        >
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span>
+            {sellerStepsCount} signerade ordrar saknar timjustering eller leveransvecka
+            {onlySellerSteps ? ' — klicka för att visa alla' : ' — klicka för att filtrera'}
+          </span>
+        </button>
+      )}
+
       {kmInboxCount > 0 && (
         <button
           type="button"
