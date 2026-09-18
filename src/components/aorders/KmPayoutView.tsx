@@ -483,7 +483,10 @@ export function KmPayoutView({ currentUser }: Props) {
                 </div>
                 <div className="text-right">
                   <div className="text-xs text-muted-foreground">Radsumma</div>
-                  <div className="font-semibold">{fmt(rowTotal(r))}</div>
+                  <div className="font-semibold">{fmt(rowTotalWithHour(r))}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    + Arbetstid KM: 1 tim × {fmt(HOUR_RATE)}
+                  </div>
                 </div>
               </div>
 
