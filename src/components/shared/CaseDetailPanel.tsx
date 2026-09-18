@@ -1404,6 +1404,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                           if (apprNum !== (caseData.extra_hours_approved ?? 0)) {
                             await adjustHoursMutation.mutateAsync({ field: 'extra_hours_approved', newValue: apprNum });
                           }
+                          await confirmHoursStamp();
+                          invalidate();
                           setHoursDialogOpen(false);
                         }}
                       >
