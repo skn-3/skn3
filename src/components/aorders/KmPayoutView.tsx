@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { createAndSendDebitInvoice } from '@/lib/debitInvoice';
 import { logActivity } from '@/lib/activityLog';
+import { HOUR_RATE } from '@/lib/constants';
 
 interface Props { currentUser: string }
 
@@ -115,8 +116,14 @@ const isBil = (li: LineItem) => txt(li).includes('bilers');
 const isRestid = (li: LineItem) => txt(li).includes('restid');
 const isGrund = (li: LineItem) => txt(li).includes('grund');
 
+/** Mockfjärds-belopp för raden — används i intäktsdokumentet (utan timtillägg). */
 function rowTotal(r: KmRow) {
   return Math.round((r.kmQty ?? 0) * (r.bilRate + r.restidRate) + r.grundavgift + r.enheterQty * r.enheterRate);
+}
+
+/** Radsumma inklusive automatiskt arbetstidstillägg (1 tim per kontrollmätning). */
+function rowTotalWithHour(r: KmRow) {
+  return rowTotal(r) + HOUR_RATE;
 }
 
 function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
@@ -266,7 +273,7 @@ export function KmPayoutView({ currentUser }: Props) {
     setRows(rs => rs.map(r => (r.key === key ? { ...r, ...p } : r)));
 
   const missing = rows.filter(r => !r.caseChoice || !r.teamId).length;
-  const grandTotal = useMemo(() => rows.reduce((s, r) => s + rowTotal(r), 0), [rows]);
+  const grandTotal = useMemo(() => rows.reduce((s, r) => s + rowTotalWithHour(r), 0), [rows]);
 
   async function book() {
     setBusy(true);
@@ -316,14 +323,26 @@ export function KmPayoutView({ currentUser }: Props) {
         const team = teams.find(t => t.id === teamId);
         if (!team) continue;
         const nums = Array.from(new Set(teamRows.map(r => r.invoice_number).filter(Boolean)));
+        const customerLines = teamRows.map(r => ({
+          description: `Kontrollmätning — ${r.customer_name || 'Okänd kund'} (${r.kmQty ?? '—'} km, ${r.enheterQty} enh)`,
+          qty: 1,
+          unit: 'st',
+          unit_price: rowTotal(r),
+          amount: rowTotal(r),
+        }));
+        const hourLine = {
+          description: 'Arbetstid kontrollmätning (1 tim per mätning)',
+          qty: teamRows.length,
+          unit: 'tim',
+          unit_price: HOUR_RATE,
+          amount: teamRows.length * HOUR_RATE,
+        };
         const res = await createAndSendDebitInvoice({
           team,
           title: 'Kontrollmätningar',
           description: `Avser Mockfjärds faktura ${nums.join(', ')}`,
-          lines: teamRows.map(r => ({
-            name: `Kontrollmätning — ${r.customer_name || 'Okänd kund'} (${r.kmQty ?? '—'} km, ${r.enheterQty} enh)`,
-            amount: rowTotal(r),
-          })),
+          lines: customerLines.map(l => ({ name: l.description, amount: l.amount })),
+          detailedLines: [...customerLines, hourLine],
           vatMode: 'omvand',
           date: isoDate(today),
           dueDate: isoDate(addDays(today, 10)),
@@ -464,7 +483,10 @@ export function KmPayoutView({ currentUser }: Props) {
                 </div>
                 <div className="text-right">
                   <div className="text-xs text-muted-foreground">Radsumma</div>
-                  <div className="font-semibold">{fmt(rowTotal(r))}</div>
+                  <div className="font-semibold">{fmt(rowTotalWithHour(r))}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    + Arbetstid KM: 1 tim × {fmt(HOUR_RATE)}
+                  </div>
                 </div>
               </div>
 
