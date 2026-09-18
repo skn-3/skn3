@@ -8,6 +8,13 @@
       "when": 1789714004985,
       "tag": "0000_pad_team_invoice_number",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789714542536,
+      "tag": "0001_add_hours_confirmed_at",
+      "breakpoints": true
     }
   ]
 }

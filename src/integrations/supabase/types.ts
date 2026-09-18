@@ -409,6 +409,7 @@ export type Database = {
           extra_hours_requested: number
           extra_hours_sold: number
           google_drive_link: string | null
+          hours_confirmed_at: string | null
           id: string
           imported: boolean
           is_gotland: boolean
@@ -451,6 +452,7 @@ export type Database = {
           extra_hours_requested?: number
           extra_hours_sold?: number
           google_drive_link?: string | null
+          hours_confirmed_at?: string | null
           id?: string
           imported?: boolean
           is_gotland?: boolean
@@ -493,6 +495,7 @@ export type Database = {
           extra_hours_requested?: number
           extra_hours_sold?: number
           google_drive_link?: string | null
+          hours_confirmed_at?: string | null
           id?: string
           imported?: boolean
           is_gotland?: boolean

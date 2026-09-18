@@ -47,6 +47,7 @@ import { AOrderForm } from '@/components/aorders/AOrderForm';
 import { fmtKr as fmtOfferKr } from '@/lib/offerCalc';
 import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
 import { openDocumentInNewTab } from '@/lib/openDocument';
+import { sellerStepsFor, upcomingWeekOptions } from '@/lib/sellerSteps';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -97,6 +98,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [ovConfirmOpen, setOvConfirmOpen] = useState(false);
   const [hoursEdit, setHoursEdit] = useState<{ field: 'extra_hours_sold' | 'extra_hours_approved'; value: string } | null>(null);
   const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
+  const [weekDialogOpen, setWeekDialogOpen] = useState(false);
+  const [weekChoice, setWeekChoice] = useState('');
   const [hoursSoldInput, setHoursSoldInput] = useState('');
   const [hoursApprovedInput, setHoursApprovedInput] = useState('');
   const [congardInput, setCongardInput] = useState('');
@@ -761,7 +764,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const approveHoursMutation = useMutation({
     mutationFn: async () => {
       const requested = caseData.extra_hours_requested ?? 0;
-      await updateCase(caseData.id, { extra_hours_approved: requested, status: 'km_klar' });
+      await updateCase(caseData.id, { extra_hours_approved: requested, status: 'km_klar', hours_confirmed_at: new Date().toISOString() } as any);
       await createCaseEvent({ case_id: caseData.id, event_type: 'hours_approved', description: `Extra timmar godkända: ${requested}`, created_by: currentUser });
       logActivity({
         category: 'case',
@@ -778,7 +781,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const rejectHoursMutation = useMutation({
     mutationFn: async () => {
       const requested = caseData.extra_hours_requested ?? 0;
-      await updateCase(caseData.id, { extra_hours_approved: 0, status: 'km_klar' });
+      await updateCase(caseData.id, { extra_hours_approved: 0, status: 'km_klar', hours_confirmed_at: new Date().toISOString() } as any);
       await createCaseEvent({ case_id: caseData.id, event_type: 'hours_rejected', description: 'Extra timmar avslagna', created_by: currentUser });
       logActivity({
         category: 'case',
@@ -837,6 +840,36 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onSuccess: () => { invalidate(); toast.success('Timmar uppdaterade'); setHoursEdit(null); },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const confirmHoursStamp = async () => {
+    if ((caseData as any).hours_confirmed_at) return;
+    await updateCase(caseData.id, { hours_confirmed_at: new Date().toISOString() } as any);
+  };
+
+  const deliveryWeekMutation = useMutation({
+    mutationFn: async (value: string) => {
+      const [y, w] = value.split('-').map(Number);
+      if (!y || !w) throw new Error('Välj en leveransvecka');
+      await updateCase(caseData.id, { delivery_week: w, delivery_year: y } as any);
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'status_change',
+        description: `Leveransvecka satt: v.${w}`,
+        created_by: currentUser,
+      });
+    },
+    onSuccess: () => { invalidate(); setWeekDialogOpen(false); toast.success('Leveransvecka sparad'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const steps = sellerStepsFor(caseData as any);
+  const weekOptions = useMemo(() => upcomingWeekOptions(26), []);
+  const openWeekDialog = () => {
+    const w = (caseData as any).delivery_week as number | null;
+    const y = (caseData as any).delivery_year as number | null;
+    setWeekChoice(w && y ? `${y}-${w}` : '');
+    setWeekDialogOpen(true);
+  };
 
   const approvalMutation = useMutation({
     mutationFn: async () => {
@@ -1002,6 +1035,66 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             <X className="h-5 w-5" />
           </Button>
         </div>
+
+        {steps.incomplete && (
+          <div className="m-4 rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-950/40 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-red-800 dark:text-red-300">
+              <AlertTriangle className="h-4 w-4" />
+              Obligatoriska säljarsteg kvar
+            </div>
+            {steps.hoursDone ? (
+              <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
+                <Check className="h-4 w-4" /> Timmar bekräftade
+              </div>
+            ) : (
+              <Button
+                className="w-full bg-red-600 text-white hover:bg-red-700"
+                onClick={() => {
+                  setHoursSoldInput(String(caseData.extra_hours_requested > 0 && caseData.extra_hours_approved === 0 && caseData.status === 'vantar_godkannande'
+                    ? (caseData.extra_hours_requested ?? 0)
+                    : (caseData.extra_hours_sold ?? 0)));
+                  setHoursApprovedInput(String(caseData.extra_hours_approved ?? 0));
+                  setHoursDialogOpen(true);
+                }}
+              >
+                <Clock className="h-4 w-4 mr-2" /> Justera timmar
+              </Button>
+            )}
+            {steps.deliveryDone ? (
+              <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
+                <Check className="h-4 w-4" /> Leveransvecka: v.{(caseData as any).delivery_week}
+              </div>
+            ) : (
+              <Button className="w-full bg-red-600 text-white hover:bg-red-700" onClick={openWeekDialog}>
+                <CalendarIcon className="h-4 w-4 mr-2" /> Välj leveransvecka
+              </Button>
+            )}
+          </div>
+        )}
+
+        <Dialog open={weekDialogOpen} onOpenChange={setWeekDialogOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Välj leveransvecka</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Select value={weekChoice} onValueChange={setWeekChoice}>
+                <SelectTrigger><SelectValue placeholder="Välj vecka..." /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {weekOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <div className="flex justify-end">
+                <Button
+                  disabled={!weekChoice || deliveryWeekMutation.isPending}
+                  onClick={() => deliveryWeekMutation.mutate(weekChoice)}
+                >
+                  Spara
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <div className="divide-y">
           {/* Customer info */}
@@ -1371,6 +1464,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                           if (apprNum !== (caseData.extra_hours_approved ?? 0)) {
                             await adjustHoursMutation.mutateAsync({ field: 'extra_hours_approved', newValue: apprNum });
                           }
+                          await confirmHoursStamp();
+                          invalidate();
                           setHoursDialogOpen(false);
                         }}
                       >

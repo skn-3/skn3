@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { User, Wrench, UserCircle, AlertTriangle, Clock, Ruler } from 'lucide-react';
+import { User, Wrench, UserCircle, AlertTriangle, Clock, Ruler, Check } from 'lucide-react';
+import { sellerStepsFor } from '@/lib/sellerSteps';
 import { differenceInCalendarDays, startOfISOWeek } from 'date-fns';
 import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
 
@@ -150,7 +151,11 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
     && caseData.status === 'vantar_godkannande';
   const units = (caseData as any).units as number | null | undefined;
   const intensity = unitsIntensity(units);
-  const cardStyle: CSSProperties | undefined = intensity != null
+  const steps = sellerStepsFor(caseData as any);
+  const stepsMissing = steps.applicable && steps.incomplete;
+  const cardStyle: CSSProperties | undefined = stepsMissing
+    ? undefined
+    : intensity != null
     ? {
         borderLeftWidth: 3,
         borderLeftColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity})`,
@@ -161,7 +166,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
     <button
       onClick={onClick}
       style={cardStyle}
-      className="w-full text-left rounded-lg border bg-card p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 motion-reduce:hover:translate-y-0 motion-reduce:transition-none animate-fade-in space-y-1.5"
+      className={`w-full text-left rounded-lg border bg-card p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 motion-reduce:hover:translate-y-0 motion-reduce:transition-none animate-fade-in space-y-1.5${stepsMissing ? ' border-l-4 border-l-red-500' : ''}`}
     >
       <h3 className="font-bold text-sm text-card-foreground leading-tight">{caseData.address}</h3>
       <div className="space-y-0.5 text-xs text-muted-foreground">
@@ -195,6 +200,26 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
             <span className="text-[10px] text-muted-foreground/60">–</span>
           )}
         </div>
+        {stepsMissing && (
+          <div className="flex flex-wrap gap-1 pt-1">
+            {[
+              { label: 'Timmar', done: steps.hoursDone },
+              { label: 'Leveransvecka', done: steps.deliveryDone },
+            ].map(chip => (
+              <span
+                key={chip.label}
+                className={
+                  chip.done
+                    ? 'inline-flex items-center gap-1 rounded-full border border-emerald-300 dark:border-emerald-800 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 text-[10px] font-medium text-emerald-800 dark:text-emerald-300'
+                    : 'inline-flex items-center gap-1 rounded-full border border-red-400 dark:border-red-800 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:text-red-300'
+                }
+              >
+                {chip.done ? <Check className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                {chip.label}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       {(deliveryBadge || tidsBadge || kmInbox || dwellBadge || hoursBadge || (warnings && warnings.length > 0)) && (
         <div className="flex flex-wrap gap-1 pt-1">

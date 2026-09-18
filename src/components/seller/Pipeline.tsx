@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
+import { sellerStepsFor } from '@/lib/sellerSteps';
 
 const STATUS_ACCENT: Record<string, string> = {
   montage_pagar: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
@@ -73,6 +74,7 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [onlyFlagged, setOnlyFlagged] = useState(false);
   const [onlyKmInbox, setOnlyKmInbox] = useState(false);
+  const [onlySellerSteps, setOnlySellerSteps] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -178,12 +180,18 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
     [searchedCases, kmInboxCaseIds],
   );
 
+  const sellerStepsCount = useMemo(
+    () => searchedCases.filter(c => sellerStepsFor(c as any).incomplete).length,
+    [searchedCases],
+  );
+
   const visibleCases = useMemo(() => {
     let list = searchedCases;
     if (onlyFlagged) list = list.filter(c => getWarnings(c, ordersByCaseId ?? null).length > 0);
     if (onlyKmInbox) list = list.filter(c => kmInboxCaseIds?.has(c.id));
+    if (onlySellerSteps) list = list.filter(c => sellerStepsFor(c as any).incomplete);
     return list;
-  }, [searchedCases, onlyFlagged, onlyKmInbox, ordersByCaseId, kmInboxCaseIds]);
+  }, [searchedCases, onlyFlagged, onlyKmInbox, onlySellerSteps, ordersByCaseId, kmInboxCaseIds]);
 
   if (isLoading) {
     return (
@@ -354,6 +362,24 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
           <span>
             {flaggedCount} ärenden behöver åtgärd (montör/A-order)
             {onlyFlagged ? ' — klicka för att visa alla' : ' — klicka för att filtrera'}
+          </span>
+        </button>
+      )}
+
+      {sellerStepsCount > 0 && (
+        <button
+          type="button"
+          onClick={() => { setOnlySellerSteps(v => !v); setOnlyFlagged(false); setOnlyKmInbox(false); }}
+          className={`mx-3 md:mx-0 flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors text-left w-[calc(100%-1.5rem)] md:w-auto ${
+            onlySellerSteps
+              ? 'bg-red-200 border-red-400 text-red-900 dark:bg-red-900/60 dark:text-red-200'
+              : 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-800 text-red-800 dark:text-red-300 hover:bg-red-200'
+          }`}
+        >
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span>
+            {sellerStepsCount} signerade ordrar saknar timjustering eller leveransvecka
+            {onlySellerSteps ? ' — klicka för att visa alla' : ' — klicka för att filtrera'}
           </span>
         </button>
       )}
