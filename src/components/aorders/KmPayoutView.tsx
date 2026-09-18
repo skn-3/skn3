@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { createAndSendDebitInvoice } from '@/lib/debitInvoice';
 import { logActivity } from '@/lib/activityLog';
+import { HOUR_RATE } from '@/lib/constants';
 
 interface Props { currentUser: string }
 
@@ -115,8 +116,14 @@ const isBil = (li: LineItem) => txt(li).includes('bilers');
 const isRestid = (li: LineItem) => txt(li).includes('restid');
 const isGrund = (li: LineItem) => txt(li).includes('grund');
 
+/** Mockfjärds-belopp för raden — används i intäktsdokumentet (utan timtillägg). */
 function rowTotal(r: KmRow) {
   return Math.round((r.kmQty ?? 0) * (r.bilRate + r.restidRate) + r.grundavgift + r.enheterQty * r.enheterRate);
+}
+
+/** Radsumma inklusive automatiskt arbetstidstillägg (1 tim per kontrollmätning). */
+function rowTotalWithHour(r: KmRow) {
+  return rowTotal(r) + HOUR_RATE;
 }
 
 function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
