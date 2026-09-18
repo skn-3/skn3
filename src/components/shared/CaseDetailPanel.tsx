@@ -841,6 +841,36 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const confirmHoursStamp = async () => {
+    if ((caseData as any).hours_confirmed_at) return;
+    await updateCase(caseData.id, { hours_confirmed_at: new Date().toISOString() } as any);
+  };
+
+  const deliveryWeekMutation = useMutation({
+    mutationFn: async (value: string) => {
+      const [y, w] = value.split('-').map(Number);
+      if (!y || !w) throw new Error('Välj en leveransvecka');
+      await updateCase(caseData.id, { delivery_week: w, delivery_year: y } as any);
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'status_change',
+        description: `Leveransvecka satt: v.${w}`,
+        created_by: currentUser,
+      });
+    },
+    onSuccess: () => { invalidate(); setWeekDialogOpen(false); toast.success('Leveransvecka sparad'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const steps = sellerStepsFor(caseData as any);
+  const weekOptions = useMemo(() => upcomingWeekOptions(26), []);
+  const openWeekDialog = () => {
+    const w = (caseData as any).delivery_week as number | null;
+    const y = (caseData as any).delivery_year as number | null;
+    setWeekChoice(w && y ? `${y}-${w}` : '');
+    setWeekDialogOpen(true);
+  };
+
   const approvalMutation = useMutation({
     mutationFn: async () => {
       const dateStr = format(approvalDate!, 'yyyy-MM-dd');
