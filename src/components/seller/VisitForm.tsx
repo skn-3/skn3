@@ -301,6 +301,21 @@ export function VisitForm({ sellerName }: VisitFormProps) {
         created_by: sellerName,
       });
 
+      // 3b) Återkontakt — kund vill utföra ett annat jobb (blockerar inte sparandet)
+      if (form.future_job && form.future_job_description.trim() && form.future_job_date) {
+        const { error: fjErr } = await supabase.from('future_jobs').insert({
+          case_id: newCase.id,
+          customer_name: form.customer_name,
+          address: form.address || null,
+          phone: form.customer_phone || null,
+          seller: sellerName,
+          description: form.future_job_description.trim(),
+          contact_date: form.future_job_date,
+          created_by: sellerName,
+        });
+        if (fjErr) console.error('future_jobs insert failed:', fjErr);
+      }
+
       // 4) Montörmail
       if (effectiveTeam && montorEmailOf(effectiveTeam)) {
         try {
