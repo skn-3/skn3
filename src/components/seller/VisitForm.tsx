@@ -85,6 +85,9 @@ const emptyForm = () => ({
   media_consent: false,
   carry_help_needed: false,
   scheduled_delivery: false,
+  future_job: false,
+  future_job_description: '',
+  future_job_date: '',
 });
 
 export function VisitForm({ sellerName }: VisitFormProps) {
