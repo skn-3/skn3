@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
+import { sellerStepsFor } from '@/lib/sellerSteps';
 
 const STATUS_ACCENT: Record<string, string> = {
   montage_pagar: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
@@ -73,6 +74,7 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [onlyFlagged, setOnlyFlagged] = useState(false);
   const [onlyKmInbox, setOnlyKmInbox] = useState(false);
+  const [onlySellerSteps, setOnlySellerSteps] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
