@@ -1070,7 +1070,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             )}
             {steps.deliveryDone ? (
               <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
-                <Check className="h-4 w-4" /> Leveransvecka: v.{(caseData as any).delivery_week}
+                <Check className="h-4 w-4" />{' '}
+                {(caseData as any).delivery_week != null
+                  ? `Leveransvecka: v.${(caseData as any).delivery_week}`
+                  : `Leveransdatum: ${(caseData as any).delivery_date}`}
               </div>
             ) : (
               <Button className="w-full bg-red-600 text-white hover:bg-red-700" onClick={openWeekDialog}>
