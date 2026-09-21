@@ -17,7 +17,7 @@ export function sellerStepsFor(c: any): SellerSteps {
   const applicable = !!c && !c.is_gotland && SELLER_STEP_STATUSES.includes(c.status);
   if (!applicable) return { applicable: false, hoursDone: true, deliveryDone: true, incomplete: false };
   const hoursDone = c.hours_confirmed_at != null;
-  const deliveryDone = c.delivery_week != null;
+  const deliveryDone = c.delivery_week != null || c.delivery_date != null;
   return { applicable: true, hoursDone, deliveryDone, incomplete: !hoursDone || !deliveryDone };
 }
 

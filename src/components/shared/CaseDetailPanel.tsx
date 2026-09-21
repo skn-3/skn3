@@ -850,11 +850,19 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     mutationFn: async (value: string) => {
       const [y, w] = value.split('-').map(Number);
       if (!y || !w) throw new Error('Välj en leveransvecka');
-      await updateCase(caseData.id, { delivery_week: w, delivery_year: y } as any);
+      const prevDate = (caseData as any).delivery_date as string | null;
+      await updateCase(caseData.id, {
+        delivery_week: w,
+        delivery_year: y,
+        delivery_date: null,
+        delivery_time: null,
+      } as any);
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'status_change',
-        description: `Leveransvecka satt: v.${w}`,
+        description: prevDate
+          ? `Leveransvecka satt: v.${w} (ersatte exakt datum ${prevDate})`
+          : `Leveransvecka satt: v.${w}`,
         created_by: currentUser,
       });
     },
