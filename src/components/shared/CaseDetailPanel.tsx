@@ -850,11 +850,19 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     mutationFn: async (value: string) => {
       const [y, w] = value.split('-').map(Number);
       if (!y || !w) throw new Error('Välj en leveransvecka');
-      await updateCase(caseData.id, { delivery_week: w, delivery_year: y } as any);
+      const prevDate = (caseData as any).delivery_date as string | null;
+      await updateCase(caseData.id, {
+        delivery_week: w,
+        delivery_year: y,
+        delivery_date: null,
+        delivery_time: null,
+      } as any);
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'status_change',
-        description: `Leveransvecka satt: v.${w}`,
+        description: prevDate
+          ? `Leveransvecka satt: v.${w} (ersatte exakt datum ${prevDate})`
+          : `Leveransvecka satt: v.${w}`,
         created_by: currentUser,
       });
     },
@@ -1062,7 +1070,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             )}
             {steps.deliveryDone ? (
               <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
-                <Check className="h-4 w-4" /> Leveransvecka: v.{(caseData as any).delivery_week}
+                <Check className="h-4 w-4" />{' '}
+                {(caseData as any).delivery_week != null
+                  ? `Leveransvecka: v.${(caseData as any).delivery_week}`
+                  : `Leveransdatum: ${(caseData as any).delivery_date}`}
               </div>
             ) : (
               <Button className="w-full bg-red-600 text-white hover:bg-red-700" onClick={openWeekDialog}>
@@ -1078,6 +1089,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <DialogTitle>Välj leveransvecka</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
+              {(caseData as any).delivery_date && (
+                <p className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+                  Exakt leveransdatum är satt: {(caseData as any).delivery_date}. Väljer du en vecka ersätter den datumet.
+                </p>
+              )}
               <Select value={weekChoice} onValueChange={setWeekChoice}>
                 <SelectTrigger><SelectValue placeholder="Välj vecka..." /></SelectTrigger>
                 <SelectContent className="max-h-72">
