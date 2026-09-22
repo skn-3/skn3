@@ -155,6 +155,20 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
     } finally { setBusy(null); }
   };
 
+  const undoPaid = async () => {
+    if (!u) return;
+    setBusy('undo-paid');
+    try {
+      const { error } = await (supabase as any).from('uppdrag').update({ status: 'fakturerad', paid_at: null }).eq('id', u.id);
+      if (error) throw error;
+      await refresh();
+      setUndoDialog(false);
+      toast.success('Slutbetalning ångrad');
+    } catch (e: any) {
+      console.error(e); toast.error(e?.message || 'Kunde inte ångra');
+    } finally { setBusy(null); }
+  };
+
   const open = !!uppdragId;
   const meta = u ? UPPDRAG_STATUS_META[u.status] : null;
 
