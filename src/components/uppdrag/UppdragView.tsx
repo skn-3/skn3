@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { fmtKr } from '@/lib/offerCalc';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { UPPDRAG_STATUS_META, type UppdragStatus } from '@/lib/uppdrag';
 import { UppdragDetail } from './UppdragDetail';
+import { MarkPaidDialog } from './MarkPaidDialog';
 
 type UppdragRow = {
   id: string;
@@ -20,15 +22,17 @@ type UppdragRow = {
   assigned_to: string | null;
   revenue_ex_vat: number | null;
   cost_ex_vat: number | null;
+  paid_at: string | null;
   created_at: string;
 };
 
-const STATUS_OPTIONS: UppdragStatus[] = ['ej_paborjad', 'pagar', 'klar', 'fakturerad'];
+const STATUS_OPTIONS: UppdragStatus[] = ['ej_paborjad', 'pagar', 'klar', 'fakturerad', 'slutbetald'];
 
 export function UppdragView() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [payRow, setPayRow] = useState<UppdragRow | null>(null);
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['uppdrag'],
