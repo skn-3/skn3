@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
       from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
       reply_to: 'n3prenad@smartklimat.org',
       to: [recipient],
-      cc: [COPY_TO],
+      cc: [COPY_TO, ARCHIVE_CC],
       subject: `Faktura ${invoiceNo} – ${uppdrag.title || ''}`.trim(),
       html,
       attachments: [{ filename, content: base64 }],
