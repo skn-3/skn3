@@ -17,6 +17,8 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (!SMARTKLIMAT_SECRET) return json({ error: 'SMARTKLIMAT_INBOUND_SECRET saknas' }, 500);
 
+  const reqBody = await req.json().catch(() => ({}));
+  const limit = Number((reqBody as any)?.limit) || 0;
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
   const { data: visits, error: vErr } = await admin
