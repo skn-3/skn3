@@ -31,6 +31,7 @@ const App = () => (
             <Route path="/offert/:token" element={<PublicOffer />} />
             <Route path="/status/:token" element={<CustomerStatus />} />
             <Route path="/veckomote" element={<WeeklyPresentation />} />
+            <Route path="/qr-demo" element={<QrDemo />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
