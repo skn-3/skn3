@@ -201,6 +201,13 @@ export function UppdragView() {
         </table>
       </div>
       <UppdragDetail uppdragId={openId} onClose={() => setOpenId(null)} />
+      <MarkPaidDialog
+        open={!!payRow}
+        onOpenChange={(o) => !o && setPayRow(null)}
+        uppdragId={payRow?.id ?? null}
+        uppdragNumber={payRow?.uppdrag_number}
+        onDone={() => qc.invalidateQueries({ queryKey: ['uppdrag'] })}
+      />
     </div>
   );
 }
