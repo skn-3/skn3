@@ -848,6 +848,13 @@ export function VisitForm({ sellerName }: VisitFormProps) {
             : 'Spara besök'}
       </Button>
 
+      <KlimatQrDialog
+        open={!!klimatClaim}
+        onOpenChange={(o) => { if (!o) setKlimatClaim(null); }}
+        claimUrl={klimatClaim?.url}
+        treeTotal={klimatClaim?.trees ?? null}
+      />
+
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
