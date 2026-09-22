@@ -295,6 +295,29 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
           </div>
         )}
 
+        <MarkPaidDialog
+          open={paidDialog}
+          onOpenChange={setPaidDialog}
+          uppdragId={u?.id ?? null}
+          uppdragNumber={u?.uppdrag_number}
+          onDone={refresh}
+        />
+
+        <Dialog open={undoDialog} onOpenChange={(o) => !o && setUndoDialog(false)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ångra slutbetalning?</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">Uppdraget går tillbaka till status Fakturerad och betaldatumet tas bort.</p>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setUndoDialog(false)}>Avbryt</Button>
+              <Button type="button" onClick={undoPaid} disabled={busy === 'undo-paid'}>
+                {busy === 'undo-paid' ? 'Ångrar…' : 'Ångra'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={!!sendDialog} onOpenChange={(o) => !o && setSendDialog(null)}>
           <DialogContent>
             <DialogHeader>
