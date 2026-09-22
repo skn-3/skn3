@@ -19,5 +19,3 @@ verify_jwt = false
 [functions.calc-distance]
 verify_jwt = false
 
-[functions.klimat-backfill]
-verify_jwt = false
