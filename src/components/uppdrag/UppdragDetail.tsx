@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { CheckCircle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,8 @@ import { fmtKr } from '@/lib/offerCalc';
 import { buildHandpenningPdfBlob, buildSlutfakturaPdfBlob } from '@/lib/invoicePdf';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { UPPDRAG_STATUS_META, type UppdragStatus } from '@/lib/uppdrag';
+import { MarkPaidDialog } from './MarkPaidDialog';
+import { useRole } from '@/hooks/useRole';
 
 type Uppdrag = {
   id: string;
