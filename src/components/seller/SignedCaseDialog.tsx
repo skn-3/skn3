@@ -75,6 +75,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
   const unitsNum = form.units === '' ? NaN : Number(form.units);
   const unitsValid = Number.isFinite(unitsNum) && unitsNum >= 1 && Number.isInteger(unitsNum);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [klimatClaim, setKlimatClaim] = useState<{ url: string; trees: number | null } | null>(null);
 
   const handleSubmit = () => {
     if (ovNum > 500_000) {
