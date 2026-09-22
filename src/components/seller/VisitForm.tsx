@@ -356,19 +356,31 @@ export function VisitForm({ sellerName }: VisitFormProps) {
         }
       }
 
-      // Auto-klimatkompensera (fire-and-forget) — får aldrig blockera flödet
-      try {
-        supabase.functions.invoke('klimatkompensera', { body: { case_id: newCase.id } })
-          .catch((e) => console.warn('[klimatkompensera] auto-invoke failed', e));
-      } catch (e) {
-        console.warn('[klimatkompensera] auto-invoke threw', e);
-      }
+      // Anonyma trädhändelser — besök + signering, ingen kunddata skickas
+      await sendKlimatEvent({
+        eventType: 'visit',
+        caseId: newCase.id,
+        treeCount: 1,
+        seller: sellerName,
+        eventRef: (visit as any).id,
+      });
+      const klimat = await sendKlimatEvent({
+        eventType: 'signing',
+        caseId: newCase.id,
+        treeCount: Math.max(1, Math.floor(Number(form.units) || 1)),
+        seller: sellerName,
+        eventRef: `signing-${newCase.id}`,
+      });
 
-      return { visit, newCase };
+      return { visit, newCase, klimat };
     },
-    onSuccess: ({ visit, newCase }) => {
+    onSuccess: ({ visit, newCase, klimat }) => {
       queryClient.invalidateQueries({ queryKey: ['visits'] });
       queryClient.invalidateQueries({ queryKey: ['cases'] });
+      queryClient.invalidateQueries({ queryKey: ['climate_events'] });
+      if (klimat?.claim_url) {
+        setKlimatClaim({ url: klimat.claim_url, trees: klimat.total_trees ?? null });
+      }
 
       if (form.result === 'signerat' && newCase) {
         logActivity({
