@@ -453,6 +453,7 @@ export function SellerDashboard({ sellerName }: SellerDashboardProps) {
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-4">
         <h2 className="text-xl font-bold text-foreground">Dashboard</h2>
+        <MinaTradBadge sellerName={sellerName} />
         <div className="flex gap-3 ml-auto flex-wrap">
           <div className="space-y-1">
             <Label className="text-xs">Säljare</Label>
