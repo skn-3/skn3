@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
           }
           const verificationId = up?.verification_id || up?.id || up?.verificationId;
           if (!verificationId) {
-            results.push({ case_id: c.id, error: 'saknar verification_id' });
+            results.push({ case_id: c.id, error: 'saknar verification_id: ' + text.slice(0, 300) });
             return;
           }
           const { error: insErr } = await admin.from('case_climate_compensation').insert({
