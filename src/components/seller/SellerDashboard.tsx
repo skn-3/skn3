@@ -22,6 +22,7 @@ import {
 } from 'recharts';
 import { extractCityFromAddress, normalizeCityKey, cityDisplayName } from '@/lib/city';
 import { hasRealSeller } from '@/lib/sellerStats';
+import { MinaTradBadge } from '@/components/shared/KlimatStats';
 
 interface SellerDashboardProps {
   sellerName: string;
