@@ -9,6 +9,7 @@ import { ArrowRight, TrendingUp, Flame, Calendar, Target, Sparkles, CheckCircle2
 import type { UserRole } from '@/lib/constants';
 import { selectFromSellerData, selectFromMontorData } from '@/lib/insights/engine';
 import { InsightCard } from '@/components/insights/InsightCard';
+import { KlimatStatsBlock } from '@/components/shared/KlimatStats';
 import { getSoundEnabled, setSoundEnabled } from '@/lib/insights/sound';
 import { normalizeCityKey, cityDisplayName } from '@/lib/city';
 import { ThemeToggle, useDarkModePromo } from '@/components/shared/ThemeToggle';
@@ -442,6 +443,8 @@ function SellerDashboard({ name }: { name: string }) {
 
   return (
     <div className="space-y-4">
+      <KlimatStatsBlock />
+
       {empty && (
         <Card>
           <div className="text-center py-8">

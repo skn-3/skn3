@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, sendNotificationEmail, updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
+import { sendKlimatEvent } from '@/lib/klimat';
+import { KlimatQrDialog } from '@/components/shared/KlimatQrDialog';
 import { HOUR_RATE } from '@/lib/constants';
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { detectGotland } from '@/lib/constants';
@@ -73,6 +75,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
   const unitsNum = form.units === '' ? NaN : Number(form.units);
   const unitsValid = Number.isFinite(unitsNum) && unitsNum >= 1 && Number.isInteger(unitsNum);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [klimatClaim, setKlimatClaim] = useState<{ url: string; trees: number | null } | null>(null);
 
   const handleSubmit = () => {
     if (ovNum > 500_000) {
@@ -161,21 +164,27 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         }
       }
 
-      // Fire-and-forget klimatkompensering
-      try {
-        supabase.functions.invoke('klimatkompensera', { body: { case_id: newCase.id } })
-          .catch((e) => console.warn('[klimatkompensera] auto-invoke failed', e));
-      } catch (e) {
-        console.warn('[klimatkompensera] auto-invoke threw', e);
-      }
+      // Anonym trädhändelse (signering) — ingen kunddata skickas
+      const klimat = await sendKlimatEvent({
+        eventType: 'signing',
+        caseId: newCase.id,
+        treeCount: Math.max(1, Math.floor(Number(form.units) || 1)),
+        seller: sellerName,
+        eventRef: `signing-${newCase.id}`,
+      });
 
-      return newCase;
+      return { newCase, klimat };
     },
-    onSuccess: () => {
+    onSuccess: ({ klimat }) => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['visits'] });
+      queryClient.invalidateQueries({ queryKey: ['climate_events'] });
       toast.success('Ärende skapat!');
-      onClose();
+      if (klimat?.claim_url) {
+        setKlimatClaim({ url: klimat.claim_url, trees: klimat.total_trees ?? null });
+      } else {
+        onClose();
+      }
     },
     onError: (err: Error) => {
       toast.error('Kunde inte skapa ärende: ' + err.message);
@@ -346,6 +355,13 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
             {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}
           </Button>
         </div>
+
+        <KlimatQrDialog
+          open={!!klimatClaim}
+          onOpenChange={(o) => { if (!o) { setKlimatClaim(null); onClose(); } }}
+          claimUrl={klimatClaim?.url}
+          treeTotal={klimatClaim?.trees ?? null}
+        />
 
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogContent>

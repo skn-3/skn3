@@ -215,27 +215,33 @@ export type Database = {
       case_climate_compensation: {
         Row: {
           case_id: string
+          claim_url: string | null
           created_at: string
           created_by: string | null
           kompenserad_at: string
+          total_trees: number | null
           tree_count: number
           updated_at: string
           verification_id: string
         }
         Insert: {
           case_id: string
+          claim_url?: string | null
           created_at?: string
           created_by?: string | null
           kompenserad_at?: string
+          total_trees?: number | null
           tree_count: number
           updated_at?: string
           verification_id: string
         }
         Update: {
           case_id?: string
+          claim_url?: string | null
           created_at?: string
           created_by?: string | null
           kompenserad_at?: string
+          total_trees?: number | null
           tree_count?: number
           updated_at?: string
           verification_id?: string
@@ -527,6 +533,59 @@ export type Database = {
             columns: ["visit_id"]
             isOneToOne: false
             referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      climate_events: {
+        Row: {
+          case_id: string | null
+          claim_url: string | null
+          created_at: string
+          event_ref: string
+          event_type: string
+          id: string
+          seller: string | null
+          total_trees: number | null
+          tree_count: number
+          upstream_key: string
+          verification_id: string | null
+          visit_id: string | null
+        }
+        Insert: {
+          case_id?: string | null
+          claim_url?: string | null
+          created_at?: string
+          event_ref: string
+          event_type: string
+          id?: string
+          seller?: string | null
+          total_trees?: number | null
+          tree_count?: number
+          upstream_key: string
+          verification_id?: string | null
+          visit_id?: string | null
+        }
+        Update: {
+          case_id?: string | null
+          claim_url?: string | null
+          created_at?: string
+          event_ref?: string
+          event_type?: string
+          id?: string
+          seller?: string | null
+          total_trees?: number | null
+          tree_count?: number
+          upstream_key?: string
+          verification_id?: string | null
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "climate_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
             referencedColumns: ["id"]
           },
         ]
