@@ -10,6 +10,7 @@ import RapporteraProblem from "./components/shared/RapporteraProblem.tsx";
 import PublicOffer from "./pages/PublicOffer.tsx";
 import CustomerStatus from "./pages/CustomerStatus.tsx";
 import WeeklyPresentation from "./pages/WeeklyPresentation.tsx";
+import QrDemo from "./pages/QrDemo.tsx";
 import ErrorBoundary from "./components/ErrorBoundary.tsx";
 import { ThemeProvider } from "next-themes";
 
