@@ -7,6 +7,7 @@ const corsHeaders = {
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
 const COPY_TO = 'n3prenad@smartklimat.org';
+const ARCHIVE_CC = 'inbox.ver.1638171@arkivplats.se';
 
 function buildHtml(opts: { kindLabel: string; invoiceNo: string; customerName: string; title: string; logoUrl: string; downloadUrl?: string }): string {
   return `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/></head>

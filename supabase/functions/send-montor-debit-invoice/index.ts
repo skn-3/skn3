@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
-const COPY_TO = ['n3prenad@smartklimat.org', 'daniel@malke.se'];
+const COPY_TO = ['n3prenad@smartklimat.org', 'inbox.ver.1638171@arkivplats.se'];
 
 function esc(s: string) {
   return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
