@@ -1,13 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import { calcOfferTotals } from './offerCalc';
 
-export type UppdragStatus = 'ej_paborjad' | 'pagar' | 'klar' | 'fakturerad';
+export type UppdragStatus = 'ej_paborjad' | 'pagar' | 'klar' | 'fakturerad' | 'slutbetald';
 
 export const UPPDRAG_STATUS_META: Record<UppdragStatus, { label: string; cls: string }> = {
   ej_paborjad: { label: 'Ej påbörjad', cls: 'bg-muted text-muted-foreground' },
-  pagar: { label: 'Pågår', cls: 'bg-blue-100 text-blue-800' },
-  klar: { label: 'Klar', cls: 'bg-green-100 text-green-800' },
-  fakturerad: { label: 'Fakturerad', cls: 'bg-emerald-200 text-emerald-900' },
+  pagar: { label: 'Pågår', cls: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
+  klar: { label: 'Klar', cls: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' },
+  fakturerad: { label: 'Fakturerad', cls: 'bg-emerald-200 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300' },
+  slutbetald: { label: 'Slutbetald', cls: 'bg-green-600 text-white dark:bg-green-700 dark:text-green-50' },
 };
 
 export async function findUppdragForOffer(offerId: string): Promise<{ id: string; uppdrag_number: string | null } | null> {
