@@ -156,13 +156,32 @@ export function UppdragView() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-right space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => setOpenId(r.id)}
-                      className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      Öppna
-                    </button>
+                    <div className="inline-flex items-center gap-2">
+                      {r.status === 'fakturerad' && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label="Markera som slutbetald"
+                                onClick={() => setPayRow(r)}
+                                className="text-green-600 dark:text-green-400 hover:text-green-700"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>Markera som slutbetald</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setOpenId(r.id)}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        Öppna
+                      </button>
+                    </div>
                     {r.offer_id && (
                       <div>
                         <button
