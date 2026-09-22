@@ -356,6 +356,13 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           </Button>
         </div>
 
+        <KlimatQrDialog
+          open={!!klimatClaim}
+          onOpenChange={(o) => { if (!o) { setKlimatClaim(null); onClose(); } }}
+          claimUrl={klimatClaim?.url}
+          treeTotal={klimatClaim?.trees ?? null}
+        />
+
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
