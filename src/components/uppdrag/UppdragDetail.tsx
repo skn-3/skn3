@@ -40,6 +40,7 @@ type Uppdrag = {
   slutfaktura_invoice_no: string | null;
   slutfaktura_pdf_path: string | null;
   slutfaktura_sent_at: string | null;
+  paid_at: string | null;
 };
 
 interface Props {
@@ -49,6 +50,7 @@ interface Props {
 
 export function UppdragDetail({ uppdragId, onClose }: Props) {
   const qc = useQueryClient();
+  const { role } = useRole();
   const [u, setU] = useState<Uppdrag | null>(null);
   const [loading, setLoading] = useState(false);
   const [hpNo, setHpNo] = useState('');
@@ -56,6 +58,8 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [sendDialog, setSendDialog] = useState<'handpenning' | 'slutfaktura' | null>(null);
   const [sendTo, setSendTo] = useState('');
+  const [paidDialog, setPaidDialog] = useState(false);
+  const [undoDialog, setUndoDialog] = useState(false);
 
   useEffect(() => {
     if (!uppdragId) { setU(null); return; }
