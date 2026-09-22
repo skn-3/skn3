@@ -195,6 +195,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
   const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
   const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [klimatClaim, setKlimatClaim] = useState<{ url: string; trees: number | null } | null>(null);
 
   const unitsNum = form.units === '' ? NaN : Number(form.units);
   const unitsValid = Number.isFinite(unitsNum) && unitsNum >= 1 && Number.isInteger(unitsNum);
