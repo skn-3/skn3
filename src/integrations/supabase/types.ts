@@ -1290,6 +1290,7 @@ export type Database = {
           id: string
           notes: string | null
           offer_id: string | null
+          paid_at: string | null
           revenue_after_rot: number | null
           revenue_ex_vat: number | null
           revenue_incl_vat: number | null
@@ -1324,6 +1325,7 @@ export type Database = {
           id?: string
           notes?: string | null
           offer_id?: string | null
+          paid_at?: string | null
           revenue_after_rot?: number | null
           revenue_ex_vat?: number | null
           revenue_incl_vat?: number | null
@@ -1358,6 +1360,7 @@ export type Database = {
           id?: string
           notes?: string | null
           offer_id?: string | null
+          paid_at?: string | null
           revenue_after_rot?: number | null
           revenue_ex_vat?: number | null
           revenue_incl_vat?: number | null

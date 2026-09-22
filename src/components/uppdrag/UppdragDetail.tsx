@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { CheckCircle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,8 @@ import { fmtKr } from '@/lib/offerCalc';
 import { buildHandpenningPdfBlob, buildSlutfakturaPdfBlob } from '@/lib/invoicePdf';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { UPPDRAG_STATUS_META, type UppdragStatus } from '@/lib/uppdrag';
+import { MarkPaidDialog } from './MarkPaidDialog';
+import { useRole } from '@/hooks/useRole';
 
 type Uppdrag = {
   id: string;
@@ -37,6 +40,7 @@ type Uppdrag = {
   slutfaktura_invoice_no: string | null;
   slutfaktura_pdf_path: string | null;
   slutfaktura_sent_at: string | null;
+  paid_at: string | null;
 };
 
 interface Props {
@@ -46,6 +50,7 @@ interface Props {
 
 export function UppdragDetail({ uppdragId, onClose }: Props) {
   const qc = useQueryClient();
+  const { role } = useRole();
   const [u, setU] = useState<Uppdrag | null>(null);
   const [loading, setLoading] = useState(false);
   const [hpNo, setHpNo] = useState('');
@@ -53,6 +58,8 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [sendDialog, setSendDialog] = useState<'handpenning' | 'slutfaktura' | null>(null);
   const [sendTo, setSendTo] = useState('');
+  const [paidDialog, setPaidDialog] = useState(false);
+  const [undoDialog, setUndoDialog] = useState(false);
 
   useEffect(() => {
     if (!uppdragId) { setU(null); return; }
@@ -148,6 +155,20 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
     } finally { setBusy(null); }
   };
 
+  const undoPaid = async () => {
+    if (!u) return;
+    setBusy('undo-paid');
+    try {
+      const { error } = await (supabase as any).from('uppdrag').update({ status: 'fakturerad', paid_at: null }).eq('id', u.id);
+      if (error) throw error;
+      await refresh();
+      setUndoDialog(false);
+      toast.success('Slutbetalning ångrad');
+    } catch (e: any) {
+      console.error(e); toast.error(e?.message || 'Kunde inte ångra');
+    } finally { setBusy(null); }
+  };
+
   const open = !!uppdragId;
   const meta = u ? UPPDRAG_STATUS_META[u.status] : null;
 
@@ -164,9 +185,31 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
         {u && (
           <div className="mt-4 space-y-6 text-sm">
             <div className="rounded-md border p-3 space-y-1">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div className="font-medium">{u.customer_name || '—'}</div>
-                {meta && <Badge variant="secondary" className={meta.cls}>{meta.label}</Badge>}
+                <div className="flex items-center gap-2">
+                  {u.status === 'fakturerad' && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => setPaidDialog(true)}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" /> Markera som slutbetald
+                    </Button>
+                  )}
+                  {u.status === 'slutbetald' && role?.isAdmin && (
+                    <button type="button" onClick={() => setUndoDialog(true)} className="text-xs text-muted-foreground hover:underline">
+                      Ångra
+                    </button>
+                  )}
+                  {meta && (
+                    <Badge variant="secondary" className={meta.cls}>
+                      {meta.label}
+                      {u.status === 'slutbetald' && u.paid_at ? ` · ${new Date(u.paid_at).toLocaleDateString('sv-SE')}` : ''}
+                    </Badge>
+                  )}
+                </div>
               </div>
               {u.customer_address && <div className="text-muted-foreground text-xs">{u.customer_address}</div>}
               {u.customer_email && <div className="text-muted-foreground text-xs">{u.customer_email}</div>}
@@ -251,6 +294,29 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
             </section>
           </div>
         )}
+
+        <MarkPaidDialog
+          open={paidDialog}
+          onOpenChange={setPaidDialog}
+          uppdragId={u?.id ?? null}
+          uppdragNumber={u?.uppdrag_number}
+          onDone={refresh}
+        />
+
+        <Dialog open={undoDialog} onOpenChange={(o) => !o && setUndoDialog(false)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ångra slutbetalning?</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">Uppdraget går tillbaka till status Fakturerad och betaldatumet tas bort.</p>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setUndoDialog(false)}>Avbryt</Button>
+              <Button type="button" onClick={undoPaid} disabled={busy === 'undo-paid'}>
+                {busy === 'undo-paid' ? 'Ångrar…' : 'Ångra'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={!!sendDialog} onOpenChange={(o) => !o && setSendDialog(null)}>
           <DialogContent>

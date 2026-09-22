@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { fmtKr } from '@/lib/offerCalc';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { UPPDRAG_STATUS_META, type UppdragStatus } from '@/lib/uppdrag';
 import { UppdragDetail } from './UppdragDetail';
+import { MarkPaidDialog } from './MarkPaidDialog';
 
 type UppdragRow = {
   id: string;
@@ -20,15 +22,17 @@ type UppdragRow = {
   assigned_to: string | null;
   revenue_ex_vat: number | null;
   cost_ex_vat: number | null;
+  paid_at: string | null;
   created_at: string;
 };
 
-const STATUS_OPTIONS: UppdragStatus[] = ['ej_paborjad', 'pagar', 'klar', 'fakturerad'];
+const STATUS_OPTIONS: UppdragStatus[] = ['ej_paborjad', 'pagar', 'klar', 'fakturerad', 'slutbetald'];
 
 export function UppdragView() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [payRow, setPayRow] = useState<UppdragRow | null>(null);
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['uppdrag'],
@@ -152,13 +156,32 @@ export function UppdragView() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-right space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => setOpenId(r.id)}
-                      className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      Öppna
-                    </button>
+                    <div className="inline-flex items-center gap-2">
+                      {r.status === 'fakturerad' && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label="Markera som slutbetald"
+                                onClick={() => setPayRow(r)}
+                                className="text-green-600 dark:text-green-400 hover:text-green-700"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>Markera som slutbetald</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setOpenId(r.id)}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        Öppna
+                      </button>
+                    </div>
                     {r.offer_id && (
                       <div>
                         <button
@@ -178,6 +201,13 @@ export function UppdragView() {
         </table>
       </div>
       <UppdragDetail uppdragId={openId} onClose={() => setOpenId(null)} />
+      <MarkPaidDialog
+        open={!!payRow}
+        onOpenChange={(o) => !o && setPayRow(null)}
+        uppdragId={payRow?.id ?? null}
+        uppdragNumber={payRow?.uppdrag_number}
+        onDone={() => qc.invalidateQueries({ queryKey: ['uppdrag'] })}
+      />
     </div>
   );
 }
