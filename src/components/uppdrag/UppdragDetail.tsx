@@ -185,9 +185,31 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
         {u && (
           <div className="mt-4 space-y-6 text-sm">
             <div className="rounded-md border p-3 space-y-1">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div className="font-medium">{u.customer_name || '—'}</div>
-                {meta && <Badge variant="secondary" className={meta.cls}>{meta.label}</Badge>}
+                <div className="flex items-center gap-2">
+                  {u.status === 'fakturerad' && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => setPaidDialog(true)}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" /> Markera som slutbetald
+                    </Button>
+                  )}
+                  {u.status === 'slutbetald' && role?.isAdmin && (
+                    <button type="button" onClick={() => setUndoDialog(true)} className="text-xs text-muted-foreground hover:underline">
+                      Ångra
+                    </button>
+                  )}
+                  {meta && (
+                    <Badge variant="secondary" className={meta.cls}>
+                      {meta.label}
+                      {u.status === 'slutbetald' && u.paid_at ? ` · ${new Date(u.paid_at).toLocaleDateString('sv-SE')}` : ''}
+                    </Badge>
+                  )}
+                </div>
               </div>
               {u.customer_address && <div className="text-muted-foreground text-xs">{u.customer_address}</div>}
               {u.customer_email && <div className="text-muted-foreground text-xs">{u.customer_email}</div>}
