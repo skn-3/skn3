@@ -224,7 +224,15 @@ export function VisitForm({ sellerName }: VisitFormProps) {
             form.result === 'aterkoppla' && form.follow_up_date ? form.follow_up_date : null,
           notes: form.notes || null,
         } as any);
-        return { visit, newCase: null as any };
+        // Anonym trädhändelse (besök) — ingen kunddata skickas
+        const klimat = await sendKlimatEvent({
+          eventType: 'visit',
+          visitId: (visit as any).id,
+          treeCount: 1,
+          seller: sellerName,
+          eventRef: (visit as any).id,
+        });
+        return { visit, newCase: null as any, klimat };
       }
 
       // === SIGNERAT: case-first med rollback. Antingen båda eller ingen. ===
