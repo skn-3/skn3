@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, sendNotificationEmail, updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
+import { sendKlimatEvent } from '@/lib/klimat';
+import { KlimatQrDialog } from '@/components/shared/KlimatQrDialog';
 import { HOUR_RATE } from '@/lib/constants';
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { detectGotland } from '@/lib/constants';
