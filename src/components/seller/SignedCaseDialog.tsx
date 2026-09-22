@@ -161,21 +161,27 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         }
       }
 
-      // Fire-and-forget klimatkompensering
-      try {
-        supabase.functions.invoke('klimatkompensera', { body: { case_id: newCase.id } })
-          .catch((e) => console.warn('[klimatkompensera] auto-invoke failed', e));
-      } catch (e) {
-        console.warn('[klimatkompensera] auto-invoke threw', e);
-      }
+      // Anonym trädhändelse (signering) — ingen kunddata skickas
+      const klimat = await sendKlimatEvent({
+        eventType: 'signing',
+        caseId: newCase.id,
+        treeCount: Math.max(1, Math.floor(Number(form.units) || 1)),
+        seller: sellerName,
+        eventRef: `signing-${newCase.id}`,
+      });
 
-      return newCase;
+      return { newCase, klimat };
     },
-    onSuccess: () => {
+    onSuccess: ({ klimat }) => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['visits'] });
+      queryClient.invalidateQueries({ queryKey: ['climate_events'] });
       toast.success('Ärende skapat!');
-      onClose();
+      if (klimat?.claim_url) {
+        setKlimatClaim({ url: klimat.claim_url, trees: klimat.total_trees ?? null });
+      } else {
+        onClose();
+      }
     },
     onError: (err: Error) => {
       toast.error('Kunde inte skapa ärende: ' + err.message);
