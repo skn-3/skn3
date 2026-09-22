@@ -8,6 +8,8 @@ import {
   sendNotificationEmail,
 } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
+import { sendKlimatEvent } from '@/lib/klimat';
+import { KlimatQrDialog } from '@/components/shared/KlimatQrDialog';
 import { searchOrders } from '@/integrations/orderGateway';
 import { HOUR_RATE, STATUS_LABELS, detectGotland } from '@/lib/constants';
 import { GotlandBadge, GOTLAND_LOCK_HINT, CONGARD_TEAM } from '@/components/shared/GotlandBadge';
