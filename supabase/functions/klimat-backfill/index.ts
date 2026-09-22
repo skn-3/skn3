@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     .gte('units', 1);
   if (cErr) return json({ error: cErr.message }, 500);
 
-  const targets = cases ?? [];
+  const targets = limit > 0 ? (cases ?? []).slice(0, limit) : (cases ?? []);
   const results: any[] = [];
   let created = 0;
 
