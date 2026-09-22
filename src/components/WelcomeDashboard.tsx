@@ -442,6 +442,8 @@ function SellerDashboard({ name }: { name: string }) {
 
   return (
     <div className="space-y-4">
+      <KlimatStatsBlock />
+
       {empty && (
         <Card>
           <div className="text-center py-8">
