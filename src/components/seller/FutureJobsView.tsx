@@ -38,7 +38,7 @@ export function countDueFutureJobs(rows: FutureJobRow[] | undefined): number {
   return rows.filter(r => r.status === 'open' && r.contact_date <= today).length;
 }
 
-function countdown(dateStr: string): { label: string; cls: string } {
+export function countdown(dateStr: string): { label: string; cls: string } {
   const days = differenceInCalendarDays(new Date(dateStr + 'T00:00:00'), new Date(new Date().toDateString()));
   if (days < 0) return { label: `Försenad ${Math.abs(days)} dagar`, cls: 'border-red-400 bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300' };
   if (days === 0) return { label: 'Idag', cls: 'border-amber-400 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' };
