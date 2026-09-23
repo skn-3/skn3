@@ -18,7 +18,9 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench, Pencil, Check, Wallet, ChevronDown, Plus } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench, Pencil, Check, Wallet, ChevronDown, Plus, CalendarPlus } from 'lucide-react';
+import { FutureJobDialog } from '@/components/seller/FutureJobDialog';
+import { countdown as futureJobCountdown } from '@/components/seller/FutureJobsView';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { logActivity } from '@/lib/activityLog';
 import { DeviationActionSheet, DEVIATION_STATUS_META, type DeviationStatus, canActOnDeviations } from '@/components/deviations/DeviationActionPanel';
@@ -61,6 +63,21 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  const [futureJobOpen, setFutureJobOpen] = useState(false);
+  const { data: openFutureJobs } = useQuery({
+    queryKey: ['case_future_jobs', initialCaseData.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('future_jobs')
+        .select('id, contact_date, description')
+        .eq('case_id', initialCaseData.id)
+        .eq('status', 'open')
+        .order('contact_date', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   // Live case data that updates after mutations
   const { data: liveCaseData } = useQuery({
@@ -1879,6 +1896,42 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </Tabs>
           </section>
           )}
+
+          {/* Återkontakter */}
+          {(isSeller || isCoordinator) && (
+          <section className="p-4 space-y-2 border-t">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Återkontakter</h3>
+              <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => setFutureJobOpen(true)}>
+                <CalendarPlus className="h-4 w-4" /> Ny återkontakt
+              </Button>
+            </div>
+            {(openFutureJobs || []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">Inga planerade återkontakter</p>
+            ) : (
+              <div className="space-y-1">
+                {(openFutureJobs || []).map((fj) => {
+                  const cd = futureJobCountdown(fj.contact_date);
+                  return (
+                    <div key={fj.id} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span>Återkontakt planerad: {fj.contact_date} — {fj.description}</span>
+                      <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium', cd.cls)}>
+                        {cd.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+          )}
+
+          <FutureJobDialog
+            open={futureJobOpen}
+            onOpenChange={setFutureJobOpen}
+            caseData={caseData}
+            currentUser={currentUser}
+          />
 
           {/* EKONOMI (intäkt / kostnad / vinst) — A-ordrarna listas i A-ORDER-sektionen nedan. */}
           {!isCoordinator && (
