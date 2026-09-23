@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { differenceInCalendarDays } from 'date-fns';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, Trash2, ChevronDown } from 'lucide-react';
+import { Loader2, Check, Trash2, ChevronDown, CalendarPlus } from 'lucide-react';
+import { FutureJobDialog } from './FutureJobDialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import type { CaseRow } from '@/lib/supabaseClient';
@@ -54,6 +55,7 @@ export function FutureJobsView({ currentUser, onSelectCase }: Props) {
   const queryClient = useQueryClient();
   const [scope, setScope] = useState<'mina' | 'alla'>('mina');
   const [dropTarget, setDropTarget] = useState<FutureJobRow | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ['future_jobs'],
@@ -121,11 +123,16 @@ export function FutureJobsView({ currentUser, onSelectCase }: Props) {
 
   return (
     <div className="px-3 md:px-0 space-y-4">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-lg font-bold mr-auto">Återkontakter</h2>
+        <Button size="sm" onClick={() => setNewOpen(true)}>
+          <CalendarPlus className="h-4 w-4 mr-1" /> Ny återkontakt
+        </Button>
         <Button size="sm" variant={scope === 'mina' ? 'default' : 'outline'} onClick={() => setScope('mina')}>Mina</Button>
         <Button size="sm" variant={scope === 'alla' ? 'default' : 'outline'} onClick={() => setScope('alla')}>Alla</Button>
       </div>
+
+      <FutureJobDialog open={newOpen} onOpenChange={setNewOpen} currentUser={currentUser} />
 
       {isLoading ? (
         <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
