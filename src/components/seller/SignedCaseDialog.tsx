@@ -168,6 +168,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
       const klimat = await sendKlimatEvent({
         eventType: 'signing',
         caseId: newCase.id,
+        visitId: visit.id, // servern skickar på besökets nyckel och drar av besöksträdet
         treeCount: Math.max(1, Math.floor(Number(form.units) || 1)),
         seller: sellerName,
         eventRef: `signing-${newCase.id}`,

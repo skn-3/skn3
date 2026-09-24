@@ -357,7 +357,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
         }
       }
 
-      // Anonyma trädhändelser — besök + signering, ingen kunddata skickas
+      // Anonyma trädhändelser — besök(1) + signering(enheter − 1; servern drar av besöksträdet och hoppar över vid 0)
       await sendKlimatEvent({
         eventType: 'visit',
         caseId: newCase.id,
