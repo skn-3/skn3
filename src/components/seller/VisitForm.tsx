@@ -9,7 +9,7 @@ import {
 } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { sendKlimatEvent } from '@/lib/klimat';
-import { KlimatQrDialog } from '@/components/shared/KlimatQrDialog';
+import { KlimatQrInline } from '@/components/shared/KlimatQrDialog';
 import { searchOrders } from '@/integrations/orderGateway';
 import { HOUR_RATE, STATUS_LABELS, detectGotland } from '@/lib/constants';
 import { GotlandBadge, GOTLAND_LOCK_HINT, CONGARD_TEAM } from '@/components/shared/GotlandBadge';
@@ -195,10 +195,38 @@ export function VisitForm({ sellerName }: VisitFormProps) {
   const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
   const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [klimatClaim, setKlimatClaim] = useState<{ url: string; trees: number | null } | null>(null);
+  // Tidig trädclaim: besöks-id genereras i förväg så att claimen (event_ref = besöks-id)
+  // återanvänds när besöket sparas — servern deduplicerar och drar av besöksträdet vid signering.
+  const [preVisitId, setPreVisitId] = useState<string>(() => crypto.randomUUID());
+  const [earlyClaim, setEarlyClaim] = useState<{ url: string; visitId: string } | null>(null);
+  const [klimatLoading, setKlimatLoading] = useState(false);
+  const claimInFlight = useRef<string | null>(null);
 
   const unitsNum = form.units === '' ? NaN : Number(form.units);
   const unitsValid = Number.isFinite(unitsNum) && unitsNum >= 1 && Number.isInteger(unitsNum);
+
+  const wantsClaim =
+    form.result === 'aterkoppla' || (form.result === 'signerat' && unitsValid);
+  useEffect(() => {
+    if (!wantsClaim) return;
+    if (earlyClaim?.visitId === preVisitId) return;
+    if (claimInFlight.current === preVisitId) return;
+    const vid = preVisitId;
+    claimInFlight.current = vid;
+    setKlimatLoading(true);
+    sendKlimatEvent({
+      eventType: 'visit',
+      visitId: vid,
+      treeCount: 1,
+      seller: sellerName,
+      eventRef: vid,
+    })
+      .then((res) => {
+        if (res?.claim_url) setEarlyClaim({ url: res.claim_url, visitId: vid });
+        else claimInFlight.current = null;
+      })
+      .finally(() => setKlimatLoading(false));
+  }, [wantsClaim, preVisitId, earlyClaim, sellerName]);
   const baseValid = !!form.date && !!form.customer_name.trim() && !!form.address.trim();
   const canSubmit =
     baseValid &&
@@ -216,6 +244,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       // === Återkoppla / Nej: bara skapa visits-raden ===
       if (form.result !== 'signerat') {
         const visit = await createVisit({
+          id: preVisitId,
           date: form.date,
           address: form.address,
           customer_name: form.customer_name,
@@ -226,15 +255,18 @@ export function VisitForm({ sellerName }: VisitFormProps) {
             form.result === 'aterkoppla' && form.follow_up_date ? form.follow_up_date : null,
           notes: form.notes || null,
         } as any);
-        // Anonym trädhändelse (besök) — ingen kunddata skickas
-        const klimat = await sendKlimatEvent({
-          eventType: 'visit',
-          visitId: (visit as any).id,
-          treeCount: 1,
-          seller: sellerName,
-          eventRef: (visit as any).id,
-        });
-        return { visit, newCase: null as any, klimat };
+        // Anonym trädhändelse (besök) — samma event_ref som den tidiga claimen, så inga dubbletter.
+        // Nej tack skickar ingen händelse.
+        if (form.result === 'aterkoppla' && earlyClaim?.visitId !== preVisitId) {
+          await sendKlimatEvent({
+            eventType: 'visit',
+            visitId: preVisitId,
+            treeCount: 1,
+            seller: sellerName,
+            eventRef: preVisitId,
+          });
+        }
+        return { visit, newCase: null as any };
       }
 
       // === SIGNERAT: case-first med rollback. Antingen båda eller ingen. ===
@@ -277,6 +309,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       let visit: any;
       try {
         visit = await createVisit({
+          id: preVisitId,
           date: form.date,
           address: form.address,
           customer_name: form.customer_name,
@@ -357,30 +390,30 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       }
 
       // Anonyma trädhändelser — besök(1) + signering(enheter − 1; servern drar av besöksträdet och hoppar över vid 0)
+      // Besökshändelsen är idempotent på event_ref = besöks-id (redan skickad om QR:en visats).
       await sendKlimatEvent({
         eventType: 'visit',
         caseId: newCase.id,
+        visitId: preVisitId,
         treeCount: 1,
         seller: sellerName,
-        eventRef: (visit as any).id,
+        eventRef: preVisitId,
       });
-      const klimat = await sendKlimatEvent({
+      await sendKlimatEvent({
         eventType: 'signing',
         caseId: newCase.id,
+        visitId: preVisitId,
         treeCount: Math.max(1, Math.floor(Number(form.units) || 1)),
         seller: sellerName,
         eventRef: `signing-${newCase.id}`,
       });
 
-      return { visit, newCase, klimat };
+      return { visit, newCase };
     },
-    onSuccess: ({ visit, newCase, klimat }) => {
+    onSuccess: ({ visit, newCase }) => {
       queryClient.invalidateQueries({ queryKey: ['visits'] });
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['climate_events'] });
-      if (klimat?.claim_url) {
-        setKlimatClaim({ url: klimat.claim_url, trees: klimat.total_trees ?? null });
-      }
 
       if (form.result === 'signerat' && newCase) {
         logActivity({
@@ -409,6 +442,9 @@ export function VisitForm({ sellerName }: VisitFormProps) {
 
       setForm(emptyForm());
       setExistingCase(null);
+      setEarlyClaim(null);
+      claimInFlight.current = null;
+      setPreVisitId(crypto.randomUUID());
     },
     onError: (err: Error) => {
       toast.error(err.message || 'Kunde inte spara');
@@ -579,6 +615,12 @@ export function VisitForm({ sellerName }: VisitFormProps) {
             activeClass="border-destructive bg-destructive/10 text-destructive"
           />
         </div>
+        {showAterkoppla && earlyClaim?.url && (
+          <KlimatQrInline claimUrl={earlyClaim.url} treeTotal={1} />
+        )}
+        {showAterkoppla && !earlyClaim?.url && klimatLoading && (
+          <p className="text-xs text-muted-foreground">Planterar träd…</p>
+        )}
       </div>
 
       {/* LAGER 3 — expanderbar */}
@@ -630,6 +672,30 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                 <CheckCircle2 className="h-4 w-4" />
                 Ärenderegistrering upplåst
               </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Antal enheter *</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    step={1}
+                    placeholder="Minst 1"
+                    value={form.units}
+                    onChange={(e) => update('units', e.target.value)}
+                  />
+                  {form.units !== '' && !unitsValid && (
+                    <p className="text-xs text-destructive">Antal enheter måste vara minst 1.</p>
+                  )}
+                </div>
+              </div>
+
+              {unitsValid && earlyClaim?.url && (
+                <KlimatQrInline claimUrl={earlyClaim.url} treeTotal={unitsNum} />
+              )}
+              {unitsValid && !earlyClaim?.url && klimatLoading && (
+                <p className="text-xs text-muted-foreground">Planterar träd…</p>
+              )}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -691,20 +757,6 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                     value={form.extra_hours_sold}
                     onChange={(e) => update('extra_hours_sold', e.target.value)}
                   />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Antal enheter *</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    step={1}
-                    placeholder="Minst 1"
-                    value={form.units}
-                    onChange={(e) => update('units', e.target.value)}
-                  />
-                  {form.units !== '' && !unitsValid && (
-                    <p className="text-xs text-destructive">Antal enheter måste vara minst 1.</p>
-                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>KM-montör (valfritt)</Label>
@@ -848,12 +900,6 @@ export function VisitForm({ sellerName }: VisitFormProps) {
             : 'Spara besök'}
       </Button>
 
-      <KlimatQrDialog
-        open={!!klimatClaim}
-        onOpenChange={(o) => { if (!o) setKlimatClaim(null); }}
-        claimUrl={klimatClaim?.url}
-        treeTotal={klimatClaim?.trees ?? null}
-      />
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
