@@ -227,7 +227,9 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       })
       .finally(() => setKlimatLoading(false));
   }, [wantsClaim, preVisitId, earlyClaim, sellerName]);
-  const baseValid = !!form.date && !!form.customer_name.trim() && !!form.address.trim();
+  const emailTrim = form.customer_email.trim();
+  const emailInvalid = emailTrim !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
+  const baseValid = !!form.date && !!form.customer_name.trim() && !!form.address.trim() && !emailInvalid;
   const canSubmit =
     baseValid &&
     !!form.result &&
@@ -521,6 +523,18 @@ export function VisitForm({ sellerName }: VisitFormProps) {
             onChange={(e) => update('customer_name', e.target.value)}
           />
         </div>
+        <div className="space-y-1.5">
+          <Label>E-post</Label>
+          <Input
+            type="email"
+            value={form.customer_email}
+            onChange={(e) => update('customer_email', e.target.value)}
+            aria-invalid={emailInvalid}
+          />
+          {emailInvalid && (
+            <p className="text-xs text-destructive">Ange en giltig e-postadress.</p>
+          )}
+        </div>
         <div className="space-y-1.5 relative sm:col-span-2" ref={addressWrapperRef}>
           <Label>Adress *</Label>
           <Input
@@ -704,13 +718,6 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                     type="tel"
                     value={form.customer_phone}
                     onChange={(e) => update('customer_phone', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>E-post</Label>
-                  <Input
-                    value={form.customer_email}
-                    onChange={(e) => update('customer_email', e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">
