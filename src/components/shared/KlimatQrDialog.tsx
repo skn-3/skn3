@@ -55,3 +55,34 @@ export function KlimatQrDialog({ open, onOpenChange, claimUrl, treeTotal }: Prop
     </Dialog>
   );
 }
+
+/** Samma innehåll som KlimatQrDialog, men inline i ett formulär. */
+export function KlimatQrInline({ claimUrl, treeTotal }: { claimUrl: string; treeTotal?: number | null }) {
+  const trees = treeTotal ?? 1;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(claimUrl);
+      toast.success('Länk kopierad');
+    } catch {
+      toast.error('Kunde inte kopiera länken');
+    }
+  };
+  return (
+    <div className="rounded-lg border border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950/40 p-4 flex flex-col items-center gap-3 animate-in fade-in zoom-in">
+      <div className="flex items-center gap-2 font-semibold text-foreground">
+        <TreePine className="h-5 w-5 text-green-600 dark:text-green-400" />
+        {trees > 1 ? 'Vi har planterat träd för dig' : 'Vi har planterat ett träd för dig'}
+      </div>
+      <p className="text-sm text-muted-foreground text-center">Scanna för att hämta ditt personliga värdebevis</p>
+      <div className="rounded-xl bg-white p-4 shadow-sm" data-testid="klimat-qr-inline">
+        <QRCodeSVG value={claimUrl} size={200} includeMargin={false} />
+      </div>
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-green-300 dark:border-green-800 bg-green-100 dark:bg-green-900/40 px-3 py-1 text-sm font-medium text-green-800 dark:text-green-300">
+        <TreePine className="h-4 w-4" /> {trees} träd planterade
+      </div>
+      <Button type="button" variant="outline" size="sm" onClick={copy}>
+        <Copy className="h-4 w-4 mr-1" /> Kopiera länk
+      </Button>
+    </div>
+  );
+}
