@@ -67,8 +67,8 @@ const emptyForm = () => ({
   date: todayStr(),
   customer_name: '',
   address: '',
-  customer_phone: '',
   // Lager 2
+  customer_phone: '',
   result: '' as Result | '',
   // Lager 3 — återkoppla / nej
   follow_up_date: '',
@@ -205,8 +205,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
     !!form.result &&
     (form.result !== 'aterkoppla' || !!form.follow_up_date) &&
     (form.result !== 'signerat' ||
-      (!!form.customer_phone.trim() &&
-        !!form.city.trim() &&
+      (!!form.city.trim() &&
         !tbInvalid &&
         unitsValid &&
         (!form.future_job || (!!form.future_job_description.trim() && !!form.future_job_date))));
@@ -484,13 +483,6 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           <Input
             value={form.customer_name}
             onChange={(e) => update('customer_name', e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Telefon{showSignerat ? ' *' : ''}</Label>
-          <Input
-            value={form.customer_phone}
-            onChange={(e) => update('customer_phone', e.target.value)}
           />
         </div>
         <div className="space-y-1.5 relative sm:col-span-2" ref={addressWrapperRef}>
