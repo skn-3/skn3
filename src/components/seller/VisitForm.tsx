@@ -633,6 +633,14 @@ export function VisitForm({ sellerName }: VisitFormProps) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
+                  <Label>Telefon</Label>
+                  <Input
+                    type="tel"
+                    value={form.customer_phone}
+                    onChange={(e) => update('customer_phone', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
                   <Label>E-post</Label>
                   <Input
                     value={form.customer_email}
