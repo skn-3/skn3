@@ -7,6 +7,7 @@ import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import SheetMetalOrderPage from "./pages/SheetMetalOrderPage.tsx";
 import RapporteraProblem from "./components/shared/RapporteraProblem.tsx";
+import { VisitForm } from "./components/seller/VisitForm.tsx";
 import PublicOffer from "./pages/PublicOffer.tsx";
 import CustomerStatus from "./pages/CustomerStatus.tsx";
 import WeeklyPresentation from "./pages/WeeklyPresentation.tsx";
