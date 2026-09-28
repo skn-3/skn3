@@ -7,7 +7,6 @@ import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import SheetMetalOrderPage from "./pages/SheetMetalOrderPage.tsx";
 import RapporteraProblem from "./components/shared/RapporteraProblem.tsx";
-import { VisitForm } from "./components/seller/VisitForm.tsx";
 import PublicOffer from "./pages/PublicOffer.tsx";
 import CustomerStatus from "./pages/CustomerStatus.tsx";
 import WeeklyPresentation from "./pages/WeeklyPresentation.tsx";
@@ -31,7 +30,6 @@ const App = () => (
             <Route path="/offert/:token" element={<PublicOffer />} />
             <Route path="/status/:token" element={<CustomerStatus />} />
             <Route path="/veckomote" element={<WeeklyPresentation />} />
-            <Route path="/visitform-demo" element={<div className="p-8 max-w-2xl"><VisitForm sellerName="Test Säljare" /></div>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
