@@ -30,6 +30,7 @@ const App = () => (
             <Route path="/offert/:token" element={<PublicOffer />} />
             <Route path="/status/:token" element={<CustomerStatus />} />
             <Route path="/veckomote" element={<WeeklyPresentation />} />
+            <Route path="/visitform-demo" element={<div className="p-8 max-w-2xl"><VisitForm sellerName="Test Säljare" /></div>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
