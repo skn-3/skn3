@@ -1431,6 +1431,7 @@ export type Database = {
           created_at: string
           customer_name: string
           date: string
+          email: string | null
           follow_up_count: number
           follow_up_date: string | null
           id: string
@@ -1450,6 +1451,7 @@ export type Database = {
           created_at?: string
           customer_name: string
           date: string
+          email?: string | null
           follow_up_count?: number
           follow_up_date?: string | null
           id?: string
@@ -1469,6 +1471,7 @@ export type Database = {
           created_at?: string
           customer_name?: string
           date?: string
+          email?: string | null
           follow_up_count?: number
           follow_up_date?: string | null
           id?: string

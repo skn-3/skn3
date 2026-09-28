@@ -247,6 +247,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       if (form.result !== 'signerat') {
         const visit = await createVisit({
           id: preVisitId,
+          email: form.customer_email.trim() || null,
           date: form.date,
           address: form.address,
           customer_name: form.customer_name,
@@ -278,7 +279,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
         newCase = await createCase({
           customer_name: form.customer_name,
           customer_phone: form.customer_phone,
-          customer_email: form.customer_email || null,
+          customer_email: form.customer_email.trim() || null,
           address: form.address,
           city: form.city,
           offer_number: form.offer_number || null,
@@ -312,6 +313,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       try {
         visit = await createVisit({
           id: preVisitId,
+          email: form.customer_email.trim() || null,
           date: form.date,
           address: form.address,
           customer_name: form.customer_name,
