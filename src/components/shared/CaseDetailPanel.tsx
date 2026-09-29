@@ -1216,6 +1216,35 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </div>
           </section>
 
+          {/* Återkontakter */}
+          {(isSeller || isCoordinator) && (
+          <section className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Återkontakter</h3>
+              <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => setFutureJobOpen(true)}>
+                <CalendarPlus className="h-4 w-4" /> Ny återkontakt
+              </Button>
+            </div>
+            {(openFutureJobs || []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">Inga planerade återkontakter</p>
+            ) : (
+              <div className="space-y-1">
+                {(openFutureJobs || []).map((fj) => {
+                  const cd = futureJobCountdown(fj.contact_date);
+                  return (
+                    <div key={fj.id} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span>Återkontakt planerad: {fj.contact_date} — {fj.description}</span>
+                      <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium', cd.cls)}>
+                        {cd.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+          )}
+
           {/* Status dropdown */}
           <section className="p-4 space-y-2">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Status</h3>
@@ -1894,35 +1923,6 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 )}
               </TabsContent>
             </Tabs>
-          </section>
-          )}
-
-          {/* Återkontakter */}
-          {(isSeller || isCoordinator) && (
-          <section className="p-4 space-y-2 border-t">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Återkontakter</h3>
-              <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => setFutureJobOpen(true)}>
-                <CalendarPlus className="h-4 w-4" /> Ny återkontakt
-              </Button>
-            </div>
-            {(openFutureJobs || []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Inga planerade återkontakter</p>
-            ) : (
-              <div className="space-y-1">
-                {(openFutureJobs || []).map((fj) => {
-                  const cd = futureJobCountdown(fj.contact_date);
-                  return (
-                    <div key={fj.id} className="flex flex-wrap items-center gap-2 text-sm">
-                      <span>Återkontakt planerad: {fj.contact_date} — {fj.description}</span>
-                      <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium', cd.cls)}>
-                        {cd.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </section>
           )}
 
