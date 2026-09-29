@@ -869,11 +869,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const [y, w] = value.split('-').map(Number);
       if (!y || !w) throw new Error('Välj en leveransvecka');
       const prevDate = (caseData as any).delivery_date as string | null;
+      const prevOrderNumber = ((caseData as any).order_number ?? '') as string;
+      const newOrderNumber = orderNumberInput.trim();
+      const orderNumberChanged = newOrderNumber !== prevOrderNumber.trim();
       await updateCase(caseData.id, {
         delivery_week: w,
         delivery_year: y,
         delivery_date: null,
         delivery_time: null,
+        ...(orderNumberChanged ? { order_number: newOrderNumber || null } : {}),
       } as any);
       await createCaseEvent({
         case_id: caseData.id,
@@ -883,6 +887,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           : `Leveransvecka satt: v.${w}`,
         created_by: currentUser,
       });
+      if (orderNumberChanged) {
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'status_change',
+          description: `Ordernummer satt: ${newOrderNumber || '(tomt)'}`,
+          created_by: currentUser,
+        });
+      }
     },
     onSuccess: () => { invalidate(); setWeekDialogOpen(false); toast.success('Leveransvecka sparad'); },
     onError: (e: Error) => toast.error(e.message),
