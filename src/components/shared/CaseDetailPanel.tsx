@@ -1117,7 +1117,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         <Dialog open={weekDialogOpen} onOpenChange={setWeekDialogOpen}>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
-              <DialogTitle>Välj leveransvecka</DialogTitle>
+              <DialogTitle>Leveransvecka & ordernummer</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               {(caseData as any).delivery_date && (
