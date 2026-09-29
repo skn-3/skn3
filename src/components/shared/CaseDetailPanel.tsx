@@ -117,6 +117,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
   const [weekDialogOpen, setWeekDialogOpen] = useState(false);
   const [weekChoice, setWeekChoice] = useState('');
+  const [orderNumberInput, setOrderNumberInput] = useState('');
   const [hoursSoldInput, setHoursSoldInput] = useState('');
   const [hoursApprovedInput, setHoursApprovedInput] = useState('');
   const [congardInput, setCongardInput] = useState('');
@@ -868,11 +869,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       const [y, w] = value.split('-').map(Number);
       if (!y || !w) throw new Error('Välj en leveransvecka');
       const prevDate = (caseData as any).delivery_date as string | null;
+      const prevOrderNumber = ((caseData as any).order_number ?? '') as string;
+      const newOrderNumber = orderNumberInput.trim();
+      const orderNumberChanged = newOrderNumber !== prevOrderNumber.trim();
       await updateCase(caseData.id, {
         delivery_week: w,
         delivery_year: y,
         delivery_date: null,
         delivery_time: null,
+        ...(orderNumberChanged ? { order_number: newOrderNumber || null } : {}),
       } as any);
       await createCaseEvent({
         case_id: caseData.id,
@@ -882,6 +887,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           : `Leveransvecka satt: v.${w}`,
         created_by: currentUser,
       });
+      if (orderNumberChanged) {
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'status_change',
+          description: `Ordernummer satt: ${newOrderNumber || '(tomt)'}`,
+          created_by: currentUser,
+        });
+      }
     },
     onSuccess: () => { invalidate(); setWeekDialogOpen(false); toast.success('Leveransvecka sparad'); },
     onError: (e: Error) => toast.error(e.message),
@@ -893,6 +906,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     const w = (caseData as any).delivery_week as number | null;
     const y = (caseData as any).delivery_year as number | null;
     setWeekChoice(w && y ? `${y}-${w}` : '');
+    setOrderNumberInput(((caseData as any).order_number as string | null) ?? '');
     setWeekDialogOpen(true);
   };
 
@@ -1103,7 +1117,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         <Dialog open={weekDialogOpen} onOpenChange={setWeekDialogOpen}>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
-              <DialogTitle>Välj leveransvecka</DialogTitle>
+              <DialogTitle>Leveransvecka & ordernummer</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               {(caseData as any).delivery_date && (
@@ -1111,6 +1125,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   Exakt leveransdatum är satt: {(caseData as any).delivery_date}. Väljer du en vecka ersätter den datumet.
                 </p>
               )}
+              <div className="space-y-1.5">
+                <Label htmlFor="week-dialog-order-number" className="text-xs text-muted-foreground">Ordernummer (valfritt)</Label>
+                <Input
+                  id="week-dialog-order-number"
+                  value={orderNumberInput}
+                  onChange={e => setOrderNumberInput(e.target.value)}
+                  placeholder="T.ex. 12345"
+                />
+              </div>
               <Select value={weekChoice} onValueChange={setWeekChoice}>
                 <SelectTrigger><SelectValue placeholder="Välj vecka..." /></SelectTrigger>
                 <SelectContent className="max-h-72">
