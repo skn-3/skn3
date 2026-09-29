@@ -906,6 +906,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     const w = (caseData as any).delivery_week as number | null;
     const y = (caseData as any).delivery_year as number | null;
     setWeekChoice(w && y ? `${y}-${w}` : '');
+    setOrderNumberInput(((caseData as any).order_number as string | null) ?? '');
     setWeekDialogOpen(true);
   };
 
