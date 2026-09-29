@@ -117,6 +117,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
   const [weekDialogOpen, setWeekDialogOpen] = useState(false);
   const [weekChoice, setWeekChoice] = useState('');
+  const [orderNumberInput, setOrderNumberInput] = useState('');
   const [hoursSoldInput, setHoursSoldInput] = useState('');
   const [hoursApprovedInput, setHoursApprovedInput] = useState('');
   const [congardInput, setCongardInput] = useState('');
