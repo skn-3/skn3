@@ -1125,6 +1125,15 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   Exakt leveransdatum är satt: {(caseData as any).delivery_date}. Väljer du en vecka ersätter den datumet.
                 </p>
               )}
+              <div className="space-y-1.5">
+                <Label htmlFor="week-dialog-order-number" className="text-xs text-muted-foreground">Ordernummer (valfritt)</Label>
+                <Input
+                  id="week-dialog-order-number"
+                  value={orderNumberInput}
+                  onChange={e => setOrderNumberInput(e.target.value)}
+                  placeholder="T.ex. 12345"
+                />
+              </div>
               <Select value={weekChoice} onValueChange={setWeekChoice}>
                 <SelectTrigger><SelectValue placeholder="Välj vecka..." /></SelectTrigger>
                 <SelectContent className="max-h-72">
