@@ -31,7 +31,7 @@ export function KlimatQrDialog({ open, onOpenChange, claimUrl, treeTotal }: Prop
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <TreePine className="h-5 w-5 text-green-600 dark:text-green-400" />
-            {trees > 1 ? 'Vi har planterat träd för dig' : 'Vi har planterat ett träd för dig'}
+            {trees > 1 ? 'Vi planterar träd för dig' : 'Vi planterar ett träd för dig'}
           </DialogTitle>
         </DialogHeader>
 
@@ -43,7 +43,7 @@ export function KlimatQrDialog({ open, onOpenChange, claimUrl, treeTotal }: Prop
             <QRCodeSVG value={claimUrl} size={220} includeMargin={false} />
           </div>
           <div className="inline-flex items-center gap-1.5 rounded-full border border-green-300 dark:border-green-800 bg-green-100 dark:bg-green-900/40 px-3 py-1 text-sm font-medium text-green-800 dark:text-green-300">
-            <TreePine className="h-4 w-4" /> {trees} {trees === 1 ? 'träd' : 'träd'} planterade
+            <TreePine className="h-4 w-4" /> {trees} träd planteras när kunden fyllt i formuläret
           </div>
         </div>
 
@@ -71,14 +71,14 @@ export function KlimatQrInline({ claimUrl, treeTotal }: { claimUrl: string; tree
     <div className="rounded-lg border border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950/40 p-4 flex flex-col items-center gap-3 animate-in fade-in zoom-in">
       <div className="flex items-center gap-2 font-semibold text-foreground">
         <TreePine className="h-5 w-5 text-green-600 dark:text-green-400" />
-        {trees > 1 ? 'Vi har planterat träd för dig' : 'Vi har planterat ett träd för dig'}
+        {trees > 1 ? 'Vi planterar träd för dig' : 'Vi planterar ett träd för dig'}
       </div>
       <p className="text-sm text-muted-foreground text-center">Scanna för att hämta ditt personliga värdebevis</p>
       <div className="rounded-xl bg-white p-4 shadow-sm" data-testid="klimat-qr-inline">
         <QRCodeSVG value={claimUrl} size={200} includeMargin={false} />
       </div>
       <div className="inline-flex items-center gap-1.5 rounded-full border border-green-300 dark:border-green-800 bg-green-100 dark:bg-green-900/40 px-3 py-1 text-sm font-medium text-green-800 dark:text-green-300">
-        <TreePine className="h-4 w-4" /> {trees} träd planterade
+        <TreePine className="h-4 w-4" /> {trees} träd planteras när kunden fyllt i formuläret
       </div>
       <Button type="button" variant="outline" size="sm" onClick={copy}>
         <Copy className="h-4 w-4 mr-1" /> Kopiera länk
