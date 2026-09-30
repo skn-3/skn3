@@ -7,9 +7,9 @@ describe('KlimatQrDialog', () => {
     render(
       <KlimatQrDialog open onOpenChange={() => {}} claimUrl="https://smartklimat.org/c/test123" treeTotal={4} />,
     );
-    expect(screen.getByText(/Vi har planterat/)).toBeInTheDocument();
+    expect(screen.getByText(/Vi planterar/)).toBeInTheDocument();
     expect(screen.getByText('Scanna för att hämta ditt personliga värdebevis')).toBeInTheDocument();
-    expect(screen.getByText(/4 träd planterade/)).toBeInTheDocument();
+    expect(screen.getByText('4 träd planteras när kunden fyllt i formuläret')).toBeInTheDocument();
     expect(screen.getByTestId('klimat-qr').querySelector('svg')).toBeTruthy();
   });
 
