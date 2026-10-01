@@ -419,6 +419,7 @@ export type Database = {
           id: string
           imported: boolean
           is_gotland: boolean
+          klimat_status: string | null
           km_date: string | null
           km_team: string | null
           km_time: string | null
@@ -462,6 +463,7 @@ export type Database = {
           id?: string
           imported?: boolean
           is_gotland?: boolean
+          klimat_status?: string | null
           km_date?: string | null
           km_team?: string | null
           km_time?: string | null
@@ -505,6 +507,7 @@ export type Database = {
           id?: string
           imported?: boolean
           is_gotland?: boolean
+          klimat_status?: string | null
           km_date?: string | null
           km_team?: string | null
           km_time?: string | null
@@ -546,6 +549,7 @@ export type Database = {
           event_type: string
           id: string
           seller: string | null
+          status: string | null
           total_trees: number | null
           tree_count: number
           upstream_key: string
@@ -560,6 +564,7 @@ export type Database = {
           event_type: string
           id?: string
           seller?: string | null
+          status?: string | null
           total_trees?: number | null
           tree_count?: number
           upstream_key: string
@@ -574,6 +579,7 @@ export type Database = {
           event_type?: string
           id?: string
           seller?: string | null
+          status?: string | null
           total_trees?: number | null
           tree_count?: number
           upstream_key?: string
