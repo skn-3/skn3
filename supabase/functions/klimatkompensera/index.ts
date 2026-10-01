@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
 
       let q = admin
         .from('climate_events')
-        .select('upstream_key, claim_url, verification_id, total_trees, created_at')
+        .select('upstream_key, claim_url, verification_id, total_trees, created_at, status')
         .eq('event_type', 'visit');
       const ors = [`case_id.eq.${caseId}`];
       if (visitIds.size) ors.push(`visit_id.in.(${[...visitIds].join(',')})`, `upstream_key.in.(${[...visitIds].join(',')})`);
@@ -104,7 +104,9 @@ Deno.serve(async (req) => {
             claim_url: priorVisit.claim_url, verification_id: priorVisit.verification_id || '', created_by: userId,
           });
         }
-        return json({ skipped: true, reason: 'visit_tree_covers_units', claim_url: priorVisit.claim_url, verification_id: priorVisit.verification_id, total_trees: total });
+        const inherited = (priorVisit as any).status === 'claimed' ? 'claimed' : 'pending';
+        await admin.from('cases').update({ klimat_status: inherited }).eq('id', caseId);
+        return json({ skipped: true, reason: 'visit_tree_covers_units', claim_url: priorVisit.claim_url, verification_id: priorVisit.verification_id, total_trees: total, status: inherited });
       }
       return json({ skipped: true, reason: 'tree_count <= 0' });
     }
