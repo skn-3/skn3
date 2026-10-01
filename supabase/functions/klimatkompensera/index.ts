@@ -154,6 +154,8 @@ Deno.serve(async (req) => {
     const totalTrees = Number.isFinite(Number(upJson?.total_trees)) ? Number(upJson.total_trees) : null;
 
     const nowIso = new Date().toISOString();
+    const rawStatus = String(upJson?.status || '').toLowerCase();
+    const klimatStatus = rawStatus === 'pending' || rawStatus === 'claimed' ? rawStatus : null;
 
     const { error: evErr } = await admin.from('climate_events').insert({
       case_id: caseId,
@@ -166,8 +168,18 @@ Deno.serve(async (req) => {
       verification_id: verificationId ? String(verificationId) : null,
       claim_url: claimUrl,
       total_trees: totalTrees,
+      status: klimatStatus,
     });
     if (evErr) console.error('[klimat] event insert failed', evErr);
+
+    if (klimatStatus) {
+      // Status gäller hela beviset (samma uppströmsnyckel)
+      await admin.from('climate_events').update({ status: klimatStatus }).eq('upstream_key', upstreamKey);
+      const { data: evCases } = await admin.from('climate_events').select('case_id').eq('upstream_key', upstreamKey).not('case_id', 'is', null);
+      const caseIds = new Set<string>((evCases || []).map((r: any) => r.case_id));
+      if (caseId) caseIds.add(caseId);
+      if (caseIds.size) await admin.from('cases').update({ klimat_status: klimatStatus }).in('id', [...caseIds]);
+    }
 
     if (caseId) {
       const { data: existing } = await admin
@@ -211,6 +223,7 @@ Deno.serve(async (req) => {
       verification_id: verificationId ? String(verificationId) : null,
       claim_url: claimUrl,
       total_trees: totalTrees,
+      status: klimatStatus,
     });
   } catch (err) {
     console.error('[klimat] error', err);
