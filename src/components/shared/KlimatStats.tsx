@@ -7,6 +7,7 @@ export interface ClimateEventRow {
   tree_count: number;
   seller: string | null;
   event_type: string;
+  status: string | null;
 }
 
 export function useClimateEvents() {
@@ -15,7 +16,7 @@ export function useClimateEvents() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('climate_events' as any)
-        .select('created_at, tree_count, seller, event_type')
+        .select('created_at, tree_count, seller, event_type, status')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data as unknown as ClimateEventRow[]) ?? [];
@@ -28,7 +29,15 @@ function sum(rows: ClimateEventRow[]) {
 }
 
 export function useTreeStats() {
-  const { data: rows = [] } = useClimateEvents();
+  const { data: allRows = [] } = useClimateEvents();
+  // Endast träd som kunden bekräftat räknas som planterade (saknad status = äldre, bekräftade)
+  const rows = allRows.filter((r) => r.status !== 'pending');
+  const pendingRows = allRows.filter((r) => r.status === 'pending');
+  const pendingBySeller = new Map<string, number>();
+  for (const r of pendingRows) {
+    const s = (r.seller || '').trim();
+    if (s) pendingBySeller.set(s, (pendingBySeller.get(s) || 0) + (Number(r.tree_count) || 0));
+  }
   const now = new Date();
   const yearRows = rows.filter((r) => new Date(r.created_at).getFullYear() === now.getFullYear());
   const monthRows = yearRows.filter((r) => new Date(r.created_at).getMonth() === now.getMonth());
@@ -47,15 +56,17 @@ export function useTreeStats() {
     thisYear: sum(yearRows),
     thisMonth: sum(monthRows),
     top,
+    pending: sum(pendingRows),
     forSeller: (name: string) => bySeller.get(name) || 0,
+    pendingForSeller: (name: string) => pendingBySeller.get(name) || 0,
   };
 }
 
 /** Klimatblock för startsidan */
 export function KlimatStatsBlock() {
-  const { total, thisYear, thisMonth, top } = useTreeStats();
+  const { total, thisYear, thisMonth, top, pending } = useTreeStats();
 
-  if (total === 0) return null;
+  if (total === 0 && pending === 0) return null;
 
   return (
     <div className="rounded-lg border border-green-300 dark:border-green-800 bg-green-50/60 dark:bg-green-950/40 p-4 space-y-3">
@@ -76,6 +87,9 @@ export function KlimatStatsBlock() {
           <div className="text-xs text-muted-foreground">Denna månad</div>
         </div>
       </div>
+      {pending > 0 && (
+        <div className="text-xs text-amber-700 dark:text-amber-300">Väntar på kund: {pending} träd</div>
+      )}
       {top.length > 0 && (
         <div className="space-y-1 pt-1 border-t border-green-200 dark:border-green-900">
           <div className="text-xs font-medium text-muted-foreground">Topp 3 säljare</div>
@@ -93,12 +107,16 @@ export function KlimatStatsBlock() {
 
 /** Kompakt "mina träd"-siffra */
 export function MinaTradBadge({ sellerName }: { sellerName: string }) {
-  const { forSeller } = useTreeStats();
+  const { forSeller, pendingForSeller } = useTreeStats();
   const trees = forSeller(sellerName);
-  if (!trees) return null;
+  const waiting = pendingForSeller(sellerName);
+  if (!trees && !waiting) return null;
   return (
+    <span className="inline-flex items-center gap-2 flex-wrap">
     <span className="inline-flex items-center gap-1.5 rounded-full border border-green-300 dark:border-green-800 bg-green-100 dark:bg-green-900/40 px-3 py-1 text-sm font-medium text-green-800 dark:text-green-300">
       <TreePine className="h-4 w-4" /> Mina träd: {trees}
+    </span>
+    {waiting > 0 && <span className="text-xs text-amber-700 dark:text-amber-300">Väntar på kund: {waiting} träd</span>}
     </span>
   );
 }
