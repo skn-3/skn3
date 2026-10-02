@@ -23,7 +23,7 @@ export async function sheetMetalSketchImage(props: SketchProps): Promise<string>
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/png');
+    return canvas.toDataURL('image/jpeg', 0.94);
   } finally {
     URL.revokeObjectURL(url);
   }

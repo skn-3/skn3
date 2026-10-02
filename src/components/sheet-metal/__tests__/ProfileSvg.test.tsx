@@ -13,6 +13,7 @@ describe('plåtskissen', () => {
     expect(parseProfileAngle('45°', 88)).toBe(45);
     expect(parseProfileAngle('', 88)).toBe(88);
     expect(parseProfileAngle('okänt', 88)).toBe(88);
+    expect(renderToStaticMarkup(<ProfileSvg m={{ ...base, bottom_angle: 'okänt' }} type="l-profil" />)).toContain('88°');
   });
 
   it('ritar olika bottenvinklar olika och visar hela intervalltexten', () => {

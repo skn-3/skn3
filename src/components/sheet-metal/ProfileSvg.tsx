@@ -89,14 +89,14 @@ function bendArc(vertex: Point, from: Point, to: Point, label: string, side: num
 export function ProfileSvg({ m, type }: Props) {
   const [p0, p1, p2, p3, p4] = profilePoints(m);
   const label = type === 'l-profil' ? 'L-Profil' : 'Underbleck';
-  const angleLabel = (s: string, fallback: number) => s.trim() || `${fallback}°`;
+  const angleLabel = (s: string, fallback: number) => Number.isFinite(parseProfileAngle(s, NaN)) ? s.trim() : `${fallback}°`;
 
   return <svg xmlns="http://www.w3.org/2000/svg" width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Skiss — ${label}`} className="w-full h-auto bg-white border rounded-lg" /* avsiktligt alltid ljus */>
     <rect width={W} height={H} fill="#ffffff" />
     <text x={W / 2} y="27" textAnchor="middle" fontSize="16" fontWeight="bold" fill="#15803d">{label}</text>
     <path d={`M ${fmt(p0.x)} ${fmt(p0.y)} L ${fmt(p1.x)} ${fmt(p1.y)} L ${fmt(p2.x)} ${fmt(p2.y)} L ${fmt(p3.x)} ${fmt(p3.y)} L ${fmt(p4.x)} ${fmt(p4.y)}`} stroke="#1a1a1a" strokeWidth="3" fill="none" strokeLinejoin="round" strokeLinecap="round" />
     {dimension(p0, p1, m.top_mm, -1)}
-    {dimension(p1, p2, m.vertical_mm, -1)}
+    {dimension(p1, p2, m.vertical_mm, 1)}
     {dimension(p2, p3, m.bottom_mm, 1)}
     {dimension(p3, p4, m.drip_mm, -1)}
     {bendArc(p1, p0, p2, angleLabel(m.upper_angle, 18), -1)}

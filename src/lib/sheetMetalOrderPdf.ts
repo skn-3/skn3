@@ -120,7 +120,7 @@ export function buildSheetMetalOrderPdf(args: SheetMetalPdfArgs): jsPDF {
     if (p.mode === 'manual' && p.measurements) {
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...DARK);
       doc.text(`Skiss — ${typeLabel(p)} (P${pi + 1})`, M + 4, y + 6);
-      if (p.sketch_data_url) doc.addImage(p.sketch_data_url, 'PNG', M + 4, y + 9, 108, 68);
+      if (p.sketch_data_url) doc.addImage(p.sketch_data_url, 'JPEG', M + 4, y + 9, 108, 68);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8); doc.setTextColor(...MUTED);
       const m = p.measurements;
