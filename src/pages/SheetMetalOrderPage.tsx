@@ -45,8 +45,8 @@ const defaultMeasurements = (type: 'l-profil' | 'underbleck'): Measurements => (
   vertical_mm: 44,
   bottom_mm: type === 'l-profil' ? 84 : 180,
   drip_mm: 20,
-  upper_angle: '6-30°',
-  lower_angle: '30°',
+  upper_angle: '25°',
+  lower_angle: '25°',
   bottom_angle: '88°',
 });
 
