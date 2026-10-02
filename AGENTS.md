@@ -1,0 +1,1 @@
+Use the same ProfileSvg rendering for the sheet-metal form and the order PDF, rasterized in the browser before PDF generation; this keeps measurements and angle annotations identical in both places.

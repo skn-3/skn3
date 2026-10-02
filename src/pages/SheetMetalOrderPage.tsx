@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { ProfileSvg } from '@/components/sheet-metal/ProfileSvg';
 import { compressImageToDataUrl } from '@/lib/imageCompress';
 import { buildSheetMetalOrderPdf } from '@/lib/sheetMetalOrderPdf';
+import { sheetMetalSketchImage } from '@/lib/sheetMetalSketchImage';
 
 interface ProfileLength { length_mm: number; qty: number; }
 interface Measurements {
@@ -112,23 +113,28 @@ export default function SheetMetalOrderPage() {
     }
   };
 
-  const previewPdf = () => {
+  const pdfProfiles = async () => Promise.all(profiles.map(async p => ({
+    mode: p.mode, type: p.type, color: p.color, with_gables: p.with_gables,
+    lengths: p.lengths,
+    measurements: p.mode === 'manual' ? p.measurements : undefined,
+    sketch_data_url: p.mode === 'manual' ? await sheetMetalSketchImage({ m: p.measurements, type: p.type }) : undefined,
+    image_filename: p.mode === 'image' ? p.image_filename : undefined,
+    image_description: p.mode === 'image' ? p.image_description : undefined,
+  })));
+
+  const previewPdf = async () => {
     if (!caseData || !role) return;
-    const doc = buildSheetMetalOrderPdf({
+    try {
+      const doc = buildSheetMetalOrderPdf({
       caseAddress: caseData.address,
       montorName: montor || 'Ej angiven',
       montorPhone: montorPhoneOf(montor),
       notes,
-      profiles: profiles.map(p => ({
-        mode: p.mode, type: p.type, color: p.color, with_gables: p.with_gables,
-        lengths: p.lengths,
-        measurements: p.mode === 'manual' ? p.measurements : undefined,
-        image_filename: p.mode === 'image' ? p.image_filename : undefined,
-        image_description: p.mode === 'image' ? p.image_description : undefined,
-      })) as any,
+      profiles: await pdfProfiles(),
       createdBy: role.name,
-    });
-    doc.save(`Bestallning_byggplat_${caseData.address.replace(/\s+/g, '_')}.pdf`);
+      });
+      doc.save(`Bestallning_byggplat_${caseData.address.replace(/\s+/g, '_')}.pdf`);
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Kunde inte skapa PDF'); }
   };
 
 
@@ -161,7 +167,7 @@ export default function SheetMetalOrderPage() {
         montorName: montor || 'Ej angiven',
         montorPhone: montorPhoneOf(montor),
         notes,
-        profiles: payload.profiles as any,
+        profiles: await pdfProfiles(),
         createdBy: role.name,
       });
       (payload as any).pdf_base64 = pdfDoc.output('datauristring').split(',')[1];
