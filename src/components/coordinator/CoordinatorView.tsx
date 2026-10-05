@@ -63,7 +63,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
       </AppHeader>
 
       <main className="py-4 md:py-6 max-w-screen-2xl mx-auto">
-        {tab === 'inbox' && <CoordinatorInbox coordinatorName={role.name} />}
+        {tab === 'inbox' && <CoordinatorInbox coordinatorName={role.name} onSelectCase={setSelectedCase} />}
         {tab === 'pipeline' && (
           <Pipeline sellerName={role.name} isCoordinator onSelectCase={setSelectedCase} />
         )}
