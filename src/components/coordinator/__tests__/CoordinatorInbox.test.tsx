@@ -4,25 +4,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { getISOWeek, getISOWeekYear } from 'date-fns';
 
-const now = new Date();
-const wk = getISOWeek(now);
-const yr = getISOWeekYear(now);
-
-const deliveryCase = {
-  id: 'case-123',
-  address: 'Testvägen 12',
-  customer_name: 'Kund Testsson',
-  customer_phone: null,
-  status: 'godkand',
-  created_at: new Date().toISOString(),
-  delivery_week: wk,
-  delivery_year: yr,
-  team: 'Team A',
-  montage_date: '2026-10-20',
-};
+function makeDeliveryCase() {
+  const now = new Date();
+  return {
+    id: 'case-123',
+    address: 'Testvägen 12',
+    customer_name: 'Kund Testsson',
+    customer_phone: null,
+    status: 'godkand',
+    created_at: now.toISOString(),
+    delivery_week: getISOWeek(now),
+    delivery_year: getISOWeekYear(now),
+    team: 'Team A',
+    montage_date: '2026-10-20',
+  };
+}
 
 vi.mock('@/lib/supabaseClient', () => ({
-  fetchAllCases: vi.fn().mockResolvedValue([deliveryCase]),
+  fetchAllCases: vi.fn().mockImplementation(() => Promise.resolve([makeDeliveryCase()])),
   fetchAllDeviations: vi.fn().mockResolvedValue([]),
   updateCase: vi.fn(),
   updateDeviation: vi.fn(),
