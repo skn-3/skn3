@@ -34,6 +34,7 @@ import { logActivity } from '@/lib/activityLog';
 
 interface Props {
   coordinatorName: string;
+  onSelectCase?: (c: CaseRow) => void;
 }
 
 function ageDays(iso: string): number {
@@ -55,7 +56,7 @@ function PhoneLink({ phone }: { phone: string | null }) {
   );
 }
 
-export function CoordinatorInbox({ coordinatorName }: Props) {
+export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
   const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -318,10 +319,24 @@ export function CoordinatorInbox({ coordinatorName }: Props) {
               <ul className="space-y-2">
                 {weekDeliveries.map(c => (
                   <li key={c.id} className="text-sm">
-                    <div className="font-medium">{c.address}</div>
-                    <div className="text-xs text-muted-foreground">
-                      v{c.delivery_week}/{c.delivery_year}{c.team ? ` · ${c.team}` : ''}
-                    </div>
+                    <a
+                      href={`/?case=${c.id}`}
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                        if (onSelectCase) {
+                          e.preventDefault();
+                          onSelectCase(c);
+                        }
+                      }}
+                      className="block rounded-md px-1 -mx-1 cursor-pointer hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                    >
+                      <div className="font-medium underline decoration-muted-foreground/40 underline-offset-2 hover:text-primary hover:decoration-primary">
+                        {c.address}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        v{c.delivery_week}/{c.delivery_year}{c.team ? ` · ${c.team}` : ''}
+                      </div>
+                    </a>
                   </li>
                 ))}
               </ul>
