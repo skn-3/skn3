@@ -281,7 +281,7 @@ export function VelfacPdfCleaner() {
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
         <FileText className="h-4 w-4 mr-2" />
-        Städa leverantörs-PDF
+        <span className="sm:hidden">Städa PDF</span><span className="hidden sm:inline">Städa leverantörs-PDF</span>
       </Button>
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
         <DialogContent>
@@ -352,7 +352,7 @@ export function VelfacPdfCleaner() {
                   <div className="text-xs text-amber-700 dark:text-amber-300 mt-1">Lingbo-formatet är nytt i verktyget — bläddra igenom resultatet innan du skickar det.</div>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => { const a = document.createElement('a'); a.href = result.blobUrl; a.download = result.fileName; a.click(); }}>
                   <Download className="h-4 w-4 mr-2" />
                   Ladda ner igen

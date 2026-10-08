@@ -403,3 +403,12 @@ a[href*="lovable.app"][class*="badge"] {
   }
   .insight-lockon::before { display: none !important; }
 }
+
+/* Mobil: innehåll som råkar bli bredare än skärmen får inte bredda layout-viewporten (ger "inzoomad" sida på iOS/Android).
+   Ingen overflow-x: hidden på body — det skulle göra body till scrollcontainer och bryta sticky-headern. */
+html { overflow-x: hidden; overflow-x: clip; }
+body { overflow-x: clip; }
+/* iOS zoomar in sidan när ett fält med text under 16px får fokus, och zoomen ligger kvar efteråt. */
+@media (hover: none) and (pointer: coarse) {
+  input, select, textarea { font-size: max(16px, 1em); }
+}
