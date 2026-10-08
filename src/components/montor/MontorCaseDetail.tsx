@@ -76,15 +76,29 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     queryFn: () => fetchCaseCosts(caseData.id),
   });
 
-  const { data: myAOrders = [] } = useQuery({
-    queryKey: ['montor-aorders', caseData.id],
-    enabled: !!caseData.id,
+  // Montörens eget team (profilnamn = teamnamn). Admin som tittar i montörvyn har inget team och ser då alla ordrar på ärendet.
+  const myTeamQuery = useQuery({
+    queryKey: ['montor-team', currentUser],
+    enabled: !!currentUser,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (supabase as any).from('montor_teams').select('id, name').eq('name', currentUser).maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as { id: string; name: string } | null;
+    },
+  });
+  const myTeamId = myTeamQuery.data?.id ?? null;
+
+  const { data: myAOrders = [] } = useQuery({
+    queryKey: ['montor-aorders', caseData.id, myTeamId],
+    enabled: !!caseData.id && myTeamQuery.isFetched,
+    queryFn: async () => {
+      let q = (supabase as any)
         .from('a_orders')
-        .select('id, order_number, created_at, total_amount, status, pdf_path')
+        .select('id, order_number, created_at, date, total_amount, status, pdf_path, order_sent_at, invoice_number, invoice_sent_at, credited_from_order_id')
         .eq('case_id', caseData.id)
         .order('created_at', { ascending: false });
+      if (myTeamId) q = q.eq('team_id', myTeamId);
+      const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
     },
@@ -671,33 +685,65 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         {myAOrders.length > 0 && (
           <section className="py-4 border-t space-y-2">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-              <FileText className="h-4 w-4" /> Ersättning — dina A-ordrar
+              <FileText className="h-4 w-4" /> A-ordrar & fakturor
             </h3>
             <div className="space-y-2">
-              {myAOrders.map((o: any) => (
-                <div key={o.id} className="rounded-lg border p-3 text-sm flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-medium">A-order #{o.order_number ?? '—'}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {o.created_at ? new Date(o.created_at).toLocaleDateString('sv-SE') : ''} · {typeof o.total_amount === 'number' ? `${Math.round(o.total_amount).toLocaleString('sv-SE')} kr` : ''}{o.status === 'credited' ? ' · kreditfaktura' : ''}
+              {myAOrders.map((o: any) => {
+                const isCreditNote = o.status === 'credited' && !!o.credited_from_order_id;
+                const statusLabel = isCreditNote
+                  ? `Kreditfaktura ${o.invoice_number ?? ''}`.trim()
+                  : o.status === 'credited'
+                  ? 'Krediterad'
+                  : o.invoice_sent_at
+                  ? `Fakturerad ${o.invoice_number ?? ''}`.trim()
+                  : o.order_sent_at
+                  ? 'A-order skickad'
+                  : 'A-order skapad';
+                const openPdf = (path: string) => openDocumentInNewTab(async () => {
+                  const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 600);
+                  return data?.signedUrl ?? null;
+                });
+                return (
+                  <div key={o.id} className="rounded-lg border p-3 text-sm space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium">{isCreditNote ? 'Kreditfaktura' : 'A-order'} #{o.order_number ?? '—'}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {o.date || (o.created_at ? new Date(o.created_at).toLocaleDateString('sv-SE') : '')} · {statusLabel}
+                        </div>
+                      </div>
+                      {typeof o.total_amount === 'number' && (
+                        <div className="font-semibold whitespace-nowrap">{Math.round(o.total_amount).toLocaleString('sv-SE')} kr</div>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {isCreditNote ? (
+                        o.pdf_path && (
+                          <Button size="sm" variant="outline" onClick={() => openPdf(o.pdf_path)}>
+                            <FileText className="h-4 w-4 mr-1" /> Kreditfaktura PDF
+                          </Button>
+                        )
+                      ) : (
+                        <>
+                          {o.order_sent_at && (
+                            <Button size="sm" variant="outline" onClick={() => openPdf(`a-orders/${o.id}.pdf`)}>
+                              <FileText className="h-4 w-4 mr-1" /> A-order PDF
+                            </Button>
+                          )}
+                          {o.invoice_sent_at && (
+                            <Button size="sm" variant="outline" onClick={() => openPdf(`a-orders/${o.id}-faktura.pdf`)}>
+                              <FileText className="h-4 w-4 mr-1" /> Faktura PDF
+                            </Button>
+                          )}
+                          {!o.order_sent_at && !o.invoice_sent_at && (
+                            <span className="text-xs text-muted-foreground">PDF ej genererad ännu</span>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
-                  {o.pdf_path ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openDocumentInNewTab(async () => {
-                        const { data } = await supabase.storage.from('case-documents').createSignedUrl(o.pdf_path, 600);
-                        return data?.signedUrl ?? null;
-                      })}
-                    >
-                      <FileText className="h-4 w-4 mr-1" /> Öppna PDF
-                    </Button>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">PDF ej genererad</span>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}

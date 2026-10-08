@@ -43,6 +43,13 @@
       "when": 1790840576152,
       "tag": "0005_klimat_status",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791445046867,
+      "tag": "0006_installer_own_team_a_orders_and_all_pdf_paths",
+      "breakpoints": true
     }
   ]
 }
