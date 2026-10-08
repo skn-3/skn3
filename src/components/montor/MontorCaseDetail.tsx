@@ -699,10 +699,14 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   : o.order_sent_at
                   ? 'A-order skickad'
                   : 'A-order skapad';
-                const openPdf = (path: string) => openDocumentInNewTab(async () => {
-                  const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 600);
-                  return data?.signedUrl ?? null;
-                });
+                const openPdf = async (path: string) => {
+                  const ok = await openDocumentInNewTab(async () => {
+                    const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 600);
+                    return data?.signedUrl ?? null;
+                  });
+                  if (!ok) toast.error('PDF:en kunde inte öppnas');
+                };
+
                 return (
                   <div key={o.id} className="rounded-lg border p-3 text-sm space-y-2">
                     <div className="flex items-start justify-between gap-3">
