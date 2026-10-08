@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextarea } from '@/components/shared/RichTextarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -666,7 +666,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
           <div>
             <Label>Beskrivning</Label>
-            <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} />
+            <RichTextarea value={description} onChange={setDescription} rows={3} />
           </div>
 
           {/* Internal block */}

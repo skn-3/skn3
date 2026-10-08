@@ -3,6 +3,7 @@
 // tar EJ emot några internal-fält. Lägg aldrig till dem här.
 import jsPDF from 'jspdf';
 import { normalizeLines } from './aOrderLines';
+import { drawRichText } from './richTextPdf';
 
 export interface AOrderPdfLine {
   name: string;
@@ -157,13 +158,19 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
     doc.setTextColor(...DARK);
     doc.text('Beskrivning:', margin, y + 3);
     y += 5;
-    doc.setFont('helvetica', 'normal');
-    const wrapped = doc.splitTextToSize(description, pageW - margin * 2);
-    wrapped.forEach((line: string) => {
-      if (y > 250) { doc.addPage(); y = 20; }
-      doc.text(line, margin, y + 3);
-      y += 4;
+    // Beskrivningen kan innehålla **fet** och ==röd== märkning (se src/lib/richText.ts)
+    const nextY = drawRichText(doc, description, {
+      x: margin,
+      y: y + 3,
+      maxWidth: pageW - margin * 2,
+      lineHeight: 4,
+      fontSize: 8,
+      color: DARK,
+      redColor: RED,
+      pageBreakAt: 253,
+      onPageBreak: () => { doc.addPage(); return 23; },
     });
+    y = nextY - 3;
   }
 
   if (subNote && subNote.trim()) {
