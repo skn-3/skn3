@@ -8,8 +8,17 @@ const mocks = vi.hoisted(() => ({
   team: { id: 'team-own', name: 'Test Team' } as { id: string; name: string } | null,
   filters: [] as [string, unknown][],
   selects: [] as string[],
+  openOk: true,
+  toastError: vi.fn(),
+  orders: [] as Record<string, unknown>[],
   signedUrl: vi.fn().mockResolvedValue({ data: { signedUrl: 'https://example.test/document.pdf' } }),
 }));
+
+// Default order rows: one normally invoiced order (has local invoice PDF) and one credit note.
+const DEFAULT_ORDERS: Record<string, unknown>[] = [
+  { id: 'order-own', order_number: 12, date: '2026-10-08', total_amount: 469, status: 'invoiced', pdf_path: 'a-orders/order-own-faktura.pdf', order_sent_at: '2026-10-08', invoice_sent_at: '2026-10-08', invoice_number: 'F12' },
+  { id: 'credit-own', order_number: null, date: '2026-10-08', total_amount: -469, status: 'credited', credited_from_order_id: 'order-own', pdf_path: 'a-orders/credit-own-kredit.pdf', invoice_number: 'K12' },
+];
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -19,10 +28,7 @@ vi.mock('@/integrations/supabase/client', () => ({
         eq: (column: string, value: unknown) => { if (table === 'a_orders') mocks.filters.push([column, value]); return chain; },
         maybeSingle: async () => ({ data: mocks.team, error: null }),
         order: () => chain,
-        then: (resolve: (result: { data: unknown[]; error: null }) => unknown) => Promise.resolve({ data: [
-          { id: 'order-own', order_number: 12, date: '2026-10-08', total_amount: 469, status: 'invoiced', pdf_path: 'a-orders/order-own-faktura.pdf', order_sent_at: '2026-10-08', invoice_sent_at: '2026-10-08', invoice_number: 'F12' },
-          { id: 'credit-own', order_number: null, date: '2026-10-08', total_amount: -469, status: 'credited', credited_from_order_id: 'order-own', pdf_path: 'a-orders/credit-own-kredit.pdf', invoice_number: 'K12' },
-        ], error: null }).then(resolve),
+        then: (resolve: (result: { data: unknown[]; error: null }) => unknown) => Promise.resolve({ data: mocks.orders, error: null }).then(resolve),
       };
       return chain;
     },
@@ -36,7 +42,15 @@ vi.mock('@/lib/supabaseClient', () => ({
   fetchCaseCosts: async () => [],
 }));
 vi.mock('@/lib/activityLog', () => ({ logActivity: vi.fn() }));
-vi.mock('@/lib/openDocument', () => ({ openDocumentInNewTab: (resolve: () => Promise<string | null>) => resolve() }));
+vi.mock('@/lib/openDocument', () => ({
+  openDocumentInNewTab: async (resolve: () => Promise<string | null>) => {
+    await resolve();
+    return mocks.openOk;
+  },
+}));
+vi.mock('sonner', () => ({
+  toast: { error: (...args: unknown[]) => mocks.toastError(...args), success: vi.fn() },
+}));
 vi.mock('@/components/sheet-metal/SheetMetalOrdersSection', () => ({ SheetMetalOrdersSection: () => null }));
 vi.mock('@/components/montor/MontorLitteraSection', () => ({ MontorLitteraSection: () => null }));
 
@@ -53,7 +67,10 @@ describe('MontorCaseDetail A-order access', () => {
     mocks.team = { id: 'team-own', name: 'Test Team' };
     mocks.filters.length = 0;
     mocks.selects.length = 0;
+    mocks.openOk = true;
+    mocks.orders = DEFAULT_ORDERS;
     mocks.signedUrl.mockClear();
+    mocks.toastError.mockClear();
   });
 
   it('filtrerar ordrarna till montörens eget team', async () => {
@@ -84,5 +101,30 @@ describe('MontorCaseDetail A-order access', () => {
     renderDetail();
     fireEvent.click(await screen.findByRole('button', { name: label }));
     await waitFor(() => expect(mocks.signedUrl).toHaveBeenCalledWith(path, 600));
+  });
+
+  it('visar inte Faktura PDF för migrerad order utan pdf_path', async () => {
+    mocks.orders = [
+      { id: 'order-mig', order_number: 5, date: '2026-10-08', total_amount: 1200, status: 'invoiced', pdf_path: null, order_sent_at: null, invoice_sent_at: '2026-10-08', invoice_number: 'F5' },
+    ];
+    renderDetail();
+    await screen.findByText('PDF ej genererad ännu');
+    expect(screen.queryByRole('button', { name: 'Faktura PDF' })).toBeNull();
+  });
+
+  it('visar Faktura PDF när pdf_path finns även om order_sent_at saknas', async () => {
+    mocks.orders = [
+      { id: 'order-mig2', order_number: 6, date: '2026-10-08', total_amount: 1200, status: 'invoiced', pdf_path: 'a-orders/order-mig2-faktura.pdf', order_sent_at: null, invoice_sent_at: '2026-10-08', invoice_number: 'F6' },
+    ];
+    renderDetail();
+    fireEvent.click(await screen.findByRole('button', { name: 'Faktura PDF' }));
+    await waitFor(() => expect(mocks.signedUrl).toHaveBeenCalledWith('a-orders/order-mig2-faktura.pdf', 600));
+  });
+
+  it('meddelar när en PDF inte går att öppna', async () => {
+    mocks.openOk = false;
+    renderDetail();
+    fireEvent.click(await screen.findByRole('button', { name: 'A-order PDF' }));
+    await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith('PDF:en kunde inte öppnas'));
   });
 });
