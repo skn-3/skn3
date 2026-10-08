@@ -699,10 +699,14 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   : o.order_sent_at
                   ? 'A-order skickad'
                   : 'A-order skapad';
-                const openPdf = (path: string) => openDocumentInNewTab(async () => {
-                  const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 600);
-                  return data?.signedUrl ?? null;
-                });
+                const openPdf = async (path: string) => {
+                  const ok = await openDocumentInNewTab(async () => {
+                    const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 600);
+                    return data?.signedUrl ?? null;
+                  });
+                  if (!ok) toast.error('PDF:en kunde inte öppnas');
+                };
+
                 return (
                   <div key={o.id} className="rounded-lg border p-3 text-sm space-y-2">
                     <div className="flex items-start justify-between gap-3">
@@ -730,14 +734,16 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                               <FileText className="h-4 w-4 mr-1" /> A-order PDF
                             </Button>
                           )}
-                          {o.invoice_sent_at && (
+                          {o.invoice_sent_at && o.pdf_path && (
                             <Button size="sm" variant="outline" onClick={() => openPdf(`a-orders/${o.id}-faktura.pdf`)}>
                               <FileText className="h-4 w-4 mr-1" /> Faktura PDF
                             </Button>
                           )}
-                          {!o.order_sent_at && !o.invoice_sent_at && (
+                          {!o.order_sent_at && !(o.invoice_sent_at && o.pdf_path) && (
                             <span className="text-xs text-muted-foreground">PDF ej genererad ännu</span>
                           )}
+
+
                         </>
                       )}
                     </div>
