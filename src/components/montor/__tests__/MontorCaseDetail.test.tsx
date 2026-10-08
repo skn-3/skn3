@@ -1,0 +1,88 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
+import type { CaseRow } from '@/lib/supabaseClient';
+
+const mocks = vi.hoisted(() => ({
+  team: { id: 'team-own', name: 'Test Team' } as { id: string; name: string } | null,
+  filters: [] as [string, unknown][],
+  selects: [] as string[],
+  signedUrl: vi.fn().mockResolvedValue({ data: { signedUrl: 'https://example.test/document.pdf' } }),
+}));
+
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    from: (table: string) => {
+      const chain = {
+        select: (columns: string) => { if (table === 'a_orders') mocks.selects.push(columns); return chain; },
+        eq: (column: string, value: unknown) => { if (table === 'a_orders') mocks.filters.push([column, value]); return chain; },
+        maybeSingle: async () => ({ data: mocks.team, error: null }),
+        order: () => chain,
+        then: (resolve: (result: { data: unknown[]; error: null }) => unknown) => Promise.resolve({ data: [
+          { id: 'order-own', order_number: 12, date: '2026-10-08', total_amount: 469, status: 'invoiced', pdf_path: 'a-orders/order-own-faktura.pdf', order_sent_at: '2026-10-08', invoice_sent_at: '2026-10-08', invoice_number: 'F12' },
+          { id: 'credit-own', order_number: null, date: '2026-10-08', total_amount: -469, status: 'credited', credited_from_order_id: 'order-own', pdf_path: 'a-orders/credit-own-kredit.pdf', invoice_number: 'K12' },
+        ], error: null }).then(resolve),
+      };
+      return chain;
+    },
+    storage: { from: () => ({ createSignedUrl: mocks.signedUrl }) },
+  },
+}));
+vi.mock('@/lib/supabaseClient', () => ({
+  fetchCaseById: async () => caseData,
+  fetchCaseEvents: async () => [],
+  fetchDeviations: async () => [],
+  fetchCaseCosts: async () => [],
+}));
+vi.mock('@/lib/activityLog', () => ({ logActivity: vi.fn() }));
+vi.mock('@/lib/openDocument', () => ({ openDocumentInNewTab: (resolve: () => Promise<string | null>) => resolve() }));
+vi.mock('@/components/sheet-metal/SheetMetalOrdersSection', () => ({ SheetMetalOrdersSection: () => null }));
+vi.mock('@/components/montor/MontorLitteraSection', () => ({ MontorLitteraSection: () => null }));
+
+import { MontorCaseDetail } from '../MontorCaseDetail';
+
+const caseData = { id: 'case-test', address: 'Testvägen 12', customer_name: 'Testkund', customer_phone: '', status: 'fakturerad', extra_hours_requested: 0 } as CaseRow;
+function renderDetail() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={client}><MemoryRouter><MontorCaseDetail caseData={caseData} currentUser="Test Team" hasUnresolvedDeviation={false} onBack={() => {}} /></MemoryRouter></QueryClientProvider>);
+}
+
+describe('MontorCaseDetail A-order access', () => {
+  beforeEach(() => {
+    mocks.team = { id: 'team-own', name: 'Test Team' };
+    mocks.filters.length = 0;
+    mocks.selects.length = 0;
+    mocks.signedUrl.mockClear();
+  });
+
+  it('filtrerar ordrarna till montörens eget team', async () => {
+    renderDetail();
+    await waitFor(() => expect(mocks.filters).toContainEqual(['team_id', 'team-own']));
+    expect(mocks.filters).toContainEqual(['case_id', 'case-test']);
+  });
+
+  it('hämtar inga internal_*-fält', async () => {
+    renderDetail();
+    await waitFor(() => expect(mocks.selects).toHaveLength(1));
+    expect(mocks.selects[0]).toBe('id, order_number, created_at, date, total_amount, status, pdf_path, order_sent_at, invoice_number, invoice_sent_at, credited_from_order_id');
+    expect(mocks.selects[0]).not.toMatch(/internal_|\*/);
+  });
+
+  it('låter admin utan matchande team hämta ärendets ordrar utan teamfilter', async () => {
+    mocks.team = null;
+    renderDetail();
+    await screen.findByRole('button', { name: 'A-order PDF' });
+    expect(mocks.filters).toEqual([['case_id', 'case-test']]);
+  });
+
+  it.each([
+    ['A-order PDF', 'a-orders/order-own.pdf'],
+    ['Faktura PDF', 'a-orders/order-own-faktura.pdf'],
+    ['Kreditfaktura PDF', 'a-orders/credit-own-kredit.pdf'],
+  ])('öppnar %s via rätt separat sökväg', async (label, path) => {
+    renderDetail();
+    fireEvent.click(await screen.findByRole('button', { name: label }));
+    await waitFor(() => expect(mocks.signedUrl).toHaveBeenCalledWith(path, 600));
+  });
+});

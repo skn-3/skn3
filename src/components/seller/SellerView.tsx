@@ -79,7 +79,7 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
       </AppHeader>
 
       <main className="py-4 md:py-6 max-w-screen-2xl mx-auto">
-        <div className="flex justify-end gap-2 px-3 md:px-0 mb-3">
+        <div className="flex flex-wrap justify-end gap-2 px-3 md:px-0 mb-3">
           <Button variant="outline" size="sm" onClick={() => navigate('/veckomote')}>
             <Presentation className="h-4 w-4 mr-1" /> Veckomöte
           </Button>

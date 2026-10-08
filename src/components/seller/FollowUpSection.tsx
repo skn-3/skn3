@@ -71,7 +71,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                 <div className="space-y-0.5">
                   <div className="font-medium text-foreground">{v.address}</div>
                   <div className="text-muted-foreground">{v.customer_name}</div>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-wrap gap-2 items-center">
                     {followUpDate && (
                       <span className={isPast ? 'text-destructive font-medium' : 'text-muted-foreground'}>
                         Återkoppla: {new Date(v.follow_up_date!).toLocaleDateString('sv-SE')}
@@ -88,7 +88,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                     <span className="text-muted-foreground">{Number(v.order_value).toLocaleString('sv-SE')} kr <span className="text-xs ml-0.5">ex moms</span></span>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {updatingId === v.id ? (
                     <>
                       <Button size="sm" variant="default" onClick={() => {
@@ -106,7 +106,7 @@ export function FollowUpSection({ visits, sellerName }: FollowUpSectionProps) {
                       <Button size="sm" variant="ghost" onClick={() => setUpdatingId(null)}>Avbryt</Button>
                     </>
                   ) : (
-                    <div className="flex gap-1">
+                    <div className="flex flex-wrap gap-1">
                       <Button size="sm" variant="outline" onClick={() => {
                         setUpdatingId(v.id);
                         updateVisit(v.id, {

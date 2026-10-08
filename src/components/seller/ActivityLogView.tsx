@@ -216,7 +216,7 @@ export function ActivityLogView() {
           <h1 className="text-2xl font-bold">Aktivitetslogg</h1>
           <p className="text-sm text-muted-foreground">Systemövergripande historik. Default: senaste 7 dagar.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="default" size="sm" onClick={triggerBackup}>
             <ShieldCheck className="h-4 w-4 mr-2" /> Säkerhetskopiera nu
           </Button>
