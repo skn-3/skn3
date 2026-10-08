@@ -1481,7 +1481,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <span className="text-xs"> ({HOUR_RATE} kr/tim)</span>
                   </p>
                 </div>
-                <div className="flex gap-2 justify-end pt-1">
+                <div className="flex flex-wrap gap-2 justify-end pt-1">
                   <Button
                     variant="outline"
                     disabled={approveHoursMutation.isPending || rejectHoursMutation.isPending}

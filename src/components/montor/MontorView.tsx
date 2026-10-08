@@ -251,7 +251,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-4 bg-muted rounded-xl p-1">
+        <div className="flex flex-wrap gap-1 mb-4 bg-muted rounded-xl p-1">
           {tabs.map(t => (
             <button
               key={t.key}

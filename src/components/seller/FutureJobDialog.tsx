@@ -220,7 +220,7 @@ export function FutureJobDialog({ open, onOpenChange, caseData, currentUser }: P
             <Input type="date" value={contactDate} onChange={(e) => setContactDate(e.target.value)} />
           </div>
 
-          <div className="flex justify-end gap-2 pt-1">
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Avbryt</Button>
             <Button disabled={!canSave || save.isPending} onClick={() => save.mutate()}>
               {save.isPending ? 'Sparar...' : 'Spara'}

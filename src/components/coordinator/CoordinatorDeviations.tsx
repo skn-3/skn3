@@ -82,7 +82,7 @@ export function CoordinatorDeviations({ coordinatorName, onSelectCase }: Props) 
             {showArchived ? 'Arkiverade (lösta) reklamationer' : 'Öppna reklamationer — äldst först'}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setShowArchived(v => !v)}>
             {showArchived ? 'Visa öppna' : 'Visa arkiverade'}
           </Button>

@@ -108,7 +108,7 @@ export function FutureJobsView({ currentUser, onSelectCase }: Props) {
           {r.seller} · planerad kontakt {r.contact_date}{r.phone ? ` · ${r.phone}` : ''}
         </p>
         {!muted && (
-          <div className="flex gap-2 pt-1">
+          <div className="flex flex-wrap gap-2 pt-1">
             <Button size="sm" variant="outline" disabled={setStatus.isPending} onClick={() => setStatus.mutate({ id: r.id, status: 'contacted' })}>
               <Check className="h-4 w-4 mr-1" /> Markera kontaktad
             </Button>

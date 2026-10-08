@@ -583,7 +583,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   <Input type="date" value={editMontageDate} onChange={(e) => setEditMontageDate(e.target.value)} className="min-h-[48px]" />
                   <Label>Tid (valfritt)</Label>
                   <Input type="time" value={editMontageTime} onChange={(e) => setEditMontageTime(e.target.value)} className="min-h-[48px]" />
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       disabled={!editMontageDate || rescheduleMontageMutation.isPending}
                       onClick={() => rescheduleMontageMutation.mutate()}
@@ -768,7 +768,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             {deviations.map(d => (
               <div key={d.id} className="rounded-lg border p-3 text-sm space-y-1">
                 <div className="flex justify-between items-center">
-                  <div className="flex gap-1.5 items-center">
+                  <div className="flex flex-wrap gap-1.5 items-center">
                     <Badge variant={d.resolved ? 'secondary' : 'destructive'}>
                       {DEVIATION_TYPES.find(dt => dt.value === d.type)?.label || d.type}
                     </Badge>
