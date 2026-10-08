@@ -18,10 +18,11 @@ vi.mock('@/integrations/supabase/client', () => ({
         select: (columns: string) => { if (table === 'a_orders') mocks.selects.push(columns); return chain; },
         eq: (column: string, value: unknown) => { if (table === 'a_orders') mocks.filters.push([column, value]); return chain; },
         maybeSingle: async () => ({ data: mocks.team, error: null }),
-        order: async () => ({ data: [
+        order: () => chain,
+        then: (resolve: (result: { data: unknown[]; error: null }) => unknown) => Promise.resolve({ data: [
           { id: 'order-own', order_number: 12, date: '2026-10-08', total_amount: 469, status: 'invoiced', pdf_path: 'a-orders/order-own-faktura.pdf', order_sent_at: '2026-10-08', invoice_sent_at: '2026-10-08', invoice_number: 'F12' },
           { id: 'credit-own', order_number: null, date: '2026-10-08', total_amount: -469, status: 'credited', credited_from_order_id: 'order-own', pdf_path: 'a-orders/credit-own-kredit.pdf', invoice_number: 'K12' },
-        ], error: null }),
+        ], error: null }).then(resolve),
       };
       return chain;
     },
