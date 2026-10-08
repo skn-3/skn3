@@ -743,6 +743,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                             <span className="text-xs text-muted-foreground">PDF ej genererad ännu</span>
                           )}
 
+
                         </>
                       )}
                     </div>
