@@ -14,9 +14,28 @@ function sanitizeFilename(s: string) {
   return String(s || '').normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
 }
 
+function richToHtml(input: string): string {
+  return String(input ?? '').split(/\r?\n/).map((line) => {
+    const parts = line.split(/(\*\*|==)/);
+    const boldUsable = parts.filter((p) => p === '**').length & ~1;
+    const redUsable = parts.filter((p) => p === '==').length & ~1;
+    let bold = false, red = false, boldSeen = 0, redSeen = 0, html = '';
+    for (const p of parts) {
+      if (p === '**' && ++boldSeen <= boldUsable) { bold = !bold; continue; }
+      if (p === '==' && ++redSeen <= redUsable) { red = !red; continue; }
+      if (!p) continue;
+      let t = esc(p);
+      if (bold) t = `<strong>${t}</strong>`;
+      if (red) t = `<span style="color:#dc2626;">${t}</span>`;
+      html += t;
+    }
+    return html;
+  }).join('<br/>');
+}
+
 function buildHtml(opts: { orderNo: string; address: string; customerName?: string; phone?: string; description?: string }) {
   const desc = opts.description?.trim()
-    ? `<p style="white-space:pre-wrap;margin:8px 0 0;">${esc(opts.description)}</p>`
+    ? `<p style="white-space:pre-wrap;margin:8px 0 0;">${richToHtml(opts.description)}</p>`
     : '';
   return `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/></head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
