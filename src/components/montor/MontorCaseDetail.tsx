@@ -734,14 +734,15 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                               <FileText className="h-4 w-4 mr-1" /> A-order PDF
                             </Button>
                           )}
-                          {o.invoice_sent_at && (
+                          {o.invoice_sent_at && o.pdf_path && (
                             <Button size="sm" variant="outline" onClick={() => openPdf(`a-orders/${o.id}-faktura.pdf`)}>
                               <FileText className="h-4 w-4 mr-1" /> Faktura PDF
                             </Button>
                           )}
-                          {!o.order_sent_at && !o.invoice_sent_at && (
+                          {!o.order_sent_at && !(o.invoice_sent_at && o.pdf_path) && (
                             <span className="text-xs text-muted-foreground">PDF ej genererad ännu</span>
                           )}
+
                         </>
                       )}
                     </div>
