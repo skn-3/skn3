@@ -2605,6 +2605,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       {isFabrik && (
                         <span className="text-[10px] text-muted-foreground italic">(ersätts)</span>
                       )}
+                      <CostPayoutChip cost={{ a_order_id: c.a_order_id ?? null, payout_excluded_at: c.payout_excluded_at ?? null, payout_excluded_by: c.payout_excluded_by ?? null }} orderNumber={orderNumberById(c.a_order_id)} />
+                      {isSeller && c.payout_excluded_at && !c.a_order_id && (
+                        <button type="button" onClick={() => restoreCost(c.id)} className="text-[10px] underline text-muted-foreground hover:text-foreground">Återställ</button>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('sv-SE')} — {c.created_by}</div>
                   </div>
