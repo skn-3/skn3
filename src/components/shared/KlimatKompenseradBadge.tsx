@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { TreePine, ExternalLink, QrCode } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Badge } from '@/components/ui/badge';
+import { Chip } from '@/components/ui/chip';
 import { Button } from '@/components/ui/button';
 import { KlimatQrDialog } from '@/components/shared/KlimatQrDialog';
 
@@ -52,34 +52,22 @@ export function KlimatKompenseradBadge({ caseId, compact }: Props) {
 
   if (compact) {
     return pending ? (
-      <span
-        className="inline-flex items-center gap-1 rounded-full border border-amber-300 dark:border-amber-800 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-300"
-        title={`${trees} träd väntar på kundens bekräftelse`}
-      >
-        <TreePine className="h-3 w-3" />
+      <Chip tone="warning" icon={<TreePine />} title={`${trees} träd väntar på kundens bekräftelse`}>
         {trees} träd väntar
-      </span>
+      </Chip>
     ) : (
-      <span
-        className="inline-flex items-center gap-1 rounded-full border border-green-300 dark:border-green-800 bg-green-100 dark:bg-green-900/40 px-2 py-0.5 text-[10px] font-medium text-green-800 dark:text-green-300"
-        title={`Klimatkompenserad · ${trees} träd`}
-      >
-        <TreePine className="h-3 w-3" />
+      <Chip tone="success" icon={<TreePine />} title={`Klimatkompenserad · ${trees} träd`}>
         {trees} träd
-      </span>
+      </Chip>
     );
   }
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
       {pending ? (
-        <Badge className="bg-amber-500 hover:bg-amber-500/90 text-white gap-1">
-          <TreePine className="h-3 w-3" /> {trees} träd väntar på kundens bekräftelse
-        </Badge>
+        <Chip tone="warning" size="md" icon={<TreePine />}>{trees} träd väntar på kundens bekräftelse</Chip>
       ) : (
-        <Badge className="bg-green-600 hover:bg-green-600/90 text-white gap-1">
-          <TreePine className="h-3 w-3" /> Klimatkompenserad · {trees} träd
-        </Badge>
+        <Chip tone="successFilled" size="md" icon={<TreePine className="text-gold" />}>Klimatkompenserad · {trees} träd</Chip>
       )}
       {comp.claim_url && (
         <Button
@@ -95,7 +83,7 @@ export function KlimatKompenseradBadge({ caseId, compact }: Props) {
         href={proofUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-xs text-green-700 dark:text-green-300 hover:underline inline-flex items-center gap-1"
+        className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
         onClick={(e) => e.stopPropagation()}
       >
         Visa bevis <ExternalLink className="h-3 w-3" />
