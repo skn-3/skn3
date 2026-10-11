@@ -28,6 +28,7 @@ import { KmPayoutView } from './KmPayoutView';
 import { MontorDebitInvoiceDialog } from './MontorDebitInvoiceDialog';
 import { MontorDebitInvoicesView } from './MontorDebitInvoicesView';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
+import { fetchUnhandledCostsByCase } from '@/lib/caseCostPayout';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { useRole } from '@/hooks/useRole';
 
@@ -90,6 +91,22 @@ export function AOrdersView({ currentUser }: Props) {
       return data ?? [];
     },
   });
+
+  // Obehandlade kostnader per ärende → flagga på A-ordrarna
+  const { data: unhandledCosts = new Map() } = useQuery({
+    queryKey: ['unhandled_costs_by_case'],
+    queryFn: fetchUnhandledCostsByCase,
+  });
+  const costFlag = (o: any) => {
+    const u = o?.case_id ? unhandledCosts.get(o.case_id) : undefined;
+    if (!u || o?.status === 'credited') return null;
+    return (
+      <div className="text-[10px] mt-1 inline-flex items-center gap-1 text-amber-700 dark:text-amber-300 font-medium" title="Kostnad registrerad på ärendet som inte ligger på någon A-order/faktura — öppna ordern och lägg till den som rad">
+        <Receipt className="h-3 w-3" />
+        {u.count === 1 ? 'Kostnad' : `${u.count} kostnader`} {fmt(u.sum)} ej på A-order
+      </div>
+    );
+  };
 
   const paidCaseMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -311,7 +328,7 @@ export function AOrdersView({ currentUser }: Props) {
                       <td className="px-3 py-2 font-mono">#{o.order_number}</td>
                       <td className="px-3 py-2">{o.date}</td>
                       <td className="px-3 py-2">{o.customer_name || '—'}</td>
-                      <td className="px-3 py-2">{o.customer_address}</td>
+                      <td className="px-3 py-2">{o.customer_address}{costFlag(o)}</td>
                       <td className="px-3 py-2 text-right">{units}</td>
                       <td className="px-3 py-2 text-right">{fmt(o.total_amount)}</td>
                       <td className="px-3 py-2 text-right">{fmt(intern)}</td>
@@ -398,6 +415,7 @@ export function AOrdersView({ currentUser }: Props) {
                       </td>
                       <td className="px-3 py-2">
                         <Badge className={meta.cls}>{isCredit ? 'Kreditfaktura' : meta.label}</Badge>
+                        {costFlag(o)}
                         {o.case_id && paidCaseMap.has(o.case_id) && (
                           <div className="text-[10px] mt-1 inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300 font-medium">
                             <BanknoteIcon className="h-3 w-3" />
