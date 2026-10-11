@@ -8,6 +8,8 @@ import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { CaseCard } from './CaseCard';
 import { FollowUpSection } from './FollowUpSection';
 import { Loader2, Search, X, SlidersHorizontal, AlertTriangle, Ruler } from 'lucide-react';
+import { StatusChip, Chip } from '@/components/ui/chip';
+import { phaseOf, statusTone } from '@/lib/statusTheme';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -15,17 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
 import { sellerStepsFor } from '@/lib/sellerSteps';
 
-const STATUS_ACCENT: Record<string, string> = {
-  montage_pagar: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
-  montage_bokat: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-  montage_klart: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800',
-  godkand: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-  i_produktion: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-  leverans_klar: 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
-};
-function statusBadgeClass(status: string) {
-  return STATUS_ACCENT[status] || 'bg-muted text-muted-foreground border-border';
-}
+// Statusfärger kommer från src/lib/statusTheme.ts (samma i hela appen).
 
 
 
@@ -243,8 +235,8 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
               onBlur={() => {
                 blurTimer.current = setTimeout(() => setSearchFocused(false), 150);
               }}
-              placeholder="Sök ärenden..."
-              className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Sök adress, kund eller ordernummer…"
+              className="w-full h-10 rounded-lg border border-border-strong bg-card pl-9 pr-8 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               autoFocus
             />
             {searchTerm && (
@@ -282,9 +274,7 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
                               <div className="text-xs text-muted-foreground truncate">{c.customer_name}</div>
                             )}
                           </div>
-                          <span className={`shrink-0 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${statusBadgeClass(c.status)}`}>
-                            {STATUS_LABELS[c.status] || c.status}
-                          </span>
+                          <StatusChip status={c.status} className="shrink-0" />
                         </CommandItem>
                       ))
                     )}
@@ -348,89 +338,81 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
         )}
       </div>
 
-      {flaggedCount > 0 && !isCoordinator && (
-        <button
-          type="button"
-          onClick={() => { setOnlyFlagged(v => !v); setOnlyKmInbox(false); }}
-          className={`mx-3 md:mx-0 flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors text-left w-[calc(100%-1.5rem)] md:w-auto ${
-            onlyFlagged
-              ? 'bg-amber-200 border-amber-400 text-amber-900 dark:text-amber-300'
-              : 'bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:bg-amber-200'
-          }`}
-        >
-          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-          <span>
-            {flaggedCount} ärenden behöver åtgärd (montör/A-order)
-            {onlyFlagged ? ' — klicka för att visa alla' : ' — klicka för att filtrera'}
-          </span>
-        </button>
-      )}
-
-      {sellerStepsCount > 0 && (
-        <button
-          type="button"
-          onClick={() => { setOnlySellerSteps(v => !v); setOnlyFlagged(false); setOnlyKmInbox(false); }}
-          className={`mx-3 md:mx-0 flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors text-left w-[calc(100%-1.5rem)] md:w-auto ${
-            onlySellerSteps
-              ? 'bg-red-200 border-red-400 text-red-900 dark:bg-red-900/60 dark:text-red-200'
-              : 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-800 text-red-800 dark:text-red-300 hover:bg-red-200'
-          }`}
-        >
-          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-          <span>
-            {sellerStepsCount} signerade ordrar saknar timjustering eller leveransvecka
-            {onlySellerSteps ? ' — klicka för att visa alla' : ' — klicka för att filtrera'}
-          </span>
-        </button>
-      )}
-
-      {kmInboxCount > 0 && (
-        <button
-          type="button"
-          onClick={() => { setOnlyKmInbox(v => !v); setOnlyFlagged(false); }}
-          className={`mx-3 md:mx-0 flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors text-left w-[calc(100%-1.5rem)] md:w-auto ${
-            onlyKmInbox
-              ? 'bg-sky-200 border-sky-400 text-sky-900 dark:text-sky-300'
-              : 'bg-sky-100 dark:bg-sky-900/40 border-sky-300 dark:border-sky-800 text-sky-800 dark:text-sky-300 hover:bg-sky-200'
-          }`}
-        >
-          <Ruler className="h-4 w-4 flex-shrink-0" />
-          <span>
-            {kmInboxCount} ärenden har inskickade KM-ändringar
-            {onlyKmInbox ? ' — klicka för att visa alla' : ' — klicka för att filtrera'}
-          </span>
-        </button>
+      {((flaggedCount > 0 && !isCoordinator) || sellerStepsCount > 0 || kmInboxCount > 0) && (
+        <div className="px-3 md:px-0 flex flex-wrap items-center gap-2" aria-label="Behöver dig">
+          <span className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground mr-1">Behöver dig</span>
+          {flaggedCount > 0 && !isCoordinator && (
+            <button
+              type="button"
+              onClick={() => { setOnlyFlagged(v => !v); setOnlyKmInbox(false); }}
+              aria-pressed={onlyFlagged}
+              title={onlyFlagged ? 'Klicka för att visa alla' : 'Klicka för att filtrera'}
+              className={`inline-flex min-h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold transition-colors ${
+                onlyFlagged ? 'bg-warning-ink text-white' : 'bg-warning-soft text-warning-ink hover:bg-gold/40'
+              }`}
+            >
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              {flaggedCount} behöver åtgärd (montör/A-order)
+            </button>
+          )}
+          {sellerStepsCount > 0 && (
+            <button
+              type="button"
+              onClick={() => { setOnlySellerSteps(v => !v); setOnlyFlagged(false); setOnlyKmInbox(false); }}
+              aria-pressed={onlySellerSteps}
+              title={onlySellerSteps ? 'Klicka för att visa alla' : 'Klicka för att filtrera'}
+              className={`inline-flex min-h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold transition-colors ${
+                onlySellerSteps ? 'bg-destructive text-destructive-foreground' : 'bg-destructive-soft text-destructive hover:bg-destructive/15'
+              }`}
+            >
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              {sellerStepsCount} saknar timmar eller leveransvecka
+            </button>
+          )}
+          {kmInboxCount > 0 && (
+            <button
+              type="button"
+              onClick={() => { setOnlyKmInbox(v => !v); setOnlyFlagged(false); }}
+              aria-pressed={onlyKmInbox}
+              title={onlyKmInbox ? 'Klicka för att visa alla' : 'Klicka för att filtrera'}
+              className={`inline-flex min-h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold transition-colors ${
+                onlyKmInbox ? 'bg-info text-info-foreground' : 'bg-info-soft text-info hover:bg-info/15'
+              }`}
+            >
+              <Ruler className="h-3.5 w-3.5 shrink-0" />
+              {kmInboxCount} KM-ändringar att granska
+            </button>
+          )}
+        </div>
       )}
 
       {followUps.length > 0 && !onlyFlagged && !onlyKmInbox && !isCoordinator && (
         <FollowUpSection visits={followUps} sellerName={sellerName} />
       )}
 
-      <div className="overflow-x-auto pb-4">
-        <div className="flex gap-3 min-w-max px-3 md:px-0">
+      <div className="overflow-x-auto pb-4 snap-x snap-proximity">
+        <div className="flex gap-3.5 min-w-max px-3 md:px-0">
 
-          {SELLER_PIPELINE_COLUMNS.map((status) => {
-            const accent =
-              status === 'montage_pagar'
-                ? 'bg-indigo-500'
-                : status === 'montage_bokat'
-                ? 'bg-emerald-500'
-                : status === 'montage_klart'
-                ? 'bg-green-600'
-                : 'bg-muted-foreground/40';
+          {SELLER_PIPELINE_COLUMNS.map((status, idx) => {
+            const phase = phaseOf(status);
+            const prevPhase = idx > 0 ? phaseOf(SELLER_PIPELINE_COLUMNS[idx - 1]) : undefined;
+            const showPhase = !prevPhase || prevPhase.value !== phase?.value;
+            const columnSum = (grouped[status] || []).reduce((s, c) => s + (Number(c.order_value) || 0), 0);
             return (
-            <div key={status} className="w-56 shrink-0">
-              <div className="mb-2 flex items-center gap-2">
-                <span className={`h-2 w-2 rounded-full ${accent}`} aria-hidden />
-                <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  {columnLabels[status] || STATUS_LABELS[status]}
+            <div key={status} className="w-[236px] shrink-0 snap-start">
+              <div className={`mb-2 border-b-2 pb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] ${phase ? phase.lineClass : 'border-border'} ${showPhase && phase ? phase.textClass : 'text-transparent'}`} aria-hidden={!showPhase}>
+                {phase ? phase.label : ' '}
+              </div>
+              <div className="mb-2.5 flex items-center justify-between gap-2">
+                <h2 className="min-w-0">
+                  <Chip tone={statusTone(status)} dot>{columnLabels[status] || STATUS_LABELS[status]}</Chip>
                 </h2>
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
-                  {grouped[status]?.length || 0}
+                <span className="font-mono text-[11.5px] text-muted-foreground whitespace-nowrap">
+                  {grouped[status]?.length || 0}{!isCoordinator && columnSum > 0 ? ` · ${Math.round(columnSum / 1000)} tkr` : ''}
                 </span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {grouped[status]?.map((c) => (
                   <CaseCard
                     key={c.id}

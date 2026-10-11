@@ -1,15 +1,17 @@
-import type { CSSProperties } from 'react';
+import type { ReactNode } from 'react';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { User, Wrench, UserCircle, AlertTriangle, Clock, Ruler, Check } from 'lucide-react';
+import { AlertTriangle, Clock, Ruler, Check, Truck } from 'lucide-react';
 import { sellerStepsFor } from '@/lib/sellerSteps';
 import { differenceInCalendarDays, startOfISOWeek } from 'date-fns';
 import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
+import { Chip } from '@/components/ui/chip';
+import type { Tone } from '@/lib/statusTheme';
 
 const DELIVERY_RELEVANT_STATUSES = new Set([
   'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat',
 ]);
 
-type DeliveryBadge = { label: string; tone: 'red' | 'orange' | 'yellow' | 'gray' };
+type DeliveryBadge = { label: string; tone: 'red' | 'orange' | 'yellow' | 'gray'; delivered?: boolean };
 
 function getDeliveryCountdownBadge(c: any): DeliveryBadge | null {
   if (!DELIVERY_RELEVANT_STATUSES.has(c.status)) return null;
@@ -35,55 +37,34 @@ function getDeliveryCountdownBadge(c: any): DeliveryBadge | null {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const daysToEarliest = differenceInCalendarDays(isWeekBased ? weekStartDate! : refDate, today);
+  const daysToEarliest = differenceInCalendarDays(isWeekBased ? (weekStartDate ?? refDate) : refDate, today);
   const daysToEnd = differenceInCalendarDays(refDate, today);
 
-  if (daysToEnd < 0) return { label: '✓ Levererad', tone: 'gray' };
+  if (daysToEnd < 0) return { label: 'Levererad', tone: 'gray', delivered: true };
 
   if (isWeekBased) {
     const weekTxt = `v${dw}`;
-    if (daysToEarliest <= 0) return { label: `📦 Leverans ${weekTxt} (denna vecka)`, tone: 'red' };
-    if (daysToEarliest <= 3) return { label: `📦 Leverans ${weekTxt} (om ${daysToEarliest} dag${daysToEarliest === 1 ? '' : 'ar'})`, tone: 'red' };
-    if (daysToEarliest <= 7) return { label: `📦 Leverans ${weekTxt} (om ${daysToEarliest} dagar)`, tone: 'orange' };
-    if (daysToEarliest <= 14) return { label: `📦 Leverans ${weekTxt} (om ${daysToEarliest} dagar)`, tone: 'yellow' };
-    return { label: `📦 Leverans ${weekTxt}`, tone: 'gray' };
+    if (daysToEarliest <= 0) return { label: `Leverans ${weekTxt} · denna vecka`, tone: 'red' };
+    if (daysToEarliest <= 3) return { label: `Leverans ${weekTxt} · om ${daysToEarliest} dag${daysToEarliest === 1 ? '' : 'ar'}`, tone: 'red' };
+    if (daysToEarliest <= 7) return { label: `Leverans ${weekTxt} · om ${daysToEarliest} dagar`, tone: 'orange' };
+    if (daysToEarliest <= 14) return { label: `Leverans ${weekTxt} · om ${daysToEarliest} dagar`, tone: 'yellow' };
+    return { label: `Leverans ${weekTxt}`, tone: 'gray' };
   }
 
   const dateTxt = refDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
-  if (daysToEnd === 0) return { label: '📦 Levereras idag', tone: 'red' };
-  if (daysToEnd <= 3) return { label: `📦 Leverans om ${daysToEnd} dag${daysToEnd === 1 ? '' : 'ar'}`, tone: 'red' };
-  if (daysToEnd <= 7) return { label: `📦 Leverans om ${daysToEnd} dagar`, tone: 'orange' };
-  if (daysToEnd <= 14) return { label: `📦 Leverans om ${daysToEnd} dagar`, tone: 'yellow' };
-  return { label: `📦 Leverans ${dateTxt}`, tone: 'gray' };
+  if (daysToEnd === 0) return { label: 'Levereras i dag', tone: 'red' };
+  if (daysToEnd <= 3) return { label: `Leverans om ${daysToEnd} dag${daysToEnd === 1 ? '' : 'ar'}`, tone: 'red' };
+  if (daysToEnd <= 7) return { label: `Leverans om ${daysToEnd} dagar`, tone: 'orange' };
+  if (daysToEnd <= 14) return { label: `Leverans om ${daysToEnd} dagar`, tone: 'yellow' };
+  return { label: `Leverans ${dateTxt}`, tone: 'gray' };
 }
 
-const DELIVERY_TONE_CLASSES: Record<DeliveryBadge['tone'], string> = {
-  red: 'border-red-400 bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300',
-  orange: 'border-orange-300 dark:border-orange-800 bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300',
-  yellow: 'border-yellow-300 dark:border-yellow-800 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300',
-  gray: 'border-border bg-muted text-muted-foreground',
+const DELIVERY_TONE: Record<DeliveryBadge['tone'], Tone> = {
+  red: 'danger',
+  orange: 'warning',
+  yellow: 'warning',
+  gray: 'neutral',
 };
-
-// Storleksindikator för antal enheter — vivid azurblå, enbart vänsterkant.
-// Intensiteten skalar opacitet (aldrig en grå ton): ljus/låg vid 1 enhet → mättad/full vid 20+.
-// Ankarvärden: 1 → ~0  ·  ~8 → 0.5  ·  20+ → 1.0 (capad).
-// Saknas värde (null/0) → ingen stapel.
-const UNITS_HUE = 210;        // azurblå
-const UNITS_SAT = 90;         // % — hög mättnad, aldrig grå
-const UNITS_LIGHT = 45;       // %
-const UNITS_ALPHA_MIN = 0.08;
-const UNITS_ALPHA_MAX = 1.0;
-
-function unitsIntensity(units: number | null | undefined): number | null {
-  if (units == null || units <= 0) return null;
-  let t: number;
-  if (units <= 1) t = 0;
-  else if (units <= 8) t = ((units - 1) / 7) * 0.5;          // 1→0, 8→0.5
-  else if (units <= 20) t = 0.5 + ((units - 8) / 12) * 0.5;  // 8→0.5, 20→1
-  else t = 1;
-  return UNITS_ALPHA_MIN + (UNITS_ALPHA_MAX - UNITS_ALPHA_MIN) * t;
-}
-
 
 interface CaseCardProps {
   caseData: CaseRow;
@@ -110,11 +91,11 @@ function getScheduledDeliveryBadge(c: any): { label: string; urgent: boolean } |
     weekStart.setDate(jan4.getDate() - dayOfWeek + 1 + (dw - 1) * 7);
     daysUntil = Math.ceil((weekStart.getTime() - Date.now()) / 86400000);
   }
-  if (dt) return { label: `🕐 Tidsstyrd — kl ${String(dt).slice(0, 5)}`, urgent: false };
+  if (dt) return { label: `Tidsstyrd kl ${String(dt).slice(0, 5)}`, urgent: false };
   if (daysUntil != null && daysUntil <= 14 && daysUntil >= -1) {
-    return { label: '🕐 Tidsstyrd — tid saknas!', urgent: true };
+    return { label: 'Tidsstyrd – tid saknas', urgent: true };
   }
-  return { label: '🕐 Tidsstyrd leverans', urgent: false };
+  return { label: 'Tidsstyrd leverans', urgent: false };
 }
 
 // Liggetid: [varningsdagar, röda dagar] per status. Statusar som saknas här visar aldrig chip.
@@ -137,10 +118,13 @@ function getDwellBadge(c: any): { label: string; tone: 'amber' | 'red' } | null 
   const since: string | null = c.status_changed_at || c.created_at || null;
   if (!since) return null;
   const days = differenceInCalendarDays(new Date(), new Date(since));
-  if (days >= th[1]) return { label: `${days} dagar i steget`, tone: 'red' };
-  if (days >= th[0]) return { label: `${days} dagar i steget`, tone: 'amber' };
+  if (days >= th[1]) return { label: `${days} dagar här`, tone: 'red' };
+  if (days >= th[0]) return { label: `${days} dagar här`, tone: 'amber' };
   return null;
 }
+
+type CardChip = { key: string; tone: Tone; icon?: ReactNode; label: string };
+const MAX_CHIPS = 3;
 
 export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hideFinancials }: CaseCardProps) {
   const tidsBadge = getScheduledDeliveryBadge(caseData as any);
@@ -150,137 +134,83 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
     && (caseData as any).extra_hours_approved === 0
     && caseData.status === 'vantar_godkannande';
   const units = (caseData as any).units as number | null | undefined;
-  const intensity = unitsIntensity(units);
   const steps = sellerStepsFor(caseData as any);
   const stepsMissing = steps.applicable && steps.incomplete;
-  const cardStyle: CSSProperties | undefined = stepsMissing
-    ? undefined
-    : intensity != null
-    ? {
-        borderLeftWidth: 3,
-        borderLeftColor: `hsla(${UNITS_HUE}, ${UNITS_SAT}%, ${UNITS_LIGHT}%, ${intensity})`,
-      }
-    : undefined;
+
+  // Chips i prioritetsordning: det som kräver handling först. Max tre syns, resten räknas.
+  const chips: CardChip[] = [];
+  if (stepsMissing) {
+    const missing = [!steps.hoursDone ? 'timmar' : null, !steps.deliveryDone ? 'leveransvecka' : null].filter(Boolean);
+    chips.push({ key: 'steps', tone: 'danger', icon: <AlertTriangle />, label: `${missing.join(' + ') || 'Uppgifter'} saknas` });
+  }
+  if (tidsBadge?.urgent) chips.push({ key: 'tids', tone: 'danger', icon: <Clock />, label: tidsBadge.label });
+  if (hoursBadge) chips.push({ key: 'hours', tone: 'warning', icon: <Clock />, label: 'Timmar att godkänna' });
+  if (deliveryBadge && deliveryBadge.tone === 'red') chips.push({ key: 'delivery', tone: 'danger', icon: <Truck />, label: deliveryBadge.label });
+  if (dwellBadge?.tone === 'red') chips.push({ key: 'dwell', tone: 'danger', icon: <Clock />, label: dwellBadge.label });
+  warnings?.forEach((w, i) => chips.push({ key: `warn${i}`, tone: 'warning', icon: <AlertTriangle />, label: w }));
+  if (kmInbox) chips.push({ key: 'km', tone: 'info', icon: <Ruler />, label: 'KM-ändringar väntar' });
+  if (deliveryBadge && deliveryBadge.tone !== 'red') {
+    chips.push({
+      key: 'delivery',
+      tone: deliveryBadge.delivered ? 'success' : DELIVERY_TONE[deliveryBadge.tone],
+      icon: deliveryBadge.delivered ? <Check /> : <Truck />,
+      label: deliveryBadge.label,
+    });
+  }
+  if (dwellBadge?.tone === 'amber') chips.push({ key: 'dwell', tone: 'warning', icon: <Clock />, label: dwellBadge.label });
+  if (tidsBadge && !tidsBadge.urgent) chips.push({ key: 'tids', tone: 'info', icon: <Clock />, label: tidsBadge.label });
+
+  const shown = chips.slice(0, MAX_CHIPS);
+  const rest = chips.slice(MAX_CHIPS);
+  const attention = stepsMissing || tidsBadge?.urgent || dwellBadge?.tone === 'red' || deliveryBadge?.tone === 'red';
 
   return (
     <button
       onClick={onClick}
-      style={cardStyle}
-      className={`w-full text-left rounded-lg border bg-card p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 motion-reduce:hover:translate-y-0 motion-reduce:transition-none animate-fade-in space-y-1.5${stepsMissing ? ' border-l-4 border-l-red-500' : ''}`}
+      className={`w-full text-left rounded-xl border bg-card p-3.5 shadow-card card-lift animate-fade-up flex flex-col gap-2 ${
+        attention ? 'border-l-[3px] border-l-destructive' : ''
+      }`}
     >
-      <h3 className="font-bold text-sm text-card-foreground leading-tight">{caseData.address}</h3>
-      <div className="space-y-0.5 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <User className="h-3 w-3 shrink-0" />
-          {caseData.customer_name}
-        </div>
-        {caseData.team && (
-          <div className="flex items-center gap-1.5">
-            <Wrench className="h-3 w-3 shrink-0" />
-            {caseData.team}
-          </div>
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-display font-semibold text-[15px] leading-tight text-card-foreground">{caseData.address}</h3>
+        {units != null && units > 0 && (
+          <span className="shrink-0 pt-0.5 font-mono text-[11px] text-muted-foreground">{units} st</span>
         )}
-        {showSeller && !hideFinancials && (
-          <div className="flex items-center gap-1.5">
-            <UserCircle className="h-3 w-3 shrink-0" />
-            <span className="italic">{caseData.seller || '(saknas)'}</span>
-          </div>
-        )}
-        <div className="flex items-center justify-between gap-2 pt-0.5">
+      </div>
+
+      <div className="text-[13px] text-muted-foreground truncate">
+        {caseData.customer_name}
+        {caseData.team ? ` · ${caseData.team}` : ''}
+        {showSeller && !hideFinancials ? ` · ${caseData.seller || 'säljare saknas'}` : ''}
+      </div>
+
+      {(caseData.order_value && !hideFinancials) || shown.length > 0 ? (
+        <div className="flex items-center justify-between gap-2">
           {caseData.order_value && !hideFinancials ? (
-            <span className="text-primary font-medium">
+            <span className="font-mono text-[13px] text-foreground">
               {Number(caseData.order_value).toLocaleString('sv-SE')} kr
             </span>
           ) : <span />}
-          {units != null && units > 0 ? (
-            <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              {units} st
-            </span>
-          ) : (
-            <span className="text-[10px] text-muted-foreground/60">–</span>
+          {shown.length > 0 && (
+            <Chip tone={shown[0].tone} icon={shown[0].icon} className="min-w-0 max-w-full [&>span:last-child]:truncate">
+              <span>{shown[0].label}</span>
+            </Chip>
           )}
         </div>
-        {stepsMissing && (
-          <div className="flex flex-wrap gap-1 pt-1">
-            {[
-              { label: 'Timmar', done: steps.hoursDone },
-              { label: 'Leveransvecka', done: steps.deliveryDone },
-            ].map(chip => (
-              <span
-                key={chip.label}
-                className={
-                  chip.done
-                    ? 'inline-flex items-center gap-1 rounded-full border border-emerald-300 dark:border-emerald-800 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 text-[10px] font-medium text-emerald-800 dark:text-emerald-300'
-                    : 'inline-flex items-center gap-1 rounded-full border border-red-400 dark:border-red-800 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:text-red-300'
-                }
-              >
-                {chip.done ? <Check className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-                {chip.label}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      {(deliveryBadge || tidsBadge || kmInbox || dwellBadge || hoursBadge || (warnings && warnings.length > 0)) && (
-        <div className="flex flex-wrap gap-1 pt-1">
-          {hoursBadge && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
-              <Clock className="h-3 w-3" />
-              Timmar
-            </span>
-          )}
-          {deliveryBadge && (
-            <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${DELIVERY_TONE_CLASSES[deliveryBadge.tone]}${deliveryBadge.tone === 'red' ? ' font-semibold' : ''}`}
-            >
-              {deliveryBadge.label}
-            </span>
-          )}
+      ) : null}
 
-          {tidsBadge && (
-            <span
-              className={
-                tidsBadge.urgent
-                  ? 'inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:text-red-300 animate-pulse'
-                  : 'inline-flex items-center gap-1 rounded-full border border-orange-300 dark:border-orange-800 bg-orange-100 dark:bg-orange-900/40 px-2 py-0.5 text-[10px] font-medium text-orange-800 dark:text-orange-300'
-              }
-            >
-              <Clock className="h-3 w-3" />
-              {tidsBadge.label}
-            </span>
-          )}
-          {dwellBadge && (
-            <span
-              className={
-                dwellBadge.tone === 'red'
-                  ? 'inline-flex items-center gap-1 rounded-full border border-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:text-red-300'
-                  : 'inline-flex items-center gap-1 rounded-full border border-amber-300 dark:border-amber-800 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-300'
-              }
-            >
-              <Clock className="h-3 w-3" />
-              {dwellBadge.label}
-            </span>
-          )}
-          {kmInbox && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-sky-300 dark:border-sky-800 bg-sky-100 dark:bg-sky-900/40 px-2 py-0.5 text-[10px] font-medium text-sky-800 dark:text-sky-300">
-              <Ruler className="h-3 w-3" />
-              KM-ändringar väntar
-            </span>
-          )}
-          {warnings?.map((w) => (
-            <span
-              key={w}
-              className="inline-flex items-center gap-1 rounded-full border border-amber-300 dark:border-amber-800 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-300"
-            >
-              <AlertTriangle className="h-3 w-3" />
-              {w}
-            </span>
+      {(shown.length > 1 || rest.length > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {shown.slice(1).map((c) => (
+            <Chip key={c.key} tone={c.tone} icon={c.icon}>{c.label}</Chip>
           ))}
+          {rest.length > 0 && (
+            <Chip tone="neutral" title={rest.map((c) => c.label).join(' · ')}>+{rest.length}</Chip>
+          )}
         </div>
       )}
-      <div className="pt-1">
-        <KlimatKompenseradBadge caseId={caseData.id} compact />
-      </div>
+
+      <KlimatKompenseradBadge caseId={caseData.id} compact />
     </button>
   );
 }
