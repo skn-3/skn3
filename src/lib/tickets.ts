@@ -14,10 +14,10 @@ export const BALLS: Array<{
   value: Ball; label: string; heading: string; blurb: string;
   color: string; bg: string; border: string; text: string;
 }> = [
-  { value: 'oss', label: 'Oss', heading: 'Hos oss', blurb: 'Vi har nästa steg. Det här är dagens lista.', color: '#0E5C63', bg: '#DDEFF0', border: '#C5E0E2', text: '#083F44' },
-  { value: 'fabrik', label: 'Fabriken', heading: 'Väntar på fabriken', blurb: 'Mockfjärds har bollen. Vi påminner när datumet passerar.', color: '#5B3FB8', bg: '#E8E3F8', border: '#D6CDF0', text: '#3F2A8A' },
-  { value: 'montor', label: 'Montören', heading: 'Väntar på montören', blurb: 'Montören ser nästa steg i sin app.', color: '#1F5FBF', bg: '#DFE8F8', border: '#C9D7F0', text: '#1A4A96' },
-  { value: 'kund', label: 'Kunden', heading: 'Väntar på kunden', blurb: 'Kunden ska svara eller välja tid.', color: '#C77A00', bg: '#FBEBD0', border: '#F0D9A8', text: '#7A4800' },
+  { value: 'oss', label: 'Oss', heading: 'Hos oss', blurb: 'Vi har nästa steg. Det här är dagens lista.', color: '#0B3D2E', bg: '#DCE9E1', border: '#C5D8CC', text: '#0B3D2E' },
+  { value: 'fabrik', label: 'Fabriken', heading: 'Väntar på fabriken', blurb: 'Mockfjärds har bollen. Vi påminner när datumet passerar.', color: '#2F5F8F', bg: '#E2ECF6', border: '#C9D7EA', text: '#1F4A73' },
+  { value: 'montor', label: 'Montören', heading: 'Väntar på montören', blurb: 'Montören ser nästa steg i sin app.', color: '#7A8A72', bg: '#DCE3D6', border: '#C9D4C2', text: '#3C4A3A' },
+  { value: 'kund', label: 'Kunden', heading: 'Väntar på kunden', blurb: 'Kunden ska svara eller välja tid.', color: '#C9A24A', bg: '#F6EDD0', border: '#EBDCA8', text: '#7A5A10' },
 ];
 export const BALL_BY_VALUE = Object.fromEntries(BALLS.map((b) => [b.value, b])) as Record<Ball, (typeof BALLS)[number]>;
 

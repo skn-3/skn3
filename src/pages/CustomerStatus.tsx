@@ -111,10 +111,10 @@ export default function CustomerStatus() {
             return (
               <div key={i} className="flex gap-4">
                 <div className="flex flex-col items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${s.done ? 'bg-green-100 text-green-700' : s.active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${s.done ? 'bg-primary text-primary-foreground' : s.active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                     {s.done ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
                   </div>
-                  {i < steps.length - 1 && <div className={`w-px flex-1 my-1 ${s.done ? 'bg-green-300' : 'bg-border'}`} />}
+                  {i < steps.length - 1 && <div className={`w-px flex-1 my-1 ${s.done ? 'bg-primary' : 'bg-border'}`} />}
                 </div>
                 <div className="flex-1 pb-6 pt-1">
                   <div className={`font-medium ${s.active ? 'text-primary' : ''}`}>{s.title}</div>
@@ -126,17 +126,17 @@ export default function CustomerStatus() {
         </div>
 
         {data.climate && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-5">
-            <div className="flex items-center gap-2 text-green-900 font-medium">
+          <div className="bg-success-soft border border-success/20 rounded-2xl p-5">
+            <div className="flex items-center gap-2 text-primary font-medium">
               <TreePine className="w-5 h-5" /> Ditt fönsterbyte är klimatkompenserat
             </div>
-            <p className="text-sm text-green-900/80 mt-1">
+            <p className="text-sm text-primary/80 mt-1">
               {data.climate.tree_count} träd har planterats för det här projektet via SmartKlimat.
             </p>
             <a
               href={`https://smartklimat.org/v/${data.climate.verification_id}`}
               target="_blank" rel="noopener noreferrer"
-              className="mt-2 inline-block text-sm font-medium text-green-900 underline underline-offset-2"
+              className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-2"
             >
               Se ditt värdebevis
             </a>

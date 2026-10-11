@@ -54,9 +54,9 @@ const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString('sv-SE
 const fmtDateTime = (s: string | null) => (s ? new Date(s).toLocaleString('sv-SE') : '—');
 
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
-  sent: { text: 'Skickad', cls: 'bg-blue-100 text-blue-800' },
-  accepted: { text: 'Accepterad', cls: 'bg-green-100 text-green-800' },
-  expired: { text: 'Utgången', cls: 'bg-yellow-100 text-yellow-800' },
+  sent: { text: 'Skickad', cls: 'bg-info-soft text-info' },
+  accepted: { text: 'Accepterad', cls: 'bg-success-soft text-success' },
+  expired: { text: 'Utgången', cls: 'bg-warning-soft text-warning-ink' },
   declined: { text: 'Avböjd', cls: 'bg-muted text-muted-foreground' },
 };
 
@@ -221,7 +221,7 @@ export default function PublicOffer() {
   return (
     <div className="min-h-screen bg-muted/30 pb-12">
       {/* Header */}
-      <header className="bg-[#22C55E] text-white">
+      <header className="bg-ink-deep text-white">
         <div className="max-w-3xl mx-auto px-4 md:px-6 py-5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="SmartKlimat" className="h-10 w-10 rounded-full bg-white p-1" />
@@ -257,7 +257,7 @@ export default function PublicOffer() {
 
           {pdfDownloadUrl && (
             <div className="mt-4">
-              <Button asChild className="gap-2 bg-[#22C55E] hover:bg-[#16A34A]">
+              <Button asChild className="gap-2">
                 <a href={pdfDownloadUrl} target="_blank" rel="noopener noreferrer">
                   <Download className="h-4 w-4" /> Ladda ner PDF
                 </a>
@@ -338,7 +338,7 @@ export default function PublicOffer() {
           return (
             <section className="bg-card rounded-xl border shadow-sm p-5 space-y-1 text-sm">
               {/* 1) Ordersumma innan avdrag */}
-              <div className={`flex justify-between ${rotActive ? '' : 'font-bold text-base text-[#16A34A]'}`}>
+              <div className={`flex justify-between ${rotActive ? '' : 'font-bold text-base text-primary'}`}>
                 <span>Ordersumma innan avdrag</span>
                 <span className="tabular-nums">{fmtKr(data.total_incl_vat)}</span>
               </div>
@@ -350,8 +350,8 @@ export default function PublicOffer() {
               {rotActive && (
                 <>
                   <div className="flex justify-between text-muted-foreground pt-2 border-t mt-2"><span>Rotberättigad arbetskostnad</span><span className="tabular-nums">{fmtKr(data.rot_base)}</span></div>
-                  <div className="flex justify-between text-[#22C55E]"><span>Preliminärt ROT-avdrag ({data.rot_percent}%)</span><span className="tabular-nums">−{fmtKr(data.rot_amount)}</span></div>
-                  <div className="flex justify-between font-bold text-base text-[#16A34A] pt-1"><span>Total ordersumma efter ROT</span><span className="tabular-nums">{fmtKr(payable)}</span></div>
+                  <div className="flex justify-between text-primary"><span>Preliminärt ROT-avdrag ({data.rot_percent}%)</span><span className="tabular-nums">−{fmtKr(data.rot_amount)}</span></div>
+                  <div className="flex justify-between font-bold text-base text-primary pt-1"><span>Total ordersumma efter ROT</span><span className="tabular-nums">{fmtKr(payable)}</span></div>
                 </>
               )}
 
@@ -383,7 +383,7 @@ export default function PublicOffer() {
           <section className="bg-card rounded-xl border shadow-sm p-5">
             <Collapsible open={termsOpen} onOpenChange={setTermsOpen}>
               <CollapsibleTrigger asChild>
-                <button type="button" className="flex items-center gap-2 text-sm font-medium hover:text-[#22C55E]">
+                <button type="button" className="flex items-center gap-2 text-sm font-medium hover:text-primary">
                   {termsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   Allmänna villkor
                 </button>
@@ -398,7 +398,7 @@ export default function PublicOffer() {
         {/* Accept / verification */}
         {isAccepted ? (
           <section className="bg-green-50 border border-green-200 rounded-xl shadow-sm p-6 text-center">
-            <CheckCircle2 className="h-10 w-10 text-[#16A34A] mx-auto mb-2" />
+            <CheckCircle2 className="h-10 w-10 text-primary mx-auto mb-2" />
             <h2 className="text-lg font-bold text-[#15803D]">Offerten är accepterad – tack!</h2>
             <p className="text-sm text-[#15803D]/90 mt-1">
               Accepterad av <strong>{data.accept_name || data.customer_name || '—'}</strong>, {fmtDateTime(data.accepted_at)}, offert {data.offer_number || '—'}.
@@ -467,7 +467,7 @@ export default function PublicOffer() {
                 type="button"
                 onClick={handleAccept}
                 disabled={!acceptedTerms || !acceptName.trim() || !signatureDataUrl || submitting}
-                className="bg-[#22C55E] hover:bg-[#16A34A] gap-2"
+                className="gap-2"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 {submitting ? 'Registrerar…' : 'Acceptera offert'}

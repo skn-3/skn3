@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { VelfacPdfCleaner } from '@/components/tools/VelfacPdfCleaner';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Presentation } from 'lucide-react';
+import { Presentation, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/lib/constants';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { AppHeader } from '@/components/AppHeader';
-import { SellerNav, type SellerTab } from './SellerNav';
+import { SellerNav, sellerBottomNavItems, type SellerTab } from './SellerNav';
+import { BottomNav } from '@/components/BottomNav';
 import { Pipeline } from './Pipeline';
 import { SellerDashboard } from './SellerDashboard';
 import { DeliveriesView } from './DeliveriesView';
@@ -65,6 +66,8 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
   const isAdmin = !!role.isAdmin;
 
   const { data: futureJobs } = useQuery({ queryKey: ['future_jobs'], queryFn: fetchFutureJobs });
+  const futureJobsDue = countDueFutureJobs(futureJobs);
+  const bottomNav = sellerBottomNavItems(isAdmin, futureJobsDue);
 
   return (
     <div className="min-h-screen bg-background">
@@ -75,11 +78,12 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
           ...(onToggleMontorView ? [{ label: 'Montörvy', onClick: onToggleMontorView }] : []),
           ...(onToggleCoordinatorView ? [{ label: 'Koordinatorvy', onClick: onToggleCoordinatorView }] : []),
         ]}
+        action={{ label: 'Registrera besök', icon: <Plus className="h-4 w-4" />, onClick: () => setTab('visit'), active: tab === 'visit' }}
       >
-        <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} futureJobsDue={countDueFutureJobs(futureJobs)} />
+        <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} futureJobsDue={futureJobsDue} />
       </AppHeader>
 
-      <main className="py-4 md:py-6 max-w-screen-2xl mx-auto">
+      <main className="py-4 md:py-6 pb-28 md:pb-8 max-w-[1600px] mx-auto md:px-6">
         <div className="flex flex-wrap justify-end gap-2 px-3 md:px-0 mb-3">
           <Button variant="outline" size="sm" onClick={() => navigate('/veckomote')}>
             <Presentation className="h-4 w-4 mr-1" /> Veckomöte
@@ -122,6 +126,14 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         )}
 
       </main>
+
+      <BottomNav
+        items={bottomNav.items}
+        more={bottomNav.more}
+        active={tab}
+        onChange={(k) => setTab(k as SellerTab)}
+        action={{ label: 'Besök', icon: Plus, onClick: () => setTab('visit'), active: tab === 'visit' }}
+      />
 
       {selectedCase && (
         <CaseDetailPanel
