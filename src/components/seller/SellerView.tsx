@@ -16,6 +16,7 @@ import { AdminView } from './AdminView';
 import { EconomyView } from '@/components/economy/EconomyView';
 import { OffersHub } from '@/components/offers/OffersHub';
 import { AOrdersView } from '@/components/aorders/AOrdersView';
+import { TicketCenter } from '@/components/tickets/TicketCenter';
 import { FutureJobsView, fetchFutureJobs, countDueFutureJobs } from './FutureJobsView';
 import { useQuery } from '@tanstack/react-query';
 
@@ -88,6 +89,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
 
         {tab === 'pipeline' && (
           <Pipeline sellerName={role.name} isAdmin={isAdmin} onSelectCase={setSelectedCase} />
+        )}
+        {tab === 'arenden' && (
+          <TicketCenter currentUser={role.name} role="seller" isAdmin={isAdmin} onSelectCase={setSelectedCase} />
         )}
         {tab === 'deliveries' && (
           <DeliveriesView onSelectCase={setSelectedCase} currentUser={role.name} />

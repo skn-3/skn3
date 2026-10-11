@@ -591,6 +591,52 @@ Deno.serve(async (req) => {
       if (sentCount > 0) results.push(`Reminder 6: Sent ${sentCount} customer montage SMS`);
     }
 
+    // ===================== ÄRENDECENTER: bollen tillbaka till oss =====================
+    // Inga mejl skickas härifrån. Automatiken flyttar bara bollen och sätter ett nästa steg,
+    // så att ärendet dyker upp under "Hos oss" i Ärendecenter.
+    {
+      const today = new Date();
+      const todayStr = today.toISOString().slice(0, 10);
+      const { data: tickets } = await supabase
+        .from('deviations')
+        .select('id, case_id, ball, status, next_step, next_step_due, last_event_at, created_at, del1_delivery_week, del1_delivery_year, reminder_count')
+        .eq('resolved', false)
+        .is('merged_into_id', null)
+        .in('ball', ['fabrik', 'kund', 'montor']);
+      let moved = 0;
+      for (const t of tickets || []) {
+        const last = new Date(t.last_event_at || t.created_at);
+        const silentDays = Math.floor((today.getTime() - last.getTime()) / 86400000);
+        let reason: string | null = null;
+        let nextStep: string | null = null;
+        if (t.ball === 'fabrik') {
+          // Leveransveckan har passerat (ISO-vecka) och inget har hänt sedan dess, eller nästa steg är försenat.
+          let weekPassed = false;
+          if (t.del1_delivery_week && t.del1_delivery_year) {
+            const jan4 = new Date(Date.UTC(t.del1_delivery_year, 0, 4));
+            const monday = new Date(jan4.getTime() - ((jan4.getUTCDay() + 6) % 7) * 86400000 + (t.del1_delivery_week - 1) * 7 * 86400000);
+            const sunday = new Date(monday.getTime() + 6 * 86400000);
+            weekPassed = today > sunday && last < sunday;
+          }
+          const dueOver = !!t.next_step_due && t.next_step_due < todayStr;
+          if (weekPassed) { reason = `Leveransvecka ${t.del1_delivery_week} har passerat utan händelse`; nextStep = 'Påminn fabriken om DEL1-leveransen'; }
+          else if (dueOver && silentDays >= 2) { reason = 'Datumet för nästa steg har passerat'; nextStep = 'Påminn fabriken'; }
+        } else if (t.ball === 'kund' && silentDays >= 3) {
+          reason = `Kunden har inte svarat på ${silentDays} dagar`; nextStep = 'Påminn kunden';
+        } else if (t.ball === 'montor') {
+          const dueOver = !!t.next_step_due && t.next_step_due < todayStr;
+          if (dueOver && silentDays >= 2) { reason = 'Montörens datum har passerat utan händelse'; nextStep = 'Följ upp med montören'; }
+        }
+        if (!reason || !nextStep) continue;
+        const { error } = await supabase.from('deviations').update({ ball: 'oss', next_step: nextStep, next_step_due: todayStr, next_step_owner: null }).eq('id', t.id);
+        if (error) { console.error('ticket automation failed', t.id, error); continue; }
+        await supabase.from('case_events').insert({ case_id: t.case_id, deviation_id: t.id, event_type: 'ticket_system', description: `Automatik: ${reason}. Bollen flyttad till oss.`, created_by: 'System' });
+        moved++;
+      }
+      if (moved > 0) results.push(`Ärendecenter: ${moved} ärenden flyttade till Hos oss`);
+    }
+
+
     console.log('Daily reminders completed:', results);
     return new Response(JSON.stringify({ success: true, results }), {
       status: 200,

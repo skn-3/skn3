@@ -836,6 +836,15 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                 <p className="text-muted-foreground text-xs">
                   Ansvar: {DEVIATION_RESPONSIBLE.find(r => r.value === d.responsible)?.label || d.responsible} — {d.created_by}
                 </p>
+                {(d as any).ball === 'montor' && (d as any).next_step && !d.resolved && (
+                  <div className="mt-1 rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/40 dark:border-blue-800 px-2.5 py-1.5 text-sm">
+                    <span className="font-semibold text-blue-900 dark:text-blue-200">Nästa steg (ditt): </span>
+                    <span className="text-blue-900 dark:text-blue-200">{(d as any).next_step}</span>
+                    {(d as any).next_step_due && (
+                      <span className="text-xs text-blue-800 dark:text-blue-300"> · senast {new Date((d as any).next_step_due + 'T00:00:00').toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                    )}
+                  </div>
+                )}
                 {(d as any).cost > 0 && (
                   <p className="text-sm font-medium text-destructive">Kostnad: {Number((d as any).cost).toLocaleString('sv-SE')} kr</p>
                 )}

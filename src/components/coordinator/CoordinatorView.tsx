@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AppHeader } from '@/components/AppHeader';
 import { CoordinatorNav, type CoordinatorTab } from './CoordinatorNav';
 import { CoordinatorInbox } from './CoordinatorInbox';
-import { CoordinatorDeviations } from './CoordinatorDeviations';
+import { TicketCenter } from '@/components/tickets/TicketCenter';
 import { Pipeline } from '@/components/seller/Pipeline';
 import { CalendarView } from '@/components/calendar/CalendarView';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
@@ -69,7 +69,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
         )}
         {tab === 'calendar' && <CalendarView onSelectCase={setSelectedCase} />}
         {tab === 'deviations' && (
-          <CoordinatorDeviations coordinatorName={role.name} onSelectCase={setSelectedCase} />
+          <TicketCenter currentUser={role.name} role="coordinator" onSelectCase={setSelectedCase} />
         )}
         {tab === 'offers' && <OffersHub currentUser={role.name} />}
         {tab === 'aorders' && <AOrdersView currentUser={role.name} />}
