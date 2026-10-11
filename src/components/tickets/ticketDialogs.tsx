@@ -60,16 +60,18 @@ export function Avatar({ name }: { name: string | null | undefined }) {
   return <span className="tc-avatar" title={name}>{initials(name)}</span>;
 }
 
-/** Personal för Ägare-listor. Faller tillbaka på [currentUser] om läsningen nekas. */
+/** Personal för Ägare-listor (säljare + koordinatorer) via login_directory(). Faller tillbaka på [currentUser]. */
 export function useStaff(currentUser: string): string[] {
   const { data } = useQuery({
     queryKey: ['staff_names'],
     queryFn: async () => {
-      const { data: roles, error } = await supabase.from('user_roles').select('user_id, role').in('role', ['seller', 'coordinator']);
-      if (error || !roles?.length) return [] as string[];
-      const { data: profs, error: e2 } = await supabase.from('profiles').select('id, name').in('id', roles.map((r) => r.user_id));
-      if (e2) return [] as string[];
-      return Array.from(new Set((profs || []).map((p) => p.name).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'sv'));
+      const { data, error } = await (supabase as any).rpc('login_directory');
+      if (error) return [] as string[];
+      const names = ((data ?? []) as { name: string; role: string }[])
+        .filter((r) => r.role === 'seller' || r.role === 'coordinator')
+        .map((r) => r.name)
+        .filter(Boolean);
+      return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, 'sv'));
     },
     staleTime: 10 * 60_000,
   });
