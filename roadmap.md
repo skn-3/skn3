@@ -1,7 +1,8 @@
 # Roadmap
 
 - [x] Design Del B: ersätt fem filer för inloggning, pipeline och ärendekort enligt levererad text.
-- [ ] Design Del B: verifiera tester, inloggning vid 390/1440 px, tema och tillgängliga vyer.
+- [x] Design Del B: 76/76 tester och automatiskt bygge gröna; inloggning, PIN-knappar och tema verifierade vid 390/1440 px utan runtime-fel.
+- [ ] Design Del B: inloggad pipeline och montörlista samt verkligt fel-PIN-svar — blockerade av att kontosession inte kan skapas för användaren.
 
 - [x] Täta AppHeader-navigationens brytpunktsglapp på alla bredder.
 - [x] Ersätt separata förhandsvyknappar med en gemensam "Byt vy"-meny.
