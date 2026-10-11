@@ -5,7 +5,8 @@ import type { UserRole } from '@/lib/constants';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { AppHeader } from '@/components/AppHeader';
-import { CoordinatorNav, type CoordinatorTab } from './CoordinatorNav';
+import { CoordinatorNav, coordinatorBottomNavItems, type CoordinatorTab } from './CoordinatorNav';
+import { BottomNav } from '@/components/BottomNav';
 import { CoordinatorInbox } from './CoordinatorInbox';
 import { TicketCenter } from '@/components/tickets/TicketCenter';
 import { Pipeline } from '@/components/seller/Pipeline';
@@ -27,6 +28,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
   const [tab, setTab] = useState<CoordinatorTab>('inbox');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [, setSearchParams] = useSearchParams();
+  const bottomNav = coordinatorBottomNavItems();
 
   useEffect(() => {
     if (!initialCaseId) return;
@@ -62,7 +64,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
         <CoordinatorNav active={tab} onChange={setTab} />
       </AppHeader>
 
-      <main className="py-4 md:py-6 max-w-screen-2xl mx-auto">
+      <main className="py-4 md:py-6 pb-28 md:pb-8 max-w-[1600px] mx-auto md:px-6">
         {tab === 'inbox' && <CoordinatorInbox coordinatorName={role.name} onSelectCase={setSelectedCase} />}
         {tab === 'pipeline' && (
           <Pipeline sellerName={role.name} isCoordinator onSelectCase={setSelectedCase} />
@@ -75,6 +77,8 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
         {tab === 'aorders' && <AOrdersView currentUser={role.name} />}
         {tab === 'economy' && <EconomyView />}
       </main>
+
+      <BottomNav items={bottomNav.items} more={bottomNav.more} active={tab} onChange={(k) => setTab(k as CoordinatorTab)} />
 
       {selectedCase && (
         <CaseDetailPanel

@@ -881,7 +881,7 @@ export function WelcomeDashboard({ role, onContinue }: Props) {
         <div className="mb-8 animate-fade-in">
           <div className="text-sm text-muted-foreground capitalize">{todayStr()}</div>
           <h1 className="text-3xl sm:text-4xl font-bold mt-1 text-foreground">
-            {greeting()}, {role.name}! 👋
+            {greeting()}, {role.name}!
           </h1>
           <p className="text-muted-foreground mt-1">
             {role.type === 'seller' ? sellerTagline() : montorTagline()}

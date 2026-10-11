@@ -2,102 +2,138 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
+/* Typsnitten laddas i index.html (Bricolage Grotesque, Figtree, JetBrains Mono). */
 
 @layer base {
   :root {
-    --background: 0 0% 97%;
-    --foreground: 220 20% 15%;
+    /* Grund – papper, yta, text */
+    --background: 43 26% 95%;          /* #F5F3EE papper */
+    --foreground: 150 22% 11%;         /* #15211B bläcksvart */
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 15%;
+    --card-foreground: 150 22% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 15%;
+    --popover-foreground: 150 22% 11%;
 
-    --primary: 142 71% 45%;
+    /* Varumärke */
+    --primary: 162 69% 14%;            /* #0B3D2E bläckgrönt */
     --primary-foreground: 0 0% 100%;
+    --ink-deep: 161 72% 10%;           /* #082B21 mörk header */
+    --ink-muted: 155 16% 67%;          /* #9FB8AC dämpad text på mörkt */
+    --gold: 45 62% 65%;                /* #DCBE6E guld */
+    --gold-foreground: 150 22% 11%;
+    --gold-ink: 44 75% 31%;            /* #8A6A14 guldtext på ljust */
+    --gold-soft: 44 68% 89%;           /* #F6EDD0 */
+    --sage: 92 9% 51%;                 /* #7A8A72 salvia */
+    --sage-foreground: 0 0% 100%;
 
-    --secondary: 142 30% 94%;
-    --secondary-foreground: 142 50% 25%;
+    --secondary: 92 19% 86%;           /* #DCE3D6 salvia ljus */
+    --secondary-foreground: 113 12% 26%; /* #3C4A3A */
 
-    --muted: 220 14% 95%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 90 24% 93%;               /* #EEF2EA */
+    --muted-foreground: 148 6% 39%;    /* #5E6B64 */
 
-    --accent: 142 30% 94%;
-    --accent-foreground: 142 50% 25%;
+    --accent: 92 19% 90%;              /* hover-yta */
+    --accent-foreground: 162 69% 14%;
 
-    --destructive: 0 84% 60%;
+    /* Semantik – en färg per betydelse */
+    --destructive: 4 57% 42%;          /* #A8362E */
     --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 8 59% 92%;     /* #F7E3E0 */
 
-    --border: 220 13% 90%;
-    --input: 220 13% 90%;
-    --ring: 142 71% 45%;
+    --warning: 45 62% 65%;             /* guldfyllning */
+    --warning-foreground: 150 22% 11%;
+    --warning-soft: 44 68% 89%;        /* #F6EDD0 */
+    --warning-ink: 44 75% 31%;         /* #8A6A14 */
 
-    --radius: 0.5rem;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --success: 142 71% 45%;
+    --success: 162 69% 14%;            /* = bläckgrönt */
     --success-foreground: 0 0% 100%;
+    --success-soft: 145 24% 89%;       /* #DCE9E1 */
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 142 71% 45%;
+    --info: 210 50% 37%;               /* #2F5F8F stålblå */
+    --info-foreground: 0 0% 100%;
+    --info-soft: 210 50% 92%;          /* #E2ECF6 */
+
+    --border: 47 14% 87%;              /* #E3E1DA */
+    --border-strong: 46 12% 78%;       /* #CFCCC2 */
+    --input: 47 14% 87%;
+    --ring: 162 69% 14%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 150 22% 11%;
+    --sidebar-primary: 162 69% 14%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 142 30% 94%;
-    --sidebar-accent-foreground: 142 50% 25%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 142 71% 45%;
+    --sidebar-accent: 92 19% 90%;
+    --sidebar-accent-foreground: 162 69% 14%;
+    --sidebar-border: 47 14% 87%;
+    --sidebar-ring: 162 69% 14%;
   }
 
   .dark {
-    --background: 220 15% 9%;
-    --foreground: 220 15% 92%;
+    --background: 154 20% 7%;          /* #0E1512 */
+    --foreground: 108 11% 91%;         /* #E7EBE6 */
 
-    --card: 220 15% 12%;
-    --card-foreground: 220 15% 92%;
+    --card: 150 19% 11%;               /* #16201B */
+    --card-foreground: 108 11% 91%;
 
-    --popover: 220 15% 12%;
-    --popover-foreground: 220 15% 92%;
+    --popover: 150 19% 11%;
+    --popover-foreground: 108 11% 91%;
 
-    --primary: 142 60% 48%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 149 37% 73%;            /* #9FD3B8 mintgrönt på mörkt */
+    --primary-foreground: 154 20% 7%;
+    --ink-deep: 157 24% 6%;            /* headern blir nästan svart */
+    --ink-muted: 155 12% 60%;
+    --gold: 45 63% 71%;                /* #E3CB85 */
+    --gold-foreground: 154 20% 7%;
+    --gold-ink: 45 63% 71%;
+    --gold-soft: 44 40% 18%;
+    --sage: 92 12% 60%;
+    --sage-foreground: 154 20% 7%;
 
-    --secondary: 142 20% 18%;
-    --secondary-foreground: 142 40% 75%;
+    --secondary: 110 10% 18%;
+    --secondary-foreground: 100 14% 80%;
 
-    --muted: 220 12% 17%;
-    --muted-foreground: 220 10% 62%;
+    --muted: 150 18% 13%;              /* #1C2822 */
+    --muted-foreground: 138 7% 63%;    /* #9BA89F */
 
-    --accent: 142 20% 18%;
-    --accent-foreground: 142 40% 75%;
+    --accent: 150 18% 16%;
+    --accent-foreground: 149 37% 73%;
 
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 5 81% 73%;          /* #F28B82 */
+    --destructive-foreground: 154 20% 7%;
+    --destructive-soft: 4 45% 20%;
 
-    --border: 220 12% 22%;
-    --input: 220 12% 22%;
-    --ring: 142 60% 48%;
+    --warning: 45 63% 71%;
+    --warning-foreground: 154 20% 7%;
+    --warning-soft: 44 40% 18%;
+    --warning-ink: 45 63% 71%;
 
-    --radius: 0.5rem;
+    --success: 149 37% 73%;
+    --success-foreground: 154 20% 7%;
+    --success-soft: 160 28% 17%;
 
-    --warning: 38 80% 52%;
-    --warning-foreground: 220 15% 9%;
+    --info: 210 55% 72%;
+    --info-foreground: 154 20% 7%;
+    --info-soft: 210 35% 19%;
 
-    --success: 142 60% 48%;
-    --success-foreground: 0 0% 100%;
+    --border: 150 14% 17%;             /* #26322C */
+    --border-strong: 150 12% 26%;
+    --input: 150 14% 17%;
+    --ring: 149 37% 73%;
 
-    --sidebar-background: 220 15% 11%;
-    --sidebar-foreground: 220 12% 80%;
-    --sidebar-primary: 142 60% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 142 20% 18%;
-    --sidebar-accent-foreground: 142 40% 75%;
-    --sidebar-border: 220 12% 22%;
-    --sidebar-ring: 142 60% 48%;
+    --radius: 0.625rem;
+
+    --sidebar-background: 150 19% 11%;
+    --sidebar-foreground: 108 11% 91%;
+    --sidebar-primary: 149 37% 73%;
+    --sidebar-primary-foreground: 154 20% 7%;
+    --sidebar-accent: 150 18% 16%;
+    --sidebar-accent-foreground: 149 37% 73%;
+    --sidebar-border: 150 14% 17%;
+    --sidebar-ring: 149 37% 73%;
   }
 }
 
@@ -105,8 +141,41 @@
   * {
     @apply border-border;
   }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   body {
     @apply bg-background text-foreground font-sans;
+  }
+  h1, h2, h3, .font-display {
+    font-family: 'Bricolage Grotesque', 'Figtree', system-ui, sans-serif;
+    letter-spacing: -0.01em;
+  }
+  /* Belopp, veckor och nummer står rakt i kolumner */
+  .tabular, .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  /* Rörelsesystemet: 160 ms mikro, 240 ms paneler, 6 px lyft vid innehållsbyte */
+  .ease-brand {
+    transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .card-lift {
+    transition: transform 160ms ease-out, box-shadow 160ms ease-out, border-color 160ms ease-out;
+  }
+  .card-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px -12px hsl(var(--foreground) / 0.35);
+    border-color: hsl(var(--border-strong));
+  }
+  @media (hover: none) {
+    .card-lift:hover { transform: none; box-shadow: none; }
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 
