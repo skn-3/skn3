@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { normalizeLines } from '@/lib/aOrderLines';
+import { UnhandledCostsBlock } from '@/components/aorders/UnhandledCostsBlock';
+import { costToLine, linkedCostIds, syncCostLinksForOrder, COST_PAYOUT_QUERY_KEYS, type PayoutCost } from '@/lib/caseCostPayout';
 
-type Line = { id?: string; name: string; unit_price: number; qty: number; amount: number };
+type Line = { id?: string; name: string; unit_price: number; qty: number; amount: number; cost_id?: string };
 
 interface Props {
   open: boolean;
@@ -57,7 +59,7 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
     try {
       // Build PDF (FAKTURA variant)
       const logo = await loadAOrderLogo();
-      const pdfLines = lines.map(l => ({ name: l.name, unit_price: l.unit_price, qty: l.qty, amount: l.amount }));
+      const pdfLines = lines.map(l => ({ id: l.id || newId(), name: l.name, unit_price: l.unit_price, qty: l.qty, amount: l.amount, ...(l.cost_id ? { cost_id: l.cost_id } : {}) }));
       const doc = buildAOrderPdf({
         date: new Date().toISOString().slice(0, 10),
         orderNumber: invoiceNumber,
@@ -88,6 +90,15 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
         pdf_path: (sendData as any)?.pdf_path || `a-orders/${order.id}-faktura.pdf`,
       }).eq('id', order.id);
       if (updErr) throw updErr;
+
+      // Kostnader som lagts till som fakturarader → markera dem som ersatta via denna order
+      try {
+        await syncCostLinksForOrder(order.id, pdfLines as any);
+        COST_PAYOUT_QUERY_KEYS(order.case_id).forEach(k => qc.invalidateQueries({ queryKey: k }));
+      } catch (e: any) {
+        console.error(e);
+        toast.error(`Fakturan skickades men kostnadskopplingen misslyckades: ${e?.message || e}`);
+      }
 
       // Increase team counter
       await (supabase as any).from('montor_teams').update({ next_invoice_number: nextNo + 1 }).eq('id', team.id);
@@ -128,6 +139,14 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
             <div><span className="text-muted-foreground">Kund:</span> <strong>{order?.customer_name || '—'}</strong></div>
             <div><span className="text-muted-foreground">Adress:</span> <strong>{order?.customer_address}</strong></div>
           </div>
+
+          <UnhandledCostsBlock
+            caseId={order?.case_id ?? null}
+            currentUser={currentUser}
+            addedCostIds={linkedCostIds(lines)}
+            onAdd={(c: PayoutCost) => setLines(prev => [...prev, costToLine(c, newId)])}
+            target="invoice"
+          />
 
           <div className="border rounded-md">
             <div className="px-3 py-2 border-b bg-muted/50 flex items-center justify-between">

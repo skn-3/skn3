@@ -21,6 +21,7 @@ import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrde
 import { SignedImage } from '@/components/shared/SignedImage';
 import { MontorLitteraSection } from '@/components/montor/MontorLitteraSection';
 import { openDocumentInNewTab } from '@/lib/openDocument';
+import { CostPayoutChip } from '@/components/shared/CostPayoutChip';
 
 interface Props {
   caseData: CaseRow;
@@ -791,6 +792,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                     {isFabrik && (
                       <span className="text-[10px] text-muted-foreground italic">(ersätts)</span>
                     )}
+                    <CostPayoutChip cost={{ a_order_id: c.a_order_id ?? null, payout_excluded_at: c.payout_excluded_at ?? null }} showPending={false} />
                   </div>
                   <div className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('sv-SE')} — {c.created_by}</div>
                 </div>

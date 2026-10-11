@@ -184,6 +184,11 @@ export interface CaseCost {
   created_by: string;
   category: 'ovrigt' | 'reklamation';
   responsible: string | null;
+  // Koppling till A-order/faktura (se src/lib/caseCostPayout.ts)
+  a_order_id?: string | null;
+  a_order_line_id?: string | null;
+  payout_excluded_at?: string | null;
+  payout_excluded_by?: string | null;
 }
 
 export async function fetchCaseCosts(caseId: string): Promise<CaseCost[]> {

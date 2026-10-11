@@ -258,6 +258,8 @@ export type Database = {
       }
       case_costs: {
         Row: {
+          a_order_id: string | null
+          a_order_line_id: string | null
           amount: number
           case_id: string
           category: string
@@ -265,10 +267,14 @@ export type Database = {
           created_by: string
           description: string
           id: string
+          payout_excluded_at: string | null
+          payout_excluded_by: string | null
           receipt_url: string | null
           responsible: string | null
         }
         Insert: {
+          a_order_id?: string | null
+          a_order_line_id?: string | null
           amount: number
           case_id: string
           category?: string
@@ -276,10 +282,14 @@ export type Database = {
           created_by: string
           description: string
           id?: string
+          payout_excluded_at?: string | null
+          payout_excluded_by?: string | null
           receipt_url?: string | null
           responsible?: string | null
         }
         Update: {
+          a_order_id?: string | null
+          a_order_line_id?: string | null
           amount?: number
           case_id?: string
           category?: string
@@ -287,10 +297,19 @@ export type Database = {
           created_by?: string
           description?: string
           id?: string
+          payout_excluded_at?: string | null
+          payout_excluded_by?: string | null
           receipt_url?: string | null
           responsible?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "case_costs_a_order_id_fkey"
+            columns: ["a_order_id"]
+            isOneToOne: false
+            referencedRelation: "a_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "case_costs_case_id_fkey"
             columns: ["case_id"]

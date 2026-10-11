@@ -10,6 +10,8 @@ export interface AOrderLine {
   qty: number;
   amount: number;
   auto?: boolean;
+  /** Satt när raden ersätter en kostnad på ärendet (case_costs.id). Se src/lib/caseCostPayout.ts */
+  cost_id?: string;
 }
 
 
@@ -89,6 +91,7 @@ export function normalizeLine(l: any): AOrderLine {
     unit_price,
     qty,
     amount,
+    ...(l?.cost_id ? { cost_id: String(l.cost_id) } : {}),
   };
 }
 
