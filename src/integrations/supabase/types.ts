@@ -387,6 +387,7 @@ export type Database = {
           created_at: string
           created_by: string
           description: string
+          deviation_id: string | null
           event_type: string
           id: string
         }
@@ -395,6 +396,7 @@ export type Database = {
           created_at?: string
           created_by: string
           description: string
+          deviation_id?: string | null
           event_type: string
           id?: string
         }
@@ -403,6 +405,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string
+          deviation_id?: string | null
           event_type?: string
           id?: string
         }
@@ -412,6 +415,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_events_deviation_id_fkey"
+            columns: ["deviation_id"]
+            isOneToOne: false
+            referencedRelation: "deviations"
             referencedColumns: ["id"]
           },
         ]
@@ -621,6 +631,7 @@ export type Database = {
           action_needed: string | null
           action_taken_at: string | null
           action_type: string | null
+          ball: string
           case_id: string
           cost: number | null
           created_at: string
@@ -633,11 +644,20 @@ export type Database = {
           factory_email_to: string | null
           id: string
           image_urls: string[] | null
+          last_event_at: string | null
+          merged_into_id: string | null
+          next_step: string | null
+          next_step_due: string | null
+          next_step_owner: string | null
+          owner: string | null
+          priority: string
           reminder_count: number | null
           resolved: boolean
           resolved_at: string | null
           responsible: string
           status: string
+          ticket_no: number
+          title: string | null
           type: string
         }
         Insert: {
@@ -645,6 +665,7 @@ export type Database = {
           action_needed?: string | null
           action_taken_at?: string | null
           action_type?: string | null
+          ball?: string
           case_id: string
           cost?: number | null
           created_at?: string
@@ -657,11 +678,20 @@ export type Database = {
           factory_email_to?: string | null
           id?: string
           image_urls?: string[] | null
+          last_event_at?: string | null
+          merged_into_id?: string | null
+          next_step?: string | null
+          next_step_due?: string | null
+          next_step_owner?: string | null
+          owner?: string | null
+          priority?: string
           reminder_count?: number | null
           resolved?: boolean
           resolved_at?: string | null
           responsible: string
           status?: string
+          ticket_no?: never
+          title?: string | null
           type: string
         }
         Update: {
@@ -669,6 +699,7 @@ export type Database = {
           action_needed?: string | null
           action_taken_at?: string | null
           action_type?: string | null
+          ball?: string
           case_id?: string
           cost?: number | null
           created_at?: string
@@ -681,11 +712,20 @@ export type Database = {
           factory_email_to?: string | null
           id?: string
           image_urls?: string[] | null
+          last_event_at?: string | null
+          merged_into_id?: string | null
+          next_step?: string | null
+          next_step_due?: string | null
+          next_step_owner?: string | null
+          owner?: string | null
+          priority?: string
           reminder_count?: number | null
           resolved?: boolean
           resolved_at?: string | null
           responsible?: string
           status?: string
+          ticket_no?: never
+          title?: string | null
           type?: string
         }
         Relationships: [
@@ -694,6 +734,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deviations_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "deviations"
             referencedColumns: ["id"]
           },
         ]
