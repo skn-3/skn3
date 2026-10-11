@@ -11,7 +11,7 @@ const TABS: { value: CoordinatorTab; label: string }[] = [
   { value: 'inbox', label: 'Min inkorg' },
   { value: 'pipeline', label: 'Pipeline' },
   { value: 'calendar', label: 'Kalender' },
-  { value: 'deviations', label: 'Reklamationer' },
+  { value: 'deviations', label: 'Ärenden' },
   { value: 'offers', label: 'Offerter' },
   
   { value: 'aorders', label: 'A-ordrar' },

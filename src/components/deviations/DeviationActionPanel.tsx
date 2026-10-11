@@ -472,7 +472,7 @@ Smart Klimat`,
   };
 }
 
-function FactoryClaimSheet({
+export function FactoryClaimSheet({
   open, onClose, deviation, caseData, currentUser, onDone,
 }: {
   open: boolean; onClose: () => void; deviation: DeviationRow;
@@ -601,7 +601,7 @@ function FactoryClaimSheet({
 // DEL1 order Sheet
 // ───────────────────────────────────────────────────────────────────────
 
-function Del1OrderSheet({
+export function Del1OrderSheet({
   open, onClose, deviation, caseData, currentUser, onDone,
 }: {
   open: boolean; onClose: () => void; deviation: DeviationRow;

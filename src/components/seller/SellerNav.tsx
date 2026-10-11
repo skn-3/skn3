@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-export type SellerTab = 'pipeline' | 'deliveries' | 'calendar' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'futurejobs' | 'economy' | 'admin';
+export type SellerTab = 'pipeline' | 'arenden' | 'deliveries' | 'calendar' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'futurejobs' | 'economy' | 'admin';
 
 interface SellerNavProps {
   active: SellerTab;
@@ -12,6 +12,7 @@ interface SellerNavProps {
 const PRIMARY_TABS: { value: SellerTab; label: string }[] = [
   { value: 'visit', label: 'Registrera besök' },
   { value: 'pipeline', label: 'Pipeline' },
+  { value: 'arenden', label: 'Ärenden' },
   { value: 'deliveries', label: 'Leveranser' },
   { value: 'calendar', label: 'Kalender' },
   { value: 'dashboard', label: 'Dashboard' },

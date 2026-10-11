@@ -109,16 +109,16 @@ export default function RapporteraProblem() {
       if (!responsible) throw new Error('Välj ansvarig');
 
       const isReklam = type === 'reklamation';
-      const descWithPriority = isReklam
-        ? `[${priority.toUpperCase()}] ${description}`
-        : description;
 
+      // Prioritet och titel är egna kolumner (Ärendecenter). Bollen hamnar hos kontoret via databastrigger.
       const deviation = await createDeviation({
         case_id: caseData.id,
         type,
-        description: descWithPriority,
+        description,
         responsible,
         created_by: currentUser,
+        priority,
+        title: description.trim().split('\n')[0].replace(/\s+/g, ' ').slice(0, 80),
         action_log: [
           { at: new Date().toISOString(), by: currentUser, action: 'Rapporterad' },
         ] as any,
