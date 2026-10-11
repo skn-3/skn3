@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2, Save, Loader2, Download, Send, X, Upload } from 'lucide-react';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ import { SignedImage } from '@/components/shared/SignedImage';
 import { HOUR_RATE } from '@/lib/constants';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
 import { CoupleAOrderDialog } from '@/components/aorders/CoupleAOrderDialog';
+import { UnhandledCostsBlock } from '@/components/aorders/UnhandledCostsBlock';
+import { costToLine, linkedCostIds, syncCostLinksForOrder, COST_PAYOUT_QUERY_KEYS, type PayoutCost } from '@/lib/caseCostPayout';
 
 
 type AOrder = any;
@@ -52,6 +54,7 @@ function fmt(n: number) { return Math.round(n).toLocaleString('sv-SE') + ' kr'; 
 export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, onSaved, mode = 'standard' }: Props) {
   const isKomp = (order?.order_kind || mode) === 'komplettering';
   const isEdit = !!order?.id;
+  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addSearch, setAddSearch] = useState('');
@@ -355,6 +358,17 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         orderId = data.id;
       }
 
+      // Kostnader på ärendet som lagts till som rader → markera dem som ersatta via denna order
+      if (orderId) {
+        try {
+          await syncCostLinksForOrder(orderId, lines);
+          COST_PAYOUT_QUERY_KEYS(effectiveCaseId).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
+        } catch (e: any) {
+          console.error(e);
+          toast.error(`Ordern sparades men kostnadskopplingen misslyckades: ${e?.message || e}`);
+        }
+      }
+
       // Upload pending images and update images column
       if (pendingImages.length && orderId) {
         const newPaths = await uploadPendingImages(orderId);
@@ -583,6 +597,14 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
             </div>
           )}
 
+
+          {/* Kostnader på ärendet som inte ligger på någon A-order */}
+          <UnhandledCostsBlock
+            caseId={effectiveCaseId}
+            currentUser={currentUser}
+            addedCostIds={linkedCostIds(lines)}
+            onAdd={(c: PayoutCost) => setLines(prev => [...prev, costToLine(c, newId)])}
+          />
 
           {/* Lines */}
           <div className="border rounded-md">
