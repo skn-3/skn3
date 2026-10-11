@@ -75,7 +75,7 @@ export interface Ticket {
   factory_email_to: string | null;
   reminder_count: number | null;
   action_log: Array<{ at: string; by: string; action: string }> | null;
-  cases?: { id: string; address: string; customer_name: string | null; customer_phone: string | null; customer_email?: string | null; team: string | null; km_team?: string | null; seller: string | null; status: string | null; montage_date: string | null } | null;
+  cases?: { id: string; address: string; customer_name: string | null; customer_phone: string | null; customer_email?: string | null; team: string | null; km_team?: string | null; seller: string | null; status: string | null; montage_date: string | null; offer_number?: string | null; order_number?: string | null; delivery_date?: string | null; delivery_week?: number | null; delivery_year?: number | null } | null;
 }
 
 export interface TicketEvent {
@@ -243,7 +243,7 @@ export function initials(name: string | null | undefined): string {
 
 // ---------- Databas ----------
 
-const TICKET_SELECT = '*, cases!deviations_case_id_fkey(id, address, customer_name, customer_phone, customer_email, team, km_team, seller, status, montage_date)';
+const TICKET_SELECT = '*, cases!deviations_case_id_fkey(id, address, customer_name, customer_phone, customer_email, team, km_team, seller, status, montage_date, offer_number, order_number, delivery_date, delivery_week, delivery_year)';
 
 export async function fetchTickets(): Promise<Ticket[]> {
   const { data, error } = await (supabase as any)
