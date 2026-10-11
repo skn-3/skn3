@@ -46,6 +46,8 @@ import { SignedImage } from '@/components/shared/SignedImage';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { OfferForm } from '@/components/offers/OfferForm';
 import { AOrderForm } from '@/components/aorders/AOrderForm';
+import { CostPayoutChip } from '@/components/shared/CostPayoutChip';
+import { payoutState, restoreCostToPayout, COST_PAYOUT_QUERY_KEYS } from '@/lib/caseCostPayout';
 import { fmtKr as fmtOfferKr } from '@/lib/offerCalc';
 import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
 import { openDocumentInNewTab } from '@/lib/openDocument';
@@ -349,6 +351,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const hasLinked = !!(linkedOrders && linkedOrders.length > 0);
   const linkedOrder = (linkedOrders && linkedOrders[0]) || null;
+  // Kostnader på ärendet som ännu inte ligger på någon A-order/faktura och inte är undantagna
+  const pendingCosts = (costs || []).filter(c => payoutState({ a_order_id: c.a_order_id ?? null, payout_excluded_at: c.payout_excluded_at ?? null }) === 'pending');
+  const pendingCostSum = pendingCosts.reduce((s, c) => s + Number(c.amount), 0);
+  const orderNumberById = (id: string | null | undefined) => (id ? (linkedOrders || []).find((o: any) => o.id === id)?.order_number ?? null : null);
+  async function restoreCost(costId: string) {
+    try {
+      await restoreCostToPayout(costId);
+      COST_PAYOUT_QUERY_KEYS(caseData.id).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
+      toast.success('Kostnaden kan läggas på A-order igen');
+    } catch (e: any) { toast.error(e?.message || 'Kunde inte återställa'); }
+  }
 
   // Offerter kopplade till ärendet
   const { data: caseOffers } = useQuery({
@@ -2240,6 +2253,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 </Button>
               )}
             </div>
+            {pendingCosts.length > 0 && (
+              <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-2.5 text-xs text-amber-900 dark:text-amber-300 flex items-start gap-2">
+                <Receipt className="h-4 w-4 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold">{pendingCosts.length === 1 ? 'En kostnad' : `${pendingCosts.length} kostnader`} ({Math.round(pendingCostSum).toLocaleString('sv-SE')} kr) ligger inte på någon A-order.</span>{' '}
+                  {hasLinked
+                    ? 'Öppna A-ordern (eller fakturera den) och lägg till kostnaden som rad, eller markera att den inte ska ersättas.'
+                    : 'Koppla eller skapa en A-order för ärendet för att kunna lägga till den.'}
+                </div>
+              </div>
+            )}
             {linkedOrders && linkedOrders.length > 0 ? (
               <div className="space-y-2">
                 {linkedOrders.map((order: any, idx: number) => {
