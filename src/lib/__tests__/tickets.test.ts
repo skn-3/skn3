@@ -10,7 +10,7 @@ const NOW = new Date('2026-10-11T09:00:00+02:00');
 
 function t(p: Partial<Ticket>): Ticket {
   return {
-    id: p.id || 'x', case_id: 'c', created_at: '2026-10-01T08:00:00Z', created_by: 'GVMO', type: 'reklamation',
+    id: p.id || 'x', case_id: 'c', address: null, customer_name: null, customer_phone: null, customer_email: null, created_at: '2026-10-01T08:00:00Z', created_by: 'GVMO', type: 'reklamation',
     title: 'T', description: 'd', responsible: 'fabrik', status: 'ny', resolved: false, resolved_at: null,
     priority: 'medium', ball: 'oss', owner: null, next_step: null, next_step_due: null, next_step_owner: null,
     last_event_at: null, merged_into_id: null, cost: null, image_urls: null, del1_order_number: null,
