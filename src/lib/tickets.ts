@@ -48,7 +48,13 @@ export const SILENT_DAYS = 5;
 export interface Ticket {
   id: string;
   ticket_no: number | null;
-  case_id: string;
+  /** Kopplat pipeline-ärende. Tom för ärenden med manuellt inskriven adress. */
+  case_id: string | null;
+  /** Manuella kunduppgifter – används när case_id är tom. */
+  address: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_email: string | null;
   created_at: string;
   created_by: string;
   type: string;
@@ -88,6 +94,20 @@ export interface TicketEvent {
 }
 
 // ---------- Härledda fält (rena funktioner, testade i __tests__/tickets.test.ts) ----------
+
+/** Adress: det kopplade ärendets, annars den manuellt inskrivna. */
+export function ticketAddress(t: Pick<Ticket, 'address' | 'cases'>): string {
+  return t.cases?.address || t.address || '—';
+}
+export function ticketCustomer(t: Pick<Ticket, 'customer_name' | 'cases'>): string | null {
+  return t.cases?.customer_name || t.customer_name || null;
+}
+export function ticketPhone(t: Pick<Ticket, 'customer_phone' | 'cases'>): string | null {
+  return t.cases?.customer_phone || t.customer_phone || null;
+}
+export function ticketEmail(t: Pick<Ticket, 'customer_email' | 'cases'>): string | null {
+  return t.cases?.customer_email || t.customer_email || null;
+}
 
 const MS_DAY = 86_400_000;
 
