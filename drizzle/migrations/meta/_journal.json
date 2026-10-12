@@ -64,6 +64,13 @@
       "when": 1791699658148,
       "tag": "0008_arendecenter",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791783603157,
+      "tag": "0009_tickets_manual_address",
+      "breakpoints": true
     }
   ]
 }

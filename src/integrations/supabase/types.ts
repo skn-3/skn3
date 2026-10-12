@@ -383,7 +383,7 @@ export type Database = {
       }
       case_events: {
         Row: {
-          case_id: string
+          case_id: string | null
           created_at: string
           created_by: string
           description: string
@@ -392,7 +392,7 @@ export type Database = {
           id: string
         }
         Insert: {
-          case_id: string
+          case_id?: string | null
           created_at?: string
           created_by: string
           description: string
@@ -401,7 +401,7 @@ export type Database = {
           id?: string
         }
         Update: {
-          case_id?: string
+          case_id?: string | null
           created_at?: string
           created_by?: string
           description?: string
@@ -631,11 +631,15 @@ export type Database = {
           action_needed: string | null
           action_taken_at: string | null
           action_type: string | null
+          address: string | null
           ball: string
-          case_id: string
+          case_id: string | null
           cost: number | null
           created_at: string
           created_by: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
           del1_delivery_week: number | null
           del1_delivery_year: number | null
           del1_order_number: string | null
@@ -665,11 +669,15 @@ export type Database = {
           action_needed?: string | null
           action_taken_at?: string | null
           action_type?: string | null
+          address?: string | null
           ball?: string
-          case_id: string
+          case_id?: string | null
           cost?: number | null
           created_at?: string
           created_by: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           del1_delivery_week?: number | null
           del1_delivery_year?: number | null
           del1_order_number?: string | null
@@ -699,11 +707,15 @@ export type Database = {
           action_needed?: string | null
           action_taken_at?: string | null
           action_type?: string | null
+          address?: string | null
           ball?: string
-          case_id?: string
+          case_id?: string | null
           cost?: number | null
           created_at?: string
           created_by?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           del1_delivery_week?: number | null
           del1_delivery_year?: number | null
           del1_order_number?: string | null
