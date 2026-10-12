@@ -8,9 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { sendNotificationEmail, createCaseCost } from '@/lib/supabaseClient';
+import { sendNotificationEmail, createCaseCost, fetchAllCases } from '@/lib/supabaseClient';
+import { CaseCombobox } from '@/components/shared/CaseCombobox';
 import {
   BALLS, CATEGORY_LABEL, PRIORITIES, TICKET_QUERY_KEYS, addTicketEvent, initials, resolveTicket, updateTicket,
+  ticketAddress, ticketEmail,
   type Ball, type Ticket,
 } from '@/lib/tickets';
 
@@ -210,8 +212,8 @@ export function EmailCustomerDialog({ ticket, open, onOpenChange, currentUser }:
   const { busy, run } = useRunner(ticket, onOpenChange);
   useEffect(() => {
     if (!open) return;
-    setTo(ticket.cases?.customer_email || '');
-    setSubject(`Angående ${ticket.cases?.address || ''} – ${ticket.title || ''}`);
+    setTo(ticketEmail(ticket) || '');
+    setSubject(`Angående ${ticketAddress(ticket)} – ${ticket.title || ''}`);
     setBody('');
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const send = () => run(async () => {
@@ -227,7 +229,7 @@ export function EmailCustomerDialog({ ticket, open, onOpenChange, currentUser }:
         <div className="space-y-3">
           <Field label="Till">
             <Input type="email" value={to} onChange={(e) => setTo(e.target.value)} />
-            {!ticket.cases?.customer_email && <p className="text-xs text-destructive">Ärendet saknar kundens e-post — fyll i adressen.</p>}
+            {!ticketEmail(ticket) && <p className="text-xs text-destructive">Ärendet saknar kundens e-post — fyll i adressen.</p>}
           </Field>
           <Field label="Ämne"><Input value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
           <Field label="Meddelande"><Textarea rows={6} value={body} onChange={(e) => setBody(e.target.value)} /></Field>
@@ -349,6 +351,38 @@ export function ResolveDialog({ ticket, open, onOpenChange, currentUser }: BaseP
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Avbryt</Button>
           <Button onClick={save} disabled={busy}>Lös ärendet</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------- LinkCaseDialog: koppla ett manuellt ärende till ett ärende i pipelinen ----------
+
+export function LinkCaseDialog({ ticket, open, onOpenChange, currentUser }: BaseProps) {
+  const [caseId, setCaseId] = useState('');
+  const { busy, run } = useRunner(ticket, onOpenChange);
+  const { data: cases = [] } = useQuery({ queryKey: ['cases_all_for_tickets'], queryFn: fetchAllCases, enabled: open });
+  useEffect(() => { if (open) setCaseId(''); }, [open]);
+  const save = () => run(async () => {
+    if (!caseId) throw new Error('Välj ett ärende');
+    const picked = (cases as any[]).find((c) => c.id === caseId);
+    await updateTicket(ticket.id, { case_id: caseId, address: null, customer_name: null, customer_phone: null, customer_email: null });
+    await addTicketEvent({ id: ticket.id, case_id: caseId }, 'ticket_change', `Kopplat till ärendet ${picked?.address || ''}`.trim(), currentUser);
+  }, 'Ärendet kopplat');
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Koppla till ärende i pipelinen</DialogTitle>
+          <DialogDescription>Adressen som är inskriven manuellt ({ticketAddress(ticket)}) ersätts av det kopplade ärendets uppgifter.</DialogDescription>
+        </DialogHeader>
+        <Field label="Ärende (adress) *">
+          <CaseCombobox cases={cases as any} value={caseId} onChange={setCaseId} placeholder="Sök adress eller kund…" />
+        </Field>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Avbryt</Button>
+          <Button onClick={save} disabled={busy || !caseId}>Koppla</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

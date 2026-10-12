@@ -17,10 +17,10 @@ import { DEVIATION_RESPONSIBLE, STATUS_LABELS } from '@/lib/constants';
 import {
   BALLS, BALL_BY_VALUE, PRIORITIES, TICKET_CATEGORIES, TICKET_QUERY_KEYS, TICKET_STATUSES, ageDays, fetchSiblingTickets,
   fetchTicket, fetchTicketEvents, fmtDue, isOpen, isOverdue, mergeTickets, relTime, reopenTicket, resolveTicket,
-  ticketNo, updateTicket, type Ball, type Ticket, type TicketPatch,
+  ticketNo, ticketAddress, ticketCustomer, ticketPhone, ticketEmail, updateTicket, type Ball, type Ticket, type TicketPatch,
 } from '@/lib/tickets';
 import {
-  BookMontorDialog, CallDialog, CategoryChip, CostDialog, EmailCustomerDialog, NextStepDialog, NoteDialog, ResolveDialog,
+  BookMontorDialog, CallDialog, CategoryChip, CostDialog, EmailCustomerDialog, LinkCaseDialog, NextStepDialog, NoteDialog, ResolveDialog,
   useStaff, useToneStyle,
 } from './ticketDialogs';
 import './ticketTheme.css';
@@ -75,9 +75,9 @@ function TicketDetailBody({ ticketId, onClose, currentUser, onSelectCase }: Omit
   const { data: ticket, isLoading } = useQuery({ queryKey: ['ticket', ticketId], queryFn: () => fetchTicket(ticketId) });
   const { data: events = [] } = useQuery({ queryKey: ['ticket_events', ticketId], queryFn: () => fetchTicketEvents(ticketId) });
   const { data: siblings = [] } = useQuery({ queryKey: ['ticket_siblings', ticketId], queryFn: () => fetchSiblingTickets(ticket!), enabled: !!ticket });
-  const { data: costs = [] } = useQuery({ queryKey: ['case_costs', ticket?.case_id], queryFn: () => fetchCaseCosts(ticket!.case_id), enabled: !!ticket });
+  const { data: costs = [] } = useQuery({ queryKey: ['case_costs', ticket?.case_id], queryFn: () => fetchCaseCosts(ticket!.case_id!), enabled: !!ticket?.case_id });
 
-  const [dialog, setDialog] = useState<null | 'next_set' | 'next_done' | 'call' | 'email' | 'book' | 'cost' | 'note' | 'resolve' | 'factory' | 'del1'>(null);
+  const [dialog, setDialog] = useState<null | 'next_set' | 'next_done' | 'call' | 'email' | 'book' | 'cost' | 'note' | 'resolve' | 'factory' | 'del1' | 'link'>(null);
   const [editTitle, setEditTitle] = useState<string | null>(null);
   const [editDesc, setEditDesc] = useState<string | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
@@ -98,6 +98,12 @@ function TicketDetailBody({ ticketId, onClose, currentUser, onSelectCase }: Omit
 
   const open = isOpen(ticket);
   const c = ticket.cases;
+  // Fabriksmejl och DEL1-order får kunduppgifter från det kopplade ärendet, annars från de manuella fälten.
+  const caseForSheets = (c ?? (ticket.address
+    ? { address: ticket.address, customer_name: ticket.customer_name, customer_phone: ticket.customer_phone, customer_email: ticket.customer_email }
+    : null)) as unknown as CaseRow;
+  const phone = ticketPhone(ticket);
+  const email = ticketEmail(ticket);
   const ball = BALL_BY_VALUE[(ticket.ball || 'oss') as Ball];
   const bt = tone(ball);
   const overdue = isOverdue(ticket);
@@ -191,6 +197,19 @@ function TicketDetailBody({ ticketId, onClose, currentUser, onSelectCase }: Omit
               </div>
             )}
           </div>
+          {!c && (
+            <div className="tc-card p-4 flex-[1_1_300px] max-w-[380px] space-y-2" style={{ borderStyle: 'dashed' }}>
+              <div className="tc-label">Ej kopplat ärende</div>
+              <div className="tc-title text-lg font-bold">{ticketAddress(ticket)}</div>
+              <div className="text-sm">
+                {ticketCustomer(ticket) || <span className="tc-muted">Kund saknas</span>}
+                {phone && <> · <a className="underline" href={`tel:${phone}`}>{phone}</a></>}
+              </div>
+              {email && <div className="text-sm tc-muted truncate">{email}</div>}
+              <p className="text-xs tc-muted">Adressen är inskriven manuellt. Koppla ärendet om kunden finns i pipelinen, så följer leverans, team och kostnader med.</p>
+              {open && <button className="tc-btn w-full tc-noprint" onClick={() => setDialog('link')}><Link2 className="h-4 w-4" /> Koppla till ärende i pipelinen</button>}
+            </div>
+          )}
           {c && (
             <div className="tc-card p-4 flex-[1_1_300px] max-w-[380px] space-y-2">
               <div className="tc-label">Kopplat ärende</div>
@@ -271,7 +290,7 @@ function TicketDetailBody({ ticketId, onClose, currentUser, onSelectCase }: Omit
           <button className="tc-btn" onClick={() => setDialog('factory')}><Factory className="h-4 w-4" /> Mejla fabriken</button>
           <button className="tc-btn" onClick={() => setDialog('del1')}><Truck className="h-4 w-4" /> DEL1-order</button>
           <button className="tc-btn" onClick={() => setDialog('book')}><Wrench className="h-4 w-4" /> Boka montör</button>
-          <button className="tc-btn" onClick={() => setDialog('cost')}><Receipt className="h-4 w-4" /> Lägg till kostnad</button>
+          {ticket.case_id && <button className="tc-btn" onClick={() => setDialog('cost')}><Receipt className="h-4 w-4" /> Lägg till kostnad</button>}
           <button className="tc-btn" onClick={() => setDialog('note')}><NotebookPen className="h-4 w-4" /> Anteckning</button>
         </div>
 
@@ -326,7 +345,8 @@ function TicketDetailBody({ ticketId, onClose, currentUser, onSelectCase }: Omit
             <div className="tc-card p-4 space-y-2 text-sm">
               <h2 className="text-base font-bold">Ekonomi</h2>
               {Number(ticket.cost) > 0 && <Row label="Uppskattad kostnad" value={`${Number(ticket.cost).toLocaleString('sv-SE')} kr`} />}
-              {costs.length === 0 && !(Number(ticket.cost) > 0) && <p className="tc-muted">Inga kostnader registrerade.</p>}
+              {!ticket.case_id && <p className="tc-muted">Kostnader kräver ett kopplat ärende i pipelinen.</p>}
+              {ticket.case_id && costs.length === 0 && !(Number(ticket.cost) > 0) && <p className="tc-muted">Inga kostnader registrerade.</p>}
               {costs.map((k) => (
                 <div key={k.id} className="flex flex-wrap items-center gap-2 py-1 border-t" style={{ borderColor: 'var(--tc-border)' }}>
                   <span className="flex-1 min-w-0 truncate">{k.description}</span>
@@ -371,11 +391,12 @@ function TicketDetailBody({ ticketId, onClose, currentUser, onSelectCase }: Omit
       <CostDialog {...dialogProps} open={dialog === 'cost'} onOpenChange={(o) => !o && setDialog(null)} />
       <NoteDialog {...dialogProps} open={dialog === 'note'} onOpenChange={(o) => !o && setDialog(null)} />
       <ResolveDialog {...dialogProps} open={dialog === 'resolve'} onOpenChange={(o) => !o && setDialog(null)} />
+      <LinkCaseDialog {...dialogProps} open={dialog === 'link'} onOpenChange={(o) => !o && setDialog(null)} />
       {dialog === 'factory' && (
-        <FactoryClaimSheet open onClose={() => setDialog(null)} deviation={ticket as any} caseData={c as unknown as CaseRow} currentUser={currentUser} onDone={onFactoryDone} />
+        <FactoryClaimSheet open onClose={() => setDialog(null)} deviation={ticket as any} caseData={caseForSheets} currentUser={currentUser} onDone={onFactoryDone} />
       )}
       {dialog === 'del1' && (
-        <Del1OrderSheet open onClose={() => setDialog(null)} deviation={ticket as any} caseData={c as unknown as CaseRow} currentUser={currentUser} onDone={onDel1Done} />
+        <Del1OrderSheet open onClose={() => setDialog(null)} deviation={ticket as any} caseData={caseForSheets} currentUser={currentUser} onDone={onDel1Done} />
       )}
     </div>
   );

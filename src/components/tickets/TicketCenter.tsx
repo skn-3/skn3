@@ -9,7 +9,7 @@ import type { CaseRow } from '@/lib/supabaseClient';
 import { DEVIATION_RESPONSIBLE } from '@/lib/constants';
 import {
   BALLS, GROUP_ORDER, STATUS_BY_VALUE, TICKET_CATEGORIES, ageDays, computeKpis, dueDelta, fetchTickets, fmtDue,
-  groupKey, groupLabel, isOpen, isOverdue, isSilent, missingNextStep, relTime, silentDays, sortTickets, ticketNo,
+  groupKey, groupLabel, isOpen, isOverdue, isSilent, missingNextStep, relTime, silentDays, sortTickets, ticketNo, ticketAddress, ticketCustomer,
   type Grouping, type SortKey, type Ticket,
 } from '@/lib/tickets';
 import { Avatar, CategoryChip, PrioDot, useToneStyle } from './ticketDialogs';
@@ -68,7 +68,7 @@ export function TicketCenter({ currentUser, onSelectCase }: Props) {
   const searched = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return tickets;
-    return tickets.filter((t) => [t.title, t.description, t.cases?.address, t.cases?.customer_name, ticketNo(t)].some((s) => s?.toLowerCase().includes(q)));
+    return tickets.filter((t) => [t.title, t.description, ticketAddress(t), ticketCustomer(t), ticketNo(t)].some((s) => s?.toLowerCase().includes(q)));
   }, [tickets, search]);
 
   const open = useMemo(() => searched.filter(isOpen), [searched]);
@@ -187,7 +187,7 @@ export function TicketCenter({ currentUser, onSelectCase }: Props) {
             <span className="tc-title font-semibold text-[14.5px] truncate">{t.title || t.description}</span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5 mt-1 text-xs">
-            <span className="tc-muted truncate max-w-[220px]">{t.cases?.address || '—'}</span>
+            <span className="tc-muted truncate max-w-[220px]">{ticketAddress(t)}{!t.case_id && <span className="tc-mono"> · ej kopplat</span>}</span>
             <CategoryChip type={t.type} />
             {t.responsible && <span className="tc-chip tc-chip-neutral">Ansvar: {RESP_LABEL(t.responsible)}</span>}
             <StatusChip t={t} />
@@ -220,7 +220,7 @@ export function TicketCenter({ currentUser, onSelectCase }: Props) {
           <span className="ml-auto text-xs tc-muted">{ageDays(t, now)} d</span>
         </div>
         <div className="tc-title text-[15px] font-semibold mt-1.5">{t.title || t.description}</div>
-        <div className="text-xs tc-muted">{t.cases?.address || '—'}</div>
+        <div className="text-xs tc-muted">{ticketAddress(t)}{!t.case_id && <span className="tc-mono"> · ej kopplat</span>}</div>
         {isOpen(t) && (
           <div className="mt-2 rounded-lg px-2.5 py-2" style={{ background: bad ? 'var(--tc-danger-bg)' : 'var(--tc-accent-bg)' }}><NextStepCell t={t} /></div>
         )}

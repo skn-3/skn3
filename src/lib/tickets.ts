@@ -48,7 +48,13 @@ export const SILENT_DAYS = 5;
 export interface Ticket {
   id: string;
   ticket_no: number | null;
-  case_id: string;
+  /** Kopplat pipeline-ärende. Tom för ärenden med manuellt inskriven adress. */
+  case_id: string | null;
+  /** Manuella kunduppgifter – används när case_id är tom. */
+  address: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_email: string | null;
   created_at: string;
   created_by: string;
   type: string;
@@ -88,6 +94,20 @@ export interface TicketEvent {
 }
 
 // ---------- Härledda fält (rena funktioner, testade i __tests__/tickets.test.ts) ----------
+
+/** Adress: det kopplade ärendets, annars den manuellt inskrivna. */
+export function ticketAddress(t: Pick<Ticket, 'address' | 'cases'>): string {
+  return t.cases?.address || t.address || '—';
+}
+export function ticketCustomer(t: Pick<Ticket, 'customer_name' | 'cases'>): string | null {
+  return t.cases?.customer_name || t.customer_name || null;
+}
+export function ticketPhone(t: Pick<Ticket, 'customer_phone' | 'cases'>): string | null {
+  return t.cases?.customer_phone || t.customer_phone || null;
+}
+export function ticketEmail(t: Pick<Ticket, 'customer_email' | 'cases'>): string | null {
+  return t.cases?.customer_email || t.customer_email || null;
+}
 
 const MS_DAY = 86_400_000;
 
@@ -273,6 +293,7 @@ export async function fetchTicketEvents(ticketId: string): Promise<TicketEvent[]
 
 /** Andra öppna ärenden på samma adress (för "Slå ihop"). */
 export async function fetchSiblingTickets(ticket: Pick<Ticket, 'id' | 'case_id'>): Promise<Ticket[]> {
+  if (!ticket.case_id) return [];
   const { data, error } = await (supabase as any)
     .from('deviations')
     .select(TICKET_SELECT)
@@ -298,7 +319,7 @@ export async function addTicketEvent(ticket: Pick<Ticket, 'id' | 'case_id'>, kin
   if (error) throw error;
 }
 
-export type TicketPatch = Partial<Pick<Ticket, 'title' | 'description' | 'type' | 'responsible' | 'status' | 'resolved' | 'resolved_at' | 'priority' | 'ball' | 'owner' | 'next_step' | 'next_step_due' | 'next_step_owner' | 'cost' | 'merged_into_id'>>;
+export type TicketPatch = Partial<Pick<Ticket, 'title' | 'description' | 'type' | 'responsible' | 'status' | 'resolved' | 'resolved_at' | 'priority' | 'ball' | 'owner' | 'next_step' | 'next_step_due' | 'next_step_owner' | 'cost' | 'merged_into_id' | 'case_id' | 'address' | 'customer_name' | 'customer_phone' | 'customer_email'>>;
 
 /** Uppdaterar ärendet. Ändringar av status/bollen/ägare/nästa steg loggas av databasen (trigger deviations_log_changes). */
 export async function updateTicket(id: string, patch: TicketPatch): Promise<void> {
@@ -331,7 +352,12 @@ export async function mergeTickets(from: Ticket, into: Ticket, by: string): Prom
 }
 
 export interface NewTicketInput {
-  case_id: string;
+  /** Kopplat ärende – eller null med manuell adress nedan. */
+  case_id: string | null;
+  address?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_email?: string | null;
   title: string;
   type: string;
   description: string;
@@ -349,6 +375,10 @@ export async function createTicket(input: NewTicketInput): Promise<Ticket> {
     .from('deviations')
     .insert({
       case_id: input.case_id,
+      address: input.case_id ? null : (input.address?.trim() || null),
+      customer_name: input.case_id ? null : (input.customer_name?.trim() || null),
+      customer_phone: input.case_id ? null : (input.customer_phone?.trim() || null),
+      customer_email: input.case_id ? null : (input.customer_email?.trim() || null),
       title: input.title.trim().slice(0, 80),
       type: input.type,
       description: input.description,
