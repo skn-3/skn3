@@ -277,7 +277,7 @@ export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 space-y-0.5">
-                        <div className="font-semibold text-base">{c?.address || '(saknat ärende)'}</div>
+                        <div className="font-semibold text-base">{c?.address || (d as any).address || '(saknat ärende)'}</div>
                         <div className="text-xs text-muted-foreground">
                           {DEVIATION_TYPES.find(t => t.value === d.type)?.label || d.type}
                           {' · '}
