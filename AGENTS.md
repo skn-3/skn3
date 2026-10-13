@@ -1,2 +1,3 @@
 Use the same ProfileSvg rendering for the sheet-metal form and the order PDF, rasterized in the browser before PDF generation; this keeps measurements and angle annotations identical in both places.
 Keep A-order rich-text parsing and browser/PDF rendering in shared modules, with equivalent escaped email rendering; this preserves consistent formatting without changing description storage.
+Keep offer description, terms and date text logic in offerText for PDF and customer-page reuse; this keeps their presentation consistent.
