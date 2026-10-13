@@ -33,6 +33,9 @@ type PublicOfferData = {
   vat_mode: 'vanlig' | 'omvand';
   rot_enabled: boolean;
   rot_percent: number;
+  rot_persons?: number | null;
+  rot_cap_per_person?: number | null;
+  rot_used?: number | null;
   handpenning_percent?: number;
   total_ex_vat: number;
   total_vat: number;
@@ -298,6 +301,9 @@ export default function PublicOffer() {
     const total = Math.max(1, end - start);
     return Math.min(1, Math.max(0, (Date.now() - start) / total));
   })();
+  const rotUncapped = rotActive ? Math.round(Number(data.rot_base || 0) * Number(data.rot_percent || 0) / 100) : 0;
+  const rotCapped = rotActive && Number(data.rot_amount || 0) < rotUncapped;
+  const rotPersons = Math.max(1, Math.floor(Number(data.rot_persons ?? 1) || 1));
   const seller = data.created_by || null;
   const pdfUrl = data.signed_pdf_url || data.signed_url;
   const firstName = (data.accept_name || data.customer_name || '').split(/\s+/)[0] || '';
@@ -485,7 +491,7 @@ export default function PublicOffer() {
                 {rotActive && (
                   <>
                     <div className="flex justify-between text-[13px] text-muted-foreground py-1"><span>ROT-berättigad arbetskostnad</span><Num>{fmtKr(data.rot_base)}</Num></div>
-                    <div className="flex justify-between text-sm font-bold text-success py-1"><span>Preliminärt ROT-avdrag {data.rot_percent} %</span><Num>−{fmtKr(data.rot_amount)}</Num></div>
+                    <div className="flex justify-between text-sm font-bold text-success py-1"><span>Preliminärt ROT-avdrag {data.rot_percent} %{rotCapped ? ' (begränsat)' : ''}</span><Num>−{fmtKr(data.rot_amount)}</Num></div>
                   </>
                 )}
                 <div className="flex items-center justify-between gap-3 bg-primary text-primary-foreground rounded-xl px-4 py-3.5 my-3">
@@ -507,7 +513,12 @@ export default function PublicOffer() {
                   </div>
                 )}
               </div>
-              {rotActive && <p className="text-[12.5px] text-muted-foreground mt-4">ROT-avdraget är preliminärt och förutsätter att du har avdragsutrymme hos Skatteverket. Endast arbetskostnad är ROT-berättigad.</p>}
+              {rotActive && (
+                <p className="text-[12.5px] text-muted-foreground mt-4">
+                  {rotCapped && <>ROT-avdraget är begränsat till {fmtKr(data.rot_amount)} ({rotPersons} {rotPersons === 1 ? 'person' : 'personer'} × {fmtKr(Number(data.rot_cap_per_person ?? 50000))} per år{Number(data.rot_used || 0) > 0 ? `, minus ${fmtKr(data.rot_used)} redan utnyttjat` : ''}). {data.rot_percent} % av arbetskostnaden hade varit {fmtKr(rotUncapped)}. </>}
+                  ROT-avdraget är preliminärt och förutsätter att du har avdragsutrymme hos Skatteverket. Endast arbetskostnad är ROT-berättigad.
+                </p>
+              )}
             </Card>
 
             {!isAccepted && (

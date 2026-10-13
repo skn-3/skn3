@@ -146,6 +146,9 @@ export interface OfferForPdf {
   vat_mode: 'vanlig' | 'omvand';
   rot_enabled: boolean;
   rot_percent: number;
+  rot_persons?: number | null;
+  rot_cap_per_person?: number | null;
+  rot_used?: number | null;
   handpenning_percent?: number;
   terms_text?: string | null;
   created_by?: string | null;
@@ -164,7 +167,9 @@ export function buildOfferDocDef(offer: OfferForPdf, opts: OfferPdfOptions = {},
   const hpPercent = Number(offer.handpenning_percent ?? 25);
   const totals = calcOfferTotals(offer.line_items || [], {
     vat_mode: offer.vat_mode, rot_enabled: offer.rot_enabled, rot_percent: offer.rot_percent, handpenning_percent: hpPercent,
+    rot_persons: offer.rot_persons, rot_cap_per_person: offer.rot_cap_per_person, rot_used: offer.rot_used,
   });
+  const rotPersons = Math.max(1, Math.floor(Number(offer.rot_persons ?? 1) || 1));
   const rotActive = !!offer.rot_enabled && offer.vat_mode === 'vanlig';
   const inclVat = offer.vat_mode === 'vanlig';
   const priceFactor = inclVat ? 1.25 : 1;
@@ -311,7 +316,7 @@ export function buildOfferDocDef(offer: OfferForPdf, opts: OfferPdfOptions = {},
   sum.push(row(inclVat ? 'varav moms 25 %' : 'Omvänd byggmoms – köparen redovisar momsen', inclVat ? fmtKr(totals.total_vat) : '', { color: C.muted, size: 8.5 }));
   if (rotActive) {
     sum.push(row('ROT-berättigad arbetskostnad', fmtKr(totals.rot_base), { color: C.muted, size: 8.5 }));
-    sum.push(row(`Preliminärt ROT-avdrag ${offer.rot_percent} %`, '−' + fmtKr(totals.rot_amount), { color: C.success, bold: true }));
+    sum.push(row(`Preliminärt ROT-avdrag ${offer.rot_percent} %${totals.rot_capped ? ' (begränsat)' : ''}`, '−' + fmtKr(totals.rot_amount), { color: C.success, bold: true }));
   }
   const totalBox = {
     table: { widths: ['*', 130], body: [[
@@ -338,7 +343,9 @@ export function buildOfferDocDef(offer: OfferForPdf, opts: OfferPdfOptions = {},
     unbreakable: true,
     stack: [
       { columns: [{ width: '*', text: '' }, { width: 320, stack: [...sum, totalBox, ...plan] }] },
-      ...(rotActive ? [{ text: 'ROT-avdraget är preliminärt och förutsätter att du har avdragsutrymme hos Skatteverket. Endast arbetskostnad är ROT-berättigad.', fontSize: 7.8, color: C.muted, lineHeight: 1.3, margin: [0, 8, 0, 0] }] : []),
+      ...(rotActive ? [{ text: (totals.rot_capped
+        ? `ROT-avdraget är begränsat till ${fmtKr(totals.rot_room)} (${rotPersons} ${rotPersons === 1 ? 'person' : 'personer'} × ${fmtKr(Number(offer.rot_cap_per_person ?? 50000))} per år${Number(offer.rot_used || 0) > 0 ? `, minus ${fmtKr(offer.rot_used)} redan utnyttjat` : ''}). ${offer.rot_percent} % av arbetskostnaden hade varit ${fmtKr(totals.rot_uncapped)}. `
+        : '') + 'ROT-avdraget är preliminärt och förutsätter att du har avdragsutrymme hos Skatteverket. Endast arbetskostnad är ROT-berättigad.', fontSize: 7.8, color: C.muted, lineHeight: 1.3, margin: [0, 8, 0, 0] }] : []),
     ],
   });
 

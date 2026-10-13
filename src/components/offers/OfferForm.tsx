@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DEFAULT_OFFER_TERMS } from '@/lib/offerTerms';
-import { calcOfferTotals, fmtKr, type OfferLineItem } from '@/lib/offerCalc';
+import { calcOfferTotals, fmtKr, type OfferLineItem, ROT_CAP_PER_PERSON, rotRoom } from '@/lib/offerCalc';
 import { buildOfferPdfBlob, offerFileName } from '@/lib/offerPdf';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { createUppdragFromOffer, findUppdragForOffer } from '@/lib/uppdrag';
@@ -67,6 +68,9 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const [vatMode, setVatMode] = useState<'vanlig' | 'omvand'>(offer?.vat_mode || 'vanlig');
   const [rotEnabled, setRotEnabled] = useState<boolean>(!!offer?.rot_enabled);
   const [rotPercent, setRotPercent] = useState<number>(Number(offer?.rot_percent ?? 30));
+  const [rotPersons, setRotPersons] = useState<number>(Math.max(1, Number(offer?.rot_persons ?? 1) || 1));
+  const [rotCapPerPerson, setRotCapPerPerson] = useState<number>(Number(offer?.rot_cap_per_person ?? ROT_CAP_PER_PERSON));
+  const [rotUsed, setRotUsed] = useState<number>(Number(offer?.rot_used ?? 0));
   const [validUntil, setValidUntil] = useState<string>(offer?.valid_until || defaultValidUntil());
   const [paymentTerms, setPaymentTerms] = useState<string>(offer?.payment_terms || '10 dagar netto');
   const [handpenningPercent, setHandpenningPercent] = useState<number>(Number(offer?.handpenning_percent ?? 25));
@@ -125,8 +129,8 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   }, [customerType, rotEnabled]);
 
   const totals = useMemo(
-    () => calcOfferTotals(items, { vat_mode: vatMode, rot_enabled: rotEnabled, rot_percent: rotPercent, handpenning_percent: handpenningPercent }),
-    [items, vatMode, rotEnabled, rotPercent, handpenningPercent]
+    () => calcOfferTotals(items, { vat_mode: vatMode, rot_enabled: rotEnabled, rot_percent: rotPercent, handpenning_percent: handpenningPercent, rot_persons: rotPersons, rot_cap_per_person: rotCapPerPerson, rot_used: rotUsed }),
+    [items, vatMode, rotEnabled, rotPercent, handpenningPercent, rotPersons, rotCapPerPerson, rotUsed]
   );
 
   const updateItem = (id: string, patch: Partial<OfferLineItem>) => {
@@ -158,6 +162,9 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     vat_rate: 25,
     rot_enabled: customerType === 'privat' ? rotEnabled : false,
     rot_percent: rotPercent,
+    rot_persons: rotPersons,
+    rot_cap_per_person: rotCapPerPerson,
+    rot_used: rotUsed,
     valid_until: validUntil || null,
     payment_terms: paymentTerms || null,
     handpenning_percent: handpenningPercent,
@@ -731,10 +738,32 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
                 Tillämpa ROT-avdrag på arbetskostnad
               </label>
               {rotEnabled && (
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs">Procent</Label>
-                  <Input type="number" className="w-24" value={rotPercent} onChange={e => setRotPercent(Number(e.target.value))} />
-                  <span className="text-xs text-muted-foreground">%</span>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs">Procent</Label>
+                    <Input type="number" className="w-24" value={rotPercent} onChange={e => setRotPercent(Number(e.target.value))} />
+                    <span className="text-xs text-muted-foreground">%</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Personer med ROT-rätt</Label>
+                      <Select value={String(rotPersons)} onValueChange={(v) => setRotPersons(Number(v))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{[1, 2, 3, 4].map((n) => <SelectItem key={n} value={String(n)}>{n} {n === 1 ? 'person' : 'personer'}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Tak per person och år</Label>
+                      <Input type="number" value={rotCapPerPerson} onChange={e => setRotCapPerPerson(Number(e.target.value))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Redan utnyttjat i år</Label>
+                      <Input type="number" value={rotUsed} onChange={e => setRotUsed(Number(e.target.value))} placeholder="0" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Avdragsutrymme: <span className="tabular-nums">{rotPersons} × {fmtKr(rotCapPerPerson)}{rotUsed > 0 ? ` − ${fmtKr(rotUsed)}` : ''} = {fmtKr(rotRoom({ rot_persons: rotPersons, rot_cap_per_person: rotCapPerPerson, rot_used: rotUsed }))}</span>. Avdraget i offerten kan aldrig bli större än så.
+                  </p>
                 </div>
               )}
             </>
@@ -798,12 +827,12 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
               {rotActive && (
                 <>
                   <div className="flex justify-between text-muted-foreground pt-2 border-t mt-2"><span>Rotberättigad arbetskostnad</span><span className="tabular-nums">{fmtKr(totals.rot_base)}</span></div>
-                  <div className="flex justify-between text-primary"><span>Preliminärt ROT-avdrag ({rotPercent}%)</span><span className="tabular-nums">−{fmtKr(totals.rot_amount)}</span></div>
+                  <div className="flex justify-between text-primary"><span>Preliminärt ROT-avdrag ({rotPercent}%){totals.rot_capped ? ' · begränsat av taket' : ''}</span><span className="tabular-nums">−{fmtKr(totals.rot_amount)}</span></div>
                   <div className="flex justify-between font-semibold text-primary text-base pt-1"><span>Total ordersumma efter ROT</span><span className="tabular-nums">{fmtKr(totals.total_after_rot)}</span></div>
-                  {totals.rot_amount > 50000 && (
-                    <div className="flex items-start gap-2 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md p-2 mt-2 text-xs">
+                  {totals.rot_capped && (
+                    <div className="flex items-start gap-2 bg-warning-soft text-warning-ink border border-warning/50 rounded-md p-2 mt-2 text-xs">
                       <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                      <span>ROT-avdraget överstiger 50 000 kr/person/år – kontrollera att kunden har avdragsutrymme.</span>
+                      <span>{rotPercent} % av arbetskostnaden är <span className="tabular-nums">{fmtKr(totals.rot_uncapped)}</span>, men avdragsutrymmet är <span className="tabular-nums">{fmtKr(totals.rot_room)}</span> ({rotPersons} {rotPersons === 1 ? 'person' : 'personer'} × {fmtKr(rotCapPerPerson)}{rotUsed > 0 ? ` − ${fmtKr(rotUsed)} redan utnyttjat` : ''}). Offerten visar det begränsade avdraget. Fler ägare av fastigheten? Ändra antal personer ovan.</span>
                     </div>
                   )}
                 </>

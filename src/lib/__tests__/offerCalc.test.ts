@@ -67,3 +67,52 @@ describe('calcOfferTotals — handpenning före ROT', () => {
     expect(t.slutfaktura).toBe(t.total_after_rot);
   });
 });
+
+describe('calcOfferTotals — ROT-tak per person (50 000 kr/år)', () => {
+  // arbete 300 000 ex moms -> rot_base 375 000 -> 30 % = 112 500 utan tak
+  const bigLabor = [item(300000, true), item(50000, false)];
+
+  it('1 person: avdraget begränsas till 50 000 kr', () => {
+    const t = calcOfferTotals(bigLabor, { vat_mode: 'vanlig', rot_enabled: true, rot_percent: 30, handpenning_percent: 25 });
+    expect(t.rot_uncapped).toBe(112500);
+    expect(t.rot_room).toBe(50000);
+    expect(t.rot_amount).toBe(50000);
+    expect(t.rot_capped).toBe(true);
+    expect(t.total_after_rot).toBe(437500 - 50000);
+    expect(t.slutfaktura).toBe(t.total_after_rot - t.handpenning);
+  });
+
+  it('2 personer: taket blir 100 000 kr', () => {
+    const t = calcOfferTotals(bigLabor, { vat_mode: 'vanlig', rot_enabled: true, rot_percent: 30, handpenning_percent: 25, rot_persons: 2 });
+    expect(t.rot_room).toBe(100000);
+    expect(t.rot_amount).toBe(100000);
+    expect(t.rot_capped).toBe(true);
+  });
+
+  it('redan utnyttjat avdrag minskar utrymmet', () => {
+    const t = calcOfferTotals(bigLabor, { vat_mode: 'vanlig', rot_enabled: true, rot_percent: 30, rot_persons: 2, rot_used: 30000 });
+    expect(t.rot_room).toBe(70000);
+    expect(t.rot_amount).toBe(70000);
+  });
+
+  it('under taket: avdraget påverkas inte', () => {
+    const t = calcOfferTotals([item(10000, true)], { vat_mode: 'vanlig', rot_enabled: true, rot_percent: 30, rot_persons: 1 });
+    expect(t.rot_amount).toBe(3750);
+    expect(t.rot_capped).toBe(false);
+  });
+
+  it('eget tak per offert respekteras, utrymme kan inte bli negativt', () => {
+    const t = calcOfferTotals(bigLabor, { vat_mode: 'vanlig', rot_enabled: true, rot_percent: 30, rot_persons: 1, rot_cap_per_person: 75000, rot_used: 100000 });
+    expect(t.rot_room).toBe(0);
+    expect(t.rot_amount).toBe(0);
+    expect(t.rot_capped).toBe(true);
+    expect(t.total_after_rot).toBe(437500);
+  });
+
+  it('ROT avstängt: inga ROT-fält sätts', () => {
+    const t = calcOfferTotals(bigLabor, { vat_mode: 'vanlig', rot_enabled: false, rot_percent: 30, rot_persons: 2 });
+    expect(t.rot_amount).toBe(0);
+    expect(t.rot_room).toBe(0);
+    expect(t.rot_capped).toBe(false);
+  });
+});
