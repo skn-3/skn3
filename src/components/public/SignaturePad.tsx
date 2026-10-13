@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Eraser } from 'lucide-react';
 
 const W = 420;
 const H = 140;
 
+// Signaturyta för kundens offertsida. "Skriv" ritar namnet i handstilsfont, "Rita" låter kunden signera med finger/mus.
+// Resultatet levereras som PNG-dataURL till det signerade avtalet.
 export function SignaturePad({ name, onChange }: { name: string; onChange: (dataUrl: string | null) => void }) {
   const [mode, setMode] = useState<'skriv' | 'rita'>('skriv');
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -22,7 +24,7 @@ export function SignaturePad({ name, onChange }: { name: string; onChange: (data
     ctx.lineWidth = 2.2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#1a1a1a';
+    ctx.strokeStyle = '#15211B';
     return ctx;
   };
 
@@ -40,7 +42,7 @@ export function SignaturePad({ name, onChange }: { name: string; onChange: (data
       try {
         await (document as any).fonts?.load('64px Caveat');
         await (document as any).fonts?.ready;
-      } catch {}
+      } catch { /* fonten saknas: fallback till cursive */ }
       if (cancelled) return;
       const ctx = setup();
       if (!ctx) return;
@@ -53,7 +55,7 @@ export function SignaturePad({ name, onChange }: { name: string; onChange: (data
           size -= 4;
           ctx.font = `600 ${size}px Caveat, cursive`;
         }
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = '#15211B';
         ctx.textBaseline = 'middle';
         ctx.fillText(text, 16, H / 2);
       }
@@ -75,11 +77,8 @@ export function SignaturePad({ name, onChange }: { name: string; onChange: (data
 
   const pos = (e: React.PointerEvent) => {
     const r = canvasRef.current!.getBoundingClientRect();
-    const sx = W / r.width;
-    const sy = H / r.height;
-    return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+    return { x: (e.clientX - r.left) * (W / r.width), y: (e.clientY - r.top) * (H / r.height) };
   };
-
   const down = (e: React.PointerEvent) => {
     if (mode !== 'rita') return;
     drawing.current = true;
@@ -90,7 +89,6 @@ export function SignaturePad({ name, onChange }: { name: string; onChange: (data
     ctx.moveTo(p.x, p.y);
     (e.target as Element).setPointerCapture(e.pointerId);
   };
-
   const move = (e: React.PointerEvent) => {
     if (!drawing.current || mode !== 'rita') return;
     const ctx = canvasRef.current!.getContext('2d')!;
@@ -98,57 +96,53 @@ export function SignaturePad({ name, onChange }: { name: string; onChange: (data
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
   };
-
   const up = () => {
-    if (drawing.current) {
-      drawing.current = false;
-      emit();
-    }
+    if (drawing.current) { drawing.current = false; emit(); }
   };
+  const clearDraw = () => { hasInk.current = false; setup(); emit(); };
 
-  const clearDraw = () => {
-    hasInk.current = false;
-    setup();
-    emit();
-  };
+  const segBtn = (m: 'skriv' | 'rita', label: string) => (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={mode === m}
+      onClick={() => setMode(m)}
+      className={`min-h-9 px-3.5 rounded-lg text-[13px] font-semibold transition-colors ${mode === m ? 'bg-card text-primary shadow-card' : 'text-muted-foreground hover:text-foreground'}`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant={mode === 'skriv' ? 'default' : 'outline'}
-          onClick={() => setMode('skriv')}
-        >
-          Skriv signatur
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={mode === 'rita' ? 'default' : 'outline'}
-          onClick={() => setMode('rita')}
-        >
-          Rita signatur
-        </Button>
-        {mode === 'rita' && (
-          <Button type="button" size="sm" variant="ghost" onClick={clearDraw}>
-            Rensa
-          </Button>
-        )}
+      <div className="flex items-center justify-between gap-3">
+        <label className="text-[13px] font-semibold">Din signatur</label>
+        <div className="flex items-center gap-2">
+          {mode === 'rita' && (
+            <button type="button" onClick={clearDraw} className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
+              <Eraser className="h-3.5 w-3.5" /> Rensa
+            </button>
+          )}
+          <div role="radiogroup" aria-label="Signaturläge" className="inline-flex gap-0.5 rounded-xl bg-background p-[3px] border border-border">
+            {segBtn('skriv', 'Skriv')}
+            {segBtn('rita', 'Rita')}
+          </div>
+        </div>
       </div>
-      <div className="rounded-md border bg-white overflow-hidden" /* avsiktligt alltid ljus */ style={{ maxWidth: W }}>
+      <div className="relative rounded-xl border border-dashed border-border-strong bg-white overflow-hidden" style={{ maxWidth: W }}>
         <canvas
           ref={canvasRef}
-          style={{ width: '100%', height: H, touchAction: 'none', cursor: mode === 'rita' ? 'crosshair' : 'default' }}
+          aria-label="Signatur"
+          style={{ width: '100%', height: H, touchAction: 'none', cursor: mode === 'rita' ? 'crosshair' : 'default', display: 'block' }}
           onPointerDown={down}
           onPointerMove={move}
           onPointerUp={up}
           onPointerLeave={up}
         />
+        <span aria-hidden="true" className="pointer-events-none absolute left-4 right-4 bottom-6 h-px bg-border" />
       </div>
       <p className="text-xs text-muted-foreground">
-        {mode === 'skriv' ? 'Signaturen skapas automatiskt av ditt namn.' : 'Rita din signatur med fingret eller musen.'}
+        {mode === 'skriv' ? 'Skapas av ditt namn. Välj Rita för att signera för hand.' : 'Rita din signatur med fingret eller musen.'}
       </p>
     </div>
   );

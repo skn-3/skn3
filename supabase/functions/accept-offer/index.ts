@@ -10,8 +10,11 @@ const FALLBACK_APP_URL = 'https://smartklimatentreprenad.com';
 const isUrl = (s: unknown): s is string => typeof s === 'string' && /^https?:\/\//.test(s);
 
 function fmtKr(n: number | null | undefined): string {
-  const v = Number(n || 0);
-  return new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 }).format(v);
+  return Number(n || 0).toLocaleString('sv-SE', { maximumFractionDigits: 0 }) + ' kr';
+}
+
+function esc(s: unknown): string {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function decodeBase64(b64: string): Uint8Array {
@@ -107,40 +110,89 @@ Deno.serve(async (req) => {
     // Send notification emails (non-blocking errors)
     if (LOVABLE_API_KEY && RESEND_API_KEY) {
       const offerNumber = offer.offer_number || '—';
-      const amountValue = offer.rot_enabled && offer.total_after_rot != null ? offer.total_after_rot : offer.total_incl_vat;
-      const amountStr = fmtKr(amountValue);
-      const acceptedFmt = new Date(acceptedAt).toLocaleString('sv-SE');
+      const inclVat = offer.vat_mode !== 'omvand';
+      const rotActive = !!offer.rot_enabled && inclVat;
+      const orderSum = Number(offer.total_incl_vat || 0);
+      const payable = rotActive ? (offer.total_after_rot != null ? Number(offer.total_after_rot) : orderSum - Number(offer.rot_amount || 0)) : orderSum;
+      const amountStr = fmtKr(payable);
+      const amountNote = rotActive ? 'efter preliminärt ROT-avdrag' : inclVat ? 'inkl. moms' : 'exkl. moms, omvänd byggmoms';
+      // Samma räkneregel som offerCalc.ts: handpenning på ordersumman före ROT
+      const handpenningPct = Number(offer.handpenning_percent ?? 25);
+      const handpenning = Math.round(orderSum * handpenningPct / 100);
+      const slutfaktura = payable - handpenning;
+      const acceptedFmt = new Date(acceptedAt).toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       const envUrl = Deno.env.get('PUBLIC_APP_URL');
       const base = (isUrl(origin) ? origin : (isUrl(envUrl) ? envUrl! : FALLBACK_APP_URL)).replace(/\/$/, '');
       const offerUrl = `${base}/offert/${offer.public_token}`;
+      const logoUrl = `${base}/brand/logo-stamp-vit-n3.png`;
+      const sellerName = (offer.created_by as string | null) || null;
+      const firstName = acceptName.split(/\s+/)[0] || acceptName;
 
-      const customerHtml = `<!DOCTYPE html><html lang="sv"><body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;"><tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-<tr><td style="background:#22C55E;padding:20px 28px;color:#fff;font-size:20px;font-weight:bold;">SmartKlimat N3prenad</td></tr>
-<tr><td style="padding:28px;">
-<h1 style="margin:0 0 12px;font-size:20px;">Tack ${acceptName}!</h1>
-<p style="margin:0 0 12px;">Vi har tagit emot din accept av offert <strong>${offerNumber}</strong>.</p>
-<p style="margin:0 0 12px;">Bekräftelse: ${acceptedFmt}</p>
-<p style="margin:20px 0;"><a href="${offerUrl}" style="display:inline-block;background:#22C55E;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:bold;">Öppna ditt signerade avtal</a></p>
-<p style="margin:0 0 12px;color:#6b7280;font-size:13px;">På sidan kan du ladda ner den signerade PDF:en med verifikat. Spara gärna en kopia.</p>
-<p style="margin:0 0 12px;">Vi återkommer inom kort med nästa steg. Har du frågor, svara på detta mejl eller ring 070-719 72 35.</p>
-<p style="margin:24px 0 0;color:#6b7280;font-size:12px;">SmartKlimat N3prenad AB · n3prenad@smartklimat.org</p>
-</td></tr></table></td></tr></table></body></html>`;
+      const row = (label: string, value: string, big = false) => big
+        ? `<tr><td style="padding:10px 0;border-top:1px solid #E3E1DA;color:#5E6B64;font-size:14px;vertical-align:middle;">${esc(label)}</td><td align="right" style="padding:10px 0;border-top:1px solid #E3E1DA;font-size:22px;font-weight:700;color:#0B3D2E;white-space:nowrap;">${esc(value)}</td></tr>`
+        : `<tr><td style="padding:7px 0;border-top:1px solid #E3E1DA;color:#5E6B64;font-size:14px;">${esc(label)}</td><td align="right" style="padding:7px 0;border-top:1px solid #E3E1DA;font-size:14px;color:#15211B;white-space:nowrap;">${esc(value)}</td></tr>`;
+      const rowsHtml = [
+        row(`Att betala ${amountNote}`, amountStr, true),
+        ...(handpenningPct > 0 ? [row(`Handpenning ${handpenningPct} % · faktureras nu`, fmtKr(handpenning)), row('Slutfaktura efter utfört arbete', fmtKr(slutfaktura))] : []),
+        row('Signerad', acceptedFmt),
+      ].join('');
+      const step = (n: string, title: string, sub: string, done = false) =>
+        `<tr><td style="width:40px;vertical-align:top;padding:0 0 14px;"><div style="width:28px;height:28px;border-radius:14px;background:${done ? '#0B3D2E' : '#F6EDD0'};color:${done ? '#fff' : '#8A6A14'};font-size:12px;font-weight:700;line-height:28px;text-align:center;">${done ? '&#10003;' : esc(n)}</div></td><td style="vertical-align:top;padding:3px 0 14px;"><div style="font-size:14.5px;font-weight:700;color:#15211B;">${esc(title)}</div><div style="font-size:13px;color:#5E6B64;">${esc(sub)}</div></td></tr>`;
 
-      const internalHtml = `<!DOCTYPE html><html lang="sv"><body style="font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
-<h2 style="color:#15803D;">Offert ${offerNumber} accepterad</h2>
-<table cellpadding="6" style="border-collapse:collapse;">
-<tr><td style="color:#6b7280;">Kund</td><td><strong>${offer.customer_name || '—'}</strong></td></tr>
-<tr><td style="color:#6b7280;">Accepterad av</td><td>${acceptName}</td></tr>
-<tr><td style="color:#6b7280;">E-post</td><td>${offer.customer_email || '—'}</td></tr>
-<tr><td style="color:#6b7280;">Telefon</td><td>${offer.customer_phone || '—'}</td></tr>
-<tr><td style="color:#6b7280;">Belopp</td><td><strong>${amountStr}</strong>${offer.rot_enabled ? ' (efter ROT)' : ''}</td></tr>
-<tr><td style="color:#6b7280;">Datum/tid</td><td>${acceptedFmt}</td></tr>
-<tr><td style="color:#6b7280;">IP</td><td>${ip || '—'}</td></tr>
+      const customerHtml = `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Offert ${esc(offerNumber)} accepterad</title></head>
+<body style="margin:0;padding:0;background:#EEECE6;font-family:'Figtree',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#15211B;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEECE6;"><tr><td align="center" style="padding:28px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;">
+<tr><td style="background:#082B21;padding:20px 28px;border-bottom:3px solid #DCBE6E;">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td style="vertical-align:middle;width:48px;"><img src="${esc(logoUrl)}" alt="SmartKlimat" width="36" height="36" style="display:block;"/></td>
+<td style="vertical-align:middle;color:#ffffff;"><div style="font-size:17px;font-weight:700;line-height:1.05;">SmartKlimat</div><div style="font-size:10px;letter-spacing:2px;color:#9FB8AC;margin-top:2px;">N3PRENAD</div></td>
+</tr></table></td></tr>
+<tr><td style="padding:28px 28px 0;">
+<h1 style="margin:0 0 12px;font-size:24px;line-height:1.15;color:#15211B;">Tack ${esc(firstName)}, offerten är accepterad</h1>
+<p style="margin:0 0 12px;">Vi har tagit emot din accept av offert <strong>${esc(offerNumber)}</strong>${offer.title ? ` – ${esc(offer.title)}` : ''}. Det signerade avtalet med verifikat finns att ladda ner på offertsidan. Spara gärna en kopia.</p>
+</td></tr>
+<tr><td style="padding:6px 28px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EE;border-radius:12px;"><tr><td style="padding:18px 20px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rowsHtml}</table>
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:22px 28px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="background:#DCBE6E;border-radius:12px;">
+<a href="${esc(offerUrl)}" target="_blank" rel="noopener" style="display:block;padding:16px 24px;color:#15211B;font-weight:700;font-size:16px;text-decoration:none;">Öppna ditt signerade avtal</a>
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:24px 28px 0;">
+<div style="font-size:11px;letter-spacing:1.5px;font-weight:700;color:#8A6A14;margin-bottom:10px;">VAD HÄNDER NU</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+${step('1', 'Offerten accepterad', `${acceptedFmt} · signerad digitalt`, true)}
+${step('2', 'Vi hör av oss och planerar', `${esc(sellerName || 'Vi')} ringer dig inom några dagar.${handpenningPct > 0 ? ` Handpenningen faktureras med ${esc(offer.payment_terms || '10 dagar netto')}.` : ''}`)}
+${step('3', 'Arbetet utförs', 'Startdatum bokas tillsammans med dig.')}
+${step('4', 'Slutfaktura', `Efter utfört arbete${rotActive ? ', med ROT-avdraget draget' : ''}.`)}
 </table>
-<p style="margin-top:16px;"><a href="${offerUrl}" style="color:#15803D;font-weight:bold;">Öppna avtalet</a></p>
-</body></html>`;
+</td></tr>
+<tr><td style="padding:6px 28px 24px;"><p style="margin:0;font-size:14px;">Har du frågor? Svara på det här mejlet eller ring ${esc(sellerName || 'oss')} på 070-719 72 35.</p></td></tr>
+<tr><td style="padding:16px 28px;background:#F5F3EE;"><p style="margin:0;font-size:11.5px;color:#5E6B64;text-align:center;">SmartKlimat N3prenad AB · Org.nr 559026-6630 · Morsstigen 3, 141 71 Segeltorp · n3prenad@smartklimat.org</p></td></tr>
+</table></td></tr></table></body></html>`;
+
+      const internalHtml = `<!DOCTYPE html><html lang="sv"><body style="margin:0;padding:24px;background:#F5F3EE;font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#15211B;">
+<table role="presentation" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:12px;overflow:hidden;">
+<tr><td style="background:#082B21;color:#fff;padding:14px 20px;font-size:16px;font-weight:700;border-bottom:3px solid #DCBE6E;">Offert ${esc(offerNumber)} accepterad</td></tr>
+<tr><td style="padding:18px 20px;">
+<table cellpadding="6" style="border-collapse:collapse;">
+<tr><td style="color:#5E6B64;">Kund</td><td><strong>${esc(offer.customer_name || '—')}</strong></td></tr>
+<tr><td style="color:#5E6B64;">Adress</td><td>${esc(offer.customer_address || '—')}</td></tr>
+<tr><td style="color:#5E6B64;">Accepterad av</td><td>${esc(acceptName)}</td></tr>
+<tr><td style="color:#5E6B64;">E-post</td><td>${esc(offer.customer_email || '—')}</td></tr>
+<tr><td style="color:#5E6B64;">Telefon</td><td>${esc(offer.customer_phone || '—')}</td></tr>
+<tr><td style="color:#5E6B64;">Belopp</td><td><strong>${esc(amountStr)}</strong> (${esc(amountNote)})</td></tr>
+${handpenningPct > 0 ? `<tr><td style="color:#5E6B64;">Handpenning</td><td>${esc(fmtKr(handpenning))} (${handpenningPct} %)</td></tr>` : ''}
+<tr><td style="color:#5E6B64;">Säljare</td><td>${esc(sellerName || '—')}</td></tr>
+<tr><td style="color:#5E6B64;">Datum/tid</td><td>${esc(acceptedFmt)}</td></tr>
+<tr><td style="color:#5E6B64;">IP</td><td>${esc(ip || '—')}</td></tr>
+</table>
+<p style="margin:16px 0 0;"><a href="${esc(offerUrl)}" style="display:inline-block;background:#0B3D2E;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:700;">Öppna avtalet</a></p>
+</td></tr></table></body></html>`;
 
       const SELLER_EMAIL_MAP: Record<string, string> = {
         'Daniel Malke': 'daniel@smartklimat.org',

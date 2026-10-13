@@ -7,6 +7,7 @@ const corsHeaders = {
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
 const FALLBACK_APP_URL = 'https://smartklimatentreprenad.com';
+const COMPANY_PHONE = '070-719 72 35';
 
 function makeToken(): string {
   const a = crypto.randomUUID().replace(/-/g, '');
@@ -15,51 +16,75 @@ function makeToken(): string {
 }
 
 function fmtKr(n: number | null | undefined): string {
-  const v = Number(n || 0);
-  return new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 }).format(v);
+  return Number(n || 0).toLocaleString('sv-SE', { maximumFractionDigits: 0 }) + ' kr';
 }
 
+function fmtDateLong(d: string | null | undefined): string {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return String(d);
+  return dt.toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function esc(s: unknown): string {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function initialsOf(name: string | null | undefined): string {
+  return (name || '').split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() || '').join('') || 'N3';
+}
+
+// Mejlet till kunden: samma varumärke som offertsidan och PDF:en (mörkgrön header, guldknapp).
+// Tabellbaserat med inline-stilar så att det ser rätt ut i Gmail/Outlook/Apple Mail.
 function buildHtml(opts: {
   offerNumber: string;
-  customerName: string;
-  validUntil: string | null;
-  amountRowsHtml: string;
+  customerFirstName: string;
+  title: string;
+  address: string;
+  rows: Array<{ label: string; value: string; big?: boolean }>;
   publicUrl: string;
   logoUrl: string;
+  sellerName: string | null;
 }): string {
+  const rowsHtml = opts.rows.map((r) => r.big
+    ? `<tr><td style="padding:10px 0;border-top:1px solid #E3E1DA;color:#5E6B64;font-size:14px;vertical-align:middle;">${esc(r.label)}</td><td align="right" style="padding:10px 0;border-top:1px solid #E3E1DA;font-size:22px;font-weight:700;color:#0B3D2E;white-space:nowrap;vertical-align:middle;">${esc(r.value)}</td></tr>`
+    : `<tr><td style="padding:7px 0;border-top:1px solid #E3E1DA;color:#5E6B64;font-size:14px;">${esc(r.label)}</td><td align="right" style="padding:7px 0;border-top:1px solid #E3E1DA;font-size:14px;color:#15211B;white-space:nowrap;">${esc(r.value)}</td></tr>`,
+  ).join('');
+  const seller = opts.sellerName
+    ? `<tr><td style="padding:22px 28px 0;"><table role="presentation" cellpadding="0" cellspacing="0" style="border-top:1px solid #E3E1DA;width:100%;"><tr>
+<td style="padding-top:18px;width:54px;vertical-align:middle;"><div style="width:42px;height:42px;border-radius:21px;background:#0B3D2E;color:#fff;font-weight:700;font-size:13px;line-height:42px;text-align:center;">${esc(initialsOf(opts.sellerName))}</div></td>
+<td style="padding-top:18px;vertical-align:middle;"><div style="font-size:14px;font-weight:700;color:#15211B;">${esc(opts.sellerName)}</div><div style="font-size:12.5px;color:#5E6B64;">Säljare, SmartKlimat N3prenad · ${esc(COMPANY_PHONE)} · svara på det här mejlet om du har frågor</div></td>
+</tr></table></td></tr>`
+    : '';
   return `<!DOCTYPE html>
-<html lang="sv"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Din offert</title></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;"><tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-<tr><td style="background:#22C55E;padding:20px 28px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td style="vertical-align:middle;width:40px;"><img src="${opts.logoUrl}" alt="SmartKlimat" width="36" height="36" style="display:block;border-radius:50%;background:#fff;padding:3px;"/></td>
-<td style="vertical-align:middle;padding-left:12px;color:#fff;font-size:20px;font-weight:bold;">SmartKlimat N3prenad</td>
+<html lang="sv"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Din offert ${esc(opts.offerNumber)}</title></head>
+<body style="margin:0;padding:0;background:#EEECE6;font-family:'Figtree',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#15211B;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEECE6;"><tr><td align="center" style="padding:28px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;">
+<tr><td style="background:#082B21;padding:20px 28px;border-bottom:3px solid #DCBE6E;">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td style="vertical-align:middle;width:48px;"><img src="${esc(opts.logoUrl)}" alt="SmartKlimat" width="36" height="36" style="display:block;"/></td>
+<td style="vertical-align:middle;color:#ffffff;"><div style="font-size:17px;font-weight:700;line-height:1.05;">SmartKlimat</div><div style="font-size:10px;letter-spacing:2px;color:#9FB8AC;margin-top:2px;">N3PRENAD</div></td>
 </tr></table></td></tr>
-<tr><td style="padding:28px 28px 8px;"><h1 style="margin:0;font-size:22px;color:#1a1a1a;">Din offert ${opts.offerNumber}</h1></td></tr>
-<tr><td style="padding:8px 28px 12px;">
-<p style="margin:0 0 12px;">Hej ${opts.customerName},</p>
-<p style="margin:0 0 12px;">Tack för din förfrågan! Här kommer din offert från SmartKlimat N3prenad.</p>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:12px 0;">
-<tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#6b7280;width:160px;">Offertnummer</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600;">${opts.offerNumber}</td></tr>
-${opts.validUntil ? `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#6b7280;">Giltig t.o.m.</td><td style="padding:8px 0;border-bottom:1px solid #eee;">${opts.validUntil}</td></tr>` : ''}
-${opts.amountRowsHtml}
-</table>
+<tr><td style="padding:28px 28px 0;">
+<h1 style="margin:0 0 12px;font-size:24px;line-height:1.15;color:#15211B;">Hej ${esc(opts.customerFirstName)}, här är din offert</h1>
+<p style="margin:0 0 12px;">Tack för att vi fick komma ut och titta. Här är vår offert${opts.address ? ` för ${esc(opts.address)}` : ''}. Öppna den, läs igenom och signera digitalt när du känner dig redo – det tar en minut.</p>
 </td></tr>
-
-<tr><td style="padding:0 28px 8px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 8px;">
-<a href="${opts.publicUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 36px;background:#22C55E;color:#ffffff;font-weight:bold;font-size:15px;text-decoration:none;border-radius:6px;"><span style="color:#ffffff;text-decoration:none;">Öppna din offert</span></a>
+<tr><td style="padding:6px 28px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EE;border-radius:12px;"><tr><td style="padding:18px 20px;">
+<div style="font-size:15px;font-weight:700;color:#15211B;margin-bottom:10px;">${esc(opts.title)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rowsHtml}</table>
 </td></tr></table>
 </td></tr>
-<tr><td style="padding:0 28px 16px;">
-<p style="margin:0;font-size:12px;color:#6b7280;line-height:1.5;word-break:break-all;">
-Fungerar inte knappen? Kopiera och klistra in denna länk i webbläsaren:<br>
-<a href="${opts.publicUrl}" style="color:#15803D;">${opts.publicUrl}</a>
-</p></td></tr>
-<tr><td style="padding:0 28px 24px;"><p style="margin:0;font-size:13px;color:#6b7280;">Har du frågor? Svara på detta mejl eller ring 070-719 72 35.</p></td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #f0f0f0;"><p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">SmartKlimat N3prenad AB · n3prenad@smartklimat.org</p></td></tr>
+<tr><td style="padding:22px 28px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="background:#DCBE6E;border-radius:12px;">
+<a href="${esc(opts.publicUrl)}" target="_blank" rel="noopener" style="display:block;padding:16px 24px;color:#15211B;font-weight:700;font-size:16px;text-decoration:none;">Öppna och signera offerten</a>
+</td></tr></table>
+<p style="margin:10px 0 0;font-size:12.5px;color:#5E6B64;text-align:center;">Offert ${esc(opts.offerNumber)} · Du får bekräftelse och det signerade avtalet som PDF direkt efter signeringen.</p>
+</td></tr>
+${seller}
+<tr><td style="padding:18px 28px 24px;"><p style="margin:0;font-size:12px;color:#5E6B64;line-height:1.5;word-break:break-all;">Fungerar inte knappen? Kopiera länken: <a href="${esc(opts.publicUrl)}" style="color:#0B3D2E;">${esc(opts.publicUrl)}</a></p></td></tr>
+<tr><td style="padding:16px 28px;background:#F5F3EE;"><p style="margin:0;font-size:11.5px;color:#5E6B64;text-align:center;">SmartKlimat N3prenad AB · Org.nr 559026-6630 · Morsstigen 3, 141 71 Segeltorp · n3prenad@smartklimat.org</p></td></tr>
 </table></td></tr></table></body></html>`;
 }
 
@@ -133,42 +158,45 @@ Deno.serve(async (req) => {
     if (upErr) throw upErr;
 
     const publicUrl = `${base}/offert/${publicToken}`;
-    const logoUrl = `${base}/logo.png`;
+    const logoUrl = `${base}/brand/logo-stamp-vit-n3.png`;
 
-    const totalInclVat = Number(offer.total_incl_vat || 0);
-    const totalAfterRot = offer.total_after_rot != null ? Number(offer.total_after_rot) : totalInclVat;
+    // Samma räkneregler som offerCalc.ts / PDF:en / kundsidan:
+    // handpenning beräknas på ordersumman FÖRE ROT, hela ROT-avdraget dras på slutfakturan.
+    const inclVat = offer.vat_mode !== 'omvand';
+    const rotActive = !!offer.rot_enabled && inclVat;
+    const orderSum = Number(offer.total_incl_vat || 0);
     const rotAmount = Number(offer.rot_amount || 0);
+    const payable = rotActive ? (offer.total_after_rot != null ? Number(offer.total_after_rot) : orderSum - rotAmount) : orderSum;
     const handpenningPct = Number(offer.handpenning_percent ?? 25);
-    const payable = offer.rot_enabled ? totalAfterRot : totalInclVat;
-    const handpenning = Math.round(payable * handpenningPct / 100);
+    const handpenning = Math.round(orderSum * handpenningPct / 100);
     const slutfaktura = payable - handpenning;
 
-    const rowCell = 'padding:8px 0;border-bottom:1px solid #eee;';
-    const rowLbl = `${rowCell}color:#6b7280;width:160px;`;
-    const rowVal = rowCell;
-    const mkRow = (label: string, value: string, opts?: { valueStyle?: string; labelStyle?: string }) =>
-      `<tr><td style="${opts?.labelStyle || rowLbl}">${label}</td><td style="${opts?.valueStyle || rowVal}">${value}</td></tr>`;
-
-    let amountRowsHtml = '';
-    if (offer.rot_enabled) {
-      amountRowsHtml += mkRow('Ordersumma innan avdrag', fmtKr(totalInclVat));
-      amountRowsHtml += mkRow('Preliminärt ROT-avdrag', `−${fmtKr(rotAmount)}`, { valueStyle: `${rowCell}color:#16a34a;` });
-      amountRowsHtml += mkRow('Total ordersumma efter ROT', fmtKr(totalAfterRot), { valueStyle: `${rowCell}font-weight:700;font-size:15px;` });
-    } else {
-      amountRowsHtml += mkRow('Summa inkl moms', fmtKr(totalInclVat), { valueStyle: `${rowCell}font-weight:600;` });
+    const rows: Array<{ label: string; value: string; big?: boolean }> = [];
+    rows.push({ label: rotActive ? 'Att betala efter ROT-avdrag' : inclVat ? 'Att betala inkl. moms' : 'Att betala, omvänd byggmoms', value: fmtKr(payable), big: true });
+    if (rotActive) {
+      rows.push({ label: 'Ordersumma inkl. moms', value: fmtKr(orderSum) });
+      rows.push({ label: `Preliminärt ROT-avdrag ${Number(offer.rot_percent || 30)} %`, value: `−${fmtKr(rotAmount)}` });
     }
-    amountRowsHtml += mkRow(`Handpenning ${handpenningPct}%`, fmtKr(handpenning));
-    amountRowsHtml += mkRow('Slutfaktura', fmtKr(slutfaktura), { valueStyle: `padding:8px 0;font-weight:600;` });
+    if (handpenningPct > 0) {
+      rows.push({ label: `Handpenning ${handpenningPct} % vid beställning`, value: fmtKr(handpenning) });
+      rows.push({ label: 'Slutfaktura efter utfört arbete', value: fmtKr(slutfaktura) });
+    }
+    if (offer.valid_until) rows.push({ label: 'Giltig till', value: fmtDateLong(offer.valid_until) });
 
+    const offerNumber = offer.offer_number || '—';
+    const customerFirstName = String(offer.customer_name || '').trim().split(/\s+/)[0] || 'kund';
     const html = buildHtml({
-      offerNumber: offer.offer_number || '—',
-      customerName: offer.customer_name || 'kund',
-      validUntil: offer.valid_until || null,
-      amountRowsHtml,
+      offerNumber,
+      customerFirstName,
+      title: offer.title || `Offert ${offerNumber}`,
+      address: offer.customer_address || '',
+      rows,
       publicUrl,
-
       logoUrl,
+      sellerName: offer.created_by || null,
     });
+
+    const subject = `Din offert ${offerNumber} från SmartKlimat N3prenad${offer.title ? ` – ${offer.title}` : ''}`.slice(0, 150);
 
     const emailResp = await fetch(`${GATEWAY_URL}/emails`, {
       method: 'POST',
@@ -181,7 +209,7 @@ Deno.serve(async (req) => {
         from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
         reply_to: 'n3prenad@smartklimat.org',
         to: [offer.customer_email],
-        subject: 'Din offert från SmartKlimat N3prenad',
+        subject,
         html,
       }),
     });
