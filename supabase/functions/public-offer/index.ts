@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const PUBLIC_FIELDS = [
-  'offer_number', 'created_at', 'valid_until', 'payment_terms', 'customer_type',
+  'id', 'offer_number', 'created_at', 'sent_at', 'created_by', 'valid_until', 'payment_terms', 'customer_type',
   'customer_name', 'customer_address', 'customer_personnummer', 'fastighetsbeteckning',
   'title', 'description', 'line_items',
   'vat_mode', 'rot_enabled', 'rot_percent', 'total_ex_vat', 'total_vat', 'total_incl_vat',
