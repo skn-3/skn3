@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Offertflödet del A: lägg in levererad textlogik/PDF, hämta och verifiera fonter, deploya public-offer och kontrollera typer/tester/PDF.
+- [x] Offertflödet del A: levererad textlogik/PDF inlagd, fyra font-hashar matchar, public-offer deployad, typkontroll och 76 tester gröna; PDF visuellt kontrollerad (nästa-steg-rutan bryts till egen sida i testexemplet, mallen lämnad oförändrad).
 
 - [x] Design Del B: ersätt fem filer för inloggning, pipeline och ärendekort enligt levererad text.
 - [x] Design Del B: 76/76 tester och automatiskt bygge gröna; inloggning, PIN-knappar och tema verifierade vid 390/1440 px utan runtime-fel.
