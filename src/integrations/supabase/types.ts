@@ -1111,8 +1111,11 @@ export type Database = {
           public_token: string | null
           rot_amount: number | null
           rot_base: number | null
+          rot_cap_per_person: number
           rot_enabled: boolean
           rot_percent: number
+          rot_persons: number
+          rot_used: number
           sent_at: string | null
           signed_pdf_path: string | null
           source: string
@@ -1161,8 +1164,11 @@ export type Database = {
           public_token?: string | null
           rot_amount?: number | null
           rot_base?: number | null
+          rot_cap_per_person?: number
           rot_enabled?: boolean
           rot_percent?: number
+          rot_persons?: number
+          rot_used?: number
           sent_at?: string | null
           signed_pdf_path?: string | null
           source?: string
@@ -1211,8 +1217,11 @@ export type Database = {
           public_token?: string | null
           rot_amount?: number | null
           rot_base?: number | null
+          rot_cap_per_person?: number
           rot_enabled?: boolean
           rot_percent?: number
+          rot_persons?: number
+          rot_used?: number
           sent_at?: string | null
           signed_pdf_path?: string | null
           source?: string
