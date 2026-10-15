@@ -172,8 +172,20 @@ export default function SheetMetalOrderPage() {
       });
       (payload as any).pdf_base64 = pdfDoc.output('datauristring').split(',')[1];
 
-      const { error: fnErr } = await supabase.functions.invoke('send-sheet-metal-order', { body: payload });
-      if (fnErr) throw fnErr;
+      // Skisserna ligger redan i pdf_base64 — skicka aldrig sketch_data_url separat
+      const body = {
+        ...payload,
+        profiles: payload.profiles.map(p => { const { sketch_data_url: _s, ...rest } = p as any; return rest; }),
+      };
+      const { error: fnErr } = await supabase.functions.invoke('send-sheet-metal-order', { body });
+      if (fnErr) {
+        let msg = fnErr.message;
+        const ctx = (fnErr as any).context;
+        if (ctx && typeof ctx.json === 'function') {
+          try { const j = await ctx.json(); if (j?.error) msg = String(j.error); } catch { /* behåll generiskt */ }
+        }
+        throw new Error(msg);
+      }
 
       const { error: insErr } = await supabase.from('sheet_metal_orders').insert({
         case_id: caseData.id,
@@ -183,7 +195,11 @@ export default function SheetMetalOrderPage() {
         montor_name: montor,
         montor_phone: montorPhoneOf(montor) || null,
         notes,
-        profiles: payload.profiles.map(p => ({ ...p, image_data_url: p.image_data_url ? '[bifogad]' : undefined })) as any,
+        profiles: payload.profiles.map(p => {
+          const q: any = { ...p, image_data_url: p.image_data_url ? '[bifogad]' : undefined };
+          if (q.sketch_data_url) q.sketch_data_url = '[i PDF]';
+          return q;
+        }) as any,
       });
       if (insErr) throw insErr;
 

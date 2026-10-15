@@ -93,6 +93,18 @@ export async function requireAdmin(
 }
 
 /**
+ * Any authenticated user (montor, seller, coordinator, admin). Validates JWT, no role gate.
+ */
+export async function requireAuth(
+  req: Request,
+  corsHeaders: CorsHeaders = defaultCorsHeaders,
+): Promise<AuthResult> {
+  const res = await authenticate(req, corsHeaders);
+  if (res.fail) return { response: res.fail };
+  return { response: null, userId: res.userId, claims: res.claims, isAdmin: res.isAdmin, role: res.role };
+}
+
+/**
  * Coordinator-or-admin gate. Used for outbound mail / admin-only actions
  * that should NOT be callable by säljare eller montörer.
  */
