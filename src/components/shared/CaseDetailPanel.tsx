@@ -52,6 +52,7 @@ import { fmtKr as fmtOfferKr } from '@/lib/offerCalc';
 import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { sellerStepsFor, upcomingWeekOptions } from '@/lib/sellerSteps';
+import { needsCompletion, consumeCompletionRequest } from '@/lib/caseCompletion';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -114,6 +115,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [editDevCostValue, setEditDevCostValue] = useState('');
   // Edit case fields
   const [editingCase, setEditingCase] = useState(false);
+  const [completeMode, setCompleteMode] = useState(false);
   const [ovConfirmOpen, setOvConfirmOpen] = useState(false);
   const [hoursEdit, setHoursEdit] = useState<{ field: 'extra_hours_sold' | 'extra_hours_approved'; value: string } | null>(null);
   const [hoursDialogOpen, setHoursDialogOpen] = useState(false);
@@ -198,6 +200,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     });
     setEditingCase(true);
   };
+  const openComplete = () => {
+    openEdit();
+    setCompleteMode(true);
+  };
+  useEffect(() => {
+    if (isSeller && !isCoordinator && consumeCompletionRequest(caseData.id)) openComplete();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseData.id]);
 
 
   const editCaseMutation = useMutation({
@@ -277,6 +287,71 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       if (oldWeek !== newWeek) changes.push(`Leveransvecka ändrad till ${newWeek != null ? `v.${newWeek} ${updates.delivery_year}` : '—'}`);
 
 
+      if (completeMode) {
+        // Kompletteringssteget efter KM: endast stegets fält sparas.
+        const subset: Record<string, unknown> = {
+          customer_phone: updates.customer_phone,
+          order_value: updates.order_value,
+          tb_percent: updates.tb_percent,
+          extra_hours_sold: updates.extra_hours_sold,
+          km_team: updates.km_team,
+          team: updates.team,
+          google_drive_link: updates.google_drive_link,
+          notes: updates.notes,
+        };
+        await updateCase(caseData.id, subset as any);
+
+        // Säljstatistiken läser visits.order_value — håll besöksraden i synk.
+        const ov = subset.order_value as number | null;
+        const { error: vErr } = await supabase.from('visits').update({ order_value: ov }).eq('case_id', caseData.id);
+        if (vErr) console.error('visits order_value sync failed:', vErr);
+        if (caseData.visit_id) {
+          await supabase.from('visits').update({ order_value: ov }).eq('id', caseData.visit_id);
+        }
+
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'update',
+          description: `Ärendedata kompletterad efter KM${changes.length ? ': ' + changes.join(', ') : ''}`,
+          created_by: currentUser,
+        });
+
+        // Montörmail när montage-montör tilldelas i steget (blockerar inte sparandet).
+        const newTeam = (subset.team as string | null) || null;
+        if (newTeam && newTeam !== (caseData.team || null) && montorEmailOf(newTeam)) {
+          const to = montorEmailOf(newTeam);
+          const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]!));
+          const phone = (subset.customer_phone as string) || 'Ej angivet';
+          try {
+            await sendNotificationEmail({
+              to,
+              subject: `NYTT ÄRENDE — ${caseData.address}`,
+              body: `
+              <h2>Nytt ärende tilldelat</h2>
+              <table style="border-collapse:collapse;width:100%">
+                <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${esc(caseData.address)}</td></tr>
+                <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${esc(caseData.customer_name)}</td></tr>
+                <tr><td style="padding:4px 8px;font-weight:bold">Telefon:</td><td style="padding:4px 8px">${esc(phone)}</td></tr>
+                <tr><td style="padding:4px 8px;font-weight:bold">Säljare:</td><td style="padding:4px 8px">${esc(caseData.seller || '')}</td></tr>
+                ${subset.notes ? `<tr><td style="padding:4px 8px;font-weight:bold">Anteckning:</td><td style="padding:4px 8px">${esc(String(subset.notes))}</td></tr>` : ''}
+              </table>
+              <p style="margin-top:16px"><strong>Kontrollmätning klar — ärendet är redo att planeras.</strong></p>
+            `,
+            });
+            await createCaseEvent({
+              case_id: caseData.id,
+              event_type: 'notification',
+              description: `Mail skickat till ${to} (montage-montör tilldelad efter KM)`,
+              created_by: currentUser,
+            });
+          } catch (emailErr) {
+            console.error('Email notification failed:', emailErr);
+            toast.warning('Ärendet sparades men mailet till montören kunde inte skickas');
+          }
+        }
+        return;
+      }
+
       await updateCase(caseData.id, updates as any);
 
       // (n3prenad-synken är borttagen — A-ordrar bor lokalt nu.)
@@ -291,7 +366,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         });
       }
     },
-    onSuccess: () => { setEditingCase(false); invalidate(); toast.success('Ärende uppdaterat!'); },
+    onSuccess: () => {
+      const wasComplete = completeMode;
+      setEditingCase(false);
+      setCompleteMode(false);
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ['visits'] });
+      toast.success(wasComplete ? 'Ärendet kompletterat!' : 'Ärende uppdaterat!');
+    },
     onError: (e: Error) => toast.error('Kunde inte uppdatera: ' + e.message),
   });
 
