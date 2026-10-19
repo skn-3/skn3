@@ -83,6 +83,7 @@ function periodStart(p: Period): Date | null {
 interface CaseEconomy {
   c: CaseRow;
   revenue: number;
+  kmRevenue: number;
   cost: number;
   profit: number;
   margin: number | null;

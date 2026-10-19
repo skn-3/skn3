@@ -2104,6 +2104,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <div className="text-sm font-semibold">
                       {hasRevenue ? `${revenue.toLocaleString('sv-SE')} kr` : '–'}
                     </div>
+                    {kmRevenue > 0 && <div className="text-[10px] text-muted-foreground">varav KM {kmRevenue.toLocaleString('sv-SE')} kr</div>}
                   </div>
                   <div className="rounded-md border p-2">
                     <div className="text-[11px] uppercase text-muted-foreground tracking-wider">Kostnad</div>
