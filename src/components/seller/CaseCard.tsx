@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import type { CaseRow } from '@/lib/supabaseClient';
-import { AlertTriangle, Clock, Ruler, Check, Truck } from 'lucide-react';
+import { AlertTriangle, Clock, Ruler, Check, Truck, ClipboardEdit } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { needsCompletion, requestCompletionOnOpen } from '@/lib/caseCompletion';
 import { sellerStepsFor } from '@/lib/sellerSteps';
 import { differenceInCalendarDays, startOfISOWeek } from 'date-fns';
 import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
@@ -162,9 +164,11 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
 
   const shown = chips.slice(0, MAX_CHIPS);
   const rest = chips.slice(MAX_CHIPS);
-  const attention = stepsMissing || tidsBadge?.urgent || dwellBadge?.tone === 'red' || deliveryBadge?.tone === 'red';
+  const mustComplete = !hideFinancials && needsCompletion(caseData as any);
+  const attention = mustComplete || stepsMissing || tidsBadge?.urgent || dwellBadge?.tone === 'red' || deliveryBadge?.tone === 'red';
 
   return (
+    <div className="flex flex-col gap-1.5">
     <button
       onClick={onClick}
       className={`w-full text-left rounded-xl border bg-card p-3.5 shadow-card card-lift animate-fade-up flex flex-col gap-2 ${
@@ -212,5 +216,17 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
 
       <KlimatKompenseradBadge caseId={caseData.id} compact />
     </button>
+    {mustComplete && (
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full min-h-[44px] border-destructive/50 text-destructive"
+        onClick={() => { requestCompletionOnOpen(caseData.id); onClick(); }}
+      >
+        <ClipboardEdit className="h-4 w-4" />
+        Komplettera ärendet
+      </Button>
+    )}
+    </div>
   );
 }

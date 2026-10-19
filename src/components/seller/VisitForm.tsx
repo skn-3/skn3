@@ -187,14 +187,9 @@ export function VisitForm({ sellerName }: VisitFormProps) {
 
   // ===== Gotland-detektion (live på ort + adress) =====
   const isGotland = detectGotland(form.city, form.address);
-  const effectiveTeam = isGotland ? CONGARD_TEAM : form.team || null;
-  const effectiveKmTeam = isGotland ? CONGARD_TEAM : form.km_team || null;
+  const effectiveTeam = isGotland ? CONGARD_TEAM : null;
+  const effectiveKmTeam = isGotland ? CONGARD_TEAM : null;
 
-  // ===== Validering =====
-  const tbNum = form.tb_percent === '' ? null : Number(form.tb_percent);
-  const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
-  const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
-  const [confirmOpen, setConfirmOpen] = useState(false);
   // Tidig trädclaim: besöks-id genereras i förväg så att claimen (event_ref = besöks-id)
   // återanvänds när besöket sparas — servern deduplicerar och drar av besöksträdet vid signering.
   const [preVisitId, setPreVisitId] = useState<string>(() => crypto.randomUUID());
@@ -236,7 +231,6 @@ export function VisitForm({ sellerName }: VisitFormProps) {
     (form.result !== 'aterkoppla' || !!form.follow_up_date) &&
     (form.result !== 'signerat' ||
       (!!form.city.trim() &&
-        !tbInvalid &&
         unitsValid &&
         (!form.future_job || (!!form.future_job_description.trim() && !!form.future_job_date))));
 
@@ -278,20 +272,21 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       try {
         newCase = await createCase({
           customer_name: form.customer_name,
-          customer_phone: form.customer_phone,
+          // Telefon kompletteras efter KM; behåller ev. förifyllt nummer från befintlig order (kolumnen är NOT NULL).
+          customer_phone: form.customer_phone || '',
           customer_email: form.customer_email.trim() || null,
           address: form.address,
           city: form.city,
           offer_number: form.offer_number || null,
-          order_value: form.order_value ? Number(form.order_value) : null,
-          tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
-          extra_hours_sold: Number(form.extra_hours_sold) || 0,
+          order_value: null,
+          tb_percent: null,
+          extra_hours_sold: 0,
           units: form.units !== '' ? Math.max(0, Math.floor(Number(form.units))) : null,
           team: effectiveTeam,
           km_team: effectiveKmTeam,
           is_gotland: isGotland,
-          google_drive_link: form.google_drive_link || null,
-          notes: form.notes || null,
+          google_drive_link: null,
+          notes: null,
           seller: sellerName,
           status: 'vantar_km',
           media_consent: form.media_consent,
@@ -319,8 +314,8 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           customer_name: form.customer_name,
           seller: sellerName,
           result: 'signerat',
-          order_value: form.order_value ? Number(form.order_value) : null,
-          notes: form.notes || null,
+          order_value: null,
+          notes: null,
           case_id: newCase.id,
         } as any);
       } catch (visitErr: any) {
@@ -362,36 +357,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
         });
         if (fjErr) console.error('future_jobs insert failed:', fjErr);
       }
-
-      // 4) Montörmail
-      if (effectiveTeam && montorEmailOf(effectiveTeam)) {
-        try {
-          await sendNotificationEmail({
-            to: montorEmailOf(effectiveTeam),
-            subject: `NYTT ÄRENDE — ${form.address}`,
-            body: `
-              <h2>Nytt ärende tilldelat</h2>
-              <table style="border-collapse:collapse;width:100%">
-                <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${form.address}</td></tr>
-                <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${form.customer_name}</td></tr>
-                <tr><td style="padding:4px 8px;font-weight:bold">Telefon:</td><td style="padding:4px 8px">${form.customer_phone}</td></tr>
-                <tr><td style="padding:4px 8px;font-weight:bold">Säljare:</td><td style="padding:4px 8px">${sellerName}</td></tr>
-                ${form.notes ? `<tr><td style="padding:4px 8px;font-weight:bold">Anteckning:</td><td style="padding:4px 8px">${form.notes}</td></tr>` : ''}
-              </table>
-              <p style="margin-top:16px"><strong>Vänligen boka kontrollmätning.</strong></p>
-            `,
-          });
-          await createCaseEvent({
-            case_id: newCase.id,
-            event_type: 'notification',
-            description: `Mail skickat till ${montorEmailOf(effectiveTeam!)} (nytt ärende)`,
-            created_by: sellerName,
-          });
-        } catch (emailErr) {
-          console.error('Email notification failed:', emailErr);
-          toast.warning('Ärendet skapades men mailet kunde inte skickas');
-        }
-      }
+      // Montörmailet skickas när montage-montör tilldelas i "Komplettera ärendet" (efter KM).
 
       // Anonyma trädhändelser — besök(1) + signering(enheter − 1; servern drar av besöksträdet och hoppar över vid 0)
       // Besökshändelsen är idempotent på event_ref = besöks-id (redan skickad om QR:en visats).
@@ -425,10 +391,9 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           category: 'case',
           description: `Signerat besök + ärende skapat — ${form.address}`,
           case_id: newCase.id,
-          metadata: { visit_id: (visit as any)?.id, order_value: form.order_value || null },
+          metadata: { visit_id: (visit as any)?.id },
         });
-        const ov = form.order_value ? Number(form.order_value) : undefined;
-        celebrateSignedDeal(ov);
+        celebrateSignedDeal();
         toast.success('Besök + ärende skapat!');
       } else {
         logActivity({
@@ -456,10 +421,6 @@ export function VisitForm({ sellerName }: VisitFormProps) {
   });
 
   const handleSubmit = () => {
-    if (form.result === 'signerat' && ovNum > 500_000) {
-      setConfirmOpen(true);
-      return;
-    }
     mutation.mutate();
   };
 
@@ -715,14 +676,6 @@ export function VisitForm({ sellerName }: VisitFormProps) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label>Telefon</Label>
-                  <Input
-                    type="tel"
-                    value={form.customer_phone}
-                    onChange={(e) => update('customer_phone', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
                   <Label>Ort *</Label>
                   <Input value={form.city} onChange={(e) => update('city', e.target.value)} />
                 </div>
@@ -733,103 +686,10 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                     onChange={(e) => update('offer_number', e.target.value)}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>
-                    Ordervärde (kr){' '}
-                    <span className="text-muted-foreground text-xs ml-1">ex moms</span>
-                  </Label>
-                  <Input
-                    type="number"
-                    value={form.order_value}
-                    onChange={(e) => update('order_value', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>TB (%)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={form.tb_percent}
-                    onChange={(e) => update('tb_percent', e.target.value)}
-                  />
-                  {tbInvalid && (
-                    <p className="text-xs text-destructive">
-                      TB% måste vara mellan 0 och 100. Skrev du 160 istället för 16?
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Extra timmar sålda till kund (á {HOUR_RATE} kr/st)</Label>
-                  <Input
-                    type="number"
-                    value={form.extra_hours_sold}
-                    onChange={(e) => update('extra_hours_sold', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>KM-montör (valfritt)</Label>
-                  <Select
-                    value={(isGotland ? CONGARD_TEAM : form.km_team) || '__none__'}
-                    onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}
-                    disabled={isGotland}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Ingen vald" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— Ingen vald —</SelectItem>
-                      {MONTORS.map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {isGotland && (
-                    <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Montage-montör (valfritt)</Label>
-                  <Select
-                    value={(isGotland ? CONGARD_TEAM : form.team) || '__none__'}
-                    onValueChange={(v) => update('team', v === '__none__' ? '' : v)}
-                    disabled={isGotland}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Ingen vald" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— Ingen vald —</SelectItem>
-                      {MONTORS.map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {isGotland && (
-                    <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>
-                  )}
-                </div>
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label>Google Drive-länk</Label>
-                  <Input
-                    value={form.google_drive_link}
-                    onChange={(e) => update('google_drive_link', e.target.value)}
-                  />
-                </div>
               </div>
-
-              <div className="space-y-1.5">
-                <Label>Anteckning</Label>
-                <Textarea
-                  value={form.notes}
-                  onChange={(e) => update('notes', e.target.value)}
-                  rows={3}
-                />
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Telefon, ordervärde, TB, montörer m.m. kompletteras efter kontrollmätningen.
+              </p>
 
               <div className="space-y-2 rounded-lg border bg-card/60 p-3">
                 <h3 className="text-sm font-semibold text-foreground">Att tänka på vid montage</h3>
@@ -909,28 +769,6 @@ export function VisitForm({ sellerName }: VisitFormProps) {
             : 'Spara besök'}
       </Button>
 
-
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Bekräfta ordervärde</AlertDialogTitle>
-            <AlertDialogDescription>
-              Du har angett {formatAmount(ovNum)} — stämmer det? Detta är ovanligt högt.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Avbryt, rätta värdet</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setConfirmOpen(false);
-                mutation.mutate();
-              }}
-            >
-              Ja, värdet stämmer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
