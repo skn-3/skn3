@@ -9,7 +9,9 @@ import {
   createCaseEvent,
   updateCase,
   sendNotificationEmail,
+  fetchRecentOwnDeviations,
 } from '@/lib/supabaseClient';
+import { findDuplicateDeviation, DEVIATION_DEDUP_WINDOW_MS } from '@/lib/deviationDedup';
 import {
   DEVIATION_TYPES,
   DEVIATION_RESPONSIBLE,
@@ -109,94 +111,162 @@ export default function RapporteraProblem() {
       if (!responsible) throw new Error('Välj ansvarig');
 
       const isReklam = type === 'reklamation';
-
-      // Prioritet och titel är egna kolumner (Ärendecenter). Bollen hamnar hos kontoret via databastrigger.
-      const deviation = await createDeviation({
-        case_id: caseData.id,
-        type,
-        description,
-        responsible,
-        created_by: currentUser,
-        priority,
-        title: description.trim().split('\n')[0].replace(/\s+/g, ' ').slice(0, 80),
-        action_log: [
-          { at: new Date().toISOString(), by: currentUser, action: 'Rapporterad' },
-        ] as any,
-      } as any);
-
-      const updates: any = {};
-      if (cost && Number(cost) > 0) updates.cost = Number(cost);
-
-      let imageUrls: string[] = [];
-      if (files.length > 0) {
-        imageUrls = await uploadDeviationImages(caseData.id, deviation.id, files);
-        updates.image_urls = imageUrls;
-      }
-      if (Object.keys(updates).length > 0) {
-        await updateDeviation(deviation.id, updates);
-      }
-
       const typLabel = DEVIATION_TYPES.find((d) => d.value === type)?.label || type;
-      await createCaseEvent({
-        case_id: caseData.id,
-        event_type: 'deviation',
-        description: isReklam
-          ? `Reklamation skapad: ${description}`
-          : `Avvikelse skapad: ${typLabel} — ${description}`,
-        created_by: currentUser,
-      });
+      const costNum = cost && Number(cost) > 0 ? Number(cost) : null;
 
-      if (isReklam) {
-        await updateCase(caseData.id, { status: 'pausad' });
-        await createCaseEvent({
-          case_id: caseData.id,
-          event_type: 'status_change',
-          description: 'Status ändrad till Pausad (reklamation)',
-          created_by: currentUser,
-        });
-      }
-
-      // Email notification
+      // Dubblettspärr: samma ärende + rapportör + beskrivning inom 15 min återanvänds.
+      let existing: Awaited<ReturnType<typeof fetchRecentOwnDeviations>>[number] | null = null;
       try {
-        const rows = buildRows(typLabel, isReklam);
-        if (imageUrls.length > 0) {
-          rows.push({ label: 'Bilder', value: `${imageUrls.length} bild(er) bifogade` });
-        }
-        await sendNotificationEmail({
-          to: COORDINATOR_EMAIL,
-          cc: COORDINATOR_CC,
-          subject: `${isReklam ? 'NY REKLAMATION' : 'NY AVVIKELSE'} — ${caseData.address}`,
-          heading: isReklam ? 'Ny reklamation' : 'Ny avvikelse',
-          rows,
-          callToAction: 'Vänligen granska ärendet.',
-        });
-        await createCaseEvent({
+        const recent = await fetchRecentOwnDeviations(caseData.id, currentUser, DEVIATION_DEDUP_WINDOW_MS);
+        existing = findDuplicateDeviation(recent as any[], {
           case_id: caseData.id,
-          event_type: 'notification',
-          description: `Mail skickat till ${COORDINATOR_EMAIL} (${isReklam ? 'reklamation' : 'avvikelse'})`,
           created_by: currentUser,
+          description,
         });
-      } catch (emailErr) {
-        console.error('Email notification failed:', emailErr);
+      } catch (e) {
+        console.error('Dubblettkontroll misslyckades:', e);
       }
 
-      return { deviation, isReklam, typLabel: DEVIATION_TYPES.find((d) => d.value === type)?.label || type };
+      const reused = !!existing;
+      let deviationId: string;
+
+      if (existing) {
+        deviationId = existing.id;
+      } else {
+        // 1) Skapa avvikelsen. Prioritet och titel är egna kolumner (Ärendecenter). Bollen hamnar hos kontoret via databastrigger.
+        const deviation = await createDeviation({
+          case_id: caseData.id,
+          type,
+          description,
+          responsible,
+          created_by: currentUser,
+          priority,
+          cost: costNum,
+          title: description.trim().split('\n')[0].replace(/\s+/g, ' ').slice(0, 80),
+          action_log: [
+            { at: new Date().toISOString(), by: currentUser, action: 'Rapporterad' },
+          ] as any,
+        } as any);
+        deviationId = deviation.id;
+
+        // Från och med här finns avvikelsen — inga fel ska längre bjuda in till ett nytt försök.
+        // 2) Händelserad
+        try {
+          await createCaseEvent({
+            case_id: caseData.id,
+            deviation_id: deviationId,
+            event_type: 'deviation',
+            description: isReklam
+              ? `Reklamation skapad: ${description}`
+              : `Avvikelse skapad: ${typLabel} — ${description}`,
+            created_by: currentUser,
+          } as any);
+        } catch (e) {
+          console.error('createCaseEvent (deviation) failed:', e);
+        }
+
+        // 3) Aktivitetslogg
+        await logActivity({
+          action: 'deviation_created',
+          category: 'deviation',
+          description: `${isReklam ? 'Reklamation' : 'Avvikelse'} skapad: ${typLabel} — ${description.slice(0, 80)}`,
+          case_id: caseData.id,
+          deviation_id: deviationId,
+          metadata: { type, responsible, priority, cost: costNum ?? 0 },
+        });
+
+        if (isReklam) {
+          try {
+            await updateCase(caseData.id, { status: 'pausad' });
+            await createCaseEvent({
+              case_id: caseData.id,
+              event_type: 'status_change',
+              description: 'Status ändrad till Pausad (reklamation)',
+              created_by: currentUser,
+            });
+          } catch (e) {
+            console.error('Pausa ärende vid reklamation misslyckades:', e);
+          }
+        }
+      }
+
+      // 4) Bilder sist — ett fel här får aldrig ta bort eller dölja avvikelsen.
+      let imagePaths: string[] = [];
+      let imagesFailed = false;
+      if (files.length > 0) {
+        try {
+          imagePaths = await uploadDeviationImages(caseData.id, deviationId, files);
+          const merged = [...((existing?.image_urls as string[] | null) ?? []), ...imagePaths];
+          await updateDeviation(deviationId, { image_urls: merged });
+        } catch (e) {
+          imagesFailed = true;
+          console.error('Bilduppladdning misslyckades:', e);
+          const msg = e instanceof Error ? e.message : String(e);
+          try {
+            await createCaseEvent({
+              case_id: caseData.id,
+              deviation_id: deviationId,
+              event_type: 'note',
+              description: `Bilderna till avvikelsen kunde inte laddas upp (${files.length} st): ${msg}`,
+              created_by: currentUser,
+            } as any);
+          } catch (evErr) {
+            console.error('createCaseEvent (bildfel) failed:', evErr);
+          }
+          logActivity({
+            action: 'deviation_images_failed',
+            category: 'deviation',
+            description: `Bilduppladdning misslyckades för avvikelse (${files.length} st)`,
+            case_id: caseData.id,
+            deviation_id: deviationId,
+            metadata: { error: msg, files: files.length },
+          });
+        }
+      }
+
+      // 5) Mail till kontoret (nytt ärende, eller bildfel på återanvänt ärende)
+      if (!reused || imagesFailed) {
+        try {
+          const rows = buildRows(typLabel, isReklam);
+          if (imagesFailed) {
+            rows.push({ label: 'Bilder', value: `${files.length} bild(er) kunde INTE laddas upp — be montören skicka dem på annat sätt`, badge: { color: '#991B1B', bg: '#FEE2E2' } });
+          } else if (imagePaths.length > 0) {
+            rows.push({ label: 'Bilder', value: `${imagePaths.length} bild(er) bifogade` });
+          }
+          await sendNotificationEmail({
+            to: COORDINATOR_EMAIL,
+            cc: COORDINATOR_CC,
+            subject: `${reused ? 'BILDFEL' : isReklam ? 'NY REKLAMATION' : 'NY AVVIKELSE'} — ${caseData.address}`,
+            heading: reused ? 'Bilder kunde inte laddas upp' : isReklam ? 'Ny reklamation' : 'Ny avvikelse',
+            rows,
+            callToAction: 'Vänligen granska ärendet.',
+          });
+          await createCaseEvent({
+            case_id: caseData.id,
+            event_type: 'notification',
+            description: `Mail skickat till ${COORDINATOR_EMAIL} (${isReklam ? 'reklamation' : 'avvikelse'})`,
+            created_by: currentUser,
+          });
+        } catch (emailErr) {
+          console.error('Email notification failed:', emailErr);
+        }
+      }
+
+      return { reused, imagesFailed, uploaded: imagePaths.length };
     },
-    onSuccess: ({ deviation, isReklam, typLabel }) => {
+    onSuccess: ({ reused, imagesFailed, uploaded }) => {
       queryClient.invalidateQueries({ queryKey: ['case', caseId] });
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['deviations', caseId] });
       queryClient.invalidateQueries({ queryKey: ['deviations_bulk'] });
       queryClient.invalidateQueries({ queryKey: ['case_events', caseId] });
-      logActivity({
-        action: 'deviation_created',
-        category: 'deviation',
-        description: `${isReklam ? 'Reklamation' : 'Avvikelse'} skapad: ${typLabel} — ${description.slice(0, 80)}`,
-        case_id: caseId,
-        deviation_id: deviation?.id,
-        metadata: { type, responsible, priority, cost: cost ? Number(cost) : 0 },
-      });
-      toast.success('Problem rapporterat');
+      if (imagesFailed) {
+        toast.warning('Problemet är rapporterat men bilderna kunde inte laddas upp — kontoret är informerat', { duration: 8000 });
+      } else if (reused) {
+        toast.success(uploaded > 0 ? 'Problemet var redan rapporterat — bilderna är tillagda' : 'Problemet var redan rapporterat');
+      } else {
+        toast.success('Problem rapporterat');
+      }
       navigate(`/?case=${caseId}`);
     },
     onError: (e: Error) => toast.error(e.message || 'Kunde inte spara'),

@@ -220,6 +220,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       await sendMontorAssignmentEmail(caseData, 'km', currentUser, { km_date: kmDate });
     },
     onSuccess: () => { invalidate(); toast.success('KM bokad'); },
+    onError: (e: Error) => toast.error(`KM kunde inte bokas: ${e.message || 'okänt fel'}`),
   });
 
   const kmReportMutation = useMutation({
@@ -269,6 +270,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       }
     },
     onSuccess: () => { invalidate(); toast.success('KM rapporterad'); },
+    onError: (e: Error) => toast.error(`KM kunde inte rapporteras: ${e.message || 'okänt fel'}`),
   });
 
   const bookMontageMutation = useMutation({
@@ -353,31 +355,43 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         category: costCategory,
         responsible: costCategory === 'reklamation' ? (costResponsible || null) : null,
       });
+      // Kostnaden finns nu — ett kvittofel får inte rapportera hela flödet som misslyckat.
+      let receiptFailed = false;
       if (costFile) {
-        const url = await uploadReceiptImage(caseData.id, cost.id, costFile);
-        // Update the cost with receipt URL - use supabase directly
-        const { supabase } = await import('@/integrations/supabase/client');
-        await supabase.from('case_costs').update({ receipt_url: url }).eq('id', cost.id);
+        try {
+          const url = await uploadReceiptImage(caseData.id, cost.id, costFile);
+          const { supabase } = await import('@/integrations/supabase/client');
+          const { error: updErr } = await supabase.from('case_costs').update({ receipt_url: url }).eq('id', cost.id);
+          if (updErr) throw updErr;
+        } catch (e) {
+          receiptFailed = true;
+          console.error('Kvittouppladdning misslyckades:', e);
+        }
       }
       const respLabel = costCategory === 'reklamation' && costResponsible
         ? ` (ansvar: ${DEVIATION_RESPONSIBLE.find(r => r.value === costResponsible)?.label || costResponsible})`
         : '';
       const catLabel = costCategory === 'reklamation' ? ` [Reklamation${respLabel}]` : '';
-      await createCaseEvent({
-        case_id: caseData.id,
-        event_type: 'cost',
-        description: `Kostnad tillagd${catLabel}: ${costDesc} — ${Number(costAmount).toLocaleString('sv-SE')} kr ex moms`,
-        created_by: currentUser,
-      });
+      try {
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'cost',
+          description: `Kostnad tillagd${catLabel}: ${costDesc} — ${Number(costAmount).toLocaleString('sv-SE')} kr ex moms${receiptFailed ? ' (kvittobilden kunde inte laddas upp)' : ''}`,
+          created_by: currentUser,
+        });
+      } catch (e) {
+        console.error('createCaseEvent (cost) failed:', e);
+      }
       logActivity({
         category: 'case',
         action: 'cost_added',
         description: `Registrerade kostnad${catLabel} (${Number(costAmount).toLocaleString('sv-SE')} kr) för ${caseData.address}`,
         case_id: caseData.id,
-        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile, category: costCategory, responsible: costCategory === 'reklamation' ? costResponsible : null },
+        metadata: { amount: Number(costAmount), description: costDesc, has_receipt: !!costFile && !receiptFailed, receipt_failed: receiptFailed, category: costCategory, responsible: costCategory === 'reklamation' ? costResponsible : null },
       });
+      return { receiptFailed };
     },
-    onSuccess: () => {
+    onSuccess: ({ receiptFailed }) => {
       setShowCost(false);
       setCostDesc('');
       setCostAmount('');
@@ -385,7 +399,11 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       setCostCategory('ovrigt');
       setCostResponsible('');
       invalidate();
-      toast.success('Kostnad sparad');
+      if (receiptFailed) {
+        toast.warning('Kostnaden är sparad men kvittobilden kunde inte laddas upp — kontoret ser det i historiken', { duration: 8000 });
+      } else {
+        toast.success('Kostnad sparad');
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -430,6 +448,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       });
     },
     onSuccess: () => { setNote(''); invalidate(); toast.success('Anteckning sparad'); },
+    onError: (e: Error) => toast.error(`Anteckningen kunde inte sparas: ${e.message || 'okänt fel'}`),
   });
 
 

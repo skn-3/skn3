@@ -151,13 +151,16 @@ export async function deleteVisit(id: string) {
 // Sanitize filename for storage
 const sanitizeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
-// Upload images to case-images bucket — returns object paths (not public URLs)
+// Upload images to case-images bucket — returns object paths (not public URLs).
+// Ingen upsert: sökvägen är unik per avvikelse + tidsstämpel, så samma filnamn kan
+// läggas till på en återanvänd avvikelse (dubblettspärren) utan krock.
 export async function uploadDeviationImages(caseId: string, deviationId: string, files: File[]): Promise<string[]> {
   const paths: string[] = [];
-  for (const file of files) {
+  const stamp = Date.now();
+  for (const [i, file] of files.entries()) {
     const safeName = sanitizeFileName(file.name);
-    const path = `${caseId}/${deviationId}/${safeName}`;
-    const { error } = await supabase.storage.from('case-images').upload(path, file, { upsert: true });
+    const path = `${caseId}/${deviationId}/${stamp}_${i}_${safeName}`;
+    const { error } = await supabase.storage.from('case-images').upload(path, file);
     if (error) throw error;
     paths.push(path);
   }
@@ -168,9 +171,23 @@ export async function uploadDeviationImages(caseId: string, deviationId: string,
 export async function uploadReceiptImage(caseId: string, costId: string, file: File): Promise<string> {
   const safeName = sanitizeFileName(file.name);
   const path = `${caseId}/receipts/${costId}_${safeName}`;
-  const { error } = await supabase.storage.from('case-images').upload(path, file, { upsert: true });
+  const { error } = await supabase.storage.from('case-images').upload(path, file);
   if (error) throw error;
   return path;
+}
+
+/** Montörens egna avvikelser på ärendet de senaste `windowMs` (för dubblettspärren). */
+export async function fetchRecentOwnDeviations(caseId: string, createdBy: string, windowMs: number) {
+  const since = new Date(Date.now() - windowMs).toISOString();
+  const { data, error } = await supabase
+    .from('deviations')
+    .select('id, case_id, created_by, description, created_at, image_urls')
+    .eq('case_id', caseId)
+    .eq('created_by', createdBy)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
 }
 
 // Case costs
