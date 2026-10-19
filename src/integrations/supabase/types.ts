@@ -333,6 +333,7 @@ export type Database = {
           invoice_number: string | null
           line_items: Json | null
           order_number: string | null
+          payout_kind: string | null
           total_amount: number | null
           updated_at: string
           uploaded_by: string | null
@@ -350,6 +351,7 @@ export type Database = {
           invoice_number?: string | null
           line_items?: Json | null
           order_number?: string | null
+          payout_kind?: string | null
           total_amount?: number | null
           updated_at?: string
           uploaded_by?: string | null
@@ -367,6 +369,7 @@ export type Database = {
           invoice_number?: string | null
           line_items?: Json | null
           order_number?: string | null
+          payout_kind?: string | null
           total_amount?: number | null
           updated_at?: string
           uploaded_by?: string | null
