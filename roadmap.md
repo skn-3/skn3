@@ -1,5 +1,8 @@
 # Roadmap
 
+- [ ] Utbetalningar: aktivt valda extrajobb, gemensam självfaktura per team och oförändrad KM-logik.
+- [ ] Utbetalningar: enhetstester och kontroller; inloggat preview-test utelämnas på användarens begäran.
+
 - [x] Offertflödet del A: levererad textlogik/PDF inlagd, fyra font-hashar matchar, public-offer deployad, typkontroll och 76 tester gröna; PDF visuellt kontrollerad (nästa-steg-rutan bryts till egen sida i testexemplet, mallen lämnad oförändrad).
 
 - [x] Design Del B: ersätt fem filer för inloggning, pipeline och ärendekort enligt levererad text.
