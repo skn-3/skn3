@@ -1762,7 +1762,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setEditingCase(false)} disabled={editCaseMutation.isPending}>Avbryt</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setEditingCase(false); setCompleteMode(false); }} disabled={editCaseMutation.isPending}>Avbryt</Button>
                   <Button
                     size="sm"
                     onClick={() => {
