@@ -13,6 +13,8 @@ import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { createAndSendDebitInvoice } from '@/lib/debitInvoice';
 import { logActivity } from '@/lib/activityLog';
 import { HOUR_RATE } from '@/lib/constants';
+import { Checkbox } from '@/components/ui/checkbox';
+import { groupPayoutLines, payoutRowTotal as rowTotal, payoutRowWithHour as rowTotalWithHour, selectedPayoutRows, planPayoutInvoices, type PayoutLineItem } from '@/lib/payoutGroups';
 
 interface Props { currentUser: string }
 
@@ -78,19 +80,13 @@ function findNameMatches(allCases: CaseRow[], name: string | null, limit = 5): C
   return out.slice(0, limit);
 }
 
-type LineItem = {
-  order_number: string | null;
-  customer_name?: string | null;
-  name: string | null;
-  note: string | null;
-  qty: number | null;
-  unit_price: number | null;
-  amount: number | null;
-};
+type LineItem = PayoutLineItem;
 
 type CaseChoice = { kind: 'case'; case: CaseRow } | { kind: 'unlinked' } | null;
 
 type KmRow = {
+  kind: 'km' | 'extra';
+  included: boolean;
   key: string;
   invoice_number: string;
   invoice_date: string | null;
@@ -109,22 +105,10 @@ type KmRow = {
   teamId: string | null;
 };
 
-const isKm = (li: LineItem) =>
-  `${li.name ?? ''} ${li.note ?? ''}`.toLowerCase().includes('kontrollmätning');
 const txt = (li: LineItem) => `${li.name ?? ''} ${li.note ?? ''}`.toLowerCase();
 const isBil = (li: LineItem) => txt(li).includes('bilers');
 const isRestid = (li: LineItem) => txt(li).includes('restid');
 const isGrund = (li: LineItem) => txt(li).includes('grund');
-
-/** Mockfjärds-belopp för raden — används i intäktsdokumentet (utan timtillägg). */
-function rowTotal(r: KmRow) {
-  return Math.round((r.kmQty ?? 0) * (r.bilRate + r.restidRate) + r.grundavgift + r.enheterQty * r.enheterRate);
-}
-
-/** Radsumma inklusive automatiskt arbetstidstillägg (1 tim per kontrollmätning). */
-function rowTotalWithHour(r: KmRow) {
-  return rowTotal(r) + HOUR_RATE;
-}
 
 function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
 function addDays(d: Date, n: number) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
@@ -136,7 +120,6 @@ export function KmPayoutView({ currentUser }: Props) {
 
   const [stage, setStage] = useState<'upload' | 'review' | 'result'>('upload');
   const [progress, setProgress] = useState<string | null>(null);
-  const [skipped, setSkipped] = useState(0);
   const [rows, setRows] = useState<KmRow[]>([]);
   const [search, setSearch] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -148,7 +131,7 @@ export function KmPayoutView({ currentUser }: Props) {
   const [distCalc, setDistCalc] = useState<Record<string, { status: 'loading' | 'done' | 'error'; km?: number; label?: string; suspicious?: boolean; error?: string }>>({});
 
   const reset = () => {
-    setStage('upload'); setRows([]); setSkipped(0); setProgress(null); setResult(null); setSearch({});
+    setStage('upload'); setRows([]); setProgress(null); setResult(null); setSearch({});
     setDistCalc({});
   };
 
@@ -171,7 +154,7 @@ export function KmPayoutView({ currentUser }: Props) {
   useEffect(() => {
     if (stage !== 'review') return;
     const next = rows.find((r) =>
-      r.kmQty === 100 &&
+      r.kind === 'km' && r.kmQty === 100 &&
       r.caseChoice?.kind === 'case' &&
       r.teamId &&
       teams.find((t) => t.id === r.teamId)?.address &&
@@ -186,7 +169,6 @@ export function KmPayoutView({ currentUser }: Props) {
     if (list.length === 0) { toast.error('Välj minst en PDF'); return; }
     setBusy(true);
     const collected: KmRow[] = [];
-    let skippedCount = 0;
     try {
       for (let i = 0; i < list.length; i++) {
         const f = list[i];
@@ -207,18 +189,7 @@ export function KmPayoutView({ currentUser }: Props) {
         if (data?.error) throw new Error(data.error);
 
         const items: LineItem[] = Array.isArray(data.line_items) ? data.line_items : [];
-        const kmItems = items.filter(isKm);
-        skippedCount += items.length - kmItems.length;
-
-        const byOrder = new Map<string, LineItem[]>();
-        for (const li of kmItems) {
-          const on = (li.order_number ?? '').trim() || '—';
-          const arr = byOrder.get(on) ?? [];
-          arr.push(li);
-          byOrder.set(on, arr);
-        }
-
-        for (const [on, group] of byOrder) {
+        for (const { kind, included, order_number: on, lines: group } of groupPayoutLines(items)) {
           const bil = group.find(isBil) ?? null;
           const restid = group.find(isRestid) ?? null;
           const grund = group.filter(isGrund).reduce((s, l) => s + (Number(l.amount) || 0), 0);
@@ -232,7 +203,9 @@ export function KmPayoutView({ currentUser }: Props) {
           const strong = auto[0] && auto[0].score >= 90 && /exakt namn/i.test(auto[0].reason) ? auto[0].case : null;
 
           collected.push({
-            key: `${path}|${on}`,
+            key: `${path}|${kind}|${on}`,
+            kind,
+            included,
             invoice_number: data.invoice_number ?? '',
             invoice_date: data.invoice_date ?? null,
             file_path: path,
@@ -253,12 +226,11 @@ export function KmPayoutView({ currentUser }: Props) {
       }
 
       if (collected.length === 0) {
-        toast.error('Inga kontrollmätningsrader hittades i filerna');
+        toast.error('Inga utbetalningsrader hittades i filerna');
         setBusy(false); setProgress(null);
         return;
       }
       setRows(collected);
-      setSkipped(skippedCount);
       setStage('review');
     } catch (e: any) {
       console.error(e);
@@ -272,16 +244,19 @@ export function KmPayoutView({ currentUser }: Props) {
   const patch = (key: string, p: Partial<KmRow>) =>
     setRows(rs => rs.map(r => (r.key === key ? { ...r, ...p } : r)));
 
-  const missing = rows.filter(r => !r.caseChoice || !r.teamId).length;
-  const grandTotal = useMemo(() => rows.reduce((s, r) => s + rowTotalWithHour(r), 0), [rows]);
+  const selectedRows = useMemo(() => selectedPayoutRows(rows), [rows]);
+  const skipped = rows.filter(r => r.kind === 'extra' && !r.included).reduce((sum, r) => sum + r.lines.length, 0);
+  const missing = selectedRows.filter(r => !r.caseChoice || !r.teamId).length;
+  const grandTotal = useMemo(() => selectedRows.reduce((sum, r) => sum + rowTotalWithHour(r), 0), [selectedRows]);
 
   async function book() {
+    if (busy || missing > 0 || selectedRows.length === 0) return;
     setBusy(true);
     try {
       let unlinked = 0;
-      for (const r of rows) {
+      for (const r of selectedRows) {
         const adjusted = r.lines.map(li => {
-          if (isBil(li) || isRestid(li)) {
+          if (r.kind === 'km' && (isBil(li) || isRestid(li))) {
             const qty = r.kmQty ?? 0;
             const price = Number(li.unit_price) || 0;
             return { ...li, qty, amount: Math.round(qty * price) };
@@ -308,41 +283,20 @@ export function KmPayoutView({ currentUser }: Props) {
         if (error) throw error;
       }
 
-      // Montörsfakturor per team
-      const byTeam = new Map<string, KmRow[]>();
-      for (const r of rows) {
-        if (!r.teamId) continue;
-        const arr = byTeam.get(r.teamId) ?? [];
-        arr.push(r);
-        byTeam.set(r.teamId, arr);
-      }
+      // En gemensam självfaktura per team för KM och aktivt valda extrajobb.
+      const plans = planPayoutInvoices(selectedRows);
 
       const today = new Date();
       const invoices: { team: string; invoice_number: string; total: number }[] = [];
-      for (const [teamId, teamRows] of byTeam) {
-        const team = teams.find(t => t.id === teamId);
+      for (const plan of plans) {
+        const team = teams.find(t => t.id === plan.teamId);
         if (!team) continue;
-        const nums = Array.from(new Set(teamRows.map(r => r.invoice_number).filter(Boolean)));
-        const customerLines = teamRows.map(r => ({
-          description: `Kontrollmätning — ${r.customer_name || 'Okänd kund'} (${r.kmQty ?? '—'} km, ${r.enheterQty} enh)`,
-          qty: 1,
-          unit: 'st',
-          unit_price: rowTotal(r),
-          amount: rowTotal(r),
-        }));
-        const hourLine = {
-          description: 'Arbetstid kontrollmätning (1 tim per mätning)',
-          qty: teamRows.length,
-          unit: 'tim',
-          unit_price: HOUR_RATE,
-          amount: teamRows.length * HOUR_RATE,
-        };
         const res = await createAndSendDebitInvoice({
           team,
-          title: 'Kontrollmätningar',
-          description: `Avser Mockfjärds faktura ${nums.join(', ')}`,
-          lines: customerLines.map(l => ({ name: l.description, amount: l.amount })),
-          detailedLines: [...customerLines, hourLine],
+          title: plan.title,
+          description: plan.description,
+          lines: plan.lines,
+          detailedLines: plan.detailedLines,
           vatMode: 'omvand',
           date: isoDate(today),
           dueDate: isoDate(addDays(today, 10)),
@@ -355,15 +309,15 @@ export function KmPayoutView({ currentUser }: Props) {
       logActivity({
         action: 'km_payout_booked',
         category: 'data',
-        description: `Bokförde ${rows.length} KM-rader och skapade ${invoices.length} montörsfakturor`,
+        description: `Bokförde ${selectedRows.filter(r => r.kind === 'km').length} KM-grupper och ${selectedRows.filter(r => r.kind === 'extra').length} extrajobbsgrupper och skapade ${invoices.length} montörsfakturor`,
       });
 
-      setResult({ booked: rows.length, unlinked, invoices });
+      setResult({ booked: selectedRows.length, unlinked, invoices });
       setStage('result');
       qc.invalidateQueries({ queryKey: ['unlinked-case-documents'] });
       qc.invalidateQueries({ queryKey: ['payout-docs-map'] });
       qc.invalidateQueries({ queryKey: ['montor_debit_invoices'] });
-      toast.success('KM-utbetalningen är bokförd');
+      toast.success('Utbetalningarna är bokförda');
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Kunde inte bokföra');
@@ -382,7 +336,7 @@ export function KmPayoutView({ currentUser }: Props) {
           className="rounded-lg border-2 border-dashed p-10 text-center bg-muted/30"
         >
           <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm font-medium">Dra hit Mockfjärds KM-fakturor (PDF)</p>
+          <p className="text-sm font-medium">Dra hit Mockfjärds utbetalningar för KM och extrajobb (PDF)</p>
           <p className="text-xs text-muted-foreground mb-4">Flera filer kan laddas upp samtidigt.</p>
           <input
             ref={fileRef}
@@ -436,29 +390,31 @@ export function KmPayoutView({ currentUser }: Props) {
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            {skipped} rader är inte kontrollmätning och hoppas över — använd Importera fakturor för dem.
+            {skipped} obockade rader hoppas över — använd Importera fakturor för dem.
           </AlertDescription>
         </Alert>
       )}
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="text-sm text-muted-foreground">
-          {rows.length} kundrader · totalt <span className="font-medium text-foreground">{fmt(grandTotal)}</span>
+          {selectedRows.length} valda kundgrupper · totalt <span className="font-medium text-foreground">{fmt(grandTotal)}</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center flex-wrap gap-3">
           {missing > 0 && (
             <span className="text-xs text-amber-600 dark:text-amber-400">{missing} kundrader saknar ärendeval eller montör.</span>
           )}
           <Button variant="ghost" onClick={reset} disabled={busy}>Avbryt</Button>
-          <Button onClick={book} disabled={busy || missing > 0} className="gap-2">
+          <Button onClick={book} disabled={busy || missing > 0 || selectedRows.length === 0} className="gap-2">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             Bokför &amp; skapa montörsfakturor
           </Button>
         </div>
       </div>
 
-      <div className="space-y-3">
-        {rows.map(r => {
+      {(['km', 'extra'] as const).map(kind => (
+      <section key={kind} className="space-y-3">
+        <h2 className="text-lg font-semibold">{kind === 'km' ? 'Kontrollmätningar' : 'Extra jobb'}</h2>
+        {rows.filter(r => r.kind === kind).map(r => {
           const candidates = r.caseChoice ? [] : findNameMatches(cases as CaseRow[], r.customer_name || null, 5);
           const q = (search[r.key] ?? '').trim().toLowerCase();
           const searchHits = q
@@ -469,13 +425,19 @@ export function KmPayoutView({ currentUser }: Props) {
             : [];
           const chosenCase = r.caseChoice?.kind === 'case' ? r.caseChoice.case : null;
           const kmTeamHint = (chosenCase as any)?.km_team as string | undefined;
-          const schablon = r.kmQty === 100;
+          const schablon = r.kind === 'km' && r.kmQty === 100;
           const editable = r.bilRate > 0 || r.restidRate > 0;
 
           return (
             <div key={r.key} className="rounded-lg border p-3 space-y-3">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
+                  {r.kind === 'extra' && (
+                    <label className="flex items-center gap-2 min-h-11 text-sm cursor-pointer">
+                      <Checkbox checked={r.included} disabled={busy} onCheckedChange={checked => patch(r.key, { included: checked === true })} />
+                      Ta med
+                    </label>
+                  )}
                   <div className="font-medium">{r.customer_name || 'Okänd kund'}</div>
                   <div className="text-xs text-muted-foreground">
                     Faktura {r.invoice_number || '—'} · Fsg.order {r.order_number}
@@ -484,13 +446,25 @@ export function KmPayoutView({ currentUser }: Props) {
                 <div className="text-right">
                   <div className="text-xs text-muted-foreground">Radsumma</div>
                   <div className="font-semibold">{fmt(rowTotalWithHour(r))}</div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {r.kind === 'km' && <div className="text-[11px] text-muted-foreground mt-0.5">
                     + Arbetstid KM: 1 tim × {fmt(HOUR_RATE)}
-                  </div>
+                  </div>}
                 </div>
               </div>
 
+              {(r.kind === 'km' || r.included) && <>
+              {r.kind === 'extra' && (
+                <div className="space-y-2">
+                  {r.lines.map((line, index) => (
+                    <div key={index} className="grid grid-cols-[minmax(0,1fr)_8rem] gap-3 items-center text-sm">
+                      <div className="min-w-0 break-words">{line.name || line.note || 'Extra arbete'}{line.name && line.note && <div className="text-xs text-muted-foreground">{line.note}</div>}</div>
+                      <Input type="number" step="any" aria-label={`Belopp för ${line.name || line.note || 'Extra arbete'}`} value={line.amount ?? ''} disabled={busy} onChange={e => patch(r.key, { lines: r.lines.map((item, i) => i === index ? { ...item, amount: e.target.value === '' ? null : Number(e.target.value) } : item) })} />
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                {r.kind === 'km' && <>
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">Km</div>
                   {editable ? (
@@ -549,7 +523,7 @@ export function KmPayoutView({ currentUser }: Props) {
                             <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => patch(r.key, { kmQty: dc.km })}>
                               Använd {dc.km}
                             </Button>
-                            <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => patch(r.key, { kmQty: dc.km! * 2 })}>
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => patch(r.key, { kmQty: (dc.km ?? 0) * 2 })}>
                               Använd {dc.km * 2} t/r
                             </Button>
                           </div>
@@ -575,6 +549,7 @@ export function KmPayoutView({ currentUser }: Props) {
                   <div className="text-xs text-muted-foreground mb-1">Enheter</div>
                   <div className="h-8 flex items-center">{r.enheterQty} × {fmt(r.enheterRate)}</div>
                 </div>
+                </>}
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">Montör *</div>
                   <Select value={r.teamId ?? ''} onValueChange={v => patch(r.key, { teamId: v })}>
@@ -609,14 +584,14 @@ export function KmPayoutView({ currentUser }: Props) {
                     {candidates.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {candidates.map(c => (
-                          <button
+                          <Button variant="outline"
                             key={c.case.id}
                             onClick={() => patch(r.key, { caseChoice: { kind: 'case', case: c.case } })}
                             className="text-xs border rounded-md px-2 py-1 hover:bg-muted"
                           >
                             {c.case.customer_name} — {c.case.address}
                             <span className="text-muted-foreground"> · {c.reason}</span>
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     )}
@@ -632,13 +607,13 @@ export function KmPayoutView({ currentUser }: Props) {
                     {searchHits.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {searchHits.map(c => (
-                          <button
+                          <Button variant="outline"
                             key={c.id}
                             onClick={() => patch(r.key, { caseChoice: { kind: 'case', case: c } })}
                             className="text-xs border rounded-md px-2 py-1 hover:bg-muted"
                           >
                             {c.customer_name} — {c.address}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     )}
@@ -648,10 +623,12 @@ export function KmPayoutView({ currentUser }: Props) {
                   </div>
                 )}
               </div>
+              </>}
             </div>
           );
         })}
-      </div>
+      </section>
+      ))}
     </div>
   );
 }
