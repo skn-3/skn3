@@ -1,7 +1,8 @@
 # Roadmap
 
-- [ ] Utbetalningar: aktivt valda extrajobb, gemensam självfaktura per team och oförändrad KM-logik.
-- [ ] Utbetalningar: enhetstester och kontroller; inloggat preview-test utelämnas på användarens begäran.
+- [x] Utbetalningar: aktivt valda extrajobb, gemensam självfaktura per team och oförändrad KM-logik.
+- [x] Utbetalningar: sex nya enhetstester, hela sviten och typkontroll gröna.
+- [ ] Utbetalningar: inloggat preview-test återstår och utelämnas på användarens uttryckliga begäran.
 
 - [x] Offertflödet del A: levererad textlogik/PDF inlagd, fyra font-hashar matchar, public-offer deployad, typkontroll och 76 tester gröna; PDF visuellt kontrollerad (nästa-steg-rutan bryts till egen sida i testexemplet, mallen lämnad oförändrad).
 

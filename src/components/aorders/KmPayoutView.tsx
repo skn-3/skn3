@@ -364,7 +364,7 @@ export function KmPayoutView({ currentUser }: Props) {
           <Check className="h-4 w-4" />
           <AlertDescription>
             {result.booked} kundrader bokförda (varav {result.unlinked} utan koppling — se Okopplade dokument) ·{' '}
-            {result.invoices.length} montörsfakturor skapade och skickade
+            {result.invoices.length} montörsfakturor skapade och skickade · totalt {fmt(result.invoices.reduce((sum, invoice) => sum + invoice.total, 0))}
           </AlertDescription>
         </Alert>
         <div className="rounded-md border divide-y text-sm">
@@ -558,7 +558,7 @@ export function KmPayoutView({ currentUser }: Props) {
                       {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  {kmTeamHint && (
+                  {r.kind === 'km' && kmTeamHint && (
                     <div className="text-[11px] text-muted-foreground mt-1">KM-team enligt ärendet: {kmTeamHint}</div>
                   )}
                 </div>
@@ -587,7 +587,7 @@ export function KmPayoutView({ currentUser }: Props) {
                           <Button variant="outline"
                             key={c.case.id}
                             onClick={() => patch(r.key, { caseChoice: { kind: 'case', case: c.case } })}
-                            className="text-xs border rounded-md px-2 py-1 hover:bg-muted"
+                            className="h-auto min-h-11 whitespace-normal text-left text-xs rounded-md px-2 py-1 flex-wrap justify-start"
                           >
                             {c.case.customer_name} — {c.case.address}
                             <span className="text-muted-foreground"> · {c.reason}</span>
@@ -610,7 +610,7 @@ export function KmPayoutView({ currentUser }: Props) {
                           <Button variant="outline"
                             key={c.id}
                             onClick={() => patch(r.key, { caseChoice: { kind: 'case', case: c } })}
-                            className="text-xs border rounded-md px-2 py-1 hover:bg-muted"
+                            className="h-auto min-h-11 whitespace-normal text-left text-xs rounded-md px-2 py-1 flex-wrap justify-start"
                           >
                             {c.customer_name} — {c.address}
                           </Button>
