@@ -1,3 +1,4 @@
+import { paidDatesByCase } from '@/lib/payoutKind';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight, Banknote as BanknoteIcon } from 'lucide-react';
@@ -85,7 +86,7 @@ export function AOrdersView({ currentUser }: Props) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('case_documents')
-        .select('case_id, invoice_date, created_at')
+        .select('case_id, invoice_date, created_at, payout_kind')
         .eq('doc_type', 'mockfjards_payout');
       if (error) throw error;
       return data ?? [];
@@ -108,16 +109,8 @@ export function AOrdersView({ currentUser }: Props) {
     );
   };
 
-  const paidCaseMap = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const d of payoutDocs as any[]) {
-      if (!d.case_id) continue;
-      const date = d.invoice_date || (d.created_at ? String(d.created_at).slice(0, 10) : '');
-      const prev = m.get(d.case_id);
-      if (!prev || date > prev) m.set(d.case_id, date);
-    }
-    return m;
-  }, [payoutDocs]);
+  // Bara montageutbetalningar betyder att montaget är betalt; KM visas neutralt.
+  const { montage: paidCaseMap, km: kmPaidMap } = useMemo(() => paidDatesByCase(payoutDocs as any[]), [payoutDocs]);
 
   const pending = useMemo(() => orders.filter(o => !o.team_id), [orders]);
   const totalPending = useMemo(() => pending.reduce((s, o) => s + Number(o.total_amount || 0), 0), [pending]);
@@ -422,6 +415,9 @@ export function AOrdersView({ currentUser }: Props) {
                             MF betald {paidCaseMap.get(o.case_id)}
                             {o.status === 'order' && <span className="text-amber-700 dark:text-amber-300 font-semibold"> · dags att fakturera montör</span>}
                           </div>
+                        )}
+                        {o.case_id && !paidCaseMap.has(o.case_id) && kmPaidMap.has(o.case_id) && (
+                          <div className="text-[10px] mt-1 text-muted-foreground">KM betald {kmPaidMap.get(o.case_id)}</div>
                         )}
                         {o.invoice_number && (
                           <div className="text-[10px] text-muted-foreground mt-1">

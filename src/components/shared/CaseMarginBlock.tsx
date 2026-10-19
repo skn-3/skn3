@@ -13,7 +13,7 @@ export function CaseMarginBlock({ caseId, orderValue }: { caseId: string; orderV
     queryFn: async () => {
       const [aRes, dRes, cRes] = await Promise.all([
         (supabase as any).from('a_orders').select('total_amount').eq('case_id', caseId),
-        (supabase as any).from('case_documents').select('doc_type, total_amount').eq('case_id', caseId),
+        (supabase as any).from('case_documents').select('doc_type, total_amount, payout_kind').eq('case_id', caseId),
         (supabase as any).from('case_costs').select('category, responsible, amount').eq('case_id', caseId),
       ]);
       if (aRes.error) throw aRes.error;
@@ -53,6 +53,7 @@ export function CaseMarginBlock({ caseId, orderValue }: { caseId: string; orderV
         <div>
           <p className="text-slate-500 text-xs">Intäkt {usingPayout ? '' : '(prel. ordervärde)'}</p>
           <p className="font-medium text-slate-900">{kr(revenue)}</p>
+          {usingPayout && eco.kmRevenue > 0 && <p className="text-xs text-slate-500 mt-0.5">varav KM {kr(eco.kmRevenue)}</p>}
         </div>
         <div>
           <p className="text-slate-500 text-xs">Kostnader</p>

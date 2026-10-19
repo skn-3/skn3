@@ -723,6 +723,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const { error: insErr } = await (supabase as any).from('case_documents').insert({
         case_id: caseId,
         doc_type: docType,
+        payout_kind: docType === 'mockfjards_payout' ? 'montage' : null,
         file_path: path,
         file_name: file!.name,
         order_number: isSheet ? (jobAddress || null) : orderNumber.trim(),
@@ -922,6 +923,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             const { error: docErr } = await (supabase as any).from('case_documents').insert({
               case_id: newCase.id,
               doc_type: docType,
+              payout_kind: docType === 'mockfjards_payout' ? 'montage' : null,
               file_path: path,
               file_name: file.name,
               order_number: g.order_number,
@@ -939,6 +941,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             const { error: parkErr } = await (supabase as any).from('case_documents').insert({
               case_id: null,
               doc_type: docType,
+              payout_kind: docType === 'mockfjards_payout' ? 'montage' : null,
               file_path: path,
               file_name: file.name,
               order_number: g.order_number,
@@ -964,6 +967,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         const { error: insErr } = await (supabase as any).from('case_documents').insert({
           case_id: caseId,
           doc_type: docType,
+          payout_kind: docType === 'mockfjards_payout' ? 'montage' : null,
           file_path: path,
           file_name: file.name,
           order_number: g.order_number,

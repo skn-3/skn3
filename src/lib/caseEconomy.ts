@@ -1,12 +1,13 @@
 // Ärendets ekonomi — ENDA källan för marginalformeln.
 // Används av EconomyView OCH CaseMarginBlock. Ändra aldrig den ena utan den andra: ändra HÄR.
 
-export interface DocRow { doc_type: string; total_amount: number | null }
+export interface DocRow { doc_type: string; total_amount: number | null; payout_kind?: string | null }
 export interface CostBuckets { ovrigt: number; reklMontor: number; reklOvrig: number; reklFabrik: number }
 export interface CostRow { category: string | null; responsible: string | null; amount: number | null }
 
 export interface CaseEconomics {
-  revenue: number;            // summa mockfjards_payout
+  revenue: number;            // summa mockfjards_payout (montage + KM + extra)
+  kmRevenue: number;          // varav KM-utbetalningar
   montorCost: number;
   hasMontor: boolean;
   sheetCost: number;
@@ -38,6 +39,7 @@ export function computeCaseEconomics(input: {
   buckets: CostBuckets;
 }): CaseEconomics {
   const revenue = sumDocs(input.docs, 'mockfjards_payout');
+  const kmRevenue = input.docs.filter(d => d.doc_type === 'mockfjards_payout' && d.payout_kind === 'km').reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
   const aOrderDocSum = sumDocs(input.docs, 'a_order');
   const montorCost = input.aOrderSum != null ? input.aOrderSum : aOrderDocSum;
   const hasMontor = (input.aOrderSum != null && input.aOrderSum !== 0) || aOrderDocSum > 0;
@@ -45,7 +47,7 @@ export function computeCaseEconomics(input: {
   const montorInvoiceCost = sumDocs(input.docs, 'montor_invoice');
   const cost = montorCost + input.buckets.ovrigt + input.buckets.reklMontor + input.buckets.reklOvrig + sheetCost + montorInvoiceCost;
   const profit = revenue - cost;
-  return { revenue, montorCost, hasMontor, sheetCost, montorInvoiceCost, cost, profit, margin: revenue > 0 ? profit / revenue : null };
+  return { revenue, kmRevenue, montorCost, hasMontor, sheetCost, montorInvoiceCost, cost, profit, margin: revenue > 0 ? profit / revenue : null };
 }
 
 // Panelens läge: faller tillbaka på preliminärt ordervärde tills utbetalningen finns.

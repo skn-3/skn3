@@ -269,6 +269,7 @@ export function KmPayoutView({ currentUser }: Props) {
         const { error } = await (supabase as any).from('case_documents').insert({
           case_id: caseId,
           doc_type: 'mockfjards_payout',
+          payout_kind: r.kind === 'km' ? 'km' : 'extra',
           file_path: r.file_path,
           file_name: r.file_name,
           order_number: r.order_number === '—' ? null : r.order_number,
