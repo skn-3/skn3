@@ -422,6 +422,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         invoice_number: string | null; invoice_date: string | null;
         total_amount: number | null;
         order_number?: string | null;
+        payout_kind?: string | null;
       }>;
     },
     enabled: !isCoordinator,
@@ -2076,6 +2077,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             {(() => {
               const revenue = (payouts || []).reduce((s, p) => s + (Number(p.total_amount) || 0), 0);
               const hasRevenue = (payouts || []).length > 0;
+              const kmRevenue = (payouts || []).filter(p => p.payout_kind === 'km').reduce((s, p) => s + (Number(p.total_amount) || 0), 0);
               const costFromDocs = (costDocs || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
               const hasCostDocs = (costDocs || []).length > 0;
               const sheetCost = (sheetInvoices || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
@@ -2102,6 +2104,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <div className="text-sm font-semibold">
                       {hasRevenue ? `${revenue.toLocaleString('sv-SE')} kr` : '–'}
                     </div>
+                    {kmRevenue > 0 && <div className="text-[10px] text-muted-foreground">varav KM {kmRevenue.toLocaleString('sv-SE')} kr</div>}
                   </div>
                   <div className="rounded-md border p-2">
                     <div className="text-[11px] uppercase text-muted-foreground tracking-wider">Kostnad</div>

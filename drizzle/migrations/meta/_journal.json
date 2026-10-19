@@ -85,6 +85,13 @@
       "when": 1792434850338,
       "tag": "0011_montor_case_images_update",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792437116891,
+      "tag": "0012_case_documents_payout_kind",
+      "breakpoints": true
     }
   ]
 }

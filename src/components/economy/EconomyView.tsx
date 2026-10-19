@@ -21,6 +21,7 @@ type DocRow = {
   id: string;
   case_id: string;
   doc_type: 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
+  payout_kind?: string | null;
   total_amount: number | null;
   invoice_number: string | null;
   created_at: string;
@@ -82,6 +83,7 @@ function periodStart(p: Period): Date | null {
 interface CaseEconomy {
   c: CaseRow;
   revenue: number;
+  kmRevenue: number;
   cost: number;
   profit: number;
   margin: number | null;
@@ -111,7 +113,7 @@ export function EconomyView() {
       setLoading(true);
       const [cRes, dRes, ccRes, smRes, oRes, uRes] = await Promise.all([
         supabase.from('cases').select('*'),
-        supabase.from('case_documents').select('id, case_id, doc_type, total_amount, invoice_number, created_at'),
+        supabase.from('case_documents').select('id, case_id, doc_type, total_amount, invoice_number, created_at, payout_kind'),
         supabase.from('case_costs').select('id, case_id, amount, category, responsible'),
         supabase.from('sheet_metal_orders').select('id, case_id'),
         supabase.from('offers').select('id, offer_number, status, customer_name, title, total_incl_vat, total_after_rot, rot_enabled, created_at'),
@@ -188,7 +190,7 @@ export function EconomyView() {
       const hasRevenue = revenue > 0;
       const complete = hasRevenue && hasMontor;
       return {
-        c, revenue, cost, profit,
+        c, revenue, kmRevenue: eco.kmRevenue, cost, profit,
         margin: revenue > 0 ? profit / revenue : null,
         costBreakdown: { montor: montorCost, caseCosts: ccBuckets.ovrigt, reklMontor: ccBuckets.reklMontor, reklOvrig: ccBuckets.reklOvrig, reklFabrik: ccBuckets.reklFabrik, sheet: sheetCost, montorInvoice: montorInvoiceCost },
         hasRevenue,
@@ -516,7 +518,7 @@ export function EconomyView() {
                           <div className="font-medium">{e.c.address}</div>
                           <div className="text-xs text-muted-foreground">{e.c.customer_name}</div>
                         </TableCell>
-                        <TableCell>{fmtKr(e.revenue)}</TableCell>
+                        <TableCell>{fmtKr(e.revenue)}{e.kmRevenue > 0 && <div className="text-[10px] text-muted-foreground">varav KM {fmtKr(e.kmRevenue)}</div>}</TableCell>
                         <TableCell>{fmtKr(e.cost)}</TableCell>
                         <TableCell className={loss ? 'text-destructive font-medium' : ''}>{fmtKr(e.profit)}</TableCell>
                         <TableCell>{e.margin == null ? '—' : fmtPct(e.margin)}</TableCell>
@@ -593,7 +595,7 @@ export function EconomyView() {
                         <div className="text-xs text-muted-foreground">{e.c.customer_name}</div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{e.c.team || '—'}</TableCell>
-                      <TableCell>{e.hasRevenue ? fmtKr(e.revenue) : '—'}</TableCell>
+                      <TableCell>{e.hasRevenue ? fmtKr(e.revenue) : '—'}{e.kmRevenue > 0 && <div className="text-[10px] text-muted-foreground">varav KM {fmtKr(e.kmRevenue)}</div>}</TableCell>
                       <TableCell>{e.hasCost ? fmtKr(e.cost) : '—'}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1 items-center">
