@@ -422,6 +422,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
         invoice_number: string | null; invoice_date: string | null;
         total_amount: number | null;
         order_number?: string | null;
+        payout_kind?: string | null;
       }>;
     },
     enabled: !isCoordinator,
@@ -2076,6 +2077,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             {(() => {
               const revenue = (payouts || []).reduce((s, p) => s + (Number(p.total_amount) || 0), 0);
               const hasRevenue = (payouts || []).length > 0;
+              const kmRevenue = (payouts || []).filter(p => p.payout_kind === 'km').reduce((s, p) => s + (Number(p.total_amount) || 0), 0);
               const costFromDocs = (costDocs || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);
               const hasCostDocs = (costDocs || []).length > 0;
               const sheetCost = (sheetInvoices || []).reduce((s, d) => s + (Number(d.total_amount) || 0), 0);

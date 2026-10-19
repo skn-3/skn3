@@ -21,6 +21,7 @@ type DocRow = {
   id: string;
   case_id: string;
   doc_type: 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
+  payout_kind?: string | null;
   total_amount: number | null;
   invoice_number: string | null;
   created_at: string;
@@ -188,7 +189,7 @@ export function EconomyView() {
       const hasRevenue = revenue > 0;
       const complete = hasRevenue && hasMontor;
       return {
-        c, revenue, cost, profit,
+        c, revenue, kmRevenue: eco.kmRevenue, cost, profit,
         margin: revenue > 0 ? profit / revenue : null,
         costBreakdown: { montor: montorCost, caseCosts: ccBuckets.ovrigt, reklMontor: ccBuckets.reklMontor, reklOvrig: ccBuckets.reklOvrig, reklFabrik: ccBuckets.reklFabrik, sheet: sheetCost, montorInvoice: montorInvoiceCost },
         hasRevenue,
@@ -516,7 +517,7 @@ export function EconomyView() {
                           <div className="font-medium">{e.c.address}</div>
                           <div className="text-xs text-muted-foreground">{e.c.customer_name}</div>
                         </TableCell>
-                        <TableCell>{fmtKr(e.revenue)}</TableCell>
+                        <TableCell>{fmtKr(e.revenue)}{e.kmRevenue > 0 && <div className="text-[10px] text-muted-foreground">varav KM {fmtKr(e.kmRevenue)}</div>}</TableCell>
                         <TableCell>{fmtKr(e.cost)}</TableCell>
                         <TableCell className={loss ? 'text-destructive font-medium' : ''}>{fmtKr(e.profit)}</TableCell>
                         <TableCell>{e.margin == null ? '—' : fmtPct(e.margin)}</TableCell>
@@ -593,7 +594,7 @@ export function EconomyView() {
                         <div className="text-xs text-muted-foreground">{e.c.customer_name}</div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{e.c.team || '—'}</TableCell>
-                      <TableCell>{e.hasRevenue ? fmtKr(e.revenue) : '—'}</TableCell>
+                      <TableCell>{e.hasRevenue ? fmtKr(e.revenue) : '—'}{e.kmRevenue > 0 && <div className="text-[10px] text-muted-foreground">varav KM {fmtKr(e.kmRevenue)}</div>}</TableCell>
                       <TableCell>{e.hasCost ? fmtKr(e.cost) : '—'}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1 items-center">
