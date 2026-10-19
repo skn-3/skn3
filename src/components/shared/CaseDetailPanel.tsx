@@ -1578,6 +1578,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
           {/* Order info */}
           <section className="p-4 space-y-2">
+            {isSeller && !isCoordinator && !editingCase && needsCompletion(caseData as any) && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/50 bg-destructive/5 p-3">
+                <p className="text-sm text-foreground">Kontrollmätningen är klar — fyll i resten av ärendedatan.</p>
+                <Button size="sm" className="min-h-[44px]" onClick={openComplete}>Komplettera ärendet</Button>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Orderinfo</h3>
               {isSeller && !editingCase && (
@@ -1586,6 +1592,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </div>
             {editingCase ? (
               <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
+                {completeMode && <p className="text-sm font-semibold text-foreground">Komplettera ärendet efter KM</p>}
                 <div className="grid grid-cols-2 gap-3">
                   {!isCoordinator && (
                     <>
@@ -1601,12 +1608,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                         )}
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Extra timmar sålda</Label>
+                        <Label className="text-xs">Extra timmar sålda{completeMode ? ` till kund (á ${HOUR_RATE} kr/st)` : ''}</Label>
                         <Input type="number" value={editForm.extra_hours_sold} onChange={(e) => setEditForm(f => ({ ...f, extra_hours_sold: e.target.value }))} />
                       </div>
                     </>
                   )}
-                  <div className="space-y-1">
+                  <div className={cn('space-y-1', completeMode && 'hidden')}>
                     <Label className="text-xs">Antal enheter</Label>
                     <Input type="number" min={0} step={1} placeholder="Valfritt" value={editForm.units} onChange={(e) => setEditForm(f => ({ ...f, units: e.target.value }))} />
                   </div>
@@ -1632,13 +1639,13 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     </Select>
                     {editIsGotland && <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>}
                   </div>
-                  {!isCoordinator && (
+                  {!isCoordinator && !completeMode && (
                     <div className="space-y-1">
                       <Label className="text-xs">Offertnummer</Label>
                       <Input value={editForm.offer_number} onChange={(e) => setEditForm(f => ({ ...f, offer_number: e.target.value }))} />
                     </div>
                   )}
-                  {!isCoordinator && (
+                  {!isCoordinator && !completeMode && (
                     <div className="space-y-1">
                       <Label className="text-xs">Ordernummer</Label>
                       <Input
@@ -1652,11 +1659,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <Label className="text-xs">Telefon</Label>
                     <Input value={editForm.customer_phone} onChange={(e) => setEditForm(f => ({ ...f, customer_phone: e.target.value }))} />
                   </div>
-                  <div className="space-y-1 col-span-2">
+                  <div className={cn('space-y-1 col-span-2', completeMode && 'hidden')}>
                     <Label className="text-xs">E-post</Label>
                     <Input value={editForm.customer_email} onChange={(e) => setEditForm(f => ({ ...f, customer_email: e.target.value }))} />
                   </div>
-                  <div className="space-y-1 col-span-2">
+                  <div className={cn('space-y-1 col-span-2', completeMode && 'hidden')}>
                     <Label className="text-xs">Ort *</Label>
                     <Input value={editForm.city} onChange={(e) => setEditForm(f => ({ ...f, city: e.target.value }))} />
                     {editIsGotland && <div><GotlandBadge /></div>}
@@ -1665,6 +1672,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <Label className="text-xs">Google Drive-länk</Label>
                     <Input value={editForm.google_drive_link} onChange={(e) => setEditForm(f => ({ ...f, google_drive_link: e.target.value }))} />
                   </div>
+                  {completeMode ? (
+                    <div className="space-y-1 col-span-2">
+                      <Label className="text-xs">Anteckning</Label>
+                      <Textarea rows={3} value={editForm.notes} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+                    </div>
+                  ) : (
                   <div className="space-y-1 col-span-2">
                     <Label className="text-xs">Ordernoteringar</Label>
                     <Tabs defaultValue="saljare">
@@ -1680,7 +1693,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       </TabsContent>
                     </Tabs>
                   </div>
-                  {!isCoordinator && (
+                  )}
+                  {!isCoordinator && !completeMode && (
                     <div className="col-span-2 space-y-2 rounded-md border p-2 bg-background">
                       <p className="text-xs font-medium text-muted-foreground">Att tänka på vid montage</p>
                       <label className="flex items-center gap-2 text-sm">
@@ -1706,7 +1720,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                       </label>
                     </div>
                   )}
-                  <div className="col-span-2 space-y-3 rounded-md border p-2 bg-background">
+                  <div className={cn('col-span-2 space-y-3 rounded-md border p-2 bg-background', completeMode && 'hidden')}>
                     <p className="text-xs font-medium text-muted-foreground">Datum</p>
                     <div className="space-y-1">
                       <Label className="text-xs">KM-datum / Tid (valfritt)</Label>
