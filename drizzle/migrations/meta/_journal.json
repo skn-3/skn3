@@ -78,6 +78,13 @@
       "when": 1791886302731,
       "tag": "0010_offers_rot_cap",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792434850338,
+      "tag": "0011_montor_case_images_update",
+      "breakpoints": true
     }
   ]
 }
