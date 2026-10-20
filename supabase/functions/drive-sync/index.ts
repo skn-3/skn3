@@ -20,7 +20,16 @@ Deno.serve(async req => {
   const url = Deno.env.get('SUPABASE_URL');
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !key) return json({error:'Cloud-konfiguration saknas'},500);
-  const cron = req.headers.get('Authorization') === `Bearer ${key}`;
+  const authorization = req.headers.get('Authorization');
+  let cron = authorization === `Bearer ${key}`;
+  // Managed environments can expose a newer secret key to the function while
+  // callers still hold a valid legacy service JWT. Verify it through the Data
+  // API's service-only table privileges, never by trusting a decoded JWT role.
+  if (!cron && authorization?.startsWith('Bearer ')) {
+    const verifier = createClient(url,Deno.env.get('SUPABASE_ANON_KEY') || key,{global:{headers:{Authorization:authorization}}});
+    const verified = await verifier.from('drive_sync_runtime').select('id').eq('id',1).maybeSingle();
+    cron = !verified.error && verified.data?.id === 1;
+  }
   if (!cron) {
     const auth = await requireCoordinator(req,corsHeaders);
     if (auth.response) return auth.response;
