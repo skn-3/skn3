@@ -108,6 +108,7 @@ function splitAddress(address?: string | null): string[] {
 
 export function drawSelfBillingInvoice(doc: jsPDF, inv: SelfBillingInvoice): jsPDF {
   const isCredit = inv.kind === 'credit';
+  doc.setProperties({ title: `${isCredit ? 'Kreditfaktura' : 'Faktura'} ${inv.invoiceNumber}` });
   const accent: RGB = isCredit ? RED : GREEN;
   const dueDate = inv.dueDate || addDays(inv.date, 10);
   const seller = inv.seller || {};

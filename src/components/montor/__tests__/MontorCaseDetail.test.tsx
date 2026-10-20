@@ -82,7 +82,7 @@ describe('MontorCaseDetail A-order access', () => {
   it('hämtar inga internal_*-fält', async () => {
     renderDetail();
     await waitFor(() => expect(mocks.selects).toHaveLength(1));
-    expect(mocks.selects[0]).toBe('id, order_number, created_at, date, total_amount, status, pdf_path, order_sent_at, invoice_number, invoice_sent_at, credited_from_order_id, paid_at');
+    expect(mocks.selects[0]).toBe('id, order_number, created_at, date, total_amount, status, pdf_path, order_sent_at, invoice_number, invoice_sent_at, credited_from_order_id, paid_at, customer_address, montor_teams(name)');
     expect(mocks.selects[0]).not.toMatch(/internal_|\*/);
   });
 
@@ -94,13 +94,13 @@ describe('MontorCaseDetail A-order access', () => {
   });
 
   it.each([
-    ['A-order PDF', 'a-orders/order-own.pdf'],
-    ['Faktura PDF', 'a-orders/order-own-faktura.pdf'],
-    ['Kreditfaktura PDF', 'a-orders/credit-own-kredit.pdf'],
-  ])('öppnar %s via rätt separat sökväg', async (label, path) => {
+    ['A-order PDF', 'a-orders/order-own.pdf', 'A-order-12-2026-10-08.pdf'],
+    ['Faktura PDF', 'a-orders/order-own-faktura.pdf', 'Faktura-F12-2026-10-08.pdf'],
+    ['Kreditfaktura PDF', 'a-orders/credit-own-kredit.pdf', 'Kreditfaktura-K12-2026-10-08.pdf'],
+  ])('öppnar %s via rätt separat sökväg', async (label, path, name) => {
     renderDetail();
     fireEvent.click(await screen.findByRole('button', { name: label }));
-    await waitFor(() => expect(mocks.signedUrl).toHaveBeenCalledWith(path, 600));
+    await waitFor(() => expect(mocks.signedUrl).toHaveBeenCalledWith(path, 600, { download: name }));
   });
 
   it('visar inte Faktura PDF för migrerad order utan pdf_path', async () => {
@@ -118,7 +118,7 @@ describe('MontorCaseDetail A-order access', () => {
     ];
     renderDetail();
     fireEvent.click(await screen.findByRole('button', { name: 'Faktura PDF' }));
-    await waitFor(() => expect(mocks.signedUrl).toHaveBeenCalledWith('a-orders/order-mig2-faktura.pdf', 600));
+    await waitFor(() => expect(mocks.signedUrl).toHaveBeenCalledWith('a-orders/order-mig2-faktura.pdf', 600, { download: 'Faktura-F6-2026-10-08.pdf' }));
   });
 
   it('meddelar när en PDF inte går att öppna', async () => {

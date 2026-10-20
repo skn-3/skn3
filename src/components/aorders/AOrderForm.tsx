@@ -15,6 +15,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { generateAutoLines, normalizeLines, sumLines, type AOrderLine, type FacadeType } from '@/lib/aOrderLines';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
+import { aOrderPdfName } from '@/lib/pdfNames';
 import { lineAmount } from '@/lib/invoiceMath';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { HOUR_RATE } from '@/lib/constants';
@@ -428,8 +429,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
       logoDataUrl: logo,
     });
-    const addrSafe = String(o.customer_address || 'adress').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
-    doc.save(`A-ORDER-${o.order_number}-${addrSafe}.pdf`);
+    doc.save(aOrderPdfName(o));
   }
 
   async function doSend() {
@@ -465,7 +465,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       const dataUri = doc.output('datauristring');
       const pdf_base64 = dataUri.split(',')[1] || '';
       const { error } = await supabase.functions.invoke('send-a-order', {
-        body: { a_order_id: orderId, pdf_base64 },
+        body: { a_order_id: orderId, pdf_base64, file_name: aOrderPdfName(o) },
       });
       if (error) throw error;
       toast.success(`A-order skickad till ${o.montor_teams?.email}`);

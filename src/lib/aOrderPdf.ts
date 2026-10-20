@@ -118,6 +118,7 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
   }
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  doc.setProperties({ title: `A-order ${orderNumber}` });
   const margin = 15;
   const pageW = 210;
 

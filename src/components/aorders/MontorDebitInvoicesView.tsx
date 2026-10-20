@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { buildMontorDebitPdf } from '@/lib/montorDebitPdf';
 import { buildSelfBillingPdf } from '@/lib/selfBillingPdf';
 import { loadAOrderLogo } from '@/lib/aOrderPdf';
+import { montorInvoicePdfName } from '@/lib/pdfNames';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { useRole } from '@/hooks/useRole';
 
@@ -48,7 +49,7 @@ export function MontorDebitInvoicesView() {
     try {
       if (inv.pdf_path) {
         const ok = await openDocumentInNewTab(async () => {
-          const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(inv.pdf_path, 600);
+          const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(inv.pdf_path, 600, { download: montorInvoicePdfName(inv) });
           return error ? null : data?.signedUrl ?? null;
         });
         if (ok) return;
@@ -67,7 +68,7 @@ export function MontorDebitInvoicesView() {
         total: Number(inv.total || 0),
         logoDataUrl: logo,
       });
-      doc.save(`FAKTURA-${inv.invoice_number}.pdf`);
+      doc.save(montorInvoicePdfName(inv));
     } catch (e: any) {
       toast.error(e?.message || 'Kunde inte hämta PDF');
     } finally {
@@ -94,7 +95,7 @@ export function MontorDebitInvoicesView() {
       });
       const pdf_base64 = doc.output('datauristring').split(',')[1] || '';
       const { error } = await supabase.functions.invoke('send-montor-debit-invoice', {
-        body: { debit_invoice_id: inv.id, pdf_base64 },
+        body: { debit_invoice_id: inv.id, pdf_base64, file_name: montorInvoicePdfName(inv) },
       });
       if (error) throw error;
       toast.success('Faktura skickad igen');

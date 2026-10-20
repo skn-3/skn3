@@ -20,6 +20,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { MontorLitteraSection } from '@/components/montor/MontorLitteraSection';
+import { aOrderPdfName, invoicePdfName, creditPdfName } from '@/lib/pdfNames';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { CostPayoutChip } from '@/components/shared/CostPayoutChip';
 
@@ -95,7 +96,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     queryFn: async () => {
       let q = (supabase as any)
         .from('a_orders')
-        .select('id, order_number, created_at, date, total_amount, status, pdf_path, order_sent_at, invoice_number, invoice_sent_at, credited_from_order_id, paid_at')
+        .select('id, order_number, created_at, date, total_amount, status, pdf_path, order_sent_at, invoice_number, invoice_sent_at, credited_from_order_id, paid_at, customer_address, montor_teams(name)')
         .eq('case_id', caseData.id)
         .order('created_at', { ascending: false });
       if (myTeamId) q = q.eq('team_id', myTeamId);
@@ -721,9 +722,9 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   : o.order_sent_at
                   ? 'A-order skickad'
                   : 'A-order skapad';
-                const openPdf = async (path: string) => {
+                const openPdf = async (path: string, name: string) => {
                   const ok = await openDocumentInNewTab(async () => {
-                    const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 600);
+                    const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 600, { download: name });
                     return data?.signedUrl ?? null;
                   });
                   if (!ok) toast.error('PDF:en kunde inte öppnas');
@@ -745,19 +746,19 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                     <div className="flex flex-wrap gap-2">
                       {isCreditNote ? (
                         o.pdf_path && (
-                          <Button size="sm" variant="outline" onClick={() => openPdf(o.pdf_path)}>
+                          <Button size="sm" variant="outline" onClick={() => openPdf(o.pdf_path, creditPdfName(o))}>
                             <FileText className="h-4 w-4 mr-1" /> Kreditfaktura PDF
                           </Button>
                         )
                       ) : (
                         <>
                           {o.order_sent_at && (
-                            <Button size="sm" variant="outline" onClick={() => openPdf(`a-orders/${o.id}.pdf`)}>
+                            <Button size="sm" variant="outline" onClick={() => openPdf(`a-orders/${o.id}.pdf`, aOrderPdfName(o))}>
                               <FileText className="h-4 w-4 mr-1" /> A-order PDF
                             </Button>
                           )}
                           {o.invoice_sent_at && o.pdf_path && (
-                            <Button size="sm" variant="outline" onClick={() => openPdf(`a-orders/${o.id}-faktura.pdf`)}>
+                            <Button size="sm" variant="outline" onClick={() => openPdf(`a-orders/${o.id}-faktura.pdf`, invoicePdfName(o))}>
                               <FileText className="h-4 w-4 mr-1" /> Faktura PDF
                             </Button>
                           )}

@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { buildMontorDebitPdf } from '@/lib/montorDebitPdf';
 import { buildSelfBillingPdf } from '@/lib/selfBillingPdf';
 import { loadAOrderLogo } from '@/lib/aOrderPdf';
+import { montorInvoicePdfName } from '@/lib/pdfNames';
 import { calcInvoiceTotals } from '@/lib/invoiceMath';
 
 function fmt(n: number) { return Math.round(n || 0).toLocaleString('sv-SE') + ' kr'; }
@@ -99,7 +100,7 @@ export async function createAndSendDebitInvoice(
   const pdf_base64 = doc.output('datauristring').split(',')[1] || '';
 
   const { error: sendErr } = await supabase.functions.invoke('send-montor-debit-invoice', {
-    body: { debit_invoice_id: inserted.id, pdf_base64 },
+    body: { debit_invoice_id: inserted.id, pdf_base64, file_name: montorInvoicePdfName({ ...inserted, montor_teams: team }) },
   });
   if (sendErr) throw sendErr;
 
@@ -192,7 +193,7 @@ export async function createAndSendCreditInvoice(
   const pdf_base64 = doc.output('datauristring').split(',')[1] || '';
 
   const { error: sendErr } = await supabase.functions.invoke('send-montor-debit-invoice', {
-    body: { debit_invoice_id: inserted.id, pdf_base64 },
+    body: { debit_invoice_id: inserted.id, pdf_base64, file_name: montorInvoicePdfName({ ...inserted, montor_teams: team }) },
   });
   if (sendErr) throw sendErr;
 

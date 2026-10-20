@@ -1,3 +1,4 @@
+import { offerPdfName, type OfferNameSource } from './pdfNames';
 import { calcOfferTotals, fmtKr, type OfferLineItem } from './offerCalc';
 import { balanceTerms, deviceLabel, fmtDateLong, fmtDateTimeSv, parseDescription, parseTerms } from './offerText';
 
@@ -17,11 +18,8 @@ export function getPdfMake(): Promise<any> {
 
 const nfc = (s: any) => (s ?? '').toString().normalize('NFC');
 
-export function offerFileName(o: { offer_number?: string | null; customer_address?: string | null; title?: string | null }, kind: 'offert' | 'avtal'): string {
-  const addr = (o.customer_address || o.title || '')
-    .normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 50);
-  const prefix = kind === 'avtal' ? 'Avtal' : 'Offert';
-  return `${prefix}_${o.offer_number || 'utkast'}${addr ? '_' + addr : ''}.pdf`;
+export function offerFileName(o: OfferNameSource, kind: 'offert' | 'avtal'): string {
+  return offerPdfName(o, kind);
 }
 
 // ---------- Varumärke (samma tokens som src/index.css) ----------
