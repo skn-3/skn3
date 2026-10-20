@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Drive-synk: mappregler, dokumenturval, dubblettskydd och gemensamma PDF-namn.
+- [ ] Drive-synk: behörighetsskyddad körning, status, återförsök och adminflik.
+- [ ] Drive-synk: automatisk körning och retroaktiv synkning, tester och verklig Drive-verifiering — väntar på GOOGLE_SERVICE_ACCOUNT_JSON och delade mappar.
+
 - [x] PDF-namn: gemensam modul, angivna nedladdningar, metadata och mejlbilagor.
 - [x] A-order: omgenerera faktura/kredit-PDF utan statusändringar, valfritt mejlutskick.
 - [x] PDF-flöden: 122 tester gröna, automatiskt bygge OK, panel visuellt kontrollerad med testdata på dator/mobil; ingen publicering.
