@@ -398,7 +398,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('a_orders')
-        .select('id, order_number, total_amount, status, team_id, invoice_number, date, line_items, window_count, door_count, roof_window_count, montor_teams(name)')
+        .select('id, order_number, total_amount, status, team_id, invoice_number, date, line_items, window_count, door_count, roof_window_count, paid_at, montor_teams(name)')
         .eq('case_id', caseData.id)
         .order('created_at', { ascending: false });
       if (error) throw error;

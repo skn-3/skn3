@@ -1,7 +1,7 @@
 import { paidDatesByCase } from '@/lib/payoutKind';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight, Banknote as BanknoteIcon } from 'lucide-react';
+import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight, Banknote as BanknoteIcon, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,10 @@ export function AOrdersView({ currentUser }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [rebillPrompt, setRebillPrompt] = useState<any | null>(null);
   const [debitOpen, setDebitOpen] = useState(false);
+  const [payStatus, setPayStatus] = useState<'all' | 'unpaid' | 'paid'>('all');
+  const [payFor, setPayFor] = useState<any | null>(null);
+  const [payDate, setPayDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [payBusy, setPayBusy] = useState(false);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['a_orders_all'],
@@ -123,6 +127,8 @@ export function AOrdersView({ currentUser }: Props) {
       if (teamFilter === 'unassigned' && o.team_id) return false;
       if (teamFilter !== 'all' && teamFilter !== 'unassigned' && o.team_id !== teamFilter) return false;
       if (onlyPayReady && !(o.case_id && paidCaseMap.has(o.case_id) && o.status === 'order')) return false;
+      if (payStatus === 'unpaid' && !(o.status === 'invoiced' && !o.paid_at)) return false;
+      if (payStatus === 'paid' && !o.paid_at) return false;
       if (!q) return true;
       return (
         (o.customer_address || '').toLowerCase().includes(q) ||
@@ -130,7 +136,57 @@ export function AOrdersView({ currentUser }: Props) {
         String(o.order_number || '').includes(q)
       );
     });
-  }, [orders, search, teamFilter, onlyPayReady, paidCaseMap]);
+  }, [orders, search, teamFilter, onlyPayReady, paidCaseMap, payStatus]);
+
+  // Obetalt till montörer: fakturerade A-ordrar utan betaldatum.
+  // Respekterar montörsfiltret men inte betalstatusfiltret.
+  const unpaidInvoiced = useMemo(() => {
+    return orders.filter(o => {
+      if (o.status !== 'invoiced' || o.paid_at) return false;
+      if (teamFilter === 'unassigned' && o.team_id) return false;
+      if (teamFilter !== 'all' && teamFilter !== 'unassigned' && o.team_id !== teamFilter) return false;
+      return true;
+    });
+  }, [orders, teamFilter]);
+  const unpaidSum = useMemo(() => unpaidInvoiced.reduce((s, o) => s + Number(o.total_amount || 0), 0), [unpaidInvoiced]);
+
+  async function confirmPaid() {
+    if (!payFor || !payDate) return;
+    setPayBusy(true);
+    try {
+      const { error } = await (supabase as any)
+        .from('a_orders')
+        .update({ paid_at: payDate, paid_by: currentUser })
+        .eq('id', payFor.id);
+      if (error) throw error;
+      if (payFor.case_id) {
+        const { error: evErr } = await (supabase as any).from('case_events').insert({
+          case_id: payFor.case_id,
+          event_type: 'status_change',
+          description: `Montörsfaktura ${payFor.invoice_number} betald ${payDate}`,
+          created_by: currentUser,
+        });
+        if (evErr) console.error('Kunde inte logga händelse:', evErr);
+      }
+      toast.success('Markerad som betald');
+      setPayFor(null);
+      qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte markera som betald');
+    } finally {
+      setPayBusy(false);
+    }
+  }
+
+  async function undoPaid(o: any) {
+    const { error } = await (supabase as any)
+      .from('a_orders')
+      .update({ paid_at: null, paid_by: null })
+      .eq('id', o.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Betalmarkering ångrad');
+    qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+  }
 
   function openNew() { setEditing(null); setFormPrefill(null); setFormMode('standard'); setFormOpen(true); }
   function openNewKomp() { setEditing(null); setFormPrefill(null); setFormMode('komplettering'); setFormOpen(true); }
