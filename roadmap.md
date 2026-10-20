@@ -1,9 +1,12 @@
 # Roadmap
 
-- [ ] Drive-synk: mappregler, dokumenturval, dubblettskydd och gemensamma PDF-namn.
-- [ ] Drive-synk: behörighetsskyddad körning, status, återförsök och adminflik.
-- [ ] Drive-synk: automatisk körning och retroaktiv synkning, tester och verklig Drive-verifiering — väntar på GOOGLE_SERVICE_ACCOUNT_JSON och delade mappar.
-- [ ] Drive-synk: bygg klart utan nyckel enligt ägarens besked; test/run ska visa GOOGLE_SERVICE_ACCOUNT_JSON saknas tills ägaren kan lägga till den.
+- [x] Drive-synk: mappregler, dokumenturval, dubblettskydd och gemensamma PDF-namn.
+- [x] Drive-synk: behörighetsskyddad körning, status, återförsök och adminflik; funktion utlagd.
+- [x] Drive-synk: händelsestyrd automatisk start och begränsade kvartstidsåterförsök, stopp vid tom kö; aktiveras efter lyckat kopplingstest.
+- [x] Drive-synk: 141 tester gröna, automatiskt bygge OK, dator/mobil visuellt kontrollerat med verkliga antal och simulerade svar.
+- [x] Drive-synk: live service-kontroll hittar 331 dokument; test/run ger 503 med GOOGLE_SERVICE_ACCOUNT_JSON saknas; 401 utan behörighet, inga uppladdningar/loggrader och inget aktivt cronjobb.
+- [ ] Drive-synk: verklig Google-uppladdning, dubblett-readback och automatisk körning — blockerade av GOOGLE_SERVICE_ACCOUNT_JSON och delade mappar; ägaren lägger till nyckeln och testar kopplingen.
+- [ ] Drive-synk: inloggat adminflöde — blockerad av saknad kontosession; eget konto saknas i appens inloggningsregister.
 
 - [x] PDF-namn: gemensam modul, angivna nedladdningar, metadata och mejlbilagor.
 - [x] A-order: omgenerera faktura/kredit-PDF utan statusändringar, valfritt mejlutskick.
