@@ -2,6 +2,7 @@ Use the same ProfileSvg rendering for the sheet-metal form and the order PDF, ra
 Keep logical PDF download and attachment names in pdfNames, separate from storage paths; this keeps naming consistent without moving saved documents.
 Keep PDF name logic in the pure edge-shared module with a frontend re-export; Drive archival and existing downloads must use identical names.
 Keep Drive sync isolated from invoice workflows, with service-only leases, parent-scoped paginated Drive lists and event-driven bounded retries that unschedule after drain; archival failures must never block the source document or alter its accounting state.
+The Google Drive sync may only read and create in Drive (list, folder create, upload). It must never delete, trash, move, rename, overwrite or change permissions; assertAllowedDriveRequest and driveNoDelete.test.ts enforce this and must not be weakened.
 Keep A-order PDF regeneration in a dedicated PDF-only service that updates only pdf_path; this prevents invoice status, dates, counters and case history from changing during layout refreshes.
 Keep A-order rich-text parsing and browser/PDF rendering in shared modules, with equivalent escaped email rendering; this preserves consistent formatting without changing description storage.
 Keep offer description, terms and date text logic in offerText for PDF and customer-page reuse; this keeps their presentation consistent.

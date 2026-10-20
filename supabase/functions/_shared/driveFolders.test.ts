@@ -1,5 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { accountingFolders, sameYearFolder, sameCustomerFolder, existingDocument, eligibleSync } from './driveFolders';
+import { assertAllowedDriveRequest, accountingFolders, sameYearFolder, sameCustomerFolder, existingDocument, eligibleSync } from './driveFolders';
+
+describe('Drive read-and-create safety barrier', () => {
+  it.each([
+    ['GET', 'files'],
+    ['GET', 'files/abc?fields=id,name'],
+    ['POST', 'files?uploadType=multipart'],
+  ])('allows %s %s', (method, path) => {
+    expect(() => assertAllowedDriveRequest(method, path)).not.toThrow();
+  });
+  it.each([
+    ['DELETE', 'files/abc'],
+    ['PATCH', 'files/abc'],
+    ['PUT', 'files/abc'],
+    ['POST', 'files/abc/copy'],
+    ['POST', 'files/abc/permissions'],
+    ['GET', 'files/abc/permissions'],
+    ['POST', 'files/trash'],
+  ])('blocks %s %s', (method, path) => {
+    expect(() => assertAllowedDriveRequest(method, path)).toThrow('Drive-spärr:');
+  });
+});
 
 describe('Drive accounting rules', () => {
   it('uses August 1 as start of fiscal year', () => {

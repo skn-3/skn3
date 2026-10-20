@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Drive-säkerhet: hård läsa/skapa-spärr, vakttest, admintext och bestående regel; verifiera och lägg ut funktionen utan apppublicering.
+
 - [x] Drive-synk: mappregler, dokumenturval, dubblettskydd och gemensamma PDF-namn.
 - [x] Drive-synk: behörighetsskyddad körning, status, återförsök och adminflik; funktion utlagd.
 - [x] Drive-synk: händelsestyrd automatisk start och begränsade kvartstidsåterförsök, stopp vid tom kö; aktiveras efter lyckat kopplingstest.

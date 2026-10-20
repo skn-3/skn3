@@ -1,5 +1,5 @@
 import { SignJWT, importPKCS8 } from 'npm:jose@5.10.0';
-import { accountingFolders, sameYearFolder, sameCustomerFolder, existingDocument, type Destination } from '../_shared/driveFolders.ts';
+import { assertAllowedDriveRequest, accountingFolders, sameYearFolder, sameCustomerFolder, existingDocument, type Destination } from '../_shared/driveFolders.ts';
 
 type DriveFile = { id: string; name: string; webViewLink?: string };
 let cachedToken: { value: string; expires: number; email: string } | null = null;
@@ -30,6 +30,7 @@ export class GoogleDrive {
   private lists = new Map<string, DriveFile[]>();
   private folders = new Map<string, DriveFile>();
   async request(path: string, init: RequestInit = {}, upload = false) {
+    assertAllowedDriveRequest(init.method || 'GET', path);
     const response = await fetch(`https://www.googleapis.com/${upload ? 'upload/' : ''}drive/v3/${path}`, {...init,headers:{Authorization:`Bearer ${await token()}`,...init.headers},signal:AbortSignal.timeout(25000)});
     if (!response.ok) {
       const body = await response.text();
