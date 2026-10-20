@@ -2369,7 +2369,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   const statusBadge = order.status === 'invoiced' && order.paid_at
                     ? <Badge className="bg-emerald-700 hover:bg-emerald-700/90 text-white">Betald {order.paid_at}</Badge>
                     : order.status === 'invoiced'
-                    ? <Badge className="bg-green-500 hover:bg-green-500/90 text-white">Fakturerad</Badge>
+                    ? <Badge className="bg-blue-600 hover:bg-blue-600/90 text-white">Fakturerad</Badge>
                     : order.status === 'credited'
                     ? <Badge variant="destructive">Krediterad</Badge>
                     : <Badge className="bg-yellow-500 hover:bg-yellow-500/90 text-white">A-ORDER</Badge>;

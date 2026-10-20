@@ -37,6 +37,8 @@ import { regenerateAOrderPdf } from '@/lib/aOrderRegeneration';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { summarizeAOrderStatuses } from '@/lib/aOrderStatusSummary';
+import { AOrderStatusDots } from './AOrderStatusDots';
 
 interface Props { currentUser: string }
 
@@ -44,7 +46,7 @@ function fmt(n: number) { return Math.round(n || 0).toLocaleString('sv-SE') + ' 
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   order: { label: 'Order', cls: 'bg-yellow-500 hover:bg-yellow-500/90 text-white' },
-  invoiced: { label: 'Fakturerad', cls: 'bg-green-600 hover:bg-green-600/90 text-white' },
+  invoiced: { label: 'Fakturerad', cls: 'bg-blue-600 hover:bg-blue-600/90 text-white' },
   credited: { label: 'Krediterad', cls: 'bg-red-500 hover:bg-red-500/90 text-white' },
 };
 
@@ -174,6 +176,12 @@ export function AOrdersView({ currentUser }: Props) {
     });
   }, [orders, teamFilter]);
   const unpaidSum = useMemo(() => unpaidInvoiced.reduce((s, o) => s + Number(o.total_amount || 0), 0), [unpaidInvoiced]);
+  // Statusprickar: samma urval som unpaidInvoiced (endast montörsfiltret).
+  const statusGroups = useMemo(() => summarizeAOrderStatuses(orders.filter(o => {
+    if (teamFilter === 'unassigned' && o.team_id) return false;
+    if (teamFilter !== 'all' && teamFilter !== 'unassigned' && o.team_id !== teamFilter) return false;
+    return true;
+  }) as any), [orders, teamFilter]);
 
   async function confirmPaid() {
     if (!payFor || !payDate) return;
@@ -451,13 +459,20 @@ export function AOrdersView({ currentUser }: Props) {
               MF betald · ej montörsfakturerad
             </label>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Visar {filteredHistory.length} av {orders.length} A-ordrar
-            {teamFilter !== 'all' && teamFilter !== 'unassigned' ? ` för ${teams.find((t: any) => t.id === teamFilter)?.name ?? ''}` : ''}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Obetalt till montörer: <span className="font-medium text-foreground">{fmt(unpaidSum)}</span> ({unpaidInvoiced.length} {unpaidInvoiced.length === 1 ? 'faktura' : 'fakturor'})
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+            <div>
+              <p className="text-xs text-muted-foreground">
+                Visar {filteredHistory.length} av {orders.length} A-ordrar
+                {teamFilter !== 'all' && teamFilter !== 'unassigned' ? ` för ${teams.find((t: any) => t.id === teamFilter)?.name ?? ''}` : ''}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Obetalt till montörer: <span className="font-medium text-foreground">{fmt(unpaidSum)}</span> ({unpaidInvoiced.length} {unpaidInvoiced.length === 1 ? 'faktura' : 'fakturor'})
+              </p>
+            </div>
+            <div className="ml-auto">
+              <AOrderStatusDots groups={statusGroups} />
+            </div>
+          </div>
           <div className="rounded-md border overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
