@@ -83,7 +83,7 @@ export class GoogleDrive {
     const names = accountingFolders(date,destination);
     const year = await this.folder(settings.root_folder_id,names.yearFolder,n => sameYearFolder(n,names.yearFolder));
     const month = await this.folder(year.id,names.monthFolder,n => names.monthPattern.test(n));
-    return {id:month.id,path:`Allt från Case-flow/${year.name}/${month.name}`};
+    return {id:month.id,path:`Smartklimat N3Prenad/${year.name}/${month.name}`};
   }
   async duplicate(parent: string, name: string, number: string | null) { return existingDocument(await this.list(parent,false),name,number); }
   async upload(parent: string, name: string, pdf: Blob): Promise<DriveFile> {
