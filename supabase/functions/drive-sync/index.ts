@@ -63,6 +63,9 @@ Deno.serve(async req => {
       // Only activate callbacks after a successful real Google access check.
       const {error} = await admin.from('drive_sync_runtime').update({callback_url:`${url}/functions/v1/drive-sync`,callback_bearer:key}).eq('id',1);
       if (error) throw new Error(error.message);
+      // A successful access check clears the previous connection error.
+      const cleared = await admin.from('drive_sync_settings').update({last_error:null}).eq('id',1);
+      if (cleared.error) throw new Error(cleared.error.message);
       return json({ok:true,root:root.name,kunder:kunder.name});
     }
     owner = crypto.randomUUID();
