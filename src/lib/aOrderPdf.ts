@@ -57,7 +57,7 @@ function fmtKr(n: number) {
 
 export async function loadAOrderLogo(): Promise<string | null> {
   try {
-    const res = await fetch('/logo.png');
+    const res = await fetch('/logo-pdf.png');
     if (!res.ok) return null;
     const blob = await res.blob();
     return await new Promise<string>((resolve, reject) => {
