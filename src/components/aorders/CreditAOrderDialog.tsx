@@ -60,6 +60,8 @@ export function CreditAOrderDialog({ open, onOpenChange, order, currentUser, onC
         team,
         logoDataUrl: logo,
         variant: 'credit',
+        aOrderNumber: order.order_number,
+        aOrderDate: order.date,
         subNote,
       });
       const pdf_base64 = doc.output('datauristring').split(',')[1] || '';

@@ -4,6 +4,7 @@
 import jsPDF from 'jspdf';
 import { normalizeLines } from './aOrderLines';
 import { drawRichText } from './richTextPdf';
+import { drawSelfBillingInvoice } from './selfBillingLayout';
 
 export interface AOrderPdfLine {
   name: string;
@@ -17,12 +18,14 @@ export interface AOrderPdfTeam {
   org_nr?: string | null;
   bankgiro?: string | null;
   name?: string | null;
+  address?: string | null;
 }
 
 export type AOrderPdfVariant = 'a-order' | 'invoice' | 'credit';
 
 export interface BuildAOrderPdfArgs {
   date: string;
+  /** A-ordernummer för variant 'a-order', faktura-/kreditfakturanummer för 'invoice' | 'credit' */
   orderNumber: number | string;
   customerAddress: string;
   customerName?: string | null;
@@ -33,6 +36,9 @@ export interface BuildAOrderPdfArgs {
   variant?: AOrderPdfVariant;
   /** Optional subtitle row shown above the table (e.g. "Kreditering av faktura XXX-001") */
   subNote?: string | null;
+  /** A-orderns nummer och datum — skrivs som referens på faktura/kreditfaktura */
+  aOrderNumber?: number | string | null;
+  aOrderDate?: string | null;
 }
 
 const GREEN: [number, number, number] = [34, 197, 94];
@@ -65,17 +71,59 @@ export async function loadAOrderLogo(): Promise<string | null> {
   }
 }
 
+/**
+ * Faktura/kreditfaktura från en A-order är en SJÄLVFAKTURA: SmartKlimat N3prenad AB
+ * (köparen) utfärdar den för montörsteamets (säljarens) räkning med omvänd
+ * betalningsskyldighet för moms. Layouten delas med KM-/utbetalningsfakturorna.
+ */
+function buildSelfBillingFromAOrder(args: BuildAOrderPdfArgs, lines: AOrderPdfLine[]): jsPDF {
+  const { date, orderNumber, customerAddress, customerName, description, team, logoDataUrl, variant, subNote, aOrderNumber, aOrderDate } = args;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const total = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+
+  const ref: string[] = [];
+  if (customerAddress || customerName) {
+    ref.push(`Montage ${[customerAddress, customerName ? `(${customerName})` : ''].filter(Boolean).join(' ')}`);
+  }
+  if (aOrderNumber) ref.push(`A-order #${aOrderNumber}${aOrderDate ? ` av ${aOrderDate}` : ''}`);
+
+  // Kreditdialogen skickar samma text som både beskrivning och notis — skriv den bara en gång.
+  const note = subNote && subNote.trim() ? subNote.trim() : null;
+  const desc = description && description.trim() && description.trim() !== note ? description : null;
+
+  return drawSelfBillingInvoice(doc, {
+    kind: variant === 'credit' ? 'credit' : 'invoice',
+    invoiceNumber: String(orderNumber),
+    date,
+    seller: team || {},
+    reference: ref.join(' · ') || null,
+    lines: lines.map(l => ({ description: l.name, qty: l.qty, unit_price: l.unit_price, amount: l.amount })),
+    description: desc,
+    note,
+    vatMode: 'omvand',
+    subtotal: total,
+    vatAmount: 0,
+    total,
+    logoDataUrl,
+  });
+}
+
 export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
   const { date, orderNumber, customerAddress, lines: rawLines, description, team, logoDataUrl, variant = 'a-order', subNote } = args;
   // Defensive: normalize line items (handles camelCase / missing amount from legacy/imported rows)
   const lines = normalizeLines(rawLines);
+
+  if (variant === 'invoice' || variant === 'credit') {
+    return buildSelfBillingFromAOrder(args, lines);
+  }
+
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   const margin = 15;
   const pageW = 210;
 
-  const titleText = variant === 'invoice' ? 'FAKTURA' : variant === 'credit' ? 'KREDITFAKTURA' : 'A-ORDER';
-  const titleColor: [number, number, number] = variant === 'credit' ? RED : GREEN;
-  const totalColor: [number, number, number] = variant === 'credit' ? RED : GREEN;
+  const titleText = 'A-ORDER';
+  const titleColor: [number, number, number] = GREEN;
+  const totalColor: [number, number, number] = GREEN;
 
   // HEADER
   if (logoDataUrl) {
@@ -99,7 +147,7 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
   doc.setTextColor(120, 120, 120);
   doc.text(date, pageW - margin, 14, { align: 'right' });
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(variant === 'credit' ? 28 : 36);
+  doc.setFontSize(36);
   doc.setTextColor(...titleColor);
   doc.text(titleText, pageW - margin, 30, { align: 'right' });
   doc.setFontSize(14);
@@ -176,7 +224,7 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
   if (subNote && subNote.trim()) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.setTextColor(...(variant === 'credit' ? RED : DARK));
+    doc.setTextColor(...DARK);
     if (y > 250) { doc.addPage(); y = 20; }
     doc.text(subNote, margin, y + 4);
     y += 6;
@@ -235,7 +283,7 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
   doc.setTextColor(...WHITE);
   doc.setFontSize(7);
   doc.text(
-    '\u260E 070-719 72 35    \u2709 n3prenad@smartklimat.org    \u2302 Morsstigen 3 141 71 Segeltorp',
+    '☎ 070-719 72 35    ✉ n3prenad@smartklimat.org    ⌂ Morsstigen 3 141 71 Segeltorp',
     pageW / 2,
     barY + 7,
     { align: 'center' }
