@@ -8,6 +8,8 @@ import { ActivityLogView } from './ActivityLogView';
 import { LinkOrdersView } from './LinkOrdersView';
 import { MontorTeamsAdmin } from '@/components/aorders/MontorTeamsAdmin';
 import { AOrderPricesAdmin } from '@/components/aorders/AOrderPricesAdmin';
+import { DriveSyncAdmin } from './DriveSyncAdmin';
+import { useRole } from '@/hooks/useRole';
 
 import { PinCampaignAdmin } from './PinCampaignAdmin';
 
@@ -25,9 +27,11 @@ const ADMIN_SUBTABS = [
   { value: 'prices', label: 'Prislista A-order' },
   { value: 'pin-campaign', label: 'PIN-byte' },
   { value: 'activity-log', label: 'Aktivitetslogg' },
+  { value: 'drive-sync', label: 'Drive-synk' },
 ] as const;
 
 export function AdminView({ currentUser }: AdminViewProps) {
+  const { role } = useRole();
   const [sub, setSub] = useState<string>('import');
 
   return (
@@ -35,7 +39,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
       <Tabs value={sub} onValueChange={setSub} className="w-full">
         <div className="overflow-x-auto -mx-3 md:mx-0 px-3 md:px-0">
           <TabsList className="inline-flex w-max">
-            {ADMIN_SUBTABS.map(t => (
+            {ADMIN_SUBTABS.filter(t => t.value !== 'drive-sync' || role?.isAdmin).map(t => (
               <TabsTrigger key={t.value} value={t.value} className="whitespace-nowrap">
                 {t.label}
               </TabsTrigger>
@@ -70,6 +74,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
         <TabsContent value="activity-log" className="mt-4">
           <ActivityLogView />
         </TabsContent>
+        {role?.isAdmin && <TabsContent value="drive-sync" className="mt-4"><DriveSyncAdmin /></TabsContent>}
       </Tabs>
     </div>
   );

@@ -766,6 +766,120 @@ export type Database = {
           },
         ]
       }
+      drive_sync: {
+        Row: {
+          attempts: number
+          created_at: string
+          doc_kind: string
+          drive_file_id: string | null
+          drive_folder_id: string | null
+          drive_folder_path: string | null
+          drive_web_link: string | null
+          error: string | null
+          file_name: string
+          id: string
+          source_id: string
+          source_table: string
+          status: string
+          storage_path: string
+          synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          doc_kind: string
+          drive_file_id?: string | null
+          drive_folder_id?: string | null
+          drive_folder_path?: string | null
+          drive_web_link?: string | null
+          error?: string | null
+          file_name: string
+          id?: string
+          source_id: string
+          source_table: string
+          status?: string
+          storage_path: string
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          doc_kind?: string
+          drive_file_id?: string | null
+          drive_folder_id?: string | null
+          drive_folder_path?: string | null
+          drive_web_link?: string | null
+          error?: string | null
+          file_name?: string
+          id?: string
+          source_id?: string
+          source_table?: string
+          status?: string
+          storage_path?: string
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      drive_sync_runtime: {
+        Row: {
+          callback_bearer: string | null
+          callback_url: string | null
+          generation: number
+          id: number
+          lease_owner: string | null
+          lease_until: string | null
+        }
+        Insert: {
+          callback_bearer?: string | null
+          callback_url?: string | null
+          generation?: number
+          id?: number
+          lease_owner?: string | null
+          lease_until?: string | null
+        }
+        Update: {
+          callback_bearer?: string | null
+          callback_url?: string | null
+          generation?: number
+          id?: number
+          lease_owner?: string | null
+          lease_until?: string | null
+        }
+        Relationships: []
+      }
+      drive_sync_settings: {
+        Row: {
+          enabled: boolean
+          id: number
+          kunder_folder_id: string
+          last_error: string | null
+          last_run_at: string | null
+          root_folder_id: string
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          id?: number
+          kunder_folder_id?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          root_folder_id?: string
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          id?: number
+          kunder_folder_id?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          root_folder_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       future_jobs: {
         Row: {
           address: string | null
@@ -1613,6 +1727,12 @@ export type Database = {
       auth_is_my_team_case: { Args: { p_case_id: string }; Returns: boolean }
       auth_user_name: { Args: never; Returns: string }
       auth_user_role: { Args: never; Returns: string }
+      drive_sync_claim: { Args: { p_owner: string }; Returns: number }
+      drive_sync_finish: {
+        Args: { p_generation: number; p_owner: string; p_remaining: boolean }
+        Returns: undefined
+      }
+      drive_sync_wake: { Args: never; Returns: undefined }
       fix_a_order_sequence: { Args: never; Returns: undefined }
       login_directory: {
         Args: never
