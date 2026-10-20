@@ -70,6 +70,8 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
         team,
         logoDataUrl: logo,
         variant: 'invoice',
+        aOrderNumber: order.order_number,
+        aOrderDate: order.date,
       });
       const pdf_base64 = doc.output('datauristring').split(',')[1] || '';
 
@@ -130,9 +132,10 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Fakturera A-order #{order?.order_number}</DialogTitle>
+          <DialogTitle>Självfakturera A-order #{order?.order_number}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
+          <p className="text-xs text-muted-foreground">Fakturan utfärdas av SmartKlimat N3prenad AB för montörsteamets räkning (självfakturering, omvänd moms) och skickas till teamets faktura-e-post.</p>
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div><span className="text-muted-foreground">Mottagare:</span> <strong>{recipient || '— saknas —'}</strong></div>
             <div><span className="text-muted-foreground">Fakturanummer:</span> <strong className="text-green-700 dark:text-green-300">{invoiceNumber}</strong></div>
@@ -182,7 +185,7 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Avbryt</Button>
           <Button onClick={go} disabled={busy || !team || !recipient || lines.length === 0} className="bg-green-600 hover:bg-green-700">
             {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Generera & skicka faktura
+            Generera & skicka självfaktura
           </Button>
         </DialogFooter>
       </DialogContent>

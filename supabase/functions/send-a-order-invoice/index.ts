@@ -22,10 +22,10 @@ function sanitizeFilename(s: string) {
 function buildHtml(opts: { kind: 'invoice' | 'credit'; number: string; address: string; subNote?: string }) {
   const isCredit = opts.kind === 'credit';
   const color = isCredit ? '#DC2626' : '#22C55E';
-  const heading = isCredit ? `KREDITFAKTURA ${esc(opts.number)}` : `FAKTURA ${esc(opts.number)}`;
+  const heading = isCredit ? `KREDITFAKTURA ${esc(opts.number)}` : `SJÄLVFAKTURA ${esc(opts.number)}`;
   const body = isCredit
-    ? `<p style="margin:14px 0 0;">${esc(opts.subNote || '')}</p>`
-    : `<p style="margin:14px 0 0;">Faktura bifogas som PDF. Betalningsvillkor 10 dagar netto.</p>`;
+    ? `<p style="margin:14px 0 0;">${esc(opts.subNote || '')}</p><p style="margin:10px 0 0;">Kreditfakturan är utfärdad av SmartKlimat N3prenad AB för er räkning (självfakturering) och kvittas mot kommande utbetalningar.</p>`
+    : `<p style="margin:14px 0 0;">Bifogad faktura är en <strong>självfaktura</strong>: SmartKlimat N3prenad AB har utfärdat den för er räkning för utfört montage. Ni behöver inte skicka någon egen faktura för detta arbete.</p><p style="margin:10px 0 0;">Omvänd betalningsskyldighet för moms gäller. Betalning sker till ert bankgiro inom 10 dagar från fakturadatum.</p>`;
   return `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/></head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
 
     const subject = isCredit
       ? `KREDITFAKTURA ${number} — ${order.customer_address || ''}`.trim()
-      : `FAKTURA ${number} — ${order.customer_address || ''}`.trim();
+      : `SJÄLVFAKTURA ${number} — ${order.customer_address || ''}`.trim();
 
     const payload: Record<string, unknown> = {
       from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
