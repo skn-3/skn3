@@ -71,6 +71,8 @@ export type Database = {
           order_kind: string
           order_number: number | null
           order_sent_at: string | null
+          paid_at: string | null
+          paid_by: string | null
           pdf_path: string | null
           roof_window_count: number
           scheduled_delivery: boolean | null
@@ -106,6 +108,8 @@ export type Database = {
           order_kind?: string
           order_number?: number | null
           order_sent_at?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
           pdf_path?: string | null
           roof_window_count?: number
           scheduled_delivery?: boolean | null
@@ -141,6 +145,8 @@ export type Database = {
           order_kind?: string
           order_number?: number | null
           order_sent_at?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
           pdf_path?: string | null
           roof_window_count?: number
           scheduled_delivery?: boolean | null
@@ -939,6 +945,7 @@ export type Database = {
           invoice_number: string | null
           kind: string
           line_items: Json
+          paid_at: string | null
           pdf_path: string | null
           sent_at: string | null
           status: string
@@ -961,6 +968,7 @@ export type Database = {
           invoice_number?: string | null
           kind?: string
           line_items?: Json
+          paid_at?: string | null
           pdf_path?: string | null
           sent_at?: string | null
           status?: string
@@ -983,6 +991,7 @@ export type Database = {
           invoice_number?: string | null
           kind?: string
           line_items?: Json
+          paid_at?: string | null
           pdf_path?: string | null
           sent_at?: string | null
           status?: string

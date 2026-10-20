@@ -1,7 +1,7 @@
 import { paidDatesByCase } from '@/lib/payoutKind';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight, Banknote as BanknoteIcon } from 'lucide-react';
+import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight, Banknote as BanknoteIcon, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,10 @@ export function AOrdersView({ currentUser }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [rebillPrompt, setRebillPrompt] = useState<any | null>(null);
   const [debitOpen, setDebitOpen] = useState(false);
+  const [payStatus, setPayStatus] = useState<'all' | 'unpaid' | 'paid'>('all');
+  const [payFor, setPayFor] = useState<any | null>(null);
+  const [payDate, setPayDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [payBusy, setPayBusy] = useState(false);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['a_orders_all'],
@@ -123,6 +127,8 @@ export function AOrdersView({ currentUser }: Props) {
       if (teamFilter === 'unassigned' && o.team_id) return false;
       if (teamFilter !== 'all' && teamFilter !== 'unassigned' && o.team_id !== teamFilter) return false;
       if (onlyPayReady && !(o.case_id && paidCaseMap.has(o.case_id) && o.status === 'order')) return false;
+      if (payStatus === 'unpaid' && !(o.status === 'invoiced' && !o.paid_at)) return false;
+      if (payStatus === 'paid' && !o.paid_at) return false;
       if (!q) return true;
       return (
         (o.customer_address || '').toLowerCase().includes(q) ||
@@ -130,7 +136,57 @@ export function AOrdersView({ currentUser }: Props) {
         String(o.order_number || '').includes(q)
       );
     });
-  }, [orders, search, teamFilter, onlyPayReady, paidCaseMap]);
+  }, [orders, search, teamFilter, onlyPayReady, paidCaseMap, payStatus]);
+
+  // Obetalt till montörer: fakturerade A-ordrar utan betaldatum.
+  // Respekterar montörsfiltret men inte betalstatusfiltret.
+  const unpaidInvoiced = useMemo(() => {
+    return orders.filter(o => {
+      if (o.status !== 'invoiced' || o.paid_at) return false;
+      if (teamFilter === 'unassigned' && o.team_id) return false;
+      if (teamFilter !== 'all' && teamFilter !== 'unassigned' && o.team_id !== teamFilter) return false;
+      return true;
+    });
+  }, [orders, teamFilter]);
+  const unpaidSum = useMemo(() => unpaidInvoiced.reduce((s, o) => s + Number(o.total_amount || 0), 0), [unpaidInvoiced]);
+
+  async function confirmPaid() {
+    if (!payFor || !payDate) return;
+    setPayBusy(true);
+    try {
+      const { error } = await (supabase as any)
+        .from('a_orders')
+        .update({ paid_at: payDate, paid_by: currentUser })
+        .eq('id', payFor.id);
+      if (error) throw error;
+      if (payFor.case_id) {
+        const { error: evErr } = await (supabase as any).from('case_events').insert({
+          case_id: payFor.case_id,
+          event_type: 'status_change',
+          description: `Montörsfaktura ${payFor.invoice_number} betald ${payDate}`,
+          created_by: currentUser,
+        });
+        if (evErr) console.error('Kunde inte logga händelse:', evErr);
+      }
+      toast.success('Markerad som betald');
+      setPayFor(null);
+      qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte markera som betald');
+    } finally {
+      setPayBusy(false);
+    }
+  }
+
+  async function undoPaid(o: any) {
+    const { error } = await (supabase as any)
+      .from('a_orders')
+      .update({ paid_at: null, paid_by: null })
+      .eq('id', o.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Betalmarkering ångrad');
+    qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+  }
 
   function openNew() { setEditing(null); setFormPrefill(null); setFormMode('standard'); setFormOpen(true); }
   function openNewKomp() { setEditing(null); setFormPrefill(null); setFormMode('komplettering'); setFormOpen(true); }
@@ -356,6 +412,16 @@ export function AOrdersView({ currentUser }: Props) {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={payStatus} onValueChange={(v) => setPayStatus(v as 'all' | 'unpaid' | 'paid')}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Betalstatus" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alla</SelectItem>
+                <SelectItem value="unpaid">Obetalda fakturor</SelectItem>
+                <SelectItem value="paid">Betalda</SelectItem>
+              </SelectContent>
+            </Select>
             <label className="flex items-center gap-2 text-sm whitespace-nowrap cursor-pointer">
               <input type="checkbox" checked={onlyPayReady} onChange={(e) => setOnlyPayReady(e.target.checked)} />
               MF betald · ej montörsfakturerad
@@ -364,6 +430,9 @@ export function AOrdersView({ currentUser }: Props) {
           <p className="text-xs text-muted-foreground">
             Visar {filteredHistory.length} av {orders.length} A-ordrar
             {teamFilter !== 'all' && teamFilter !== 'unassigned' ? ` för ${teams.find((t: any) => t.id === teamFilter)?.name ?? ''}` : ''}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Obetalt till montörer: <span className="font-medium text-foreground">{fmt(unpaidSum)}</span> ({unpaidInvoiced.length} {unpaidInvoiced.length === 1 ? 'faktura' : 'fakturor'})
           </p>
           <div className="rounded-md border overflow-x-auto">
             <table className="w-full text-sm">
@@ -387,7 +456,10 @@ export function AOrdersView({ currentUser }: Props) {
                 {filteredHistory.map(o => {
                   const intern = internalOf(o);
                   const isCredit = o.status === 'credited';
-                  const meta = STATUS_BADGE[o.status] || STATUS_BADGE.order;
+                  const isPaid = o.status === 'invoiced' && !!o.paid_at;
+                  const meta = isPaid
+                    ? { label: 'Betald', cls: 'bg-emerald-700 hover:bg-emerald-700/90 text-white' }
+                    : STATUS_BADGE[o.status] || STATUS_BADGE.order;
                   return (
                     <tr key={o.id} className="hover:bg-muted/30">
                       <td className="px-3 py-2 font-mono">
@@ -425,6 +497,9 @@ export function AOrdersView({ currentUser }: Props) {
                             {o.invoice_sent_at && ` · ${new Date(o.invoice_sent_at).toLocaleDateString('sv-SE')}`}
                           </div>
                         )}
+                        {isPaid && (
+                          <div className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-0.5 font-medium">Betald {o.paid_at}</div>
+                        )}
                         {isCredit && o.credited_from_order_id && (
                           <div className="text-[10px] text-red-600 dark:text-red-400 mt-0.5">avser tidigare faktura</div>
                         )}
@@ -440,6 +515,16 @@ export function AOrdersView({ currentUser }: Props) {
                           {o.status === 'order' && o.team_id && (
                             <Button size="sm" variant="ghost" onClick={() => setInvoiceFor(o)} title="Fakturera" className="text-green-700 dark:text-green-300">
                               <Receipt className="h-3 w-3" />
+                            </Button>
+                          )}
+                           {o.status === 'invoiced' && !o.paid_at && (
+                            <Button size="sm" variant="ghost" onClick={() => { setPayFor(o); setPayDate(new Date().toISOString().slice(0, 10)); }} title="Markera som betald" className="text-green-700 dark:text-green-300">
+                              <BanknoteIcon className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {o.status === 'invoiced' && !!o.paid_at && (
+                            <Button size="sm" variant="ghost" onClick={() => undoPaid(o)} title="Ångra betald">
+                              <Undo2 className="h-3 w-3" />
                             </Button>
                           )}
                            {o.status === 'invoiced' && (
@@ -502,6 +587,25 @@ export function AOrdersView({ currentUser }: Props) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAssignFor(null)}>Avbryt</Button>
             <Button onClick={doAssign} disabled={!assignTeam}>Tilldela</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Markera som betald */}
+      <Dialog open={!!payFor} onOpenChange={v => { if (!v && !payBusy) setPayFor(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Markera faktura {payFor?.invoice_number} som betald</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <div className="text-sm text-muted-foreground">A-order #{payFor?.order_number} — {payFor?.customer_address}</div>
+            <label className="text-sm font-medium">Betaldatum</label>
+            <Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayFor(null)} disabled={payBusy}>Avbryt</Button>
+            <Button onClick={confirmPaid} disabled={payBusy || !payDate}>
+              {payBusy && <Loader2 className="h-3 w-3 animate-spin mr-2" />}
+              Bekräfta betald
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

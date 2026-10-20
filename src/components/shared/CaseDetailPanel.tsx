@@ -398,7 +398,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('a_orders')
-        .select('id, order_number, total_amount, status, team_id, invoice_number, date, line_items, window_count, door_count, roof_window_count, montor_teams(name)')
+        .select('id, order_number, total_amount, status, team_id, invoice_number, date, line_items, window_count, door_count, roof_window_count, paid_at, montor_teams(name)')
         .eq('case_id', caseData.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -2366,7 +2366,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             {linkedOrders && linkedOrders.length > 0 ? (
               <div className="space-y-2">
                 {linkedOrders.map((order: any, idx: number) => {
-                  const statusBadge = order.status === 'invoiced'
+                  const statusBadge = order.status === 'invoiced' && order.paid_at
+                    ? <Badge className="bg-emerald-700 hover:bg-emerald-700/90 text-white">Betald {order.paid_at}</Badge>
+                    : order.status === 'invoiced'
                     ? <Badge className="bg-green-500 hover:bg-green-500/90 text-white">Fakturerad</Badge>
                     : order.status === 'credited'
                     ? <Badge variant="destructive">Krediterad</Badge>
