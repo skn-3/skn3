@@ -107,7 +107,9 @@ export function MontorDebitInvoicesView() {
   }
 
   async function setStatus(inv: any, status: 'paid' | 'cancelled') {
-    const { error } = await (supabase as any).from('montor_debit_invoices').update({ status }).eq('id', inv.id);
+    const patch: any = { status };
+    if (status === 'paid') patch.paid_at = new Date().toISOString().slice(0, 10);
+    const { error } = await (supabase as any).from('montor_debit_invoices').update(patch).eq('id', inv.id);
     if (error) { toast.error(error.message); return; }
     toast.success(status === 'paid' ? 'Markerad som betald' : 'Makulerad');
     qc.invalidateQueries({ queryKey: ['montor_debit_invoices'] });
@@ -180,6 +182,9 @@ export function MontorDebitInvoicesView() {
                 <td className="px-3 py-2 text-right font-medium">{fmt(inv.total)}</td>
                 <td className="px-3 py-2">
                   <Badge className={meta.cls}>{meta.label}</Badge>
+                  {inv.paid_at && (
+                    <div className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-1 font-medium">Betald {inv.paid_at}</div>
+                  )}
                   {inv.sent_at && (
                     <div className="text-[10px] text-muted-foreground mt-1">
                       Skickad {new Date(inv.sent_at).toLocaleDateString('sv-SE')}

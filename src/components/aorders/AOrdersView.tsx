@@ -591,6 +591,25 @@ export function AOrdersView({ currentUser }: Props) {
         </DialogContent>
       </Dialog>
 
+      {/* Markera som betald */}
+      <Dialog open={!!payFor} onOpenChange={v => { if (!v && !payBusy) setPayFor(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Markera faktura {payFor?.invoice_number} som betald</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <div className="text-sm text-muted-foreground">A-order #{payFor?.order_number} — {payFor?.customer_address}</div>
+            <label className="text-sm font-medium">Betaldatum</label>
+            <Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayFor(null)} disabled={payBusy}>Avbryt</Button>
+            <Button onClick={confirmPaid} disabled={payBusy || !payDate}>
+              {payBusy && <Loader2 className="h-3 w-3 animate-spin mr-2" />}
+              Bekräfta betald
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AOrderForm
         key={editing?.id ?? (formPrefill ? 'prefill' : `new-${formMode}`)}
         open={formOpen}
