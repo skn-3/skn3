@@ -2366,7 +2366,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             {linkedOrders && linkedOrders.length > 0 ? (
               <div className="space-y-2">
                 {linkedOrders.map((order: any, idx: number) => {
-                  const statusBadge = order.status === 'invoiced'
+                  const statusBadge = order.status === 'invoiced' && order.paid_at
+                    ? <Badge className="bg-emerald-700 hover:bg-emerald-700/90 text-white">Betald {order.paid_at}</Badge>
+                    : order.status === 'invoiced'
                     ? <Badge className="bg-green-500 hover:bg-green-500/90 text-white">Fakturerad</Badge>
                     : order.status === 'credited'
                     ? <Badge variant="destructive">Krediterad</Badge>

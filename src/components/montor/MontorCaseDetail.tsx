@@ -714,6 +714,8 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   ? `Kreditfaktura ${o.invoice_number ?? ''}`.trim()
                   : o.status === 'credited'
                   ? 'Krediterad'
+                  : o.paid_at
+                  ? `Betald ${o.paid_at} · Faktura ${o.invoice_number ?? ''}`.trim()
                   : o.invoice_sent_at
                   ? `Fakturerad ${o.invoice_number ?? ''}`.trim()
                   : o.order_sent_at

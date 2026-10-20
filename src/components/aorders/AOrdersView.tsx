@@ -412,6 +412,16 @@ export function AOrdersView({ currentUser }: Props) {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={payStatus} onValueChange={(v) => setPayStatus(v as 'all' | 'unpaid' | 'paid')}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Betalstatus" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alla</SelectItem>
+                <SelectItem value="unpaid">Obetalda fakturor</SelectItem>
+                <SelectItem value="paid">Betalda</SelectItem>
+              </SelectContent>
+            </Select>
             <label className="flex items-center gap-2 text-sm whitespace-nowrap cursor-pointer">
               <input type="checkbox" checked={onlyPayReady} onChange={(e) => setOnlyPayReady(e.target.checked)} />
               MF betald · ej montörsfakturerad
@@ -420,6 +430,9 @@ export function AOrdersView({ currentUser }: Props) {
           <p className="text-xs text-muted-foreground">
             Visar {filteredHistory.length} av {orders.length} A-ordrar
             {teamFilter !== 'all' && teamFilter !== 'unassigned' ? ` för ${teams.find((t: any) => t.id === teamFilter)?.name ?? ''}` : ''}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Obetalt till montörer: <span className="font-medium text-foreground">{fmt(unpaidSum)}</span> ({unpaidInvoiced.length} {unpaidInvoiced.length === 1 ? 'faktura' : 'fakturor'})
           </p>
           <div className="rounded-md border overflow-x-auto">
             <table className="w-full text-sm">
@@ -443,7 +456,10 @@ export function AOrdersView({ currentUser }: Props) {
                 {filteredHistory.map(o => {
                   const intern = internalOf(o);
                   const isCredit = o.status === 'credited';
-                  const meta = STATUS_BADGE[o.status] || STATUS_BADGE.order;
+                  const isPaid = o.status === 'invoiced' && !!o.paid_at;
+                  const meta = isPaid
+                    ? { label: 'Betald', cls: 'bg-emerald-700 hover:bg-emerald-700/90 text-white' }
+                    : STATUS_BADGE[o.status] || STATUS_BADGE.order;
                   return (
                     <tr key={o.id} className="hover:bg-muted/30">
                       <td className="px-3 py-2 font-mono">
@@ -481,6 +497,9 @@ export function AOrdersView({ currentUser }: Props) {
                             {o.invoice_sent_at && ` · ${new Date(o.invoice_sent_at).toLocaleDateString('sv-SE')}`}
                           </div>
                         )}
+                        {isPaid && (
+                          <div className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-0.5 font-medium">Betald {o.paid_at}</div>
+                        )}
                         {isCredit && o.credited_from_order_id && (
                           <div className="text-[10px] text-red-600 dark:text-red-400 mt-0.5">avser tidigare faktura</div>
                         )}
@@ -496,6 +515,16 @@ export function AOrdersView({ currentUser }: Props) {
                           {o.status === 'order' && o.team_id && (
                             <Button size="sm" variant="ghost" onClick={() => setInvoiceFor(o)} title="Fakturera" className="text-green-700 dark:text-green-300">
                               <Receipt className="h-3 w-3" />
+                            </Button>
+                          )}
+                           {o.status === 'invoiced' && !o.paid_at && (
+                            <Button size="sm" variant="ghost" onClick={() => { setPayFor(o); setPayDate(new Date().toISOString().slice(0, 10)); }} title="Markera som betald" className="text-green-700 dark:text-green-300">
+                              <BanknoteIcon className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {o.status === 'invoiced' && !!o.paid_at && (
+                            <Button size="sm" variant="ghost" onClick={() => undoPaid(o)} title="Ångra betald">
+                              <Undo2 className="h-3 w-3" />
                             </Button>
                           )}
                            {o.status === 'invoiced' && (
