@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] PDF-namn: gemensam modul, nedladdningar, metadata och mejlbilagor.
+- [ ] A-order: omgenerera faktura/kredit-PDF utan statusändringar, valfritt mejlutskick.
+- [ ] PDF-flöden: tester och preview-kontroll, ingen publicering.
+
 - [x] Utbetalningar: aktivt valda extrajobb, gemensam självfaktura per team och oförändrad KM-logik.
 - [x] Utbetalningar: sex nya enhetstester, hela sviten och typkontroll gröna.
 - [ ] Utbetalningar: inloggat preview-test återstår och utelämnas på användarens uttryckliga begäran.
