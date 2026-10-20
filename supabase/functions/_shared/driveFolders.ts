@@ -3,6 +3,16 @@ export type DriveKind = typeof DRIVE_KINDS[number];
 export type Destination = 'outgoing' | 'incoming' | 'customers';
 export const MONTHS = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
+/** Hård spärr: Drive-klienten får bara läsa och skapa. Kastar på allt annat. */
+export function assertAllowedDriveRequest(method: string, path: string): void {
+  const m = method.toUpperCase();
+  const p = path.split('?')[0];
+  const ok =
+    (m === 'GET' && (p === 'files' || /^files\/[^/]+$/.test(p))) ||
+    (m === 'POST' && p === 'files');
+  if (!ok) throw new Error(`Drive-spärr: ${m} ${p} är inte tillåtet. Synken får bara läsa och skapa, aldrig ändra eller radera.`);
+}
+
 export function accountingFolders(date: string, destination: 'outgoing' | 'incoming') {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
   if (!match) throw new Error('Ogiltigt dokumentdatum');
