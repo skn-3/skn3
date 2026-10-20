@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { fmtKr } from '@/lib/offerCalc';
+import { offerPdfName } from '@/lib/pdfNames';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { UPPDRAG_STATUS_META, type UppdragStatus } from '@/lib/uppdrag';
 import { UppdragDetail } from './UppdragDetail';
@@ -66,9 +67,9 @@ export function UppdragView() {
   const openOffer = async (offerId: string | null) => {
     if (!offerId) return;
     const ok = await openDocumentInNewTab(async () => {
-      const { data, error } = await (supabase as any).from('offers').select('pdf_path').eq('id', offerId).maybeSingle();
+      const { data, error } = await (supabase as any).from('offers').select('pdf_path, offer_number, customer_name, customer_address, created_at').eq('id', offerId).maybeSingle();
       if (error || !data?.pdf_path) return null;
-      const { data: signed } = await supabase.storage.from('case-documents').createSignedUrl(data.pdf_path, 3600);
+      const { data: signed } = await supabase.storage.from('case-documents').createSignedUrl(data.pdf_path, 3600, { download: offerPdfName(data) });
       return signed?.signedUrl ?? null;
     });
     if (!ok) toast.info('Ingen sparad offert-PDF');

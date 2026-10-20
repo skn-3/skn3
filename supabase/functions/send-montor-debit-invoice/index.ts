@@ -1,16 +1,15 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireCoordinator } from '../_shared/auth.ts';
+import { attachmentPdfName } from '../_shared/pdfFilename.ts';
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
 const COPY_TO = ['n3prenad@smartklimat.org', 'inbox.ver.1638171@arkivplats.se'];
 
 function esc(s: string) {
-  return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+  return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
 }
 function sanitizeFilename(s: string) {
   return String(s || '').normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
@@ -86,8 +85,8 @@ Bankgiro 5032-4573 &middot; SmartKlimat N3prenad AB &middot; 559026-6630
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
@@ -99,7 +98,7 @@ Deno.serve(async (req) => {
 
 
     const body = await req.json().catch(() => ({}));
-    const { debit_invoice_id, pdf_base64 } = body || {};
+    const { debit_invoice_id, pdf_base64, file_name } = body || {};
     if (!debit_invoice_id || typeof debit_invoice_id !== 'string') {
       return new Response(JSON.stringify({ error: 'debit_invoice_id krävs' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -129,7 +128,7 @@ Deno.serve(async (req) => {
     }
     const number = String(inv.invoice_number);
     const companySafe = sanitizeFilename(team.company_name || team.name || 'kund');
-    const filename = `${isCredit ? 'KREDITFAKTURA' : isSelfBilling ? 'SJALVFAKTURA' : 'FAKTURA'}-${number}-${companySafe}.pdf`;
+    const filename = attachmentPdfName(file_name, `${isCredit ? 'KREDITFAKTURA' : isSelfBilling ? 'SJALVFAKTURA' : 'FAKTURA'}-${number}-${companySafe}.pdf`);
 
     const pdfBytes = Uint8Array.from(atob(pdf_base64), c => c.charCodeAt(0));
     const pdfPath = `montor-debit/${inv.id}.pdf`;

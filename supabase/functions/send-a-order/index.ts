@@ -1,15 +1,14 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireCoordinator } from '../_shared/auth.ts';
+import { attachmentPdfName } from '../_shared/pdfFilename.ts';
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
 
 
-function esc(s: string) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!)); }
+function esc(s: string) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c)); }
 function sanitizeFilename(s: string) {
   return String(s || '').normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
 }
@@ -60,8 +59,8 @@ PDF och eventuella bilder bifogas. Mvh SmartKlimat N3prenad
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
@@ -72,7 +71,7 @@ Deno.serve(async (req) => {
 
 
     const body = await req.json().catch(() => ({}));
-    const { a_order_id, pdf_base64 } = body || {};
+    const { a_order_id, pdf_base64, file_name } = body || {};
     if (!a_order_id || typeof a_order_id !== 'string') {
       return new Response(JSON.stringify({ error: 'a_order_id krävs' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -90,7 +89,7 @@ Deno.serve(async (req) => {
 
     const addrSafe = sanitizeFilename(order.customer_address || 'adress');
     const orderNo = String(order.order_number ?? '');
-    const filename = `A-ORDER-${orderNo}-${addrSafe}.pdf`;
+    const filename = attachmentPdfName(file_name, `A-ORDER-${orderNo}-${addrSafe}.pdf`);
 
     // Save PDF to storage
     const pdfBytes = Uint8Array.from(atob(pdf_base64), c => c.charCodeAt(0));

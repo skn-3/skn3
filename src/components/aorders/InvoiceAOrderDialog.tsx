@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
+import { invoicePdfName } from '@/lib/pdfNames';
 import { normalizeLines } from '@/lib/aOrderLines';
 import { UnhandledCostsBlock } from '@/components/aorders/UnhandledCostsBlock';
 import { costToLine, linkedCostIds, syncCostLinksForOrder, COST_PAYOUT_QUERY_KEYS, type PayoutCost } from '@/lib/caseCostPayout';
@@ -77,7 +78,7 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
 
       // Send via edge function (uploads PDF too)
       const { data: sendData, error: sendErr } = await supabase.functions.invoke('send-a-order-invoice', {
-        body: { a_order_id: order.id, pdf_base64, kind: 'invoice', invoice_number: invoiceNumber, storage_subpath: 'faktura' },
+        body: { a_order_id: order.id, pdf_base64, kind: 'invoice', invoice_number: invoiceNumber, storage_subpath: 'faktura', file_name: invoicePdfName({ ...order, invoice_number: invoiceNumber, invoice_sent_at: new Date().toISOString(), montor_teams: team }) },
       });
       if (sendErr) throw sendErr;
 

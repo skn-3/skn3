@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
+import { creditPdfName } from '@/lib/pdfNames';
 import { normalizeLines } from '@/lib/aOrderLines';
 
 interface Props {
@@ -93,7 +94,7 @@ export function CreditAOrderDialog({ open, onOpenChange, order, currentUser, onC
 
       // Send via edge function (uses new row id for PDF storage)
       const { data: sendData, error: sendErr } = await supabase.functions.invoke('send-a-order-invoice', {
-        body: { a_order_id: newId, pdf_base64, kind: 'credit', invoice_number: creditNumber, sub_note: subNote, storage_subpath: 'kredit' },
+        body: { a_order_id: newId, pdf_base64, kind: 'credit', invoice_number: creditNumber, sub_note: subNote, storage_subpath: 'kredit', file_name: creditPdfName({ ...insertPayload, montor_teams: team }) },
       });
       if (sendErr) throw sendErr;
       await (supabase as any).from('a_orders').update({ pdf_path: (sendData as any)?.pdf_path || `a-orders/${newId}-kredit.pdf` }).eq('id', newId);

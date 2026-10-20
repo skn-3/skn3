@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { fmtKr } from '@/lib/offerCalc';
 import { buildHandpenningPdfBlob, buildSlutfakturaPdfBlob } from '@/lib/invoicePdf';
+import { uppdragInvoicePdfName } from '@/lib/pdfNames';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { UPPDRAG_STATUS_META, type UppdragStatus } from '@/lib/uppdrag';
 import { MarkPaidDialog } from './MarkPaidDialog';
@@ -84,9 +85,9 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
     qc.invalidateQueries({ queryKey: ['uppdrag'] });
   };
 
-  const openSigned = async (path: string) => {
+  const openSigned = async (path: string, name: string) => {
     const ok = await openDocumentInNewTab(async () => {
-      const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 3600);
+      const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 3600, { download: name });
       return data?.signedUrl ?? null;
     });
     if (!ok) toast.error('Kunde inte öppna PDF');
@@ -106,7 +107,7 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
       }).eq('id', u.id);
       if (dbErr) throw dbErr;
       await refresh();
-      await openSigned(path);
+      await openSigned(path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'handpenning', hpNo.trim()));
       toast.success('Handpenningsfaktura genererad');
     } catch (e: any) {
       console.error(e); toast.error(e?.message || 'Kunde inte generera PDF');
@@ -131,7 +132,7 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
       }).eq('id', u.id);
       if (dbErr) throw dbErr;
       await refresh();
-      await openSigned(path);
+      await openSigned(path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'slutfaktura', sfNo.trim()));
       toast.success('Slutfaktura genererad');
     } catch (e: any) {
       console.error(e); toast.error(e?.message || 'Kunde inte generera PDF');
@@ -241,7 +242,7 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
               </div>
               <div className="flex items-center gap-3">
                 {u.handpenning_pdf_path && (
-                  <button type="button" onClick={() => openSigned(u.handpenning_pdf_path!)} className="text-xs text-primary hover:underline">
+                  <button type="button" onClick={() => u.handpenning_pdf_path && openSigned(u.handpenning_pdf_path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'handpenning', u.handpenning_invoice_no, u.handpenning_sent_at))} className="text-xs text-primary hover:underline">
                     Visa PDF
                   </button>
                 )}
@@ -279,7 +280,7 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
               </div>
               <div className="flex items-center gap-3">
                 {u.slutfaktura_pdf_path && (
-                  <button type="button" onClick={() => openSigned(u.slutfaktura_pdf_path!)} className="text-xs text-primary hover:underline">
+                  <button type="button" onClick={() => u.slutfaktura_pdf_path && openSigned(u.slutfaktura_pdf_path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'slutfaktura', u.slutfaktura_invoice_no, u.slutfaktura_sent_at))} className="text-xs text-primary hover:underline">
                     Visa PDF
                   </button>
                 )}
