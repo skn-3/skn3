@@ -70,9 +70,11 @@ Deno.serve(async req => {
     if (claim.error) throw new Error(claim.error.message);
     if (claim.data === null) { owner = null; return json({error:'En synkning pågår redan. Försök igen om en stund.'},409); }
     generation = claim.data;
+    finishRemaining = true; // Preserve bounded retries if candidate discovery fails.
     let collected = await collectCandidates(admin);
     let batch: Candidate[];
     if (body.action === 'retry') {
+      finishRemaining = collected.remaining.length > 0;
       const row = collected.syncRows.find(r => r.id === body.id);
       if (!row) return json({error:'Synkraden hittades inte'},404);
       if (row.status === 'synced' || row.status === 'skipped') return json({processed:0,synced:0,skipped:0,errors:0,remaining:collected.remaining.length});
