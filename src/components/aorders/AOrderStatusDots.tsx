@@ -11,21 +11,28 @@ const DOT: Record<AOrderStatusKey, string> = {
 
 function Dot({ group }: { group: AOrderStatusGroup }) {
   const [open, setOpen] = useState(false);
+  const lastPointer = useRef<string>('mouse');
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+      <PopoverAnchor asChild>
         <button
           type="button"
+          aria-expanded={open}
           className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs hover:bg-muted/60"
+          onPointerDown={(e) => { lastPointer.current = e.pointerType; }}
           onPointerEnter={(e) => { if (e.pointerType === 'mouse') setOpen(true); }}
           onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpen(false); }}
-          onClick={(e) => { e.preventDefault(); setOpen((v) => !v); }}
+          onClick={() => {
+            if (lastPointer.current === 'mouse') setOpen(true);
+            else setOpen((v) => !v);
+          }}
         >
           <span className={`h-2.5 w-2.5 rounded-full ${DOT[group.key]}`} />
           <span className="font-medium tabular-nums">{group.total}</span>
           <span className="text-muted-foreground">{group.label}</span>
         </button>
-      </PopoverTrigger>
+      </PopoverAnchor>
+
       <PopoverContent
         side="bottom"
         align="end"
