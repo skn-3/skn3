@@ -1,7 +1,7 @@
 import { paidDatesByCase } from '@/lib/payoutKind';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight, Banknote as BanknoteIcon, Undo2 } from 'lucide-react';
+import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight, Banknote as BanknoteIcon, Undo2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,11 @@ import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { fetchUnhandledCostsByCase } from '@/lib/caseCostPayout';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { useRole } from '@/hooks/useRole';
+import { aOrderDocumentName, aOrderPdfName } from '@/lib/pdfNames';
+import { regenerateAOrderPdf } from '@/lib/aOrderRegeneration';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Props { currentUser: string }
 
@@ -66,6 +71,26 @@ export function AOrdersView({ currentUser }: Props) {
   const [payFor, setPayFor] = useState<any | null>(null);
   const [payDate, setPayDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [payBusy, setPayBusy] = useState(false);
+  const [regenerateFor, setRegenerateFor] = useState<any | null>(null);
+  const [regenerateSend, setRegenerateSend] = useState(true);
+  const [regenerateBusy, setRegenerateBusy] = useState(false);
+  const isMobile = useIsMobile();
+
+  async function confirmRegenerate() {
+    if (!regenerateFor || regenerateBusy) return;
+    setRegenerateBusy(true);
+    try {
+      const order = await fetchOrder(regenerateFor.id);
+      const recipient = await regenerateAOrderPdf(order, regenerateSend);
+      toast.success(regenerateSend ? `PDF omgenererad och skickad till ${recipient}` : 'PDF omgenererad');
+      setRegenerateFor(null);
+      qc.invalidateQueries({ queryKey: ['a_orders_all'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte generera om PDF');
+    } finally {
+      setRegenerateBusy(false);
+    }
+  }
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['a_orders_all'],
@@ -218,7 +243,7 @@ export function AOrdersView({ currentUser }: Props) {
     try {
       if (o.pdf_path) {
         const ok = await openDocumentInNewTab(async () => {
-          const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(o.pdf_path, 600);
+          const { data, error } = await supabase.storage.from('case-documents').createSignedUrl(o.pdf_path, 600, { download: aOrderDocumentName(o) });
           return error ? null : data?.signedUrl ?? null;
         });
         if (ok) return;
@@ -235,8 +260,7 @@ export function AOrdersView({ currentUser }: Props) {
         team: full.montor_teams,
         logoDataUrl: logo,
       });
-      const addrSafe = String(full.customer_address || 'adress').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
-      doc.save(`A-ORDER-${full.order_number}-${addrSafe}.pdf`);
+      doc.save(aOrderPdfName(full));
     } catch (e: any) {
       toast.error(e?.message || 'Kunde inte hämta PDF');
     } finally {
@@ -262,7 +286,7 @@ export function AOrdersView({ currentUser }: Props) {
         logoDataUrl: logo,
       });
       const pdf_base64 = (doc.output('datauristring').split(',')[1]) || '';
-      const { error } = await supabase.functions.invoke('send-a-order', { body: { a_order_id: o.id, pdf_base64 } });
+      const { error } = await supabase.functions.invoke('send-a-order', { body: { a_order_id: o.id, pdf_base64, file_name: aOrderPdfName(full) } });
       if (error) throw error;
       toast.success(`A-order skickad till ${full.montor_teams?.email}`);
       qc.invalidateQueries({ queryKey: ['a_orders_all'] });
@@ -532,6 +556,11 @@ export function AOrdersView({ currentUser }: Props) {
                               <RotateCcw className="h-3 w-3" />
                             </Button>
                           )}
+                          {(o.status === 'invoiced' || (o.status === 'credited' && o.credited_from_order_id)) && (
+                            <Button size="sm" variant="ghost" title="Generera om PDF i aktuell layout" onClick={() => { setRegenerateFor(o); setRegenerateSend(true); }} disabled={regenerateBusy}>
+                              <RefreshCw className="h-3 w-3" />
+                            </Button>
+                          )}
                           {o.status === 'credited' && !o.credited_from_order_id && (
                             <Button size="sm" variant="ghost" onClick={() => setInvoiceFor(o)} title="Fakturera igen" className="text-green-700 dark:text-green-300">
                               <Receipt className="h-3 w-3" />
@@ -570,6 +599,25 @@ export function AOrdersView({ currentUser }: Props) {
           <KmPayoutView currentUser={currentUser} />
         </TabsContent>
       </Tabs>
+
+      <Sheet open={!!regenerateFor} onOpenChange={v => { if (!v && !regenerateBusy) setRegenerateFor(null); }}>
+        <SheetContent side={isMobile ? 'bottom' : 'right'} className="space-y-6 w-full sm:max-w-md" onEscapeKeyDown={e => { if (regenerateBusy) e.preventDefault(); }}>
+          <SheetHeader>
+            <SheetTitle>Generera om {regenerateFor?.credited_from_order_id ? 'Kreditfaktura' : 'Faktura'} {regenerateFor?.invoice_number}</SheetTitle>
+            <SheetDescription>PDF:en skapas om med dagens fakturamall och ersätter den sparade filen.</SheetDescription>
+          </SheetHeader>
+          <label className="flex items-start gap-2 text-sm">
+            <Checkbox checked={regenerateSend} onCheckedChange={v => setRegenerateSend(v === true)} disabled={regenerateBusy} />
+            <span className="break-words min-w-0">Skicka om till montören ({regenerateFor?.montor_teams?.invoice_email || regenerateFor?.montor_teams?.email || 'saknar faktura-e-post'})</span>
+          </label>
+          <SheetFooter className="gap-2">
+            <Button variant="outline" disabled={regenerateBusy} onClick={() => setRegenerateFor(null)}>Avbryt</Button>
+            <Button disabled={regenerateBusy} onClick={confirmRegenerate}>
+              {regenerateBusy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Generera om PDF
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Assign dialog */}
       <Dialog open={!!assignFor} onOpenChange={v => { if (!v) setAssignFor(null); }}>
