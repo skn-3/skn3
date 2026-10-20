@@ -7,7 +7,8 @@
 - [x] Drive-synk: händelsestyrd automatisk start och begränsade kvartstidsåterförsök, stopp vid tom kö; aktiveras efter lyckat kopplingstest.
 - [x] Drive-synk: 141 tester gröna, automatiskt bygge OK, dator/mobil visuellt kontrollerat med verkliga antal och simulerade svar.
 - [x] Drive-synk: live service-kontroll hittar 331 dokument; test/run ger 503 med GOOGLE_SERVICE_ACCOUNT_JSON saknas; 401 utan behörighet, inga uppladdningar/loggrader och inget aktivt cronjobb.
-- [ ] Drive-synk: verklig Google-uppladdning, dubblett-readback och automatisk körning — blockerade av GOOGLE_SERVICE_ACCOUNT_JSON och delade mappar; ägaren lägger till nyckeln och testar kopplingen.
+- [x] Drive-synk: kopplingstestet nollställer last_error; admintext, etikett och mappsökväg säger Smartklimat N3Prenad; 156 tester gröna, bygge OK, funktion utlagd, ingen publicering.
+- [ ] Drive-synk: verklig uppladdning och automatisk körning — Drive svarar "File not found" på det sparade rotmapps-id:t 1-LXD1P-l3yhmSggZQkiHy_YrFj1Wodi3 (feltsidran skrevs 16:34 UTC); nyckeln och delningen finns, men det nuvarande Smartklimat N3Prenad-mappens id måste anges i fältet på Drive-synk-sidan.
 - [ ] Drive-synk: inloggat adminflöde — blockerad av saknad kontosession; eget konto saknas i appens inloggningsregister.
 
 - [x] PDF-namn: gemensam modul, angivna nedladdningar, metadata och mejlbilagor.
