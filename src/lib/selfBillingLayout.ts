@@ -165,7 +165,7 @@ export function drawSelfBillingInvoice(doc: jsPDF, inv: SelfBillingInvoice): jsP
     meta.push(['Förfallodatum', dueDate, false]);
     meta.push(['Betalningsvillkor', '10 dagar netto', false]);
   }
-  meta.push(['Bankgiro (säljarens)', seller.bankgiro || '—', false]);
+  meta.push(['Bankgiro/konto (säljarens)', seller.bankgiro || '—', false]);
 
   let my = 38;
   const metaLabelX = 118;
@@ -293,7 +293,7 @@ export function drawSelfBillingInvoice(doc: jsPDF, inv: SelfBillingInvoice): jsP
   setText(8, 'normal', DARK);
   const payText = isCredit
     ? `Krediten kvittas i första hand mot kommande utbetalningar mellan parterna. Är originalfakturan redan reglerad sker återbetalning till ${SELF_BILLING_BUYER.name}, bankgiro ${SELF_BILLING_BUYER.bankgiro}.`
-    : `${SELF_BILLING_BUYER.name} betalar ${fmtKr(inv.total)} till säljarens bankgiro ${seller.bankgiro || '—'} (${sellerName}) senast ${dueDate}. ` +
+    : `${SELF_BILLING_BUYER.name} betalar ${fmtKr(inv.total)} till säljarens bankgiro/konto ${seller.bankgiro || '—'} (${sellerName}) senast ${dueDate}. ` +
       `Säljaren ska inte skicka någon egen faktura för detta arbete. Fakturanummer ${inv.invoiceNumber} anges vid betalningen.`;
   const payLines = doc.splitTextToSize(payText, PAGE_W - MARGIN * 2 - 8);
   let py = y + 11;
