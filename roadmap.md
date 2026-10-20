@@ -3,6 +3,7 @@
 - [ ] Drive-synk: mappregler, dokumenturval, dubblettskydd och gemensamma PDF-namn.
 - [ ] Drive-synk: behörighetsskyddad körning, status, återförsök och adminflik.
 - [ ] Drive-synk: automatisk körning och retroaktiv synkning, tester och verklig Drive-verifiering — väntar på GOOGLE_SERVICE_ACCOUNT_JSON och delade mappar.
+- [ ] Drive-synk: bygg klart utan nyckel enligt ägarens besked; test/run ska visa GOOGLE_SERVICE_ACCOUNT_JSON saknas tills ägaren kan lägga till den.
 
 - [x] PDF-namn: gemensam modul, angivna nedladdningar, metadata och mejlbilagor.
 - [x] A-order: omgenerera faktura/kredit-PDF utan statusändringar, valfritt mejlutskick.
