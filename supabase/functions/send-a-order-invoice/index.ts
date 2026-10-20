@@ -3,17 +3,16 @@
 // read or forward those fields anywhere.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireCoordinator } from '../_shared/auth.ts';
+import { attachmentPdfName } from '../_shared/pdfFilename.ts';
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
 const COPY_TO = ['n3prenad@smartklimat.org', 'inbox.ver.1638171@arkivplats.se'];
 
 function esc(s: string) {
-  return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+  return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
 }
 function sanitizeFilename(s: string) {
   return String(s || '').normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
@@ -46,24 +45,32 @@ Mvh SmartKlimat N3prenad
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
-    if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
+
 
     const auth = await requireCoordinator(req, corsHeaders);
     if (auth.response) return auth.response;
 
 
     const body = await req.json().catch(() => ({}));
-    const { a_order_id, pdf_base64, kind, invoice_number, sub_note, storage_subpath } = body || {};
+    const { a_order_id, pdf_base64, kind, invoice_number, sub_note, storage_subpath, file_name, skip_email } = body || {};
     if (!a_order_id || typeof a_order_id !== 'string') {
       return new Response(JSON.stringify({ error: 'a_order_id krävs' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     if (!pdf_base64 || typeof pdf_base64 !== 'string') {
       return new Response(JSON.stringify({ error: 'pdf_base64 krävs' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (skip_email !== undefined && typeof skip_email !== 'boolean') {
+      return new Response(JSON.stringify({ error: 'skip_email måste vara boolean' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (kind !== 'invoice' && kind !== 'credit') {
+      return new Response(JSON.stringify({ error: 'Ogiltig fakturatyp' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (storage_subpath !== undefined && storage_subpath !== 'faktura' && storage_subpath !== 'kredit') {
+      return new Response(JSON.stringify({ error: 'Ogiltig PDF-sökväg' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     const isCredit = kind === 'credit';
     const fileLabel = isCredit ? 'KREDITFAKTURA' : 'FAKTURA';
@@ -76,16 +83,22 @@ Deno.serve(async (req) => {
     const team = (order as any).montor_teams;
     if (!order.team_id || !team) return new Response(JSON.stringify({ error: 'Tilldela montör först' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     const recipient = team.invoice_email || team.email;
-    if (!recipient) return new Response(JSON.stringify({ error: 'Montörsteamet saknar e-post' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!skip_email && !recipient) return new Response(JSON.stringify({ error: 'Montörsteamet saknar e-post' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     const number = String(invoice_number ?? order.invoice_number ?? '');
     const addrSafe = sanitizeFilename(order.customer_address || 'adress');
-    const filename = `${fileLabel}-${number}-${addrSafe}.pdf`;
+    const filename = attachmentPdfName(file_name, `${fileLabel}-${number}-${addrSafe}.pdf`);
 
     // Save PDF to storage
     const pdfBytes = Uint8Array.from(atob(pdf_base64), c => c.charCodeAt(0));
     const pdfPath = `a-orders/${order.id}-${subpath}.pdf`;
-    await admin.storage.from('case-documents').upload(pdfPath, pdfBytes, { contentType: 'application/pdf', upsert: true });
+    const { error: uploadError } = await admin.storage.from('case-documents').upload(pdfPath, pdfBytes, { contentType: 'application/pdf', upsert: true });
+    if (uploadError) throw uploadError;
+    if (skip_email === true) {
+      return new Response(JSON.stringify({ ok: true, pdf_path: pdfPath }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
+    if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
 
     const html = buildHtml({
       kind: isCredit ? 'credit' : 'invoice',
