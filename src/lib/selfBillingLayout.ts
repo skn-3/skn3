@@ -95,8 +95,9 @@ const CONTENT_BOTTOM = 258; // under detta ritas sidfot (fast på varje sida)
 function fmtNum(n: number) {
   return Number(n || 0).toLocaleString('sv-SE', { maximumFractionDigits: 2 }).replace(/−/g, '-');
 }
-function fmtKr(n: number) {
-  return Math.round(n || 0).toLocaleString('sv-SE').replace(/−/g, '-') + ' kr';
+export function fmtKr(n: number) {
+  const v = Math.round((n || 0) * 100) / 100;
+  return (Number.isInteger(v) ? v.toLocaleString('sv-SE') : v.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })).replace(/−/g, '-') + ' kr';
 }
 
 export function vatFromOrgNr(orgNr?: string | null): string {

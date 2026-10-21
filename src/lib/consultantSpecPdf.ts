@@ -2,7 +2,7 @@
 // till revisor eller kund. Här finns TB-underlag, provisionstrappa, avdrag
 // och lånerörelser som inte får synas på fakturan.
 import jsPDF from 'jspdf';
-import { monthLabel, tierFor, type CommissionTier, DEFAULT_TIERS } from './consultantPay';
+import { DOC_TYPE_LABELS, monthLabel, tierFor, type CommissionTier, DEFAULT_TIERS } from './consultantPay';
 
 const PAGE_W = 210;
 const MARGIN = 15;
@@ -89,8 +89,8 @@ export function buildConsultantSpecPdf(input: ConsultantSpecInput): jsPDF {
     if (y + h > BOTTOM) { doc.addPage(); y = 20; }
   };
   const heading = (text: string) => {
-    ensure(14);
-    y += 4;
+    ensure(16);
+    y += 7;
     setText(11, 'bold', DARK);
     doc.text(text, MARGIN, y);
     y += 6;
@@ -111,14 +111,23 @@ export function buildConsultantSpecPdf(input: ConsultantSpecInput): jsPDF {
     for (const [label, x, rightAlign] of cols) doc.text(label, x, y + 4.8, rightAlign ? { align: 'right' } : undefined);
     y += 7;
   };
-  const tableRow = (cells: Array<[string, number, boolean]>, i: number, bold = false, color: RGB = DARK) => {
+  type Cell = [string, number, boolean, number?];
+  const subheading = (text: string, color: RGB = DARK) => {
+    ensure(12);
+    setText(8, 'bold', color);
+    doc.text(text, MARGIN, y + 3);
+    y += 5;
+  };
+  const typeLabel = (l: ConsultantSpecLine) =>
+    l.kind === 'standard' ? 'Standard' : l.kind === 'manual' ? 'Manuell' : (DOC_TYPE_LABELS[l.doc_type || 'annat'] ?? 'Annat');
+  const tableRow = (cells: Cell[], i: number, bold = false, color: RGB = DARK) => {
     ensure(6);
     if (i % 2 === 1) {
       doc.setFillColor(...LIGHT);
       doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 5.5, 'F');
     }
     setText(8, bold ? 'bold' : 'normal', color);
-    for (const [text, x, rightAlign] of cells) doc.text(doc.splitTextToSize(text, 90)[0], x, y + 4, rightAlign ? { align: 'right' } : undefined);
+    for (const [text, x, rightAlign, maxW] of cells) doc.text(text ? (doc.splitTextToSize(text, maxW ?? 90)[0] ?? '') : '', x, y + 4, rightAlign ? { align: 'right' } : undefined);
     y += 5.5;
   };
 
@@ -142,7 +151,7 @@ export function buildConsultantSpecPdf(input: ConsultantSpecInput): jsPDF {
     tableHead(cols);
     tbRows.forEach((r, i) => tableRow([
       [String(r.order_number ?? ''), MARGIN + 2, false],
-      [String(r.customer_name ?? ''), 52, false],
+      [String(r.customer_name ?? ''), 52, false, 64],
       [fmtDate(r.signing_date), 120, false],
       [fmtNum(Number(r.amount) || 0), RIGHT - 2, true],
     ], i));
@@ -152,16 +161,16 @@ export function buildConsultantSpecPdf(input: ConsultantSpecInput): jsPDF {
   }
   const corrections = Array.isArray(p.tb_corrections) ? p.tb_corrections : [];
   if (corrections.length) {
-    y += 2;
-    setText(8, 'bold', DARK);
-    doc.text('Korrigeringar', MARGIN, y); y += 4.5;
+    y += 4;
+    subheading('Korrigeringar');
     corrections.forEach((r, i) => tableRow([
       [String(r.order_number ?? ''), MARGIN + 2, false],
-      [String(r.text ?? r.customer_name ?? ''), 52, false],
+      [String(r.text ?? r.customer_name ?? ''), 52, false, 64],
       ['', 120, false],
       [fmtNum(Number(r.amount) || 0), RIGHT - 2, true],
     ], i));
   }
+  y += 4;
   tableRow([['Summa Utb.ÅF', MARGIN + 2, false], ['', 52, false], ['', 120, false], [fmtKr(Number(p.tb_sum_rows) || 0), RIGHT - 2, true]], 0, true);
   tableRow([['Summa Korrigering', MARGIN + 2, false], ['', 52, false], ['', 120, false], [fmtKr(Number(p.tb_sum_corrections) || 0), RIGHT - 2, true]], 1, true);
   tableRow([['Summa Total (TB)', MARGIN + 2, false], ['', 52, false], ['', 120, false], [fmtKr(Number(p.tb_amount) || 0), RIGHT - 2, true]], 0, true);
@@ -180,7 +189,7 @@ export function buildConsultantSpecPdf(input: ConsultantSpecInput): jsPDF {
       [active ? 'aktivt steg' : '', RIGHT - 2, true],
     ], i, active, active ? GREEN : DARK);
   });
-  y += 2;
+  y += 4;
   kv('Beräkning', `${fmtKr(tb)} × ${Number(p.tier_pct ?? activeTier.pct)} % = ${fmtKr(Number(p.commission_gross) || 0)}`);
 
   // ── Avdrag ──
@@ -190,11 +199,11 @@ export function buildConsultantSpecPdf(input: ConsultantSpecInput): jsPDF {
   if (included.length) {
     tableHead([['TYP', MARGIN + 2, false], ['BESKRIVNING', 40, false], ['DATUM', 108, false], ['REGNR', 130, false], ['NUMMER', 152, false], ['BELOPP', RIGHT - 2, true]]);
     included.forEach((l, i) => tableRow([
-      [l.doc_type || l.kind, MARGIN + 2, false],
-      [String(l.label ?? ''), 40, false],
+      [typeLabel(l), MARGIN + 2, false, 22],
+      [String(l.label ?? ''), 40, false, 64],
       [fmtDate(l.doc_date), 108, false],
       [l.reg_nr || '', 130, false],
-      [l.doc_number || '', 152, false],
+      [l.doc_number || '', 152, false, 28],
       [fmtNum(Number(l.amount) || 0), RIGHT - 2, true],
     ], i));
     tableRow([['Summa avdrag', MARGIN + 2, false], ['', 40, false], ['', 108, false], ['', 130, false], ['', 152, false], [fmtKr(Number(p.deductions_total) || 0), RIGHT - 2, true]], 0, true);
@@ -203,13 +212,11 @@ export function buildConsultantSpecPdf(input: ConsultantSpecInput): jsPDF {
     doc.text('Inga avdrag.', MARGIN, y); y += 5;
   }
   if (excluded.length) {
-    y += 2;
-    setText(8, 'bold', AMBER);
-    doc.text('Ej draget', MARGIN, y); y += 4.5;
+    y += 4;
+    subheading('Ej draget', AMBER);
     excluded.forEach((l, i) => tableRow([
-      [String(l.label ?? ''), MARGIN + 2, false],
-      ['', 40, false], ['', 108, false], ['', 130, false],
-      [l.duplicate_of ? 'Dubblett' : 'Avbockad', 152, false],
+      [String(l.label ?? ''), MARGIN + 2, false, 130],
+      [l.duplicate_of ? 'Dubblett' : 'Avbockad', 152, false, 28],
       [fmtNum(Number(l.amount) || 0), RIGHT - 2, true],
     ], i, false, AMBER));
   }
@@ -220,10 +227,14 @@ export function buildConsultantSpecPdf(input: ConsultantSpecInput): jsPDF {
   if (loanChange < 0) kv('Amortering', fmtKr(Math.abs(loanChange)));
   else if (loanChange > 0) kv('Förskott', fmtKr(loanChange));
   else kv('Lånerörelse', 'Ingen');
-  kv('Saldo', `${fmtKr(input.loanBalanceBefore)} → ${fmtKr(input.loanBalanceAfter)}`);
+  kv('Saldo före', fmtKr(input.loanBalanceBefore));
+  kv('Saldo efter', fmtKr(input.loanBalanceAfter));
 
   // ── Summering ──
   heading('Summering');
+  kv('Provision', fmtKr(Number(p.commission_gross) || 0));
+  kv('Avdrag totalt', fmtKr(Number(p.deductions_total) || 0));
+  kv('Amortering', fmtKr(loanChange < 0 ? Math.abs(loanChange) : 0));
   kv('Netto ex moms', fmtKr(Number(p.net_amount) || 0));
   kv(`Moms ${Number(p.vat_rate ?? 25)} %`, fmtKr(Number(p.vat_amount) || 0));
   ensure(6);
