@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { offerPdfName } from '../_shared/pdfNames.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -128,29 +129,38 @@ Deno.serve(async (req) => {
       const sellerName = (offer.created_by as string | null) || null;
       const firstName = acceptName.split(/\s+/)[0] || acceptName;
 
-      const row = (label: string, value: string, big = false) => big
-        ? `<tr><td style="padding:10px 0;border-top:1px solid #E3E1DA;color:#5E6B64;font-size:14px;vertical-align:middle;">${esc(label)}</td><td align="right" style="padding:10px 0;border-top:1px solid #E3E1DA;font-size:22px;font-weight:700;color:#0B3D2E;white-space:nowrap;">${esc(value)}</td></tr>`
-        : `<tr><td style="padding:7px 0;border-top:1px solid #E3E1DA;color:#5E6B64;font-size:14px;">${esc(label)}</td><td align="right" style="padding:7px 0;border-top:1px solid #E3E1DA;font-size:14px;color:#15211B;white-space:nowrap;">${esc(value)}</td></tr>`;
+      const customTerms = !!offer.payment_terms && !/^10\s*dagar\s*netto\.?$/i.test(String(offer.payment_terms).trim());
+      const row = (label: string, value: string, big = false, sub?: string) => {
+        const subHtml = sub ? `<div style="font-size:12px;color:#8A8F89;">${sub}</div>` : '';
+        const va = sub ? 'top' : 'middle';
+        return big
+          ? `<tr><td style="padding:10px 0;border-top:1px solid #E3E1DA;color:#5E6B64;font-size:14px;vertical-align:middle;">${esc(label)}${subHtml}</td><td align="right" style="padding:10px 0;border-top:1px solid #E3E1DA;font-size:22px;font-weight:700;color:#0B3D2E;white-space:nowrap;vertical-align:${va};">${esc(value)}</td></tr>`
+          : `<tr><td style="padding:7px 0;border-top:1px solid #E3E1DA;color:#5E6B64;font-size:14px;">${esc(label)}${subHtml}</td><td align="right" style="padding:7px 0;border-top:1px solid #E3E1DA;font-size:14px;color:#15211B;white-space:nowrap;${sub ? 'vertical-align:top;' : ''}">${esc(value)}</td></tr>`;
+      };
       const rowsHtml = [
         row(`Att betala ${amountNote}`, amountStr, true),
-        ...(handpenningPct > 0 ? [row(`Handpenning ${handpenningPct} % · faktureras nu`, fmtKr(handpenning)), row('Slutfaktura efter utfört arbete', fmtKr(slutfaktura))] : []),
+        ...(handpenningPct > 0 ? [
+          row(`Handpenning ${handpenningPct} %`, fmtKr(handpenning), false, customTerms ? esc(offer.payment_terms) : 'Faktureras i samband med beställningen'),
+          row('Slutfaktura', fmtKr(slutfaktura), false, 'Efter utfört arbete' + (rotActive ? ' · ROT-avdraget dras här' : '')),
+        ] : []),
         row('Signerad', acceptedFmt),
       ].join('');
       const step = (n: string, title: string, sub: string, done = false) =>
         `<tr><td style="width:40px;vertical-align:top;padding:0 0 14px;"><div style="width:28px;height:28px;border-radius:14px;background:${done ? '#0B3D2E' : '#F6EDD0'};color:${done ? '#fff' : '#8A6A14'};font-size:12px;font-weight:700;line-height:28px;text-align:center;">${done ? '&#10003;' : esc(n)}</div></td><td style="vertical-align:top;padding:3px 0 14px;"><div style="font-size:14.5px;font-weight:700;color:#15211B;">${esc(title)}</div><div style="font-size:13px;color:#5E6B64;">${esc(sub)}</div></td></tr>`;
 
-      const customerHtml = `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Offert ${esc(offerNumber)} accepterad</title></head>
+      const customerHtml = `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Avtal ${esc(offerNumber)} signerat</title></head>
 <body style="margin:0;padding:0;background:#EEECE6;font-family:'Figtree',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#15211B;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEECE6;"><tr><td align="center" style="padding:28px 16px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;">
 <tr><td style="background:#082B21;padding:20px 28px;border-bottom:3px solid #DCBE6E;">
-<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
 <td style="vertical-align:middle;width:48px;"><img src="${esc(logoUrl)}" alt="SmartKlimat" width="36" height="36" style="display:block;"/></td>
 <td style="vertical-align:middle;color:#ffffff;"><div style="font-size:17px;font-weight:700;line-height:1.05;">SmartKlimat</div><div style="font-size:10px;letter-spacing:2px;color:#9FB8AC;margin-top:2px;">N3PRENAD</div></td>
+<td align="right" style="vertical-align:middle;"><div style="font-size:10px;letter-spacing:1.8px;font-weight:700;color:#DCBE6E;">AVTAL SIGNERAT</div><div style="font-size:16px;font-weight:700;color:#ffffff;margin-top:2px;">${esc(offerNumber)}</div></td>
 </tr></table></td></tr>
 <tr><td style="padding:28px 28px 0;">
-<h1 style="margin:0 0 12px;font-size:24px;line-height:1.15;color:#15211B;">Tack ${esc(firstName)}, offerten är accepterad</h1>
-<p style="margin:0 0 12px;">Vi har tagit emot din accept av offert <strong>${esc(offerNumber)}</strong>${offer.title ? ` – ${esc(offer.title)}` : ''}. Det signerade avtalet med verifikat finns att ladda ner på offertsidan. Spara gärna en kopia.</p>
+<h1 style="margin:0 0 12px;font-size:24px;line-height:1.15;color:#15211B;">Tack ${esc(firstName)}, avtalet är signerat</h1>
+<p style="margin:0 0 12px;">Vi har tagit emot din signering av avtal <strong>${esc(offerNumber)}</strong>${offer.title ? ` – ${esc(offer.title)}` : ''}. Det signerade avtalet med signeringsverifikat är bifogat och finns även på din avtalssida. Spara gärna en kopia.</p>
 </td></tr>
 <tr><td style="padding:6px 28px 0;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EE;border-radius:12px;"><tr><td style="padding:18px 20px;">
@@ -165,13 +175,12 @@ Deno.serve(async (req) => {
 <tr><td style="padding:24px 28px 0;">
 <div style="font-size:11px;letter-spacing:1.5px;font-weight:700;color:#8A6A14;margin-bottom:10px;">VAD HÄNDER NU</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-${step('1', 'Offerten accepterad', `${acceptedFmt} · signerad digitalt`, true)}
-${step('2', 'Vi hör av oss och planerar', `${esc(sellerName || 'Vi')} ringer dig inom några dagar.${handpenningPct > 0 ? ` Handpenningen faktureras med ${esc(offer.payment_terms || '10 dagar netto')}.` : ''}`)}
-${step('3', 'Arbetet utförs', 'Startdatum bokas tillsammans med dig.')}
-${step('4', 'Slutfaktura', `Efter utfört arbete${rotActive ? ', med ROT-avdraget draget' : ''}.`)}
+${step('1', 'Avtalet är signerat', `${acceptedFmt} · signerat digitalt`, true)}
+${step('2', 'Orderbekräftelse på väg', 'Inom kort får du en orderbekräftelse med hela processen steg för steg, från i dag till färdigt arbete.')}
+${step('3', 'En koordinator kontaktar dig', 'Vi går igenom detaljerna i beställningen och bokar in nästa steg tillsammans med dig.')}
 </table>
 </td></tr>
-<tr><td style="padding:6px 28px 24px;"><p style="margin:0;font-size:14px;">Har du frågor? Svara på det här mejlet eller ring ${esc(sellerName || 'oss')} på 070-719 72 35.</p></td></tr>
+<tr><td style="padding:6px 28px 24px;"><p style="margin:0;font-size:14px;">Har du frågor? Svara på det här mejlet eller ring oss på 070-719 72 35.</p></td></tr>
 <tr><td style="padding:16px 28px;background:#F5F3EE;"><p style="margin:0;font-size:11.5px;color:#5E6B64;text-align:center;">SmartKlimat N3prenad AB · Org.nr 559026-6630 · Morsstigen 3, 141 71 Segeltorp · n3prenad@smartklimat.org</p></td></tr>
 </table></td></tr></table></body></html>`;
 
@@ -192,6 +201,7 @@ ${handpenningPct > 0 ? `<tr><td style="color:#5E6B64;">Handpenning</td><td>${esc
 <tr><td style="color:#5E6B64;">IP</td><td>${esc(ip || '—')}</td></tr>
 </table>
 <p style="margin:16px 0 0;"><a href="${esc(offerUrl)}" style="display:inline-block;background:#0B3D2E;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:700;">Öppna avtalet</a></p>
+<p style="margin:12px 0 0;font-size:13px;color:#5E6B64;">Nästa steg: skicka orderbekräftelsen från CaseFlow (Offerter → Orderbekräftelse).</p>
 </td></tr></table></body></html>`;
 
       const SELLER_EMAIL_MAP: Record<string, string> = {
@@ -200,7 +210,7 @@ ${handpenningPct > 0 ? `<tr><td style="color:#5E6B64;">Handpenning</td><td>${esc
       };
       const sellerEmail = offer.created_by ? SELLER_EMAIL_MAP[offer.created_by as string] : undefined;
 
-      const sendMail = async (to: string | string[], subject: string, html: string, cc?: string[]) => {
+      const sendMail = async (to: string | string[], subject: string, html: string, cc?: string[], attachments?: { filename: string; content: string }[]) => {
         try {
           const r = await fetch(`${GATEWAY_URL}/emails`, {
             method: 'POST',
@@ -216,6 +226,7 @@ ${handpenningPct > 0 ? `<tr><td style="color:#5E6B64;">Handpenning</td><td>${esc
               ...(cc && cc.length ? { cc } : {}),
               subject,
               html,
+              ...(attachments && attachments.length ? { attachments } : {}),
             }),
           });
           if (!r.ok) console.error('mail failed', to, await r.text());
@@ -225,7 +236,8 @@ ${handpenningPct > 0 ? `<tr><td style="color:#5E6B64;">Handpenning</td><td>${esc
       };
 
       if (offer.customer_email) {
-        await sendMail(offer.customer_email, `Din offert ${offerNumber} är accepterad`, customerHtml);
+        const atts = signed_pdf_base64 && typeof signed_pdf_base64 === 'string' ? [{ filename: offerPdfName(offer, 'avtal'), content: signed_pdf_base64 }] : undefined;
+        await sendMail(offer.customer_email, `Tack ${firstName} – avtal ${offerNumber} är signerat`, customerHtml, undefined, atts);
       }
       const internalTo = ['n3prenad@smartklimat.org', ...(sellerEmail ? [sellerEmail] : [])];
       await sendMail(internalTo, `Offert ${offerNumber} accepterad av ${acceptName}`, internalHtml, ['daniel@malke.se']);
