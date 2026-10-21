@@ -264,7 +264,7 @@ export function ConsultantPayView({ currentUser }: Props) {
         currentUser={currentUser}
         onDone={refresh}
       />
-      <LoanLedgerSheet open={ledgerOpen} onOpenChange={setLedgerOpen} consultant={consultant} loans={loans} onChanged={refresh} />
+      <LoanLedgerSheet open={ledgerOpen} onOpenChange={setLedgerOpen} consultant={consultant} loans={loans} currentUser={currentUser} onChanged={refresh} />
       <ConsultantSettingsDialog
         open={settings.open}
         onOpenChange={v => setSettings(s => ({ ...s, open: v }))}
