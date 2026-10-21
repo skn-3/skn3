@@ -4,10 +4,10 @@
 // Systemet ändrar, flyttar eller raderar aldrig något i Drive eller Sheets.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { requireAdmin } from '../_shared/auth.ts';
+import { requireAuth } from '../_shared/auth.ts';
 import { DriveReader, type DriveReadFile } from '../_shared/googleDriveRead.ts';
 import { SheetsClient, LOG_HEADER } from '../_shared/googleSheets.ts';
-import { normalizeDocNumber, parseMonthFolderName } from '../_shared/consultantPay.ts';
+import { normalizeDocNumber, parseMonthFolderName, previewEstimate } from '../_shared/consultantPay.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,15 +78,140 @@ Regler:
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === '' ? null : Number(v));
 
+
+async function scanFolder(drive: DriveReader, folderId: string) {
+  const folder = await drive.getFile(folderId);
+  const children = await drive.listChildren(folderId);
+  const isFolder = (f: DriveReadFile) => f.mimeType === 'application/vnd.google-apps.folder';
+  const provisionCandidates = children.filter(f => !isFolder(f) && /provision|l[öo]neunderlag/i.test(f.name));
+  let provisionFile: DriveReadFile | null = null;
+  if (provisionCandidates.length) {
+    const noCopy = provisionCandidates.filter(f => !/kopia/i.test(f.name));
+    const pool = noCopy.length ? noCopy : provisionCandidates;
+    provisionFile = pool.sort((a, b) => String(b.modifiedTime ?? '').localeCompare(String(a.modifiedTime ?? '')))[0];
+  }
+  const deductionFiles: any[] = [];
+  for (const sub of children.filter(isFolder)) {
+    const subFiles = await drive.listChildren(sub.id);
+    for (const f of subFiles.filter(f2 => !isFolder(f2))) {
+      deductionFiles.push({ id: f.id, name: f.name, mimeType: f.mimeType, modifiedTime: f.modifiedTime, webViewLink: f.webViewLink, subfolder: sub.name });
+    }
+  }
+  const usedIds = new Set([provisionFile?.id, ...deductionFiles.map((d: any) => d.id)]);
+  const otherFiles = children.filter(f => !isFolder(f) && !usedIds.has(f.id)).map(f => ({ name: f.name, webViewLink: f.webViewLink }));
+  return {
+    folder: { id: folder.id, name: folder.name, createdTime: folder.createdTime },
+    payout_month: parseMonthFolderName(folder.name),
+    provision_file: provisionFile ? { id: provisionFile.id, name: provisionFile.name, modifiedTime: provisionFile.modifiedTime, webViewLink: provisionFile.webViewLink } : null,
+    deduction_files: deductionFiles,
+    other_files: otherFiles,
+  };
+}
+
+async function parseProvision(drive: DriveReader, fileId: string) {
+  const file = await drive.getFile(fileId);
+  const bytes = await drive.download(fileId);
+  let binary = '';
+  const chunk = 8192;
+  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  const dataUrl = `data:${file.mimeType || 'application/pdf'};base64,${btoa(binary)}`;
+  const parsed = await callAi(PROVISION_PROMPT, 'Tolka löneunderlaget och returnera JSON enligt schemat.', dataUrl);
+  const rows = Array.isArray(parsed.rows) ? parsed.rows : [];
+  const corrections = Array.isArray(parsed.corrections) ? parsed.corrections : [];
+  const sumRows = num(parsed.sum_rows) ?? 0;
+  const sumCorrections = num(parsed.sum_corrections) ?? 0;
+  const sumTotal = num(parsed.sum_total) ?? 0;
+  const rowsSum = rows.reduce((s: number, r: any) => s + (Number(r?.amount) || 0), 0);
+  const problems: string[] = [];
+  if (Math.abs(rowsSum - sumRows) > 3) problems.push(`Radsumman ${rowsSum} stämmer inte med "Summa Utb.ÅF" ${sumRows}`);
+  if (Math.abs(sumRows + sumCorrections - sumTotal) > 3) problems.push(`"Summa Utb.ÅF" + "Summa Korrigering" (${sumRows + sumCorrections}) stämmer inte med "Summa Total" ${sumTotal}`);
+  return {
+    payout_date: parsed.payout_date ?? null,
+    period_start: parsed.period_start ?? null,
+    period_end: parsed.period_end ?? null,
+    seller_name: parsed.seller_name ?? null,
+    rows,
+    corrections,
+    sum_rows: sumRows,
+    sum_corrections: sumCorrections,
+    sum_total: sumTotal,
+    needs_review: problems.length > 0,
+    note: problems.join('. ') || null,
+    file: { id: file.id, name: file.name, modifiedTime: file.modifiedTime, webViewLink: file.webViewLink },
+  };
+}
+
+const isoDate = (v: unknown): string | null => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null);
+
+async function runPreview(db: ReturnType<typeof admin>, consultant: any, force: boolean) {
+  const { data: saved } = await db.from('consultant_previews').select('*').eq('consultant_id', consultant.id).maybeSingle();
+  const base: Record<string, unknown> = {
+    consultant_id: consultant.id, folder_id: null, folder_name: null, folder_created_time: null, payout_month: null,
+    provision_file_id: null, provision_file_name: null, provision_modified_time: null, provision_payout_date: null,
+    period_start: null, period_end: null, tb_amount: null, tb_needs_review: false, tb_note: null, tier_pct: null,
+    commission_gross: null, standard_deductions: 0, deduction_file_count: 0, net_estimate: null, vat_estimate: null,
+    total_estimate: null, existing_payout_id: null, state: 'ready', error: null, computed_at: new Date().toISOString(),
+  };
+  const save = async (row: Record<string, unknown>) => {
+    const { data, error } = await db.from('consultant_previews').upsert(row, { onConflict: 'consultant_id' }).select('*').single();
+    if (error) throw new Error(error.message);
+    return data;
+  };
+  if (!consultant.drive_folder_id) return save({ ...base, state: 'no_folder', error: 'Konsulten saknar Löner-mapp' });
+  try {
+    const drive = new DriveReader();
+    const folders = await drive.listChildren(consultant.drive_folder_id, { foldersOnly: true });
+    const newest = folders.sort((a, b) => String(b.createdTime ?? '').localeCompare(String(a.createdTime ?? '')))[0];
+    if (!newest) return save({ ...base, state: 'no_folder' });
+    const payoutMonth = parseMonthFolderName(newest.name);
+    Object.assign(base, { folder_id: newest.id, folder_name: newest.name, folder_created_time: newest.createdTime ?? null, payout_month: payoutMonth });
+    const { data: payouts } = await db.from('consultant_payouts').select('id, status, kind, payout_month, drive_month_folder_id').eq('consultant_id', consultant.id).eq('kind', 'payout').neq('status', 'draft');
+    const existing = (payouts ?? []).find(p => p.drive_month_folder_id === newest.id || (payoutMonth && p.payout_month === payoutMonth));
+    if (existing) return save({ ...base, state: 'already_invoiced', existing_payout_id: existing.id });
+    const scan = await scanFolder(drive, newest.id);
+    base.deduction_file_count = scan.deduction_files.length;
+    if (!scan.provision_file) return save({ ...base, state: 'no_provision' });
+    Object.assign(base, { provision_file_id: scan.provision_file.id, provision_file_name: scan.provision_file.name, provision_modified_time: scan.provision_file.modifiedTime ?? null });
+    let tb: number; let parsedFields: Record<string, unknown>;
+    const reuse = !force && saved && saved.provision_file_id === scan.provision_file.id
+      && (saved.provision_modified_time ?? null) === (scan.provision_file.modifiedTime ?? null) && saved.tb_amount != null;
+    if (reuse) {
+      tb = Number(saved.tb_amount);
+      parsedFields = { provision_payout_date: saved.provision_payout_date, period_start: saved.period_start, period_end: saved.period_end, tb_needs_review: saved.tb_needs_review, tb_note: saved.tb_note, computed_at: saved.computed_at };
+    } else {
+      try {
+        const prov = await parseProvision(drive, scan.provision_file.id);
+        tb = Number(prov.sum_total) || 0;
+        parsedFields = { provision_payout_date: isoDate(prov.payout_date), period_start: isoDate(prov.period_start), period_end: isoDate(prov.period_end), tb_needs_review: prov.needs_review, tb_note: prov.note };
+      } catch (e) {
+        return save({ ...base, state: 'error', error: `Tolkningen misslyckades: ${e instanceof Error ? e.message : String(e)}` });
+      }
+    }
+    const est = previewEstimate(consultant, tb);
+    return save({ ...base, ...parsedFields, tb_amount: tb, tier_pct: est.pct, commission_gross: est.gross, standard_deductions: est.standardDeductions, net_estimate: est.net, vat_estimate: est.vat, total_estimate: est.total, state: 'ready' });
+  } catch (e) {
+    return save({ ...base, state: 'error', error: e instanceof Error ? e.message : String(e) });
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const auth = await requireAdmin(req, corsHeaders);
+    const auth = await requireAuth(req, corsHeaders);
     if (auth.response) return auth.response;
 
     const body = await req.json();
     const action = body?.action;
     const db = admin();
+
+    if (action === 'preview') {
+      if (!body?.consultant_id) return json({ error: 'consultant_id saknas' }, 400);
+      const { data: c } = await db.from('consultants').select('*').eq('id', body.consultant_id).maybeSingle();
+      if (!c) return json({ error: 'Konsulten hittades inte' }, 404);
+      if (!auth.isAdmin && c.user_id !== auth.userId) return json({ error: 'Forbidden' }, 403);
+      return json({ preview: await runPreview(db, c, body.force === true) });
+    }
+    if (!auth.isAdmin) return json({ error: 'Forbidden (admin only)' }, 403);
 
     if (action === 'months' || action === 'scan' || action === 'deductions' || action === 'log_append') {
       if (!body?.consultant_id) return json({ error: 'consultant_id saknas' }, 400);
@@ -126,68 +251,12 @@ Deno.serve(async (req) => {
 
     if (action === 'scan') {
       if (!body?.folder_id) return json({ error: 'folder_id saknas' }, 400);
-      const drive = new DriveReader();
-      const folder = await drive.getFile(body.folder_id);
-      const children = await drive.listChildren(body.folder_id);
-      const isFolder = (f: DriveReadFile) => f.mimeType === 'application/vnd.google-apps.folder';
-      const provisionCandidates = children.filter(f => !isFolder(f) && /provision|l[öo]neunderlag/i.test(f.name));
-      let provisionFile: DriveReadFile | null = null;
-      if (provisionCandidates.length) {
-        const noCopy = provisionCandidates.filter(f => !/kopia/i.test(f.name));
-        const pool = noCopy.length ? noCopy : provisionCandidates;
-        provisionFile = pool.sort((a, b) => String(b.modifiedTime ?? '').localeCompare(String(a.modifiedTime ?? '')))[0];
-      }
-      const deductionFiles: unknown[] = [];
-      for (const sub of children.filter(isFolder)) {
-        const subFiles = await drive.listChildren(sub.id);
-        for (const f of subFiles.filter(f2 => !isFolder(f2))) {
-          deductionFiles.push({ id: f.id, name: f.name, mimeType: f.mimeType, modifiedTime: f.modifiedTime, webViewLink: f.webViewLink, subfolder: sub.name });
-        }
-      }
-      const usedIds = new Set([provisionFile?.id, ...deductionFiles.map((d: any) => d.id)]);
-      const otherFiles = children.filter(f => !isFolder(f) && !usedIds.has(f.id)).map(f => ({ name: f.name, webViewLink: f.webViewLink }));
-      return json({
-        folder: { id: folder.id, name: folder.name, createdTime: folder.createdTime },
-        payout_month: parseMonthFolderName(folder.name),
-        provision_file: provisionFile ? { id: provisionFile.id, name: provisionFile.name, modifiedTime: provisionFile.modifiedTime, webViewLink: provisionFile.webViewLink } : null,
-        deduction_files: deductionFiles,
-        other_files: otherFiles,
-      });
+      return json(await scanFolder(new DriveReader(), body.folder_id));
     }
 
     if (action === 'provision') {
       if (!body?.file_id) return json({ error: 'file_id saknas' }, 400);
-      const drive = new DriveReader();
-      const file = await drive.getFile(body.file_id);
-      const bytes = await drive.download(body.file_id);
-      let binary = '';
-      const chunk = 8192;
-      for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-      const dataUrl = `data:${file.mimeType || 'application/pdf'};base64,${btoa(binary)}`;
-      const parsed = await callAi(PROVISION_PROMPT, 'Tolka löneunderlaget och returnera JSON enligt schemat.', dataUrl);
-      const rows = Array.isArray(parsed.rows) ? parsed.rows : [];
-      const corrections = Array.isArray(parsed.corrections) ? parsed.corrections : [];
-      const sumRows = num(parsed.sum_rows) ?? 0;
-      const sumCorrections = num(parsed.sum_corrections) ?? 0;
-      const sumTotal = num(parsed.sum_total) ?? 0;
-      const rowsSum = rows.reduce((s: number, r: any) => s + (Number(r?.amount) || 0), 0);
-      const problems: string[] = [];
-      if (Math.abs(rowsSum - sumRows) > 3) problems.push(`Radsumman ${rowsSum} stämmer inte med "Summa Utb.ÅF" ${sumRows}`);
-      if (Math.abs(sumRows + sumCorrections - sumTotal) > 3) problems.push(`"Summa Utb.ÅF" + "Summa Korrigering" (${sumRows + sumCorrections}) stämmer inte med "Summa Total" ${sumTotal}`);
-      return json({
-        payout_date: parsed.payout_date ?? null,
-        period_start: parsed.period_start ?? null,
-        period_end: parsed.period_end ?? null,
-        seller_name: parsed.seller_name ?? null,
-        rows,
-        corrections,
-        sum_rows: sumRows,
-        sum_corrections: sumCorrections,
-        sum_total: sumTotal,
-        needs_review: problems.length > 0,
-        note: problems.join('. ') || null,
-        file: { id: file.id, name: file.name, modifiedTime: file.modifiedTime, webViewLink: file.webViewLink },
-      });
+      return json(await parseProvision(new DriveReader(), body.file_id));
     }
 
     if (action === 'deductions') {
