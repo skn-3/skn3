@@ -274,12 +274,12 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
     };
     let id = payoutId;
     if (id) {
-      const { error } = await supabase.from('consultant_payouts').update(row).eq('id', id).eq('status', 'draft');
+      const { error } = await supabase.from('consultant_payouts').update(row as never).eq('id', id).eq('status', 'draft');
       if (error) throw error;
       const { error: delErr } = await supabase.from('consultant_payout_lines').delete().eq('payout_id', id);
       if (delErr) throw delErr;
     } else {
-      const { data, error } = await supabase.from('consultant_payouts').insert({ ...row, status: 'draft' }).select('id').single();
+      const { data, error } = await supabase.from('consultant_payouts').insert({ ...row, status: 'draft' } as never).select('id').single();
       if (error) throw error;
       id = data.id;
       setPayoutId(id);
