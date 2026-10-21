@@ -54,13 +54,14 @@ interface Props {
   consultant: any | null;
   currentUser: string;
   initialPayout?: any | null; // sparat utkast → granskningsläge (startar på steg 4)
+  initialFolderId?: string | null; // förvald månadsmapp → hoppar direkt till steg 2
   onDone: () => void;
 }
 
 let keySeq = 0;
 const nextKey = () => `l${++keySeq}`;
 
-export function ConsultantPayoutWizard({ open, onOpenChange, consultant, currentUser, initialPayout, onDone }: Props) {
+export function ConsultantPayoutWizard({ open, onOpenChange, consultant, currentUser, initialPayout, initialFolderId, onDone }: Props) {
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
@@ -154,21 +155,28 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
         const data = await invokeConsultantDrive<{ months: any[] }>({ action: 'months', consultant_id: consultant.id });
         setMonths(data.months ?? []);
         if (data.months?.length) setFolderId(data.months[0].id);
+        if (initialFolderId) {
+          setFolderId(initialFolderId);
+          setBusy(false);
+          await doScan(initialFolderId);
+          return;
+        }
       } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
       setBusy(false);
     })();
     void supabase.from('consultant_loans').select('amount').eq('consultant_id', consultant.id)
       .then(({ data }) => setLoanBalance((data ?? []).reduce((s, r) => s + Number(r.amount), 0)));
-  }, [open, consultant, initialPayout, reset, loadDraft]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, consultant, initialPayout, initialFolderId, reset, loadDraft]);
 
   const selectedMonth = months.find(m => m.id === folderId) ?? null;
   const payoutMonth = selectedMonth?.payout_month ?? (manualMonth ? `${manualMonth}-01` : null);
 
-  const doScan = async () => {
-    if (!consultant || !folderId) return;
+  async function doScan(fid: string = folderId) {
+    if (!consultant || !fid) return;
     setBusy(true);
     try {
-      const data = await invokeConsultantDrive<any>({ action: 'scan', consultant_id: consultant.id, folder_id: folderId });
+      const data = await invokeConsultantDrive<any>({ action: 'scan', consultant_id: consultant.id, folder_id: fid });
       setScan(data);
       setProvision(null);
       setTb(''); setTbNote('');
