@@ -134,6 +134,13 @@
       "when": 1792596483420,
       "tag": "0018_create_consultant_payouts",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792610867881,
+      "tag": "0019_consultant_self_and_previews",
+      "breakpoints": true
     }
   ]
 }

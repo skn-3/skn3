@@ -9,3 +9,4 @@ Keep offer description, terms and date text logic in offerText for PDF and custo
 Keep payout grouping, explicit inclusion, totals and per-team invoice plans in payoutGroups; shared pure logic prevents duplicate extra-work payments and KM-only hour supplements from diverging between review and booking.
 In installer submit flows, create the primary row first and treat later steps (events, logging, image uploads) as non-fatal, with duplicate detection in deviationDedup; a late failure must never invite a retry that duplicates the submission.
 - Only case_documents with payout_kind='montage' mean the installation is paid (classification and paid-date maps live in src/lib/payoutKind.ts); KM/extra payouts are already self-billed and must never trigger installer-invoicing prompts.
+- Consultants' own pay view (Min lön) reads only through the consultant-self function and preview action; PDFs reach them solely via short-lived signed URLs, never direct storage access.
