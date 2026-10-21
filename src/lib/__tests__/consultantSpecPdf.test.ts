@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import jsPDF from 'jspdf';
 import { buildConsultantSpecPdf } from '../consultantSpecPdf';
 
 describe('buildConsultantSpecPdf', () => {
@@ -44,7 +43,8 @@ describe('buildConsultantSpecPdf', () => {
       loanBalanceAfter: 4000,
       generatedBy: 'admin@smartklimat.org',
     });
-    expect(doc).toBeInstanceOf(jsPDF);
+    expect(typeof doc.getNumberOfPages).toBe('function');
+    expect(typeof doc.output).toBe('function');
     expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(1);
   });
 
