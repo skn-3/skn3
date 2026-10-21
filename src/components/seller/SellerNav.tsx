@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { BottomNavItem } from '@/components/BottomNav';
 
-export type SellerTab = 'pipeline' | 'arenden' | 'deliveries' | 'calendar' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'futurejobs' | 'economy' | 'admin';
+export type SellerTab = 'pipeline' | 'arenden' | 'deliveries' | 'calendar' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'futurejobs' | 'economy' | 'admin' | 'mypay';
 
 interface NavItem { value: SellerTab; label: string; icon: LucideIcon }
 
@@ -29,6 +29,8 @@ export const SELLER_MORE: NavItem[] = [
   { value: 'futurejobs', label: 'Återkontakter', icon: PhoneCall },
 ];
 
+export const SELLER_MYPAY: NavItem = { value: 'mypay', label: 'Min lön', icon: Wallet };
+
 export const SELLER_ADMIN: NavItem[] = [
   { value: 'economy', label: 'Ekonomi', icon: Wallet },
   { value: 'admin', label: 'Admin', icon: Settings },
@@ -39,23 +41,24 @@ interface SellerNavProps {
   onChange: (tab: SellerTab) => void;
   isAdmin?: boolean;
   futureJobsDue?: number;
+  showMyPay?: boolean;
 }
 
 /** Flikarna som BottomNav använder på telefon – samma källa som headern. */
-export function sellerBottomNavItems(isAdmin: boolean, futureJobsDue: number): { items: BottomNavItem[]; more: BottomNavItem[] } {
+export function sellerBottomNavItems(isAdmin: boolean, futureJobsDue: number, showMyPay = false): { items: BottomNavItem[]; more: BottomNavItem[] } {
   const toItem = (n: NavItem): BottomNavItem => ({
     key: n.value, label: n.label, icon: n.icon,
     badge: n.value === 'futurejobs' ? futureJobsDue : undefined,
     badgeTone: 'warning',
   });
   const primary = SELLER_PRIMARY.map(toItem);
-  const more = [...SELLER_MORE, ...(isAdmin ? SELLER_ADMIN : [])].map(toItem);
+  const more = [...SELLER_MORE, ...(showMyPay ? [SELLER_MYPAY] : []), ...(isAdmin ? SELLER_ADMIN : [])].map(toItem);
   // Tre direkt (guldknappen tar den fjärde platsen), Kalender flyttar till "Mer".
   return { items: primary.slice(0, 3), more: [...primary.slice(3), ...more] };
 }
 
-export function SellerNav({ active, onChange, isAdmin, futureJobsDue = 0 }: SellerNavProps) {
-  const more = [...SELLER_MORE, ...(isAdmin ? SELLER_ADMIN : [])];
+export function SellerNav({ active, onChange, isAdmin, futureJobsDue = 0, showMyPay }: SellerNavProps) {
+  const more = [...SELLER_MORE, ...(showMyPay ? [SELLER_MYPAY] : []), ...(isAdmin ? SELLER_ADMIN : [])];
   const activeMore = more.find((m) => m.value === active);
   const moreBadge = futureJobsDue;
 

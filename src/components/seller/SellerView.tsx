@@ -20,6 +20,8 @@ import { AOrdersView } from '@/components/aorders/AOrdersView';
 import { TicketCenter } from '@/components/tickets/TicketCenter';
 import { FutureJobsView, fetchFutureJobs, countDueFutureJobs } from './FutureJobsView';
 import { useQuery } from '@tanstack/react-query';
+import { MyPayView } from '@/components/consultants/MyPayView';
+import { useMyConsultant } from '@/hooks/useMyConsultant';
 
 
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
@@ -67,7 +69,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
 
   const { data: futureJobs } = useQuery({ queryKey: ['future_jobs'], queryFn: fetchFutureJobs });
   const futureJobsDue = countDueFutureJobs(futureJobs);
-  const bottomNav = sellerBottomNavItems(isAdmin, futureJobsDue);
+  const { consultant: myConsultant } = useMyConsultant();
+  const showMyPay = !!myConsultant;
+  const bottomNav = sellerBottomNavItems(isAdmin, futureJobsDue, showMyPay);
 
   return (
     <div className="min-h-screen bg-background">
@@ -80,7 +84,7 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         ]}
         action={{ label: 'Registrera besök', icon: <Plus className="h-4 w-4" />, onClick: () => setTab('visit'), active: tab === 'visit' }}
       >
-        <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} futureJobsDue={futureJobsDue} />
+        <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} futureJobsDue={futureJobsDue} showMyPay={showMyPay} />
       </AppHeader>
 
       <main className="py-4 md:py-6 pb-28 md:pb-8 max-w-[1600px] mx-auto md:px-6">
@@ -121,6 +125,7 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         {tab === 'futurejobs' && (
           <FutureJobsView currentUser={role.name} onSelectCase={setSelectedCase} />
         )}
+        {tab === 'mypay' && showMyPay && <MyPayView />}
         {tab === 'admin' && isAdmin && (
           <AdminView currentUser={role.name} />
         )}
