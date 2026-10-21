@@ -2,13 +2,16 @@
 // åtkomst till guiden, förskottsfaktura, lånereskontra och inställningar.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ExternalLink, Loader2, Plus, Settings, Wallet, FileText, RefreshCw } from 'lucide-react';
+import { ExternalLink, Loader2, Plus, Settings, Wallet, FileText, RefreshCw, MoreHorizontal } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Chip } from '@/components/ui/chip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { NextPayoutCard, PAYOUT_STATUS } from './NextPayoutCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -23,12 +26,6 @@ import { AdvanceInvoiceDialog } from './AdvanceInvoiceDialog';
 import { LoanLedgerSheet } from './LoanLedgerSheet';
 import { ConsultantSettingsDialog } from './ConsultantSettingsDialog';
 
-const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  draft: { label: 'Utkast', cls: 'bg-muted text-muted-foreground' },
-  invoiced: { label: 'Fakturerad', cls: 'bg-blue-600 hover:bg-blue-600/90 text-white' },
-  sent: { label: 'Skickad', cls: 'bg-indigo-600 hover:bg-indigo-600/90 text-white' },
-  paid: { label: 'Betald', cls: 'bg-emerald-600 hover:bg-emerald-600/90 text-white' },
-};
 
 interface Props { currentUser: string }
 
@@ -40,7 +37,10 @@ export function ConsultantPayView({ currentUser }: Props) {
   const [logSheet, setLogSheet] = useState<{ id: string; name: string; webViewLink?: string } | null>(null);
   const [monthsLoaded, setMonthsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [wizard, setWizard] = useState<{ open: boolean; payout?: any }>({ open: false });
+  const [wizard, setWizard] = useState<{ open: boolean; payout?: any; folderId?: string }>({ open: false });
+  const [preview, setPreview] = useState<any | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewRefreshing, setPreviewRefreshing] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [settings, setSettings] = useState<{ open: boolean; consultant?: any }>({ open: false });
@@ -89,10 +89,21 @@ export function ConsultantPayView({ currentUser }: Props) {
     setMonthsLoaded(true);
   }, []);
 
+  const loadPreview = useCallback(async (cid: string, force = false) => {
+    if (!cid) { setPreview(null); return; }
+    if (force) setPreviewRefreshing(true); else { setPreviewLoading(true); setPreview(null); }
+    try {
+      const data = await invokeConsultantDrive<{ preview: any }>({ action: 'preview', consultant_id: cid, force });
+      setPreview(data.preview ?? null);
+    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    setPreviewLoading(false); setPreviewRefreshing(false);
+  }, []);
+
   useEffect(() => { void loadConsultants(); }, [loadConsultants]);
+  useEffect(() => { void loadPreview(consultantId); }, [consultantId, loadPreview]);
   useEffect(() => { void loadData(consultantId); void loadMonths(consultantId); }, [consultantId, loadData, loadMonths]);
 
-  const refresh = () => { void loadData(consultantId); void loadConsultants(); };
+  const refresh = () => { void loadData(consultantId); void loadConsultants(); void loadPreview(consultantId); };
 
   const openPdf = (path: string | null, name: string) => {
     if (!path) { toast.error('PDF:en saknas'); return; }
@@ -143,31 +154,59 @@ export function ConsultantPayView({ currentUser }: Props) {
     setBusy(false);
   };
 
+  const fmtLoan = (loan: number) => (loan ? (loan < 0 ? `−${fmtKr(Math.abs(loan))}` : `+${fmtKr(loan)}`) : '—');
+  const existingPayout = preview?.existing_payout_id ? payouts.find(p => p.id === preview.existing_payout_id) ?? null : null;
+
+  const rowActions = (p: any) => {
+    const items: Array<{ label: string; onClick: () => void; danger?: boolean }> = [
+      { label: 'Öppna', onClick: () => (p.status === 'draft' ? setWizard({ open: true, payout: p }) : setDetail(p)) },
+    ];
+    if (p.invoice_pdf_path) items.push({ label: 'Faktura', onClick: () => openPdf(p.invoice_pdf_path, consultantInvoicePdfName(consultant ?? {}, p.invoice_number, p.invoice_date)) });
+    if (p.spec_pdf_path) items.push({ label: 'Specifikation', onClick: () => openPdf(p.spec_pdf_path, consultantSpecPdfName(consultant ?? {}, p.invoice_number, p.payout_month)) });
+    if (p.status !== 'paid' && p.invoice_number) items.push({ label: 'Markera betald', onClick: () => { setMarkPaid(p); setPaidDate(new Date().toISOString().slice(0, 10)); } });
+    if (p.status === 'paid') items.push({ label: 'Ångra betald', onClick: () => setUndoPaid(p) });
+    if (p.status === 'draft') items.push({ label: 'Radera utkast', onClick: () => setDeleteDraft(p), danger: true });
+    return items;
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
         <Select value={consultantId} onValueChange={setConsultantId}>
-          <SelectTrigger className="w-56"><SelectValue placeholder="Välj konsult" /></SelectTrigger>
+          <SelectTrigger className="w-60"><SelectValue placeholder="Välj konsult" /></SelectTrigger>
           <SelectContent>
             {consultants.map(c => <SelectItem key={c.id} value={c.id}>{c.name} ({c.company_name})</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button onClick={() => setWizard({ open: true })} disabled={!consultant}><Plus className="h-4 w-4 mr-1" />Ny lönekörning</Button>
-        <Button variant="outline" onClick={() => setAdvanceOpen(true)} disabled={!consultant}><Wallet className="h-4 w-4 mr-1" />Förskottsfaktura</Button>
-        <Button variant="outline" onClick={() => setLedgerOpen(true)} disabled={!consultant}>Lånereskontra</Button>
-        <Button variant="outline" size="icon" title="Inställningar" onClick={() => setSettings({ open: true, consultant })} disabled={!consultant}><Settings className="h-4 w-4" /></Button>
-        {logSheet?.webViewLink && (
-          <a href={logSheet.webViewLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary underline-offset-4 hover:underline">
-            Öppna loggen <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        )}
+        <div className="flex flex-wrap items-center gap-2 ml-auto">
+          <Button onClick={() => setWizard({ open: true })} disabled={!consultant}><Plus className="h-4 w-4 mr-1" />Ny lönekörning</Button>
+          <Button variant="outline" onClick={() => setAdvanceOpen(true)} disabled={!consultant}><Wallet className="h-4 w-4 mr-1" />Förskottsfaktura</Button>
+          <Button variant="outline" onClick={() => setLedgerOpen(true)} disabled={!consultant}>Lånereskontra</Button>
+          <Button variant="outline" size="icon" aria-label="Inställningar" onClick={() => setSettings({ open: true, consultant })} disabled={!consultant}><Settings className="h-4 w-4" /></Button>
+          {logSheet?.webViewLink && (
+            <Button variant="ghost" asChild>
+              <a href={logSheet.webViewLink} target="_blank" rel="noreferrer">Öppna loggen <ExternalLink className="h-3.5 w-3.5 ml-1" /></a>
+            </Button>
+          )}
+        </div>
       </div>
 
       {monthsLoaded && !logSheet && consultant && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm flex flex-wrap items-center gap-2">
-          <span>Skapa ett tomt Google Sheet med namnet 'Konsultlöner – logg' i Löner-mappen och dela det med servicekontot som Redigerare.</span>
-          <Button size="sm" variant="outline" onClick={() => void loadMonths(consultantId)}><RefreshCw className="h-3.5 w-3.5 mr-1" />Sök igen</Button>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground border-l-2 border-gold pl-3">
+          <span>Loggarket saknas: skapa ett tomt Google Sheet med namnet 'Konsultlöner – logg' i Löner-mappen och dela det med servicekontot som Redigerare.</span>
+          <Button size="sm" variant="ghost" className="h-7" onClick={() => void loadMonths(consultantId)}><RefreshCw className="h-3.5 w-3.5 mr-1" />Sök igen</Button>
         </div>
+      )}
+
+      {consultant && (
+        <NextPayoutCard
+          preview={preview}
+          loading={previewLoading}
+          refreshing={previewRefreshing}
+          onRefresh={() => void loadPreview(consultantId, true)}
+          onStart={fid => setWizard({ open: true, folderId: fid })}
+          existingPayout={existingPayout}
+        />
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -177,76 +216,94 @@ export function ConsultantPayView({ currentUser }: Props) {
         <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Nästa fakturanummer</div><div className="text-lg font-semibold tabular-nums">{consultant?.next_invoice_number ?? '—'}</div></CardContent></Card>
       </div>
 
-      {loading ? (
-        <div className="flex items-center gap-2 text-muted-foreground text-sm py-8"><Loader2 className="h-4 w-4 animate-spin" />Laddar …</div>
-      ) : payouts.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8">Inga lönekörningar ännu.</p>
-      ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Utb-månad</TableHead><TableHead>Period</TableHead><TableHead className="text-right">TB</TableHead>
-                <TableHead className="text-right">%</TableHead><TableHead className="text-right">Provision</TableHead>
-                <TableHead className="text-right">Avdrag</TableHead><TableHead className="text-right">Lån</TableHead>
-                <TableHead className="text-right">Netto ex moms</TableHead><TableHead className="text-right">Moms</TableHead>
-                <TableHead className="text-right">Totalt</TableHead><TableHead>Faktura</TableHead><TableHead>Status</TableHead>
-                <TableHead>Åtgärder</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {payouts.map(p => {
-                const st = STATUS_BADGE[p.status] ?? STATUS_BADGE.draft;
-                const loan = Number(p.loan_change) || 0;
-                return (
-                  <TableRow key={p.id}>
-                    <TableCell className="whitespace-nowrap">{p.payout_month ? monthLabel(p.payout_month) : '—'}</TableCell>
-                    <TableCell className="whitespace-nowrap text-xs">{p.period_start && p.period_end ? `${p.period_start} – ${p.period_end}` : '—'}</TableCell>
-                    <TableCell className="text-right tabular-nums">{p.kind === 'advance' ? '—' : fmtKr(p.tb_amount)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{p.tier_pct != null ? `${p.tier_pct} %` : '—'}</TableCell>
-                    <TableCell className="text-right tabular-nums">{fmtKr(p.commission_gross)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{fmtKr(p.deductions_total)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{loan ? (loan < 0 ? `−${fmtKr(Math.abs(loan))}` : `+${fmtKr(loan)}`) : '—'}</TableCell>
-                    <TableCell className="text-right tabular-nums">{fmtKr(p.net_amount)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{fmtKr(p.vat_amount)}</TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">{fmtKr(p.total_incl_vat)}</TableCell>
-                    <TableCell className="whitespace-nowrap text-xs">{p.invoice_number ? `nr ${p.invoice_number} · ${p.invoice_date ?? ''}` : '—'}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        <Badge className={st.cls}>{st.label}</Badge>
-                        {p.source === 'imported' && <Badge variant="outline">Importerad</Badge>}
-                        {p.kind === 'advance' && <Badge variant="outline">Förskott</Badge>}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        <Button size="sm" variant="outline" onClick={() => p.status === 'draft' ? setWizard({ open: true, payout: p }) : setDetail(p)}>Öppna</Button>
-                        {p.invoice_pdf_path && (
-                          <Button size="sm" variant="ghost" title="Öppna faktura" onClick={() => openPdf(p.invoice_pdf_path, consultantInvoicePdfName(consultant ?? {}, p.invoice_number, p.invoice_date))}>
-                            <FileText className="h-3.5 w-3.5 mr-1" />Faktura
-                          </Button>
-                        )}
-                        {p.spec_pdf_path && (
-                          <Button size="sm" variant="ghost" title="Öppna specifikation" onClick={() => openPdf(p.spec_pdf_path, consultantSpecPdfName(consultant ?? {}, p.invoice_number, p.payout_month))}>Spec</Button>
-                        )}
-                        {p.status !== 'paid' && p.invoice_number && (
-                          <Button size="sm" variant="outline" onClick={() => { setMarkPaid(p); setPaidDate(new Date().toISOString().slice(0, 10)); }}>Markera betald</Button>
-                        )}
-                        {p.status === 'paid' && (
-                          <Button size="sm" variant="ghost" onClick={() => setUndoPaid(p)}>Ångra betald</Button>
-                        )}
-                        {p.status === 'draft' && (
-                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteDraft(p)}>Radera utkast</Button>
-                        )}
-                      </div>
-                    </TableCell>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">Utbetalningar</CardTitle></CardHeader>
+        <CardContent className="p-0 md:p-0">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm p-6"><Loader2 className="h-4 w-4 animate-spin" />Laddar …</div>
+          ) : payouts.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-6">Inga lönekörningar ännu.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Utb-månad</TableHead>
+                    <TableHead className="hidden md:table-cell">Period</TableHead>
+                    <TableHead className="text-right">TB</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">%</TableHead>
+                    <TableHead className="text-right md:hidden">Beräkning</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">Provision</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">Avdrag</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">Lån</TableHead>
+                    <TableHead className="text-right">Netto ex moms</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">Moms</TableHead>
+                    <TableHead className="text-right">Totalt</TableHead>
+                    <TableHead>Faktura</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead><span className="sr-only">Åtgärder</span></TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                </TableHeader>
+                <TableBody>
+                  {payouts.map(p => {
+                    const st = PAYOUT_STATUS[p.status] ?? PAYOUT_STATUS.draft;
+                    const loan = Number(p.loan_change) || 0;
+                    const actions = rowActions(p);
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell className="whitespace-nowrap font-semibold">{p.payout_month ? monthLabel(p.payout_month) : '—'}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground hidden md:table-cell">{p.period_start && p.period_end ? `${p.period_start} – ${p.period_end}` : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums">{p.kind === 'advance' ? '—' : fmtKr(p.tb_amount)}</TableCell>
+                        <TableCell className="text-right tabular-nums hidden md:table-cell">{p.tier_pct != null ? `${p.tier_pct} %` : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums text-xs md:hidden whitespace-nowrap">
+                          <div>Provision {fmtKr(p.commission_gross)}</div>
+                          <div className="text-muted-foreground">− Avdrag {fmtKr(p.deductions_total)}</div>
+                          <div className="text-muted-foreground">Lån {fmtLoan(loan)}</div>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums hidden md:table-cell">{fmtKr(p.commission_gross)}</TableCell>
+                        <TableCell className="text-right tabular-nums hidden md:table-cell">{fmtKr(p.deductions_total)}</TableCell>
+                        <TableCell className="text-right tabular-nums hidden md:table-cell">{fmtLoan(loan)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtKr(p.net_amount)}</TableCell>
+                        <TableCell className="text-right tabular-nums hidden md:table-cell">{fmtKr(p.vat_amount)}</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">{fmtKr(p.total_incl_vat)}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs tabular-nums">{p.invoice_number ? `nr ${p.invoice_number} · ${p.invoice_date ?? ''}` : '—'}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            <Chip tone={st.tone}>{st.label}</Chip>
+                            {p.source === 'imported' && <Chip tone="neutral">Importerad</Chip>}
+                            {p.kind === 'advance' && <Chip tone="warning">Förskott</Chip>}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="hidden lg:flex flex-wrap gap-1">
+                            {actions.map(a => (
+                              <Button key={a.label} size="sm" variant={a.label === 'Öppna' ? 'outline' : 'ghost'} className={a.danger ? 'text-destructive' : undefined} onClick={a.onClick}>
+                                {a.label === 'Faktura' && <FileText className="h-3.5 w-3.5 mr-1" />}{a.label}
+                              </Button>
+                            ))}
+                          </div>
+                          <div className="lg:hidden">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="outline"><MoreHorizontal className="h-4 w-4 mr-1" />Åtgärder</Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {actions.map(a => (
+                                  <DropdownMenuItem key={a.label} className={a.danger ? 'text-destructive' : undefined} onClick={a.onClick}>{a.label}</DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <ConsultantPayoutWizard
         open={wizard.open}
@@ -254,6 +311,7 @@ export function ConsultantPayView({ currentUser }: Props) {
         consultant={consultant}
         currentUser={currentUser}
         initialPayout={wizard.payout ?? null}
+        initialFolderId={wizard.folderId ?? null}
         onDone={refresh}
       />
       <AdvanceInvoiceDialog
@@ -337,7 +395,7 @@ function PayoutDetailSheet({ payout, onClose }: { payout: any | null; onClose: (
         </SheetHeader>
         <div className="space-y-5 mt-4 text-sm">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <span className="text-muted-foreground">Status</span><span>{STATUS_BADGE[payout.status]?.label ?? payout.status}</span>
+            <span className="text-muted-foreground">Status</span><span>{PAYOUT_STATUS[payout.status]?.label ?? payout.status}</span>
             <span className="text-muted-foreground">Faktura</span><span>{payout.invoice_number ? `nr ${payout.invoice_number} · ${payout.invoice_date ?? ''}` : '—'}</span>
             <span className="text-muted-foreground">Period</span><span>{payout.period_start && payout.period_end ? `${payout.period_start} – ${payout.period_end}` : '—'}</span>
             <span className="text-muted-foreground">Utbetalningsdatum (Mockfjärds)</span><span>{payout.provision_payout_date ?? '—'}</span>
