@@ -36,3 +36,4 @@
 - [x] Del 2: teamfiltrerade A-ordrar och separata PDF-länkar; typer, sex regressionstester och policydefinitioner verifierade.
 - [x] A-ordrar: statusprickarna styr boxen själva med PopoverAnchor; hover, klick, pekskärm och klick utanför verifierat i isolerad miljö.
 
+- [ ] Konsultlöner 1B: adminflik, guiden, faktura-/spec-PDF, förskott, lånereskontra, inställningar
