@@ -934,6 +934,98 @@ export type Database = {
           },
         ]
       }
+      consultant_previews: {
+        Row: {
+          commission_gross: number | null
+          computed_at: string
+          consultant_id: string
+          deduction_file_count: number | null
+          error: string | null
+          existing_payout_id: string | null
+          folder_created_time: string | null
+          folder_id: string | null
+          folder_name: string | null
+          net_estimate: number | null
+          payout_month: string | null
+          period_end: string | null
+          period_start: string | null
+          provision_file_id: string | null
+          provision_file_name: string | null
+          provision_modified_time: string | null
+          provision_payout_date: string | null
+          standard_deductions: number | null
+          state: string
+          tb_amount: number | null
+          tb_needs_review: boolean | null
+          tb_note: string | null
+          tier_pct: number | null
+          total_estimate: number | null
+          vat_estimate: number | null
+        }
+        Insert: {
+          commission_gross?: number | null
+          computed_at?: string
+          consultant_id: string
+          deduction_file_count?: number | null
+          error?: string | null
+          existing_payout_id?: string | null
+          folder_created_time?: string | null
+          folder_id?: string | null
+          folder_name?: string | null
+          net_estimate?: number | null
+          payout_month?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          provision_file_id?: string | null
+          provision_file_name?: string | null
+          provision_modified_time?: string | null
+          provision_payout_date?: string | null
+          standard_deductions?: number | null
+          state?: string
+          tb_amount?: number | null
+          tb_needs_review?: boolean | null
+          tb_note?: string | null
+          tier_pct?: number | null
+          total_estimate?: number | null
+          vat_estimate?: number | null
+        }
+        Update: {
+          commission_gross?: number | null
+          computed_at?: string
+          consultant_id?: string
+          deduction_file_count?: number | null
+          error?: string | null
+          existing_payout_id?: string | null
+          folder_created_time?: string | null
+          folder_id?: string | null
+          folder_name?: string | null
+          net_estimate?: number | null
+          payout_month?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          provision_file_id?: string | null
+          provision_file_name?: string | null
+          provision_modified_time?: string | null
+          provision_payout_date?: string | null
+          standard_deductions?: number | null
+          state?: string
+          tb_amount?: number | null
+          tb_needs_review?: boolean | null
+          tb_note?: string | null
+          tier_pct?: number | null
+          total_estimate?: number | null
+          vat_estimate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultant_previews_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: true
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consultants: {
         Row: {
           address: string | null
@@ -959,6 +1051,7 @@ export type Database = {
           payer_vat_nr: string | null
           standard_deductions: Json
           updated_at: string
+          user_id: string | null
           vat_nr: string | null
           vat_rate: number
         }
@@ -986,6 +1079,7 @@ export type Database = {
           payer_vat_nr?: string | null
           standard_deductions?: Json
           updated_at?: string
+          user_id?: string | null
           vat_nr?: string | null
           vat_rate?: number
         }
@@ -1013,10 +1107,19 @@ export type Database = {
           payer_vat_nr?: string | null
           standard_deductions?: Json
           updated_at?: string
+          user_id?: string | null
           vat_nr?: string | null
           vat_rate?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "consultants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deviations: {
         Row: {
