@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import jsPDF from 'jspdf';
-import { drawSelfBillingInvoice, type SelfBillingInvoice } from '../selfBillingLayout';
+import { fmtKr, drawSelfBillingInvoice, type SelfBillingInvoice } from '../selfBillingLayout';
 
 const base: SelfBillingInvoice = {
   kind: 'invoice',
@@ -59,5 +59,12 @@ describe('selfBillingLayout köpare', () => {
     const text = allText(doc);
     expect(text).not.toContain('undefined');
     expect(text).not.toContain('null');
+  });
+});
+
+describe('fmtKr', () => {
+  it('visar öre bara när de finns', () => {
+    expect(fmtKr(808.5).replace(/\s/g, ' ')).toBe('808,50 kr');
+    expect(fmtKr(3234).replace(/\s/g, ' ')).toBe('3 234 kr');
   });
 });

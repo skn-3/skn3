@@ -59,4 +59,14 @@ describe('buildConsultantSpecPdf', () => {
     });
     expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(1);
   });
+
+  it('bryter till flera sidor med 60 kvittorader', () => {
+    const lines = Array.from({ length: 60 }, (_, i) => ({ kind: 'receipt', label: `Trängselskatt med en mycket lång beskrivning nummer ${i}`, amount: 45, doc_type: 'trangselskatt', doc_date: '2026-09-20', reg_nr: 'ABC123', doc_number: `OCR${i}`, included: true, duplicate_of: null }));
+    const doc = buildConsultantSpecPdf({
+      consultant: { name: 'Gabriel Hanna', company_name: 'VPLG AB', payer_name: 'Daniel Malke AB', commission_tiers: [] },
+      payout: { kind: 'payout', tb_amount: 100000, commission_gross: 30000, deductions_total: 2700, net_amount: 27300, vat_rate: 25, vat_amount: 6825, total_incl_vat: 34125 },
+      lines, loanBalanceBefore: 0, loanBalanceAfter: 0, generatedBy: 'admin',
+    });
+    expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(2);
+  });
 });

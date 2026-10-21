@@ -23,12 +23,16 @@ describe('tierFor', () => {
 
 describe('calcPayout', () => {
   it('avrundar netto till hela kronor när avdragen har öre', () => {
-    const r = calcPayout({ tb: 0, lines: [{ kind: 'receipt', amount: 4431.69, included: true }], loanRepayment: 7500 });
-    const r2 = { ...r, gross: 47625 };
-    void r2;
-    const net = Math.round(47625 - r.deductions - 7500);
+    const r = calcPayout({
+      tb: 47625, tiers: [{ upTo: null, pct: 100 }],
+      lines: [{ kind: 'receipt', amount: 4431.69, included: true }],
+      loanRepayment: 7500,
+    });
+    expect(r.gross).toBe(47625);
     expect(r.deductions).toBe(4431.69);
-    expect(net).toBe(35693);
+    expect(r.net).toBe(35693);
+    expect(r.vat).toBe(8923.25);
+    expect(r.total).toBe(44616.25);
   });
   it('TB 235 348, bil 3 000, amortering 7 500', () => {
     const r = calcPayout({
