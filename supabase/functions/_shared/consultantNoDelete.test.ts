@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { assertAllowedSheetsRequest } from './googleSheets';
+import { assertAllowedSheetsRequest } from './sheetsGuard';
 
 // Skyddar Drive och Sheets mot framtida ändringar: konsultlönesystemet får
 // endast läsa, skapa nya filer och lägga till loggrader — aldrig ändra eller radera.

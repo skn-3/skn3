@@ -1,15 +1,7 @@
 import { googleToken } from './googleAuth.ts';
+import { assertAllowedSheetsRequest } from './sheetsGuard.ts';
 
-/** Hård spärr: Sheets-klienten får bara läsa och lägga till rader. Kastar på allt annat. */
-export function assertAllowedSheetsRequest(method: string, path: string): void {
-  const m = method.toUpperCase();
-  const p = path.split('?')[0];
-  const ok =
-    (m === 'GET' && /^spreadsheets\/[^/]+$/.test(p)) ||
-    (m === 'GET' && /^spreadsheets\/[^/]+\/values\/[^/]+$/.test(p)) ||
-    (m === 'POST' && /^spreadsheets\/[^/]+\/values\/[^/]+:append$/.test(p));
-  if (!ok) throw new Error(`Sheets-spärr: ${m} ${p} är inte tillåtet. Loggen får bara läsas och få nya rader, aldrig ändras eller rensas.`);
-}
+export { assertAllowedSheetsRequest };
 
 export const LOG_HEADER = ['Datum', 'Händelse', 'Konsult', 'Utbetalningsmånad', 'Period', 'TB', 'Procent', 'Provision', 'Bilavdrag', 'Kvittoavdrag', 'Kvitton (lista)', 'Amortering', 'Förskott', 'Netto ex moms', 'Moms', 'Totalt', 'Fakturanr', 'Fakturadatum', 'Lånesaldo efter', 'Faktura (Drive)', 'Underlag (Drive)', 'Status', 'Av', 'Anteckning'];
 
