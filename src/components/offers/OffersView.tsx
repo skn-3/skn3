@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy, FileCheck, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy, FileCheck, Trash2, Sparkles, Loader2, MailCheck } from 'lucide-react';
+import { OrderConfirmationDialog } from './OrderConfirmationDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -62,6 +63,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const [aiOpen, setAiOpen] = useState(false);
   const [aiText, setAiText] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
+  const [confirmFor, setConfirmFor] = useState<any | null>(null);
   const isAdmin = isCurrentUserAdmin(currentUser);
 
   const { data: offers, isLoading } = useQuery({
@@ -368,6 +370,11 @@ export function OffersView({ currentUser }: OffersViewProps) {
                         av {o.accept_name}{o.accepted_at ? ` • ${new Date(o.accepted_at).toLocaleDateString('sv-SE')}` : ''}
                       </div>
                     )}
+                    {(o as any).confirmation_sent_at && (
+                      <div className="text-[10px] text-green-700 dark:text-green-300">
+                        Bekräftelse skickad {new Date((o as any).confirmation_sent_at).toLocaleDateString('sv-SE')}
+                      </div>
+                    )}
                   </td>
 
                   <td className="px-3 py-2 text-muted-foreground">{new Date(o.created_at).toLocaleDateString('sv-SE')}</td>
@@ -390,6 +397,16 @@ export function OffersView({ currentUser }: OffersViewProps) {
                       >
                         {o.pdf_path ? <ExternalLink className="h-3 w-3" /> : <Download className="h-3 w-3" />}
                         PDF
+                      </button>
+                    )}
+                    {o.status === 'accepted' && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setConfirmFor(o); }}
+                        className={`text-xs ${(o as any).confirmation_sent_at ? 'text-green-700 dark:text-green-300' : 'text-primary'} hover:underline inline-flex items-center gap-1 mr-3`}
+                        title={(o as any).confirmation_sent_at ? `Skickad ${new Date((o as any).confirmation_sent_at).toLocaleDateString('sv-SE')} – klicka för att skicka igen` : 'Skicka orderbekräftelse'}
+                      >
+                        <MailCheck className="h-3 w-3" /> Orderbekräftelse
                       </button>
                     )}
                     <button
@@ -522,6 +539,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
           </div>
         </SheetContent>
       </Sheet>
+      <OrderConfirmationDialog offer={confirmFor} open={!!confirmFor} onOpenChange={v => { if (!v) setConfirmFor(null); }} currentUser={currentUser} />
     </div>
   );
 }

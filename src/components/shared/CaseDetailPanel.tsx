@@ -18,7 +18,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench, Pencil, Check, Wallet, ChevronDown, Plus, CalendarPlus } from 'lucide-react';
+import { X, ExternalLink, Clock, AlertTriangle, Trash2, CalendarIcon, Receipt, Camera, FileText, Info, Link2, Link2Off, Wrench, Pencil, Check, Wallet, ChevronDown, Plus, CalendarPlus, MailCheck } from 'lucide-react';
+import { OrderConfirmationDialog } from '@/components/offers/OrderConfirmationDialog';
 import { FutureJobDialog } from '@/components/seller/FutureJobDialog';
 import { countdown as futureJobCountdown } from '@/components/seller/FutureJobsView';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -446,6 +447,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     } catch (e: any) { toast.error(e?.message || 'Kunde inte återställa'); }
   }
 
+  const [confirmOffer, setConfirmOffer] = useState<any | null>(null);
   // Offerter kopplade till ärendet
   const { data: caseOffers } = useQuery({
     queryKey: ['case_offers', caseData.id],
@@ -2309,6 +2311,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                             Accepterad av {o.accept_name}{o.accepted_at ? ` • ${new Date(o.accepted_at).toLocaleString('sv-SE')}` : ''}
                           </div>
                         )}
+                        {o.confirmation_sent_at && (
+                          <div className="text-[10px] text-green-700 dark:text-green-300">
+                            Orderbekräftelse skickad {new Date(o.confirmation_sent_at).toLocaleDateString('sv-SE')}
+                          </div>
+                        )}
                       </button>
                       <div className="flex items-center gap-2">
                         {o.pdf_path && (
@@ -2330,6 +2337,16 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                             <ExternalLink className="h-3 w-3" /> Signerad
                           </button>
                         )}
+                        {o.status === 'accepted' && (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmOffer(o)}
+                            className="text-xs text-green-700 dark:text-green-300 hover:underline inline-flex items-center gap-1 whitespace-nowrap"
+                            title="Orderbekräftelse"
+                          >
+                            <MailCheck className="h-3 w-3" /> Orderbekräftelse
+                          </button>
+                        )}
                       </div>
                     </li>
                   );
@@ -2338,6 +2355,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             ) : (
               <p className="text-xs text-muted-foreground">Inga offerter ännu för detta ärende.</p>
             )}
+            <OrderConfirmationDialog offer={confirmOffer} open={!!confirmOffer} onOpenChange={v => { if (!v) setConfirmOffer(null); }} currentUser={currentUser} />
           </section>
 
           {/* A-ORDER & Faktura */}

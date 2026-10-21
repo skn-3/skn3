@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { slugPart, datePart, aOrderPdfName, invoicePdfName, creditPdfName, aOrderDocumentName, montorInvoicePdfName, offerPdfName, uppdragInvoicePdfName } from '../pdfNames';
+import { slugPart, datePart, aOrderPdfName, invoicePdfName, creditPdfName, aOrderDocumentName, montorInvoicePdfName, offerPdfName, uppdragInvoicePdfName, orderConfirmationPdfName } from '../pdfNames';
 
 describe('pdfNames', () => {
   it('slugPart gör svenska tecken och mellanslag filnamnssäkra', () => {
@@ -49,5 +49,10 @@ describe('pdfNames', () => {
       .toBe('Offert-2026-0016-Sandra-Thernelius-Fyrkloversbackarna-3-Hasselby-2026-10-13.pdf');
     expect(uppdragInvoicePdfName({ customer_name: 'Anna Ek', address: 'Storgatan 1' }, 'slutfaktura', '2026-0012', '2026-10-20'))
       .toBe('Slutfaktura-2026-0012-Anna-Ek-Storgatan-1-2026-10-20.pdf');
+  });
+
+  it('namnger orderbekräftelser', () => {
+    expect(orderConfirmationPdfName({ offer_number: '2026-0017', customer_name: 'Maria Karolina Willumsen', customer_address: 'Kalvgränd 24, Järfälla' }, '2026-10-21T14:00:00Z'))
+      .toBe('Orderbekraftelse-2026-0017-Maria-Karolina-Willumsen-Kalvgrand-24-Jarfalla-2026-10-21.pdf');
   });
 });

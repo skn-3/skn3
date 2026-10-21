@@ -1213,6 +1213,10 @@ export type Database = {
           accept_user_agent: string | null
           accepted_at: string | null
           case_id: string | null
+          confirmation_pdf_path: string | null
+          confirmation_sent_at: string | null
+          confirmation_sent_by: string | null
+          confirmation_sent_to: string | null
           created_at: string
           created_by: string | null
           customer_address: string | null
@@ -1266,6 +1270,10 @@ export type Database = {
           accept_user_agent?: string | null
           accepted_at?: string | null
           case_id?: string | null
+          confirmation_pdf_path?: string | null
+          confirmation_sent_at?: string | null
+          confirmation_sent_by?: string | null
+          confirmation_sent_to?: string | null
           created_at?: string
           created_by?: string | null
           customer_address?: string | null
@@ -1319,6 +1327,10 @@ export type Database = {
           accept_user_agent?: string | null
           accepted_at?: string | null
           case_id?: string | null
+          confirmation_pdf_path?: string | null
+          confirmation_sent_at?: string | null
+          confirmation_sent_by?: string | null
+          confirmation_sent_to?: string | null
           created_at?: string
           created_by?: string | null
           customer_address?: string | null
