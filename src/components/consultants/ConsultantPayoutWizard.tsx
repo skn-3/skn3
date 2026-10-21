@@ -70,6 +70,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
   const [folderId, setFolderId] = useState('');
   const [manualMonth, setManualMonth] = useState(''); // YYYY-MM för mappar utan tolkad månad
   const [scan, setScan] = useState<any | null>(null);
+  const [parsedFolderId, setParsedFolderId] = useState('');
 
   // Steg 2
   const [provision, setProvision] = useState<any | null>(null);
@@ -93,7 +94,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
     () => (Array.isArray(consultant?.standard_deductions) ? consultant.standard_deductions : []), [consultant]);
 
   const reset = useCallback(() => {
-    setStep(1); setBusy(false); setProgress('');
+    setStep(1); setBusy(false); setProgress(''); setParsedFolderId('');
     setMonths([]); setFolderId(''); setManualMonth(''); setScan(null);
     setProvision(null); setTb(''); setTbNote(''); setInvoiceDate(new Date().toISOString().slice(0, 10));
     setLines([]); setLoanMode('none'); setLoanAmount(''); setLoanBalance(0);
@@ -128,6 +129,18 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
       drive_file_id: l.drive_file_id, drive_file_name: l.drive_file_name, drive_web_link: l.drive_web_link,
       duplicate_of: l.duplicate_of, ai_raw: l.ai_raw,
     })));
+    if (payout.drive_month_folder_id) {
+      setMonths([{ id: payout.drive_month_folder_id, name: payout.drive_month_folder_name, createdTime: null, payout_month: payout.payout_month, existing_payout: null }]);
+      setFolderId(payout.drive_month_folder_id);
+      setParsedFolderId(payout.drive_month_folder_id);
+    } else {
+      setManualMonth(payout.payout_month ? String(payout.payout_month).slice(0, 7) : '');
+    }
+    setScan({
+      folder: { id: payout.drive_month_folder_id, name: payout.drive_month_folder_name },
+      provision_file: payout.provision_file_id ? { id: payout.provision_file_id, name: payout.provision_file_name } : null,
+      deduction_files: [], other_files: [],
+    });
     setStep(4);
   }, [reset]);
 
@@ -177,6 +190,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
 
   const parseReceipts = async () => {
     if (!consultant || !scan?.deduction_files?.length) { setStep(3); return; }
+    if (parsedFolderId && parsedFolderId === folderId && lines.some(l => l.kind === 'receipt' || l.kind === 'manual')) { setStep(3); return; }
     const files: any[] = scan.deduction_files;
     const subfolderByFile: Record<string, string> = {};
     for (const f of files) if (f.subfolder) subfolderByFile[f.id] = f.subfolder;
@@ -188,7 +202,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
         const batch = files.slice(i, i + 6);
         setProgress(`Tolkar ${Math.min(i + 6, files.length)} av ${files.length} …`);
         const data = await invokeConsultantDrive<{ items: any[] }>({
-          action: 'deductions', consultant_id: consultant.id,
+          action: 'deductions', consultant_id: consultant.id, ...(payoutId ? { payout_id: payoutId } : {}),
           file_ids: batch.map((f: any) => f.id), subfolder_by_file: subfolderByFile,
         });
         for (let j = 0; j < batch.length; j++) {
@@ -216,6 +230,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
         done = Math.min(i + 6, files.length);
       }
       setLines(prev => [...prev.filter(l => l.kind === 'standard'), ...parsed]);
+      setParsedFolderId(folderId);
     } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
     setProgress('');
     setBusy(false);
@@ -633,7 +648,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
             </div>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)}>Tillbaka</Button>
+              {!initialPayout && <Button variant="outline" onClick={() => setStep(2)}>Tillbaka</Button>}
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => void doSaveDraft()} disabled={busy}>Spara utkast</Button>
                 <Button onClick={() => setStep(4)} disabled={busy}>Nästa</Button>
@@ -647,7 +662,10 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
             <div className="rounded-md border p-4 space-y-1.5 text-sm">
               <div className="flex justify-between"><span>TB × {calc.pct} % = Provision</span><span className="tabular-nums">{fmtKr(calc.gross)}</span></div>
               <div className="flex justify-between"><span>− Standardavdrag</span><span className="tabular-nums">{fmtKr(lines.filter(l => l.kind === 'standard' && l.included).reduce((s, l) => s + l.amount, 0))}</span></div>
-              <div className="flex justify-between"><span>− Kvitton ({lines.filter(l => l.kind !== 'standard' && l.included).length} st)</span><span className="tabular-nums">{fmtKr(lines.filter(l => l.kind !== 'standard' && l.included).reduce((s, l) => s + l.amount, 0))}</span></div>
+              <div className="flex justify-between"><span>− Kvitton ({lines.filter(l => l.kind === 'receipt' && l.included).length} st)</span><span className="tabular-nums">{fmtKr(lines.filter(l => l.kind === 'receipt' && l.included).reduce((s, l) => s + l.amount, 0))}</span></div>
+              {lines.some(l => l.kind === 'manual' && l.included) && (
+                <div className="flex justify-between"><span>− Övriga avdrag</span><span className="tabular-nums">{fmtKr(lines.filter(l => l.kind === 'manual' && l.included).reduce((s, l) => s + l.amount, 0))}</span></div>
+              )}
               <div className="flex justify-between"><span>− Amortering</span><span className="tabular-nums">{fmtKr(calc.loanRepayment)}</span></div>
               <div className="flex justify-between font-medium border-t pt-1.5"><span>= Netto ex moms</span><span className="tabular-nums">{fmtKr(calc.net)}</span></div>
               <div className="flex justify-between"><span>+ Moms {Number(consultant?.vat_rate ?? 25)} %</span><span className="tabular-nums">{fmtKr(calc.vat)}</span></div>
@@ -667,7 +685,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
               </div>
             </div>
             <div className="flex flex-wrap justify-between gap-2">
-              <Button variant="outline" onClick={() => setStep(initialPayout ? 4 : 3)} disabled={!!initialPayout}>Tillbaka</Button>
+              <Button variant="outline" onClick={() => setStep(3)}>Tillbaka</Button>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => void doSaveDraft()} disabled={busy}>Spara utkast</Button>
                 <Button variant="outline" onClick={() => void preview('invoice')} disabled={busy}>Förhandsgranska faktura</Button>

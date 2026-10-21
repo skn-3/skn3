@@ -17,9 +17,10 @@ interface Props {
   consultant: any | null;
   loans: any[];
   onChanged: () => void;
+  currentUser: string;
 }
 
-export function LoanLedgerSheet({ open, onOpenChange, consultant, loans, onChanged }: Props) {
+export function LoanLedgerSheet({ open, onOpenChange, consultant, loans, onChanged, currentUser }: Props) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -43,14 +44,18 @@ export function LoanLedgerSheet({ open, onOpenChange, consultant, loans, onChang
         date,
         amount: amountNum,
         note: note.trim() || null,
-        created_by: 'admin',
+        created_by: currentUser || 'admin',
       });
       if (error) throw error;
-      await invokeConsultantPayout({
-        action: 'log', consultant_id: consultant.id, event: 'Lånerad',
-        note: `${date} · ${amountNum > 0 ? '+' : ''}${amountNum} kr · ${note.trim()}`,
-      });
-      toast.success('Låneraden sparades');
+      try {
+        await invokeConsultantPayout({
+          action: 'log', consultant_id: consultant.id, event: 'Lånerad',
+          note: `${date} · ${amountNum > 0 ? '+' : ''}${amountNum} kr · ${note.trim()}`,
+        });
+        toast.success('Låneraden sparades');
+      } catch (logErr) {
+        toast.warning(`Raden sparades men loggningen misslyckades: ${logErr instanceof Error ? logErr.message : String(logErr)}`);
+      }
       setAmount(''); setNote('');
       onChanged();
     } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }

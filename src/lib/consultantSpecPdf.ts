@@ -177,7 +177,7 @@ export function buildConsultantSpecPdf(input: ConsultantSpecInput): jsPDF {
     tableRow([
       [t.upTo === null ? 'Resten' : fmtKr(t.upTo), MARGIN + 2, false],
       [`${t.pct} %`, 120, true],
-      [active ? '◄ aktivt steg' : '', RIGHT - 2, true],
+      [active ? 'aktivt steg' : '', RIGHT - 2, true],
     ], i, active, active ? GREEN : DARK);
   });
   y += 2;

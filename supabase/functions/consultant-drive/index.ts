@@ -112,12 +112,12 @@ Deno.serve(async (req) => {
       }
       const { data: payouts } = await db
         .from('consultant_payouts')
-        .select('id, status, invoice_number, payout_month, drive_month_folder_id')
+        .select('id, status, kind, invoice_number, payout_month, drive_month_folder_id')
         .eq('consultant_id', consultant.id);
       const months = folders
         .map(f => {
           const payout_month = parseMonthFolderName(f.name);
-          const existing = (payouts ?? []).find(p => p.drive_month_folder_id === f.id || (payout_month && p.payout_month === payout_month));
+          const existing = (payouts ?? []).filter(p => p.kind === 'payout').find(p => p.drive_month_folder_id === f.id || (payout_month && p.payout_month === payout_month));
           return { id: f.id, name: f.name, createdTime: f.createdTime, modifiedTime: f.modifiedTime, payout_month, existing_payout: existing ? { id: existing.id, status: existing.status, invoice_number: existing.invoice_number } : null };
         })
         .sort((a, b) => String(b.createdTime ?? '').localeCompare(String(a.createdTime ?? '')));
@@ -237,15 +237,17 @@ Deno.serve(async (req) => {
       // Dubblettkoll mot databasen och inom svaret.
       const { data: existing } = await db
         .from('consultant_payout_lines')
-        .select('id, drive_file_id, doc_number_norm, doc_type, reg_nr, doc_date, amount, included, consultant_payouts(payout_month, invoice_number)')
-        .eq('consultant_id', consultant.id);
-      const rows = existing ?? [];
+        .select('id, drive_file_id, doc_number_norm, doc_type, reg_nr, doc_date, amount, payout_id, included, consultant_payouts(payout_month, invoice_number, status)')
+        .eq('consultant_id', consultant.id)
+        .eq('included', true);
+      const ownPayoutId = typeof body?.payout_id === 'string' ? body.payout_id : null;
+      const rows = (existing ?? []).filter((r: any) => r.consultant_payouts?.status !== 'draft' && (!ownPayoutId || r.payout_id !== ownPayoutId));
       const findDuplicate = (item: any) => {
         const p = item.parsed;
         const match = rows.find((r: any) =>
           (item.file.id && r.drive_file_id === item.file.id) ||
           (item.doc_number_norm && r.doc_number_norm === item.doc_number_norm) ||
-          (r.included && r.doc_type === p.doc_type && r.reg_nr && p.reg_nr && r.reg_nr === p.reg_nr &&
+          (r.doc_type === p.doc_type && r.reg_nr && p.reg_nr && r.reg_nr === p.reg_nr &&
             String(r.doc_date ?? '') === String(p.doc_date ?? '') && Number(r.amount) === Number(p.amount_total)));
         if (!match) return null;
         const payout = (match as any).consultant_payouts;

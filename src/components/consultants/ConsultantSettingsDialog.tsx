@@ -30,7 +30,7 @@ const emptyForm = () => ({
   commission_tiers: DEFAULT_TIERS.map(t => ({ ...t })) as CommissionTier[],
   standard_deductions: [] as StdDeduction[],
   vat_rate: 25,
-  drive_folder_id: '', drive_payer_root_id: '', payer_fiscal_start_month: 8,
+  drive_folder_id: '', drive_payer_root_id: '', payer_fiscal_start_month: 9,
   is_active: true,
 });
 
@@ -80,7 +80,7 @@ export function ConsultantSettingsDialog({ open, onOpenChange, consultant, onSav
         standard_deductions: form.standard_deductions,
         vat_rate: Number(form.vat_rate) || 25,
         drive_folder_id: form.drive_folder_id || null, drive_payer_root_id: form.drive_payer_root_id || null,
-        payer_fiscal_start_month: Number(form.payer_fiscal_start_month) || 8,
+        payer_fiscal_start_month: Number(form.payer_fiscal_start_month) || 9,
         is_active: Boolean(form.is_active),
       };
       if (form.id) {
