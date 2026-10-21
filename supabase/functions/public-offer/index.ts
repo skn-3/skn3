@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { offerPdfName, orderConfirmationPdfName } from '../_shared/pdfNames.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +12,7 @@ const PUBLIC_FIELDS = [
   'title', 'description', 'line_items',
   'vat_mode', 'rot_enabled', 'rot_percent', 'rot_persons', 'rot_cap_per_person', 'rot_used', 'total_ex_vat', 'total_vat', 'total_incl_vat',
   'rot_base', 'rot_amount', 'total_after_rot', 'handpenning_percent', 'terms_text', 'status', 'accepted_at',
-  'accept_name', 'declined_at',
+  'accept_name', 'declined_at', 'confirmation_sent_at',
 ] as const;
 
 function isExpired(validUntil: string | null | undefined): boolean {
@@ -56,10 +57,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const sanitize = (s: string) => s.normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 50);
-    const addrPart = sanitize(String(offer.customer_address || offer.title || ''));
-    const offerFile = `Offert_${offer.offer_number || 'utkast'}${addrPart ? '_' + addrPart : ''}.pdf`;
-    const avtalFile = `Avtal_${offer.offer_number || 'utkast'}${addrPart ? '_' + addrPart : ''}.pdf`;
+    const offerFile = offerPdfName(offer, 'offert');
+    const avtalFile = offerPdfName(offer, 'avtal');
 
     let signedUrl: string | null = null;
     if (offer.pdf_path) {
@@ -72,7 +71,13 @@ Deno.serve(async (req) => {
       signedPdfUrl = sig2?.signedUrl || null;
     }
 
-    const out: Record<string, unknown> = { signed_url: signedUrl, signed_pdf_url: signedPdfUrl };
+    let confirmationPdfUrl: string | null = null;
+    if (offer.confirmation_pdf_path) {
+      const { data: sig3 } = await admin.storage.from('case-documents').createSignedUrl(offer.confirmation_pdf_path, 3600, { download: orderConfirmationPdfName(offer, offer.confirmation_sent_at) });
+      confirmationPdfUrl = sig3?.signedUrl || null;
+    }
+
+    const out: Record<string, unknown> = { signed_url: signedUrl, signed_pdf_url: signedPdfUrl, confirmation_pdf_url: confirmationPdfUrl };
     for (const f of PUBLIC_FIELDS) out[f] = (offer as any)[f];
 
     return new Response(JSON.stringify(out), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

@@ -46,6 +46,8 @@ type PublicOfferData = {
   terms_text: string | null;
   status: string;
   accepted_at: string | null;
+  confirmation_sent_at?: string | null;
+  confirmation_pdf_url?: string | null;
   accept_name: string | null;
   declined_at?: string | null;
   customer_personnummer?: string | null;
@@ -305,6 +307,8 @@ export default function PublicOffer() {
   const rotCapped = rotActive && Number(data.rot_amount || 0) < rotUncapped;
   const rotPersons = Math.max(1, Math.floor(Number(data.rot_persons ?? 1) || 1));
   const seller = data.created_by || null;
+  const customTerms = !!data.payment_terms && !/^10\s*dagar\s*netto\.?$/i.test(data.payment_terms.trim());
+  const confirmationSent = !!data.confirmation_sent_at;
   const pdfUrl = data.signed_pdf_url || data.signed_url;
   const firstName = (data.accept_name || data.customer_name || '').split(/\s+/)[0] || '';
 
@@ -317,7 +321,7 @@ export default function PublicOffer() {
       {!rotActive && <div className="text-[13px] text-muted-foreground mb-3">{inclVat ? `varav moms ${fmtKr(data.total_vat)}` : 'Omvänd byggmoms – köparen redovisar momsen'}</div>}
       {hpPercent > 0 && (
         <>
-          <div className="flex justify-between gap-3 text-[13.5px] py-2 border-t border-border"><span className="text-muted-foreground">Handpenning {hpPercent} % vid beställning</span><Num>{fmtKr(handpenning)}</Num></div>
+          <div className="flex justify-between gap-3 text-[13.5px] py-2 border-t border-border"><span className="text-muted-foreground">Handpenning {hpPercent} %{customTerms ? ' enligt avtalets villkor' : ' vid beställning'}</span><Num>{fmtKr(handpenning)}</Num></div>
           <div className="flex justify-between gap-3 text-[13.5px] py-2 border-t border-border"><span className="text-muted-foreground">Slutfaktura efter utfört arbete</span><Num>{fmtKr(slutfaktura)}</Num></div>
         </>
       )}
@@ -338,9 +342,12 @@ export default function PublicOffer() {
               <a href={pdfUrl} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4" /> {isAccepted && data.signed_pdf_url ? 'Ladda ner signerat avtal (PDF)' : 'Ladda ner offerten (PDF)'}</a>
             </Button>
           )}
+          {isAccepted && data.confirmation_pdf_url && (
+            <Button asChild variant="outline" size="lg" className="w-full gap-2"><a href={data.confirmation_pdf_url} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4" /> Ladda ner orderbekräftelse (PDF)</a></Button>
+          )}
           {isAccepted && (
             <Button asChild variant="outline" size="lg" className="w-full gap-2">
-              <a href={`tel:${COMPANY_PHONE.replace(/[^\d+]/g, '')}`}><Phone className="h-4 w-4" /> Ring {seller || 'oss'}</a>
+              <a href={`tel:${COMPANY_PHONE.replace(/[^\d+]/g, '')}`}><Phone className="h-4 w-4" /> Ring oss</a>
             </Button>
           )}
         </div>
@@ -352,9 +359,9 @@ export default function PublicOffer() {
         </div>
       )}
       <div className="flex items-center gap-3 mt-4">
-        <span className="h-10 w-10 rounded-full bg-primary text-primary-foreground ring-2 ring-sage inline-flex items-center justify-center text-[13px] font-bold flex-none">{initialsOf(seller)}</span>
+        <span className="h-10 w-10 rounded-full bg-primary text-primary-foreground ring-2 ring-sage inline-flex items-center justify-center text-[13px] font-bold flex-none">{initialsOf(isAccepted ? null : seller)}</span>
         <div className="min-w-0">
-          <div className="text-sm font-bold">{seller ? `${seller}, din kontakt` : 'SmartKlimat N3prenad'}</div>
+          <div className="text-sm font-bold">{seller && !isAccepted ? `${seller}, din kontakt` : 'SmartKlimat N3prenad'}</div>
           <div className="text-[12.5px] text-muted-foreground truncate"><a href={`tel:${COMPANY_PHONE.replace(/[^\d+]/g, '')}`} className="hover:text-foreground">{COMPANY_PHONE}</a> · <a href={`mailto:${COMPANY_EMAIL}`} className="hover:text-foreground">{COMPANY_EMAIL}</a></div>
         </div>
       </div>
@@ -384,8 +391,8 @@ export default function PublicOffer() {
           {isAccepted ? (
             <div className="py-8 md:py-10 text-center animate-fade-up">
               <div className="mx-auto h-16 w-16 rounded-full bg-gold text-ink-deep inline-flex items-center justify-center shadow-[0_0_0_10px_rgba(220,190,110,.18)]"><Check className="h-8 w-8" strokeWidth={3} /></div>
-              <h1 className="font-display text-[28px] md:text-[36px] font-bold leading-tight mt-4">Tack{firstName ? ` ${firstName}` : ''}, offerten är accepterad</h1>
-              <p className="text-ink-muted text-sm md:text-[15px] mt-2">Signerad <b className="text-white font-semibold">{fmtAcceptedAt(data.accepted_at)}</b> · offert {data.offer_number || '—'}<br />Bekräftelsen och avtalet är skickade till din e-post.</p>
+              <h1 className="font-display text-[28px] md:text-[36px] font-bold leading-tight mt-4">Tack{firstName ? ` ${firstName}` : ''}, avtalet är signerat</h1>
+              <p className="text-ink-muted text-sm md:text-[15px] mt-2">Signerad <b className="text-white font-semibold">{fmtAcceptedAt(data.accepted_at)}</b> · avtal {data.offer_number || '—'}<br />{confirmationSent ? 'Avtalet och orderbekräftelsen är skickade till din e-post.' : 'Det signerade avtalet är skickat till din e-post.'}</p>
             </div>
           ) : (
             <div className="pt-6 pb-10 md:pt-8 md:pb-12 animate-fade-up">
@@ -415,8 +422,9 @@ export default function PublicOffer() {
                 <h2 className="font-display text-[22px] font-bold mt-1 mb-4">Nästa steg</h2>
                 <ol className="flex flex-col">
                   {[
-                    { title: 'Offerten accepterad', sub: `${fmtDateLong(data.accepted_at)} · signerad digitalt`, state: 'done' },
-                    { title: 'Vi hör av oss och planerar', sub: `${seller || 'Vi'} ringer dig inom några dagar.${hpPercent > 0 ? ` Handpenning ${fmtKr(handpenning)} faktureras med ${data.payment_terms || '10 dagar netto'}.` : ''}`, state: 'now' },
+                    { title: 'Avtalet är signerat', sub: `${fmtDateLong(data.accepted_at)} · signerat digitalt`, state: 'done' },
+                    { title: 'Orderbekräftelse', sub: confirmationSent ? `Skickad ${fmtDateLong(data.confirmation_sent_at)} till din e-post, med hela processen steg för steg.` : 'Du får en orderbekräftelse med hela processen steg för steg inom kort.', state: confirmationSent ? 'done' : 'now' },
+                    { title: 'En koordinator kontaktar dig', sub: `Vi går igenom detaljerna och bokar in nästa steg tillsammans med dig.${hpPercent > 0 ? ` Handpenning ${fmtKr(handpenning)} faktureras ${customTerms ? 'enligt avtalets betalningsvillkor' : 'i samband med beställningen'}.` : ''}`, state: confirmationSent ? 'now' : 'next' },
                     { title: 'Arbetet utförs', sub: 'Startdatum bokas tillsammans med dig.', state: 'next' },
                     { title: 'Slutfaktura', sub: `${fmtKr(hpPercent > 0 ? slutfaktura : payable)} efter utfört arbete${rotActive ? ', med ROT-avdraget draget' : ''}.`, state: 'next' },
                   ].map((s, i, arr) => (
