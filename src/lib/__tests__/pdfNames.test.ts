@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { slugPart, datePart, aOrderPdfName, invoicePdfName, creditPdfName, aOrderDocumentName, montorInvoicePdfName, offerPdfName, uppdragInvoicePdfName, orderConfirmationPdfName } from '../pdfNames';
+import { slugPart, datePart, aOrderPdfName, invoicePdfName, creditPdfName, aOrderDocumentName, montorInvoicePdfName, offerPdfName, uppdragInvoicePdfName, orderConfirmationPdfName, consultantInvoicePdfName, consultantSpecPdfName } from '../pdfNames';
 
 describe('pdfNames', () => {
   it('slugPart gör svenska tecken och mellanslag filnamnssäkra', () => {
@@ -54,5 +54,11 @@ describe('pdfNames', () => {
   it('namnger orderbekräftelser', () => {
     expect(orderConfirmationPdfName({ offer_number: '2026-0017', customer_name: 'Maria Karolina Willumsen', customer_address: 'Kalvgränd 24, Järfälla' }, '2026-10-21T14:00:00Z'))
       .toBe('Orderbekraftelse-2026-0017-Maria-Karolina-Willumsen-Kalvgrand-24-Jarfalla-2026-10-21.pdf');
+  });
+
+  it('namnger konsultfakturor och lönespecifikationer', () => {
+    const c = { company_name: 'VPLG AB', name: 'Gabriel Hanna' };
+    expect(consultantInvoicePdfName(c, 42, '2026-10-21')).toBe('Faktura-42-VPLG-AB-Gabriel-Hanna-2026-10-21.pdf');
+    expect(consultantSpecPdfName(c, 42, '2026-10-01')).toBe('Lonespecifikation-42-Gabriel-Hanna-2026-10.pdf');
   });
 });

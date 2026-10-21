@@ -116,6 +116,17 @@ export function orderConfirmationPdfName(o: OrderConfirmationNameSource, date?: 
   return join(['Orderbekraftelse', o.offer_number ?? 'utkast', o.customer_name, o.customer_address || o.title, datePart(date) || datePart(new Date().toISOString())]);
 }
 
+export interface ConsultantNameSource { company_name?: string | null; name?: string | null }
+/** Faktura-42-VPLG-AB-Gabriel-Hanna-2026-10-21.pdf */
+export function consultantInvoicePdfName(c: ConsultantNameSource, invoiceNumber: string | number | null | undefined, date?: string | null): string {
+  return join(['Faktura', invoiceNumber, c.company_name, c.name, datePart(date) || datePart(new Date().toISOString())]);
+}
+/** Lonespecifikation-42-Gabriel-Hanna-2026-10.pdf */
+export function consultantSpecPdfName(c: ConsultantNameSource, invoiceNumber: string | number | null | undefined, payoutMonth?: string | null): string {
+  const month = datePart(payoutMonth).slice(0, 7);
+  return join(['Lonespecifikation', invoiceNumber, c.name, month]);
+}
+
 /** Titel att sätta i PDF-metadata (visas i flikens namn i PDF-läsare). */
 export function pdfTitleFromName(fileName: string): string {
   return fileName.replace(/\.pdf$/i, '');

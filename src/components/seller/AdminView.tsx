@@ -9,6 +9,7 @@ import { LinkOrdersView } from './LinkOrdersView';
 import { MontorTeamsAdmin } from '@/components/aorders/MontorTeamsAdmin';
 import { AOrderPricesAdmin } from '@/components/aorders/AOrderPricesAdmin';
 import { DriveSyncAdmin } from './DriveSyncAdmin';
+import { ConsultantPayView } from '@/components/consultants/ConsultantPayView';
 import { useRole } from '@/hooks/useRole';
 
 import { PinCampaignAdmin } from './PinCampaignAdmin';
@@ -28,6 +29,7 @@ const ADMIN_SUBTABS = [
   { value: 'pin-campaign', label: 'PIN-byte' },
   { value: 'activity-log', label: 'Aktivitetslogg' },
   { value: 'drive-sync', label: 'Drive-synk' },
+  { value: 'consultants', label: 'Konsultlöner' },
 ] as const;
 
 export function AdminView({ currentUser }: AdminViewProps) {
@@ -39,7 +41,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
       <Tabs value={sub} onValueChange={setSub} className="w-full">
         <div className="overflow-x-auto -mx-3 md:mx-0 px-3 md:px-0">
           <TabsList className="inline-flex w-max">
-            {ADMIN_SUBTABS.filter(t => t.value !== 'drive-sync' || role?.isAdmin).map(t => (
+            {ADMIN_SUBTABS.filter(t => (t.value !== 'drive-sync' && t.value !== 'consultants') || role?.isAdmin).map(t => (
               <TabsTrigger key={t.value} value={t.value} className="whitespace-nowrap">
                 {t.label}
               </TabsTrigger>
@@ -75,6 +77,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
           <ActivityLogView />
         </TabsContent>
         {role?.isAdmin && <TabsContent value="drive-sync" className="mt-4"><DriveSyncAdmin /></TabsContent>}
+        {role?.isAdmin && <TabsContent value="consultants" className="mt-4"><ConsultantPayView currentUser={currentUser} /></TabsContent>}
       </Tabs>
     </div>
   );
