@@ -388,16 +388,6 @@ export function OffersView({ currentUser }: OffersViewProps) {
                       >
                         <FileCheck className="h-3 w-3" /> Avtal
                       </button>
-                    ) : null}
-                    {o.status === 'accepted' ? (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setConfirmFor(o); }}
-                        className={`text-xs ${(o as any).confirmation_sent_at ? 'text-green-700 dark:text-green-300' : 'text-primary'} hover:underline inline-flex items-center gap-1 mr-3`}
-                        title={(o as any).confirmation_sent_at ? `Skickad ${new Date((o as any).confirmation_sent_at).toLocaleDateString('sv-SE')} – klicka för att skicka igen` : 'Skicka orderbekräftelse'}
-                      >
-                        <MailCheck className="h-3 w-3" /> Orderbekräftelse
-                      </button>
                     ) : (
                       <button
                         type="button"
@@ -407,6 +397,16 @@ export function OffersView({ currentUser }: OffersViewProps) {
                       >
                         {o.pdf_path ? <ExternalLink className="h-3 w-3" /> : <Download className="h-3 w-3" />}
                         PDF
+                      </button>
+                    )}
+                    {o.status === 'accepted' && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setConfirmFor(o); }}
+                        className={`text-xs ${(o as any).confirmation_sent_at ? 'text-green-700 dark:text-green-300' : 'text-primary'} hover:underline inline-flex items-center gap-1 mr-3`}
+                        title={(o as any).confirmation_sent_at ? `Skickad ${new Date((o as any).confirmation_sent_at).toLocaleDateString('sv-SE')} – klicka för att skicka igen` : 'Skicka orderbekräftelse'}
+                      >
+                        <MailCheck className="h-3 w-3" /> Orderbekräftelse
                       </button>
                     )}
                     <button
@@ -539,6 +539,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
           </div>
         </SheetContent>
       </Sheet>
+      <OrderConfirmationDialog offer={confirmFor} open={!!confirmFor} onOpenChange={v => { if (!v) setConfirmFor(null); }} currentUser={currentUser} />
     </div>
   );
 }

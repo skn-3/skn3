@@ -1,4 +1,4 @@
-import { invoicePdfName, creditPdfName, montorInvoicePdfName, offerPdfName, uppdragInvoicePdfName } from '../_shared/pdfNames.ts';
+import { invoicePdfName, creditPdfName, montorInvoicePdfName, offerPdfName, uppdragInvoicePdfName, orderConfirmationPdfName } from '../_shared/pdfNames.ts';
 import { eligibleSync, type Destination, type DriveKind } from '../_shared/driveFolders.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
@@ -22,7 +22,7 @@ export async function collectCandidates(admin: SupabaseClient) {
     allRows((a,b) => admin.from('montor_debit_invoices').select('id,kind,invoice_number,pdf_path,date,title,total,credited_from_invoice_id,montor_teams(name)').order('id').range(a,b)),
     allRows((a,b) => admin.from('case_documents').select('id,file_path,file_name,invoice_number,invoice_date,created_at').eq('doc_type','mockfjards_payout').not('file_path','is',null).order('id').range(a,b)),
     allRows((a,b) => admin.from('uppdrag').select('id,customer_name,customer_address,title,handpenning_pdf_path,handpenning_invoice_no,handpenning_sent_at,slutfaktura_pdf_path,slutfaktura_invoice_no,slutfaktura_sent_at,created_at').or('handpenning_pdf_path.not.is.null,slutfaktura_pdf_path.not.is.null').order('id').range(a,b)),
-    allRows((a,b) => admin.from('offers').select('id,signed_pdf_path,offer_number,customer_name,customer_address,title,accepted_at,created_at').not('signed_pdf_path','is',null).order('id').range(a,b)),
+    allRows((a,b) => admin.from('offers').select('id,signed_pdf_path,confirmation_pdf_path,confirmation_sent_at,offer_number,customer_name,customer_address,title,accepted_at,created_at').or('signed_pdf_path.not.is.null,confirmation_pdf_path.not.is.null').order('id').range(a,b)),
     allRows((a,b) => admin.from('drive_sync').select('*').order('id').range(a,b)),
   ]);
   const candidates: Candidate[] = [];
@@ -39,7 +39,10 @@ export async function collectCandidates(admin: SupabaseClient) {
     const date = o[`${kind}_sent_at`] || o.created_at;
     candidates.push({source_table:'uppdrag',source_id:o.id,doc_kind:`uppdrag_${kind}`,storage_path:path,file_name:uppdragInvoicePdfName({...o,address:o.customer_address},kind,o[`${kind}_invoice_no`],date),number:o[`${kind}_invoice_no`],date,destination:'incoming'});
   }
-  for (const o of offers) candidates.push({source_table:'offers',source_id:o.id,doc_kind:'signed_offer',storage_path:o.signed_pdf_path,file_name:offerPdfName(o,'avtal'),number:o.offer_number,date:o.accepted_at || o.created_at,destination:'customers',address:o.customer_address?.trim()});
+  for (const o of offers) {
+    if (o.signed_pdf_path) candidates.push({source_table:'offers',source_id:o.id,doc_kind:'signed_offer',storage_path:o.signed_pdf_path,file_name:offerPdfName(o,'avtal'),number:`Avtal-${o.offer_number}`,date:o.accepted_at || o.created_at,destination:'customers',address:o.customer_address?.trim()});
+    if (o.confirmation_pdf_path) candidates.push({source_table:'offers',source_id:o.id,doc_kind:'offer_confirmation',storage_path:o.confirmation_pdf_path,file_name:orderConfirmationPdfName(o,o.confirmation_sent_at),number:`Orderbekraftelse-${o.offer_number}`,date:o.confirmation_sent_at || o.accepted_at || o.created_at,destination:'customers',address:o.customer_address?.trim()});
+  }
   candidates.sort((a,b) => a.date.localeCompare(b.date) || candidateKey(a).localeCompare(candidateKey(b)));
   const logs = new Map(syncRows.map(r => [candidateKey(r),r]));
   const remaining = candidates.filter(c => eligibleSync(logs.get(candidateKey(c))));

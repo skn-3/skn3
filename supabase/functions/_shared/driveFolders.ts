@@ -1,4 +1,4 @@
-export const DRIVE_KINDS = ['a_order_invoice', 'montor_invoice', 'mockfjards_payout', 'uppdrag_handpenning', 'uppdrag_slutfaktura', 'signed_offer'] as const;
+export const DRIVE_KINDS = ['a_order_invoice', 'montor_invoice', 'mockfjards_payout', 'uppdrag_handpenning', 'uppdrag_slutfaktura', 'signed_offer', 'offer_confirmation'] as const;
 export type DriveKind = typeof DRIVE_KINDS[number];
 export type Destination = 'outgoing' | 'incoming' | 'customers';
 export const MONTHS = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];

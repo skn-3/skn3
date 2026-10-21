@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 const labels: Record<string,string> = {
   a_order_invoice:'A-orderfakturor och krediter', montor_invoice:'Montörsfakturor', mockfjards_payout:'Mockfjärdsutbetalningar',
-  uppdrag_handpenning:'Handpenningsfakturor', uppdrag_slutfaktura:'Slutfakturor', signed_offer:'Signerade avtal',
+  uppdrag_handpenning:'Handpenningsfakturor', uppdrag_slutfaktura:'Slutfakturor', signed_offer:'Signerade avtal', offer_confirmation:'Orderbekräftelser',
 };
 interface SyncRow { id:string; updated_at:string; doc_kind:string; file_name:string; drive_web_link:string|null; drive_folder_path:string|null; status:string; error:string|null }
 interface Status {
