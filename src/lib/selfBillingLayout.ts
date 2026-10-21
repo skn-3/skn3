@@ -14,7 +14,17 @@ import { drawRichText } from './richTextPdf';
 /** Exakt samma fras som Mockfjärds använder. Ändra inte ordalydelsen. */
 export const REVERSE_CHARGE_TEXT = 'Omvänd bet.skyldighet f moms gäller enl 1 kap 2§ punkt 4b ML';
 
-export const SELF_BILLING_BUYER = {
+export interface SelfBillingBuyer {
+  name: string;
+  addressLines: string[];
+  orgNr: string;
+  vatNr: string;
+  bankgiro?: string;
+  phone?: string;
+  email?: string;
+}
+
+export const SELF_BILLING_BUYER: SelfBillingBuyer = {
   name: 'SmartKlimat N3prenad AB',
   addressLines: ['Morsstigen 3', '141 71 Segeltorp'],
   orgNr: '559026-6630',
@@ -57,6 +67,8 @@ export interface SelfBillingInvoice {
   description?: string | null;
   /** Fet notis under beskrivningen, t.ex. "Kreditering av faktura NBD-004" */
   note?: string | null;
+  /** Köparen/utfärdaren. Saknas → SELF_BILLING_BUYER (SmartKlimat N3prenad AB). */
+  buyer?: SelfBillingBuyer;
   vatMode: 'omvand' | 'vanlig';
   subtotal: number;
   vatAmount: number;
@@ -114,6 +126,7 @@ export function drawSelfBillingInvoice(doc: jsPDF, inv: SelfBillingInvoice): jsP
   const seller = inv.seller || {};
   const sellerName = seller.company_name || seller.name || '—';
   const sellerVat = vatFromOrgNr(seller.org_nr);
+  const buyer = inv.buyer ?? SELF_BILLING_BUYER;
 
   const setText = (size: number, style: 'normal' | 'bold', color: RGB) => {
     doc.setFont('helvetica', style);
