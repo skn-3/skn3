@@ -44,7 +44,7 @@ const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 
 /**
  * gross = round(tb*pct/100); deductions = summa av included-rader (2 decimaler);
- * net = round2(gross - deductions - loanRepayment); vat = round2(net*vatRate/100);
+ * net = Math.round(gross - deductions - loanRepayment) (hela kronor, som tidigare fakturor); vat = round2(net*vatRate/100);
  * total = round2(net+vat). net får bli negativt (visas som varning i UI, blockeras inte).
  */
 export function calcPayout(i: PayInput): PayResult {
@@ -55,7 +55,7 @@ export function calcPayout(i: PayInput): PayResult {
     i.lines.filter(l => l.included).reduce((s, l) => s + (Number(l.amount) || 0), 0),
   );
   const loanRepayment = round2(Number(i.loanRepayment) || 0);
-  const net = round2(gross - deductions - loanRepayment);
+  const net = Math.round(gross - deductions - loanRepayment);
   const vat = round2((net * vatRate) / 100);
   return { pct, gross, deductions, loanRepayment, net, vat, total: round2(net + vat) };
 }
@@ -102,3 +102,15 @@ export function monthLabel(isoMonth: string): string {
   const [y, m] = isoMonth.split('-').map(Number);
   return `${MONTH_NAMES_SV[m - 1]} ${y}`;
 }
+
+/** Svenska etiketter för avdragstyper (doc_type). */
+export const DOC_TYPE_LABELS: Record<string, string> = {
+  p_bot: 'P-böter',
+  kontrollavgift: 'Kontrollavgift',
+  trangselskatt: 'Trängselskatt',
+  tesla_laddning: 'Tesla-laddning',
+  farja: 'Färja',
+  fordonsskatt: 'Fordonsskatt',
+  inkasso: 'Inkasso',
+  annat: 'Annat',
+};

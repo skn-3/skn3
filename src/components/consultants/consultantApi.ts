@@ -37,13 +37,4 @@ export function blobToBase64(blob: Blob): Promise<string> {
 export const fmtKr = (n: number | null | undefined): string =>
   `${(Number(n) || 0).toLocaleString('sv-SE', { maximumFractionDigits: 2 })} kr`;
 
-export const DOC_TYPE_LABELS: Record<string, string> = {
-  p_bot: 'P-böter',
-  kontrollavgift: 'Kontrollavgift',
-  trangselskatt: 'Trängselskatt',
-  tesla_laddning: 'Tesla-laddning',
-  farja: 'Färja',
-  fordonsskatt: 'Fordonsskatt',
-  inkasso: 'Inkasso',
-  annat: 'Annat',
-};
+export { DOC_TYPE_LABELS } from '@/lib/consultantPay';
