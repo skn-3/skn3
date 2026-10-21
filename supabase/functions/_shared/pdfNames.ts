@@ -110,6 +110,12 @@ export function uppdragInvoicePdfName(u: UppdragInvoiceNameSource, kind: 'handpe
   return join([kind === 'handpenning' ? 'Handpenningsfaktura' : 'Slutfaktura', invoiceNo, u.customer_name, u.address || u.title, datePart(date) || datePart(new Date().toISOString())]);
 }
 
+export interface OrderConfirmationNameSource { offer_number?: string | null; customer_name?: string | null; customer_address?: string | null; title?: string | null }
+/** Orderbekraftelse-2026-0017-Maria-Karolina-Willumsen-Kalvgrand-24-Jarfalla-2026-10-21.pdf */
+export function orderConfirmationPdfName(o: OrderConfirmationNameSource, date?: string | null): string {
+  return join(['Orderbekraftelse', o.offer_number ?? 'utkast', o.customer_name, o.customer_address || o.title, datePart(date) || datePart(new Date().toISOString())]);
+}
+
 /** Titel att sätta i PDF-metadata (visas i flikens namn i PDF-läsare). */
 export function pdfTitleFromName(fileName: string): string {
   return fileName.replace(/\.pdf$/i, '');
