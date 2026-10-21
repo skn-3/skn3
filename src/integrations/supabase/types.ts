@@ -634,6 +634,390 @@ export type Database = {
           },
         ]
       }
+      consultant_loans: {
+        Row: {
+          amount: number
+          consultant_id: string
+          created_at: string
+          created_by: string | null
+          date: string
+          id: string
+          invoice_number: number | null
+          note: string | null
+          payout_id: string | null
+        }
+        Insert: {
+          amount: number
+          consultant_id: string
+          created_at?: string
+          created_by?: string | null
+          date: string
+          id?: string
+          invoice_number?: number | null
+          note?: string | null
+          payout_id?: string | null
+        }
+        Update: {
+          amount?: number
+          consultant_id?: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          invoice_number?: number | null
+          note?: string | null
+          payout_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultant_loans_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultant_loans_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "consultant_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultant_payout_lines: {
+        Row: {
+          ai_raw: Json | null
+          amount: number
+          consultant_id: string
+          created_at: string
+          doc_date: string | null
+          doc_number: string | null
+          doc_number_norm: string | null
+          doc_type: string | null
+          drive_file_id: string | null
+          drive_file_name: string | null
+          drive_modified_time: string | null
+          drive_web_link: string | null
+          duplicate_of: string | null
+          fee_amount: number | null
+          id: string
+          included: boolean
+          is_owner_cost_candidate: boolean
+          is_reminder: boolean | null
+          issuer: string | null
+          kind: string
+          label: string
+          original_amount: number | null
+          payout_id: string
+          reg_nr: string | null
+          sort: number
+        }
+        Insert: {
+          ai_raw?: Json | null
+          amount: number
+          consultant_id: string
+          created_at?: string
+          doc_date?: string | null
+          doc_number?: string | null
+          doc_number_norm?: string | null
+          doc_type?: string | null
+          drive_file_id?: string | null
+          drive_file_name?: string | null
+          drive_modified_time?: string | null
+          drive_web_link?: string | null
+          duplicate_of?: string | null
+          fee_amount?: number | null
+          id?: string
+          included?: boolean
+          is_owner_cost_candidate?: boolean
+          is_reminder?: boolean | null
+          issuer?: string | null
+          kind: string
+          label: string
+          original_amount?: number | null
+          payout_id: string
+          reg_nr?: string | null
+          sort?: number
+        }
+        Update: {
+          ai_raw?: Json | null
+          amount?: number
+          consultant_id?: string
+          created_at?: string
+          doc_date?: string | null
+          doc_number?: string | null
+          doc_number_norm?: string | null
+          doc_type?: string | null
+          drive_file_id?: string | null
+          drive_file_name?: string | null
+          drive_modified_time?: string | null
+          drive_web_link?: string | null
+          duplicate_of?: string | null
+          fee_amount?: number | null
+          id?: string
+          included?: boolean
+          is_owner_cost_candidate?: boolean
+          is_reminder?: boolean | null
+          issuer?: string | null
+          kind?: string
+          label?: string
+          original_amount?: number | null
+          payout_id?: string
+          reg_nr?: string | null
+          sort?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultant_payout_lines_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultant_payout_lines_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "consultant_payout_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultant_payout_lines_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "consultant_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultant_payouts: {
+        Row: {
+          commission_gross: number | null
+          consultant_id: string
+          created_at: string
+          created_by: string | null
+          deductions_total: number
+          drive_month_folder_id: string | null
+          drive_month_folder_name: string | null
+          id: string
+          invoice_date: string | null
+          invoice_drive_file_id: string | null
+          invoice_drive_link: string | null
+          invoice_number: number | null
+          invoice_pdf_path: string | null
+          kind: string
+          loan_change: number
+          net_amount: number | null
+          notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payout_month: string | null
+          period_end: string | null
+          period_start: string | null
+          provision_file_id: string | null
+          provision_file_name: string | null
+          provision_payout_date: string | null
+          sent_at: string | null
+          sent_to: Json | null
+          source: string
+          spec_pdf_path: string | null
+          status: string
+          tb_amount: number | null
+          tb_corrections: Json
+          tb_needs_review: boolean
+          tb_note: string | null
+          tb_rows: Json
+          tb_sum_corrections: number | null
+          tb_sum_rows: number | null
+          tier_pct: number | null
+          total_incl_vat: number | null
+          updated_at: string
+          vat_amount: number | null
+          vat_rate: number
+        }
+        Insert: {
+          commission_gross?: number | null
+          consultant_id: string
+          created_at?: string
+          created_by?: string | null
+          deductions_total?: number
+          drive_month_folder_id?: string | null
+          drive_month_folder_name?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_drive_file_id?: string | null
+          invoice_drive_link?: string | null
+          invoice_number?: number | null
+          invoice_pdf_path?: string | null
+          kind?: string
+          loan_change?: number
+          net_amount?: number | null
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payout_month?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          provision_file_id?: string | null
+          provision_file_name?: string | null
+          provision_payout_date?: string | null
+          sent_at?: string | null
+          sent_to?: Json | null
+          source?: string
+          spec_pdf_path?: string | null
+          status?: string
+          tb_amount?: number | null
+          tb_corrections?: Json
+          tb_needs_review?: boolean
+          tb_note?: string | null
+          tb_rows?: Json
+          tb_sum_corrections?: number | null
+          tb_sum_rows?: number | null
+          tier_pct?: number | null
+          total_incl_vat?: number | null
+          updated_at?: string
+          vat_amount?: number | null
+          vat_rate?: number
+        }
+        Update: {
+          commission_gross?: number | null
+          consultant_id?: string
+          created_at?: string
+          created_by?: string | null
+          deductions_total?: number
+          drive_month_folder_id?: string | null
+          drive_month_folder_name?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_drive_file_id?: string | null
+          invoice_drive_link?: string | null
+          invoice_number?: number | null
+          invoice_pdf_path?: string | null
+          kind?: string
+          loan_change?: number
+          net_amount?: number | null
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payout_month?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          provision_file_id?: string | null
+          provision_file_name?: string | null
+          provision_payout_date?: string | null
+          sent_at?: string | null
+          sent_to?: Json | null
+          source?: string
+          spec_pdf_path?: string | null
+          status?: string
+          tb_amount?: number | null
+          tb_corrections?: Json
+          tb_needs_review?: boolean
+          tb_note?: string | null
+          tb_rows?: Json
+          tb_sum_corrections?: number | null
+          tb_sum_rows?: number | null
+          tier_pct?: number | null
+          total_incl_vat?: number | null
+          updated_at?: string
+          vat_amount?: number | null
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultant_payouts_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultants: {
+        Row: {
+          address: string | null
+          bank_account: string | null
+          bank_name: string | null
+          commission_tiers: Json
+          company_name: string
+          created_at: string
+          drive_folder_id: string | null
+          drive_payer_root_id: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          log_sheet_id: string | null
+          name: string
+          next_invoice_number: number
+          org_nr: string | null
+          payer_address: string | null
+          payer_email: string | null
+          payer_fiscal_start_month: number
+          payer_name: string
+          payer_org_nr: string | null
+          payer_vat_nr: string | null
+          standard_deductions: Json
+          updated_at: string
+          vat_nr: string | null
+          vat_rate: number
+        }
+        Insert: {
+          address?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          commission_tiers?: Json
+          company_name: string
+          created_at?: string
+          drive_folder_id?: string | null
+          drive_payer_root_id?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          log_sheet_id?: string | null
+          name: string
+          next_invoice_number?: number
+          org_nr?: string | null
+          payer_address?: string | null
+          payer_email?: string | null
+          payer_fiscal_start_month?: number
+          payer_name: string
+          payer_org_nr?: string | null
+          payer_vat_nr?: string | null
+          standard_deductions?: Json
+          updated_at?: string
+          vat_nr?: string | null
+          vat_rate?: number
+        }
+        Update: {
+          address?: string | null
+          bank_account?: string | null
+          bank_name?: string | null
+          commission_tiers?: Json
+          company_name?: string
+          created_at?: string
+          drive_folder_id?: string | null
+          drive_payer_root_id?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          log_sheet_id?: string | null
+          name?: string
+          next_invoice_number?: number
+          org_nr?: string | null
+          payer_address?: string | null
+          payer_email?: string | null
+          payer_fiscal_start_month?: number
+          payer_name?: string
+          payer_org_nr?: string | null
+          payer_vat_nr?: string | null
+          standard_deductions?: Json
+          updated_at?: string
+          vat_nr?: string | null
+          vat_rate?: number
+        }
+        Relationships: []
+      }
       deviations: {
         Row: {
           action_log: Json
@@ -1739,6 +2123,10 @@ export type Database = {
       auth_is_my_team_case: { Args: { p_case_id: string }; Returns: boolean }
       auth_user_name: { Args: never; Returns: string }
       auth_user_role: { Args: never; Returns: string }
+      consultant_next_invoice_number: {
+        Args: { p_consultant_id: string }
+        Returns: number
+      }
       drive_sync_claim: { Args: { p_owner: string }; Returns: number }
       drive_sync_finish: {
         Args: { p_generation: number; p_owner: string; p_remaining: boolean }

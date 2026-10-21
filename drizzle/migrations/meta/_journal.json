@@ -127,6 +127,13 @@
       "when": 1792591926941,
       "tag": "0017_offer_order_confirmation",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792596483420,
+      "tag": "0018_create_consultant_payouts",
+      "breakpoints": true
     }
   ]
 }
