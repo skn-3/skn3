@@ -114,3 +114,23 @@ export const DOC_TYPE_LABELS: Record<string, string> = {
   inkasso: 'Inkasso',
   annat: 'Annat',
 };
+
+export interface PreviewConsultant {
+  commission_tiers?: unknown;
+  standard_deductions?: unknown;
+  vat_rate?: number | string | null;
+}
+export interface PreviewEstimate { pct: number; gross: number; standardDeductions: number; net: number; vat: number; total: number }
+
+/**
+ * Preliminär uppskattning för "Nästa lön": provision enligt konsultens trappa minus
+ * standardavdrag med defaultOn (saknas flaggan räknas avdraget). Kvitton och amortering ingår inte.
+ */
+export function previewEstimate(c: PreviewConsultant, tb: number): PreviewEstimate {
+  const tiers = Array.isArray(c.commission_tiers) && c.commission_tiers.length ? (c.commission_tiers as CommissionTier[]) : DEFAULT_TIERS;
+  const std = (Array.isArray(c.standard_deductions) ? c.standard_deductions : []) as Array<{ amount?: number; defaultOn?: boolean }>;
+  const lines: PayLine[] = std.filter(d => d.defaultOn !== false).map(d => ({ kind: 'standard', amount: Number(d.amount) || 0, included: true }));
+  const vatRate = c.vat_rate != null && c.vat_rate !== '' ? Number(c.vat_rate) : 25;
+  const r = calcPayout({ tb, tiers, lines, loanRepayment: 0, vatRate });
+  return { pct: r.pct, gross: r.gross, standardDeductions: r.deductions, net: r.net, vat: r.vat, total: r.total };
+}

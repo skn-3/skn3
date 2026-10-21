@@ -106,3 +106,16 @@ describe('monthLabel', () => {
     expect(monthLabel('2026-10-01')).toBe('oktober 2026');
   });
 });
+
+import { previewEstimate } from '../consultantPay';
+describe('previewEstimate', () => {
+  it('TB 235 348 med bil 3 000 (på) och 500 (av)', () => {
+    const r = previewEstimate({ standard_deductions: [{ amount: 3000, defaultOn: true }, { amount: 500, defaultOn: false }], vat_rate: 25 }, 235348);
+    expect(r).toEqual({ pct: 45, gross: 105907, standardDeductions: 3000, net: 102907, vat: 25726.75, total: 128633.75 });
+  });
+  it('egen trappa och utan avdrag', () => {
+    const r = previewEstimate({ commission_tiers: [{ upTo: null, pct: 100 }] }, 1000);
+    expect(r.net).toBe(1000);
+    expect(r.total).toBe(1250);
+  });
+});
