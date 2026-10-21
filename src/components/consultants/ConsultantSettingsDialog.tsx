@@ -200,6 +200,11 @@ export function ConsultantSettingsDialog({ open, onOpenChange, consultant, onSav
         </div>
 
         <DialogFooter className="flex-wrap gap-2">
+          {form.id && (
+            <Button variant="outline" className="mr-auto" onClick={() => setForm(emptyForm())} disabled={busy}>
+              <Plus className="h-3.5 w-3.5 mr-1" />Ny konsult
+            </Button>
+          )}
           {!form.id && <span className="text-xs text-muted-foreground mr-auto">Ny konsult skapas med de uppgifter du fyllt i.</span>}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Avbryt</Button>
           <Button onClick={() => void save()} disabled={busy}>
