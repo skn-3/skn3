@@ -1,30 +1,9 @@
-import { SignJWT, importPKCS8 } from 'npm:jose@5.10.0';
+import { googleToken, serviceAccount } from '../_shared/googleAuth.ts';
 import { assertAllowedDriveRequest, accountingFolders, sameYearFolder, sameCustomerFolder, existingDocument, type Destination } from '../_shared/driveFolders.ts';
 
 type DriveFile = { id: string; name: string; webViewLink?: string };
-let cachedToken: { value: string; expires: number; email: string } | null = null;
-export function serviceAccount() {
-  const raw = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON');
-  if (!raw) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON saknas');
-  let parsed;
-  try { parsed = JSON.parse(raw); } catch { throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON innehåller ogiltig JSON'); }
-  if (typeof parsed.client_email !== 'string' || typeof parsed.private_key !== 'string') throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON saknar client_email eller private_key');
-  return parsed as { client_email: string; private_key: string };
-}
-async function token() {
-  const account = serviceAccount();
-  if (cachedToken && cachedToken.email === account.client_email && Date.now() < cachedToken.expires - 60_000) return cachedToken.value;
-  const key = await importPKCS8(account.private_key, 'RS256');
-  const assertion = await new SignJWT({scope:'https://www.googleapis.com/auth/drive'})
-    .setProtectedHeader({alg:'RS256',typ:'JWT'}).setIssuer(account.client_email)
-    .setAudience('https://oauth2.googleapis.com/token').setIssuedAt().setExpirationTime('1h').sign(key);
-  const response = await fetch('https://oauth2.googleapis.com/token', {method:'POST',body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion}),signal:AbortSignal.timeout(15000)});
-  if (!response.ok) throw new Error(`Google token [${response.status}]: ${await response.text()}`);
-  const data = await response.json();
-  if (!data.access_token) throw new Error('Google returnerade inget access token');
-  cachedToken = {value:data.access_token,expires:Date.now()+Number(data.expires_in || 3600)*1000,email:account.client_email};
-  return cachedToken.value;
-}
+export { serviceAccount };
+const token = () => googleToken('https://www.googleapis.com/auth/drive');
 const escapeQuery = (v: string) => v.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 export class GoogleDrive {
   private lists = new Map<string, DriveFile[]>();
