@@ -2,7 +2,7 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-async function invoke<T>(fn: 'consultant-drive' | 'consultant-payout', body: Record<string, unknown>): Promise<T> {
+async function invoke<T>(fn: 'consultant-drive' | 'consultant-payout' | 'consultant-self', body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(fn, { body });
   if (error) {
     let details = error.message;
@@ -19,6 +19,7 @@ async function invoke<T>(fn: 'consultant-drive' | 'consultant-payout', body: Rec
 }
 
 export const invokeConsultantDrive = <T>(body: Record<string, unknown>) => invoke<T>('consultant-drive', body);
+export const invokeConsultantSelf = <T>(body: Record<string, unknown>) => invoke<T>('consultant-self', body);
 export const invokeConsultantPayout = <T>(body: Record<string, unknown>) => invoke<T>('consultant-payout', body);
 
 export function blobToBase64(blob: Blob): Promise<string> {
