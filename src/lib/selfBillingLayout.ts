@@ -158,12 +158,12 @@ export function drawSelfBillingInvoice(doc: jsPDF, inv: SelfBillingInvoice): jsP
   doc.text('KÖPARE (UTFÄRDARE AV FAKTURAN)', MARGIN, ly);
   ly += 5;
   setText(11, 'bold', DARK);
-  doc.text(SELF_BILLING_BUYER.name, MARGIN, ly);
+  doc.text(buyer.name, MARGIN, ly);
   ly += 5.5;
   setText(9, 'normal', DARK);
-  for (const line of SELF_BILLING_BUYER.addressLines) { doc.text(line, MARGIN, ly); ly += 4.4; }
-  doc.text(`Orgnr ${SELF_BILLING_BUYER.orgNr}`, MARGIN, ly); ly += 4.4;
-  doc.text(`Momsregnr ${SELF_BILLING_BUYER.vatNr}`, MARGIN, ly); ly += 4.4;
+  for (const line of buyer.addressLines) { doc.text(line, MARGIN, ly); ly += 4.4; }
+  doc.text(`Orgnr ${buyer.orgNr}`, MARGIN, ly); ly += 4.4;
+  doc.text(`Momsregnr ${buyer.vatNr}`, MARGIN, ly); ly += 4.4;
 
   // ───────────────────────── Titel + fakturauppgifter (höger) ─────────────────────────
   setText(isCredit ? 22 : 26, 'bold', accent);
@@ -306,8 +306,8 @@ export function drawSelfBillingInvoice(doc: jsPDF, inv: SelfBillingInvoice): jsP
   doc.text(isCredit ? 'KREDITERING' : 'UTBETALNING', MARGIN + 4, y + 6);
   setText(8, 'normal', DARK);
   const payText = isCredit
-    ? `Krediten kvittas i första hand mot kommande utbetalningar mellan parterna. Är originalfakturan redan reglerad sker återbetalning till ${SELF_BILLING_BUYER.name}, bankgiro ${SELF_BILLING_BUYER.bankgiro}.`
-    : `${SELF_BILLING_BUYER.name} betalar ${fmtKr(inv.total)} till säljarens bankgiro/konto ${seller.bankgiro || '—'} (${sellerName}) senast ${dueDate}. ` +
+    ? `Krediten kvittas i första hand mot kommande utbetalningar mellan parterna. Är originalfakturan redan reglerad sker återbetalning till ${buyer.name}${buyer.bankgiro ? `, bankgiro ${buyer.bankgiro}` : ''}.`
+    : `${buyer.name} betalar ${fmtKr(inv.total)} till säljarens bankgiro/konto ${seller.bankgiro || '—'} (${sellerName}) senast ${dueDate}. ` +
       `Säljaren ska inte skicka någon egen faktura för detta arbete. Fakturanummer ${inv.invoiceNumber} anges vid betalningen.`;
   const payLines = doc.splitTextToSize(payText, PAGE_W - MARGIN * 2 - 8);
   let py = y + 11;
@@ -326,7 +326,7 @@ export function drawSelfBillingInvoice(doc: jsPDF, inv: SelfBillingInvoice): jsP
       try { doc.addImage(inv.logoDataUrl, 'PNG', MARGIN, 268, 9, 9); fx = MARGIN + 12; } catch { /* ignore */ }
     }
     setText(8, 'bold', DARK);
-    doc.text(`Fakturan har utfärdats av ${SELF_BILLING_BUYER.name} (köparen) för säljarens räkning.`, fx, 272);
+    doc.text(`Fakturan har utfärdats av ${buyer.name} (köparen) för säljarens räkning.`, fx, 272);
     setText(8, 'normal', GREY);
     doc.text('Självfakturering enligt överenskommelse mellan parterna.', fx, 276);
     if (pages > 1) doc.text(`Sida ${p} av ${pages}`, RIGHT, 276, { align: 'right' });
@@ -335,7 +335,7 @@ export function drawSelfBillingInvoice(doc: jsPDF, inv: SelfBillingInvoice): jsP
     doc.rect(0, 282, PAGE_W, 12, 'F');
     setText(7, 'normal', WHITE);
     doc.text(
-      `${SELF_BILLING_BUYER.name}  ·  Orgnr ${SELF_BILLING_BUYER.orgNr}  ·  ${SELF_BILLING_BUYER.phone}  ·  ${SELF_BILLING_BUYER.email}  ·  ${SELF_BILLING_BUYER.addressLines.join(', ')}`,
+      [buyer.name, `Orgnr ${buyer.orgNr}`, buyer.phone, buyer.email, buyer.addressLines.join(', ')].filter(Boolean).join('  ·  '),
       PAGE_W / 2,
       289,
       { align: 'center' },
