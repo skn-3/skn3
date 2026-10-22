@@ -305,7 +305,7 @@ Deno.serve(async (req) => {
       const invoiceName = consultantInvoicePdfName(consultant, payout.invoice_number, payout.invoice_date);
       const invoiceB64 = bytesToBase64(await downloadPdf(db, payout.invoice_pdf_path));
       let specAttachment: { filename: string; content: string } | null = null;
-      if (payout.spec_pdf_path && (toPayer || extra.length)) {
+      if (payout.spec_pdf_path) {
         specAttachment = { filename: consultantSpecPdfName(consultant, payout.invoice_number, payout.payout_month), content: bytesToBase64(await downloadPdf(db, payout.spec_pdf_path)) };
       }
       const bank = `${consultant.bank_name ?? ''} ${consultant.bank_account ?? ''}`.trim() || '—';
@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
           await sendMail([String(consultant.email).trim()], subjects.consultant, mailHtml([
             `Hej ${esc(first)},`,
             `Här är ${docWord}${esc(periodText)}. Den betalas senast ${esc(subjects.due)} till ${esc(bank)}.`,
-          ], rows, message), [{ filename: invoiceName, content: invoiceB64 }]);
+          ], rows, message), [{ filename: invoiceName, content: invoiceB64 }, ...(specAttachment ? [specAttachment] : [])]);
           sentTo.push(String(consultant.email).trim());
         } catch (e) { errors.push(`Till konsulten: ${e instanceof Error ? e.message : e}`); }
       }
