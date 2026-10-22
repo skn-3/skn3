@@ -98,7 +98,13 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
     if (!hpNo.trim()) { toast.error('Ange fakturanummer'); return; }
     setBusy('hp-gen');
     try {
-      const blob = await buildHandpenningPdfBlob(u, { invoiceNo: hpNo.trim() });
+      let offer: any = null;
+      if (u.offer_id) {
+        const { data, error: oErr } = await (supabase as any).from('offers').select('line_items, rot_base, rot_percent, offer_number, vat_mode, handpenning_percent, payment_terms').eq('id', u.offer_id).maybeSingle();
+        if (oErr) throw oErr;
+        offer = data;
+      }
+      const blob = await buildHandpenningPdfBlob(u, offer || {}, { invoiceNo: hpNo.trim() });
       const path = `invoices/${u.id}-handpenning.pdf`;
       const { error: upErr } = await supabase.storage.from('case-documents').upload(path, blob, { upsert: true, contentType: 'application/pdf' });
       if (upErr) throw upErr;
@@ -121,7 +127,7 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
     if (!u.offer_id) { toast.error('Uppdraget saknar offert'); return; }
     setBusy('sf-gen');
     try {
-      const { data: offer, error: oErr } = await (supabase as any).from('offers').select('line_items, rot_base').eq('id', u.offer_id).maybeSingle();
+      const { data: offer, error: oErr } = await (supabase as any).from('offers').select('line_items, rot_base, rot_percent, offer_number, vat_mode, handpenning_percent, payment_terms').eq('id', u.offer_id).maybeSingle();
       if (oErr) throw oErr;
       const blob = await buildSlutfakturaPdfBlob(u, offer || {}, { invoiceNo: sfNo.trim() });
       const path = `invoices/${u.id}-slutfaktura.pdf`;
