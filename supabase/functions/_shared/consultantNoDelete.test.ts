@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { assertAllowedSheetsRequest } from './sheetsGuard';
+import { assertAllowedDriveRequest } from './driveFolders';
 
 // Skyddar Drive och Sheets mot framtida ändringar: konsultlönesystemet får
 // endast läsa, skapa nya filer och lägga till loggrader — aldrig ändra eller radera.
@@ -53,5 +54,20 @@ describe('assertAllowedSheetsRequest', () => {
     ['GET', 'spreadsheets/abc123/values/A1:A1:clear'],
   ])('blocks %s %s', (method, path) => {
     expect(() => assertAllowedSheetsRequest(method, path)).toThrow(/Sheets-spärr/);
+  });
+});
+
+describe('assertAllowedDriveRequest för konsultarkivering', () => {
+  it('tillåter multipart-uppladdning av nya filer', () => {
+    expect(() => assertAllowedDriveRequest('POST', 'upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true')).not.toThrow();
+  });
+  it.each([
+    ['PATCH', 'files/abc123'],
+    ['DELETE', 'files/abc123'],
+    ['POST', 'files/abc123/copy'],
+    ['PATCH', 'upload/drive/v3/files/abc123?uploadType=multipart'],
+    ['POST', 'upload/drive/v3/files?uploadType=resumable'],
+  ])('stoppar %s %s', (method, path) => {
+    expect(() => assertAllowedDriveRequest(method, path)).toThrow(/Drive-spärr/);
   });
 });
