@@ -64,7 +64,7 @@ export function SendPayoutDialog({ payout, consultant, onClose, onSent }: Props)
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Skicka faktura {payout.invoice_number}</DialogTitle>
-          <DialogDescription>Fakturan mejlas som bilaga. Specifikationen följer bara med till betalaren.</DialogDescription>
+          <DialogDescription>Fakturan och specifikationen mejlas som bilagor.</DialogDescription>
         </DialogHeader>
         {result ? (
           <div className="space-y-2 text-sm">

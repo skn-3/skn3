@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { invokeConsultantPayout, fmtKr } from './consultantApi';
+import { invokeConsultantPayout, fmtKr, errorMessage } from './consultantApi';
 
 interface Props {
   open: boolean;
@@ -54,11 +54,11 @@ export function LoanLedgerSheet({ open, onOpenChange, consultant, loans, onChang
         });
         toast.success('Låneraden sparades');
       } catch (logErr) {
-        toast.warning(`Raden sparades men loggningen misslyckades: ${logErr instanceof Error ? logErr.message : String(logErr)}`);
+        toast.warning(`Raden sparades men loggningen misslyckades: ${errorMessage(logErr)}`);
       }
       setAmount(''); setNote('');
       onChanged();
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setBusy(false);
   };
 

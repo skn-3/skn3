@@ -8,14 +8,26 @@ async function invoke<T>(fn: 'consultant-drive' | 'consultant-payout' | 'consult
     let details = error.message;
     if (error instanceof FunctionsHttpError) {
       const text = await error.context.text();
-      try { details = JSON.parse(text).error || text; } catch { details = text; }
+      try { details = errorMessage(JSON.parse(text).error) || text; } catch { details = text; }
     }
     throw new Error(details);
   }
   if (data && typeof data === 'object' && 'error' in (data as Record<string, unknown>) && (data as Record<string, unknown>).error) {
-    throw new Error(String((data as Record<string, unknown>).error));
+    throw new Error(errorMessage((data as Record<string, unknown>).error));
   }
   return data as T;
+}
+
+/** Läsbart felmeddelande: hanterar Error, PostgrestError och vanliga objekt med message/error. */
+export function errorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message || 'Okänt fel';
+  if (e && typeof e === 'object') {
+    const o = e as Record<string, unknown>;
+    if (typeof o.error === 'object' && o.error) return errorMessage(o.error);
+    const msg = typeof o.message === 'string' && o.message ? o.message : typeof o.error === 'string' && o.error ? o.error : '';
+    if (msg) return typeof o.details === 'string' && o.details ? `${msg} (${o.details})` : msg;
+  }
+  return typeof e === 'string' && e ? e : 'Okänt fel';
 }
 
 export const invokeConsultantDrive = <T>(body: Record<string, unknown>) => invoke<T>('consultant-drive', body);
@@ -48,6 +60,6 @@ export async function archiveAfterCreate(payoutId: string, invoiceNumber: number
     if (r.archive_error) toast.warning(`${label} ${invoiceNumber} skapad – arkiveringen misslyckades: ${r.archive_error}`);
     else toast.success(`${label} ${invoiceNumber} skapad och arkiverad i Drive`);
   } catch (e) {
-    toast.warning(`${label} ${invoiceNumber} skapad – arkiveringen misslyckades: ${e instanceof Error ? e.message : String(e)}`);
+    toast.warning(`${label} ${invoiceNumber} skapad – arkiveringen misslyckades: ${errorMessage(e)}`);
   }
 }

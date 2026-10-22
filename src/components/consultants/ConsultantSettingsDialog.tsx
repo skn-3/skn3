@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DEFAULT_TIERS, type CommissionTier } from '@/lib/consultantPay';
+import { errorMessage } from './consultantApi';
 
 interface StdDeduction { label: string; amount: number; defaultOn: boolean }
 
@@ -94,7 +95,7 @@ export function ConsultantSettingsDialog({ open, onOpenChange, consultant, onSav
       toast.success(form.id ? 'Inställningarna sparades' : 'Konsulten skapades');
       onOpenChange(false);
       onSaved();
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setBusy(false);
   };
 

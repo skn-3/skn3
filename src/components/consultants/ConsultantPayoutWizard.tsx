@@ -22,7 +22,7 @@ import { consultantInvoicePdfName, consultantSpecPdfName } from '@/lib/pdfNames'
 import { buildConsultantInvoicePdf } from '@/lib/consultantInvoicePdf';
 import { buildConsultantSpecPdf } from '@/lib/consultantSpecPdf';
 import { openDocumentInNewTab } from '@/lib/openDocument';
-import { invokeConsultantDrive, invokeConsultantPayout, blobToBase64, fmtKr, DOC_TYPE_LABELS , archiveAfterCreate } from './consultantApi';
+import { invokeConsultantDrive, invokeConsultantPayout, blobToBase64, fmtKr, DOC_TYPE_LABELS , archiveAfterCreate, errorMessage } from './consultantApi';
 
 interface ReceiptLine {
   key: string;
@@ -162,7 +162,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
           await doScan(initialFolderId);
           return;
         }
-      } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+      } catch (e) { toast.error(errorMessage(e)); }
       setBusy(false);
     })();
     void supabase.from('consultant_loans').select('amount').eq('consultant_id', consultant.id)
@@ -190,10 +190,10 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
           const prov = await invokeConsultantDrive<any>({ action: 'provision', consultant_id: consultant.id, file_id: data.provision_file.id });
           setProvision(prov);
           setTb(prov.sum_total != null ? String(prov.sum_total) : '');
-        } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+        } catch (e) { toast.error(errorMessage(e)); }
       }
       setStep(2);
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setBusy(false);
   };
 
@@ -240,7 +240,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
       }
       setLines(prev => [...prev.filter(l => l.kind === 'standard'), ...parsed]);
       setParsedFolderId(folderId);
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setProgress('');
     setBusy(false);
     void done;
@@ -365,7 +365,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
           });
       const ok = await openDocumentInNewTab(async () => URL.createObjectURL(doc.output('blob')));
       if (!ok) toast.error('Kunde inte öppna förhandsgranskningen');
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setBusy(false);
   };
 
@@ -375,7 +375,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
       await saveDraft();
       toast.success('Utkastet sparades');
       onDone();
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setBusy(false);
   };
 
@@ -407,7 +407,7 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
       onOpenChange(false);
       onDone();
       onCreated?.(id);
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setBusy(false);
     creating.current = false;
   };

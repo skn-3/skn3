@@ -20,7 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { monthLabel } from '@/lib/consultantPay';
 import { consultantInvoicePdfName, consultantSpecPdfName } from '@/lib/pdfNames';
 import { openDocumentInNewTab } from '@/lib/openDocument';
-import { invokeConsultantDrive, invokeConsultantPayout, fmtKr, DOC_TYPE_LABELS } from './consultantApi';
+import { invokeConsultantDrive, invokeConsultantPayout, fmtKr, DOC_TYPE_LABELS, errorMessage } from './consultantApi';
 import { ConsultantPayoutWizard } from './ConsultantPayoutWizard';
 import { AdvanceInvoiceDialog } from './AdvanceInvoiceDialog';
 import { LoanLedgerSheet } from './LoanLedgerSheet';
@@ -99,7 +99,7 @@ export function ConsultantPayView({ currentUser }: Props) {
     try {
       const data = await invokeConsultantDrive<{ preview: any }>({ action: 'preview', consultant_id: cid, force });
       setPreview(data.preview ?? null);
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setPreviewLoading(false); setPreviewRefreshing(false);
   }, []);
 
@@ -127,7 +127,7 @@ export function ConsultantPayView({ currentUser }: Props) {
       if (data.log_error) toast.warning(`Loggningen misslyckades: ${data.log_error}`);
       setMarkPaid(null);
       refresh();
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setBusy(false);
   };
 
@@ -139,7 +139,7 @@ export function ConsultantPayView({ currentUser }: Props) {
       toast.success('Betalningen ångrades');
       setUndoPaid(null);
       refresh();
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setBusy(false);
   };
 
@@ -154,7 +154,7 @@ export function ConsultantPayView({ currentUser }: Props) {
       toast.success('Utkastet raderades');
       setDeleteDraft(null);
       refresh();
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setBusy(false);
   };
 
@@ -172,7 +172,7 @@ export function ConsultantPayView({ currentUser }: Props) {
       if (r.log_error) toast.warning(`Loggningen misslyckades: ${r.log_error}`);
       refresh();
       if (detail?.id === p.id) void supabase.from('consultant_payouts').select('*').eq('id', p.id).maybeSingle().then(({ data }) => data && setDetail(data));
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setArchiving(null);
   };
 
@@ -183,7 +183,7 @@ export function ConsultantPayView({ currentUser }: Props) {
       const r = await invokeConsultantPayout<{ skipped?: boolean; rows?: number }>({ action: 'log_backfill', consultant_id: consultant.id });
       toast.success(r.skipped ? 'Loggen var redan fylld' : `Loggen fylld med ${r.rows ?? 0} rader`);
       void loadConsultants();
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setBackfilling(false);
   };
 

@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { buildConsultantInvoicePdf } from '@/lib/consultantInvoicePdf';
 import { consultantInvoicePdfName } from '@/lib/pdfNames';
-import { invokeConsultantPayout, blobToBase64, fmtKr , archiveAfterCreate } from './consultantApi';
+import { invokeConsultantPayout, blobToBase64, fmtKr , archiveAfterCreate, errorMessage } from './consultantApi';
 
 interface Props {
   open: boolean;
@@ -57,7 +57,7 @@ export function AdvanceInvoiceDialog({ open, onOpenChange, consultant, loanBalan
       setAmount(''); setNote('');
       onDone();
       onCreated?.(payout.id);
-    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     setBusy(false);
     creating.current = false;
   };
