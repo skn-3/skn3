@@ -119,3 +119,37 @@ describe('previewEstimate', () => {
     expect(r.total).toBe(1250);
   });
 });
+
+import { payerFiscalInfo, pickPayerYearFolder, pickPayerMonthFolder, consultantDueDate } from '../consultantPay';
+describe('betalarens bokföringsmappar', () => {
+  it('sep = 01, okt = 02, jun = 10 med start i september', () => {
+    expect(payerFiscalInfo('2026-09-15').nn).toBe('01');
+    expect(payerFiscalInfo('2026-10-01').nn).toBe('02');
+    expect(payerFiscalInfo('2027-06-30').nn).toBe('10');
+    expect(payerFiscalInfo('2026-10-01').monthTitle).toBe('02 Okt');
+  });
+  it('väljer räkenskapsåret vars intervall innehåller månaden', () => {
+    const years = [
+      { id: 'a', name: 'Kvitton&Fakturor 202509 - 202608' },
+      { id: 'b', name: 'Kvitton&Fakturor 202609 - 202708' },
+    ];
+    expect(pickPayerYearFolder(years, '2026-08-31')?.id).toBe('a');
+    expect(pickPayerYearFolder(years, '2026-10-21')?.id).toBe('b');
+    expect(pickPayerYearFolder(years, '2028-01-01')).toBeUndefined();
+  });
+  it('matchar inkonsekventa månadsnamn och tar den senast skapade', () => {
+    const months = [
+      { id: '1', name: 'Kvitton&Fakturor 02 Okt 25', createdTime: '2025-10-01T00:00:00Z' },
+      { id: '2', name: 'Kvitton&Fakturor 02 okt 26', createdTime: '2026-10-01T00:00:00Z' },
+      { id: '3', name: 'Kvitton&Fakturor 10 Jun', createdTime: '2026-06-01T00:00:00Z' },
+      { id: '4', name: 'Kvitton&Fakturor 11 jul 2026', createdTime: '2026-07-01T00:00:00Z' },
+    ];
+    expect(pickPayerMonthFolder(months, '2026-10-21')?.id).toBe('2');
+    expect(pickPayerMonthFolder(months, '2026-06-02')?.id).toBe('3');
+    expect(pickPayerMonthFolder(months, '2026-07-02')?.id).toBe('4');
+    expect(pickPayerMonthFolder(months, '2026-11-02')).toBeUndefined();
+  });
+  it('förfallodatum är fakturadatum + 10 dagar', () => {
+    expect(consultantDueDate('2026-10-25')).toBe('2026-11-04');
+  });
+});

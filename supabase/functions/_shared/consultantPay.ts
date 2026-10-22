@@ -134,3 +134,46 @@ export function previewEstimate(c: PreviewConsultant, tb: number): PreviewEstima
   const r = calcPayout({ tb, tiers, lines, loanRepayment: 0, vatRate });
   return { pct: r.pct, gross: r.gross, standardDeductions: r.deductions, net: r.net, vat: r.vat, total: r.total };
 }
+
+// ── Betalarens bokföringsmappar (Drive) ──────────────────────────────────────
+const MON3 = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+
+export interface PayerFiscalInfo { ym: string; nn: string; mon3: string; monthTitle: string }
+
+/** Räkenskapsårets ordning för fakturadatumets månad. startMonth 9 → sep = 01, okt = 02. */
+export function payerFiscalInfo(date: string, startMonth = 9): PayerFiscalInfo {
+  const m = /^(\d{4})-(\d{2})/.exec(date);
+  if (!m) throw new Error('Ogiltigt fakturadatum');
+  const month = Number(m[2]);
+  const nn = String(((month - startMonth + 12) % 12) + 1).padStart(2, '0');
+  const mon3 = MON3[month - 1];
+  return { ym: `${m[1]}${m[2]}`, nn, mon3, monthTitle: `${nn} ${mon3[0].toUpperCase()}${mon3.slice(1)}` };
+}
+
+interface NamedFolder { id: string; name: string; createdTime?: string }
+const newestFirst = <T extends NamedFolder>(a: T, b: T) => String(b.createdTime ?? '').localeCompare(String(a.createdTime ?? ''));
+
+/** Räkenskapsårsmappen vars "YYYYMM - YYYYMM" innehåller fakturamånaden. */
+export function pickPayerYearFolder<T extends NamedFolder>(folders: T[], date: string, startMonth = 9): T | undefined {
+  const { ym } = payerFiscalInfo(date, startMonth);
+  return folders
+    .filter(f => {
+      const r = /(\d{6})\s*-\s*(\d{6})/.exec(f.name);
+      return !!r && r[1] <= ym && ym <= r[2];
+    })
+    .sort(newestFirst)[0];
+}
+
+/** Månadsmappen "Kvitton&Fakturor NN Mån …" (inkonsekventa namn); senast skapade vid flera. */
+export function pickPayerMonthFolder<T extends NamedFolder>(folders: T[], date: string, startMonth = 9): T | undefined {
+  const { nn, mon3 } = payerFiscalInfo(date, startMonth);
+  const re = new RegExp(`Kvitton&Fakturor\\s*${nn}\\s+${mon3}`, 'i');
+  return folders.filter(f => re.test(f.name)).sort(newestFirst)[0];
+}
+
+/** Förfallodatum som på fakturan: fakturadatum + 10 dagar. */
+export function consultantDueDate(invoiceDate: string): string {
+  const d = new Date(`${invoiceDate.slice(0, 10)}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 10);
+  return d.toISOString().slice(0, 10);
+}

@@ -25,7 +25,7 @@ const emptyForm = () => ({
   id: null as string | null,
   name: '', company_name: '', org_nr: '', vat_nr: '', email: '', address: '',
   bank_name: '', bank_account: '',
-  payer_name: '', payer_org_nr: '', payer_vat_nr: '', payer_address: '', payer_email: '',
+  payer_name: '', payer_org_nr: '', payer_vat_nr: '', payer_address: '', payer_email: '', cc_email: '',
   next_invoice_number: 1,
   commission_tiers: DEFAULT_TIERS.map(t => ({ ...t })) as CommissionTier[],
   standard_deductions: [] as StdDeduction[],
@@ -75,6 +75,7 @@ export function ConsultantSettingsDialog({ open, onOpenChange, consultant, onSav
         bank_name: form.bank_name || null, bank_account: form.bank_account || null,
         payer_name: form.payer_name.trim(), payer_org_nr: form.payer_org_nr || null, payer_vat_nr: form.payer_vat_nr || null,
         payer_address: form.payer_address || null, payer_email: form.payer_email || null,
+        cc_email: String(form.cc_email ?? '').trim() || null,
         next_invoice_number: Number(form.next_invoice_number) || 1,
         commission_tiers: form.commission_tiers,
         standard_deductions: form.standard_deductions,
@@ -132,6 +133,7 @@ export function ConsultantSettingsDialog({ open, onOpenChange, consultant, onSav
               {field('payer_vat_nr', 'Momsnr')}
               {field('payer_email', 'E-post')}
               {field('payer_address', 'Adress', { span: true })}
+              {field('cc_email', 'Kopia på utskick (e-post)', { span: true })}
             </div>
           </section>
 

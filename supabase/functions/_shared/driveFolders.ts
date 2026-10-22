@@ -9,7 +9,8 @@ export function assertAllowedDriveRequest(method: string, path: string): void {
   const p = path.split('?')[0];
   const ok =
     (m === 'GET' && (p === 'files' || /^files\/[^/]+$/.test(p))) ||
-    (m === 'POST' && p === 'files');
+    (m === 'POST' && p === 'files') ||
+    (m === 'POST' && p === 'upload/drive/v3/files' && /[?&]uploadType=multipart(&|$)/.test(path));
   if (!ok) throw new Error(`Drive-spärr: ${m} ${p} är inte tillåtet. Synken får bara läsa och skapa, aldrig ändra eller radera.`);
 }
 

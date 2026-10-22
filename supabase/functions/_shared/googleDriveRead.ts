@@ -17,7 +17,8 @@ const escapeQuery = (v: string) => v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 export class DriveReader {
   private async request(path: string, init: RequestInit = {}) {
     assertAllowedDriveRequest(init.method || 'GET', path);
-    const response = await fetch(`https://www.googleapis.com/drive/v3/${path}`, {
+    const url = path.startsWith('upload/') ? `https://www.googleapis.com/${path}` : `https://www.googleapis.com/drive/v3/${path}`;
+    const response = await fetch(url, {
       ...init,
       headers: { Authorization: `Bearer ${await googleToken('https://www.googleapis.com/auth/drive')}`, ...init.headers },
       signal: AbortSignal.timeout(25000),
@@ -50,6 +51,21 @@ export class DriveReader {
   async download(id: string): Promise<Uint8Array> {
     const response = await this.request(`files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`);
     return new Uint8Array(await response.arrayBuffer());
+  }
+
+  /** Laddar upp en ny PDF i mappen. Skapar bara — ändrar aldrig befintliga filer. */
+  async uploadPdf(parentId: string, name: string, bytes: Uint8Array): Promise<DriveReadFile> {
+    const boundary = `drive_${crypto.randomUUID()}`;
+    const body = new Blob([
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({ name, parents: [parentId], mimeType: 'application/pdf' })}\r\n`,
+      `--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`, bytes, `\r\n--${boundary}--\r\n`,
+    ]);
+    const res = await this.request('upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,mimeType,webViewLink', {
+      method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body,
+    });
+    const file = await res.json();
+    if (!file.id) throw new Error('Google returnerade inget fil-id');
+    return file;
   }
 
   async findChildByName(parentId: string, predicate: (name: string) => boolean): Promise<DriveReadFile | undefined> {

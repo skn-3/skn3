@@ -37,3 +37,4 @@
 - [x] A-ordrar: statusprickarna styr boxen själva med PopoverAnchor; hover, klick, pekskärm och klick utanför verifierat i isolerad miljö.
 
 - [x] Konsultlöner 1B: adminflik, guiden, faktura-/spec-PDF, förskott, lånereskontra, inställningar
+- [x] Konsultlöner 2: utskick, Drive-arkivering, loggbakfyllning
