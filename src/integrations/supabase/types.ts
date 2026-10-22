@@ -793,6 +793,7 @@ export type Database = {
       }
       consultant_payouts: {
         Row: {
+          archive_error: string | null
           commission_gross: number | null
           consultant_id: string
           created_at: string
@@ -804,6 +805,9 @@ export type Database = {
           invoice_date: string | null
           invoice_drive_file_id: string | null
           invoice_drive_link: string | null
+          invoice_drive_payer_file_id: string | null
+          invoice_drive_payer_folder: string | null
+          invoice_drive_payer_link: string | null
           invoice_number: number | null
           invoice_pdf_path: string | null
           kind: string
@@ -819,8 +823,10 @@ export type Database = {
           provision_file_name: string | null
           provision_payout_date: string | null
           sent_at: string | null
+          sent_log: Json
           sent_to: Json | null
           source: string
+          spec_drive_file_id: string | null
           spec_pdf_path: string | null
           status: string
           tb_amount: number | null
@@ -837,6 +843,7 @@ export type Database = {
           vat_rate: number
         }
         Insert: {
+          archive_error?: string | null
           commission_gross?: number | null
           consultant_id: string
           created_at?: string
@@ -848,6 +855,9 @@ export type Database = {
           invoice_date?: string | null
           invoice_drive_file_id?: string | null
           invoice_drive_link?: string | null
+          invoice_drive_payer_file_id?: string | null
+          invoice_drive_payer_folder?: string | null
+          invoice_drive_payer_link?: string | null
           invoice_number?: number | null
           invoice_pdf_path?: string | null
           kind?: string
@@ -863,8 +873,10 @@ export type Database = {
           provision_file_name?: string | null
           provision_payout_date?: string | null
           sent_at?: string | null
+          sent_log?: Json
           sent_to?: Json | null
           source?: string
+          spec_drive_file_id?: string | null
           spec_pdf_path?: string | null
           status?: string
           tb_amount?: number | null
@@ -881,6 +893,7 @@ export type Database = {
           vat_rate?: number
         }
         Update: {
+          archive_error?: string | null
           commission_gross?: number | null
           consultant_id?: string
           created_at?: string
@@ -892,6 +905,9 @@ export type Database = {
           invoice_date?: string | null
           invoice_drive_file_id?: string | null
           invoice_drive_link?: string | null
+          invoice_drive_payer_file_id?: string | null
+          invoice_drive_payer_folder?: string | null
+          invoice_drive_payer_link?: string | null
           invoice_number?: number | null
           invoice_pdf_path?: string | null
           kind?: string
@@ -907,8 +923,10 @@ export type Database = {
           provision_file_name?: string | null
           provision_payout_date?: string | null
           sent_at?: string | null
+          sent_log?: Json
           sent_to?: Json | null
           source?: string
+          spec_drive_file_id?: string | null
           spec_pdf_path?: string | null
           status?: string
           tb_amount?: number | null
@@ -1031,6 +1049,7 @@ export type Database = {
           address: string | null
           bank_account: string | null
           bank_name: string | null
+          cc_email: string | null
           commission_tiers: Json
           company_name: string
           created_at: string
@@ -1039,6 +1058,7 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          log_backfilled_at: string | null
           log_sheet_id: string | null
           name: string
           next_invoice_number: number
@@ -1059,6 +1079,7 @@ export type Database = {
           address?: string | null
           bank_account?: string | null
           bank_name?: string | null
+          cc_email?: string | null
           commission_tiers?: Json
           company_name: string
           created_at?: string
@@ -1067,6 +1088,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          log_backfilled_at?: string | null
           log_sheet_id?: string | null
           name: string
           next_invoice_number?: number
@@ -1087,6 +1109,7 @@ export type Database = {
           address?: string | null
           bank_account?: string | null
           bank_name?: string | null
+          cc_email?: string | null
           commission_tiers?: Json
           company_name?: string
           created_at?: string
@@ -1095,6 +1118,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          log_backfilled_at?: string | null
           log_sheet_id?: string | null
           name?: string
           next_invoice_number?: number
