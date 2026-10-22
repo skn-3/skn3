@@ -75,7 +75,7 @@ export function ConsultantSettingsDialog({ open, onOpenChange, consultant, onSav
         bank_name: form.bank_name || null, bank_account: form.bank_account || null,
         payer_name: form.payer_name.trim(), payer_org_nr: form.payer_org_nr || null, payer_vat_nr: form.payer_vat_nr || null,
         payer_address: form.payer_address || null, payer_email: form.payer_email || null,
-        cc_email: form.cc_email.trim() || null,
+        cc_email: String(form.cc_email ?? '').trim() || null,
         next_invoice_number: Number(form.next_invoice_number) || 1,
         commission_tiers: form.commission_tiers,
         standard_deductions: form.standard_deductions,
