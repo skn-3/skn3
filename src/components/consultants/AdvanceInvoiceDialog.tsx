@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { buildConsultantInvoicePdf } from '@/lib/consultantInvoicePdf';
 import { consultantInvoicePdfName } from '@/lib/pdfNames';
-import { invokeConsultantPayout, blobToBase64, fmtKr } from './consultantApi';
+import { invokeConsultantPayout, blobToBase64, fmtKr , archiveAfterCreate } from './consultantApi';
 
 interface Props {
   open: boolean;
@@ -19,9 +19,10 @@ interface Props {
   loanBalance: number;
   currentUser: string;
   onDone: () => void;
+  onCreated?: (payoutId: string) => void;
 }
 
-export function AdvanceInvoiceDialog({ open, onOpenChange, consultant, loanBalance, currentUser, onDone }: Props) {
+export function AdvanceInvoiceDialog({ open, onOpenChange, consultant, loanBalance, currentUser, onDone, onCreated }: Props) {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -50,11 +51,12 @@ export function AdvanceInvoiceDialog({ open, onOpenChange, consultant, loanBalan
         invoice_pdf_base64: await blobToBase64(doc.output('blob')),
         file_name: consultantInvoicePdfName(consultant, reserved.invoice_number, reserved.invoice_date),
       });
-      toast.success(`Förskottsfaktura ${reserved.invoice_number} skapad`);
       if (result.log_error) toast.warning(`Loggningen misslyckades: ${result.log_error}`);
+      await archiveAfterCreate(payout.id, reserved.invoice_number, 'Förskottsfaktura');
       onOpenChange(false);
       setAmount(''); setNote('');
       onDone();
+      onCreated?.(payout.id);
     } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
     creating.current = false;

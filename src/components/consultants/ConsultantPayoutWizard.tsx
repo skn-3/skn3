@@ -22,7 +22,7 @@ import { consultantInvoicePdfName, consultantSpecPdfName } from '@/lib/pdfNames'
 import { buildConsultantInvoicePdf } from '@/lib/consultantInvoicePdf';
 import { buildConsultantSpecPdf } from '@/lib/consultantSpecPdf';
 import { openDocumentInNewTab } from '@/lib/openDocument';
-import { invokeConsultantDrive, invokeConsultantPayout, blobToBase64, fmtKr, DOC_TYPE_LABELS } from './consultantApi';
+import { invokeConsultantDrive, invokeConsultantPayout, blobToBase64, fmtKr, DOC_TYPE_LABELS , archiveAfterCreate } from './consultantApi';
 
 interface ReceiptLine {
   key: string;
@@ -56,12 +56,13 @@ interface Props {
   initialPayout?: any | null; // sparat utkast → granskningsläge (startar på steg 4)
   initialFolderId?: string | null; // förvald månadsmapp → hoppar direkt till steg 2
   onDone: () => void;
+  onCreated?: (payoutId: string) => void;
 }
 
 let keySeq = 0;
 const nextKey = () => `l${++keySeq}`;
 
-export function ConsultantPayoutWizard({ open, onOpenChange, consultant, currentUser, initialPayout, initialFolderId, onDone }: Props) {
+export function ConsultantPayoutWizard({ open, onOpenChange, consultant, currentUser, initialPayout, initialFolderId, onDone, onCreated }: Props) {
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
@@ -401,10 +402,11 @@ export function ConsultantPayoutWizard({ open, onOpenChange, consultant, current
         file_name: consultantInvoicePdfName(consultant, reserved.invoice_number, reserved.invoice_date),
         spec_file_name: consultantSpecPdfName(consultant, reserved.invoice_number, payoutMonth),
       });
-      toast.success(`Faktura ${reserved.invoice_number} skapad`);
       if (result.log_error) toast.warning(`Loggningen misslyckades: ${result.log_error}`);
+      await archiveAfterCreate(id, reserved.invoice_number);
       onOpenChange(false);
       onDone();
+      onCreated?.(id);
     } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
     creating.current = false;

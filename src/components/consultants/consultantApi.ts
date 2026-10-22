@@ -39,3 +39,15 @@ export const fmtKr = (n: number | null | undefined): string =>
   `${(Number(n) || 0).toLocaleString('sv-SE', { maximumFractionDigits: 2 })} kr`;
 
 export { DOC_TYPE_LABELS } from '@/lib/consultantPay';
+
+/** Kör arkiveringen direkt efter "Skapa faktura" och visar utfallet i en toast. */
+export async function archiveAfterCreate(payoutId: string, invoiceNumber: number | string, label = 'Faktura'): Promise<void> {
+  const { toast } = await import('sonner');
+  try {
+    const r = await invokeConsultantPayout<{ ok: boolean; archive_error?: string }>({ action: 'archive', payout_id: payoutId });
+    if (r.archive_error) toast.warning(`${label} ${invoiceNumber} skapad – arkiveringen misslyckades: ${r.archive_error}`);
+    else toast.success(`${label} ${invoiceNumber} skapad och arkiverad i Drive`);
+  } catch (e) {
+    toast.warning(`${label} ${invoiceNumber} skapad – arkiveringen misslyckades: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
