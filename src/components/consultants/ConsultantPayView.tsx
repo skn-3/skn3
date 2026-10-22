@@ -25,6 +25,7 @@ import { ConsultantPayoutWizard } from './ConsultantPayoutWizard';
 import { AdvanceInvoiceDialog } from './AdvanceInvoiceDialog';
 import { LoanLedgerSheet } from './LoanLedgerSheet';
 import { ConsultantSettingsDialog } from './ConsultantSettingsDialog';
+import { SendPayoutDialog } from './SendPayoutDialog';
 
 
 interface Props { currentUser: string }
@@ -50,6 +51,9 @@ export function ConsultantPayView({ currentUser }: Props) {
   const [undoPaid, setUndoPaid] = useState<any | null>(null);
   const [deleteDraft, setDeleteDraft] = useState<any | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sendPayout, setSendPayout] = useState<any | null>(null);
+  const [archiving, setArchiving] = useState<string | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
 
   const consultant = useMemo(() => consultants.find(c => c.id === consultantId) ?? null, [consultants, consultantId]);
   const loanBalance = useMemo(() => loans.reduce((s, l) => s + Number(l.amount), 0), [loans]);
@@ -154,6 +158,35 @@ export function ConsultantPayView({ currentUser }: Props) {
     setBusy(false);
   };
 
+  const openSendFor = async (payoutId: string) => {
+    const { data } = await supabase.from('consultant_payouts').select('*').eq('id', payoutId).maybeSingle();
+    if (data) setSendPayout(data);
+  };
+
+  const doArchive = async (p: any) => {
+    setArchiving(p.id);
+    try {
+      const r = await invokeConsultantPayout<{ archive_error?: string; log_error?: string }>({ action: 'archive', payout_id: p.id });
+      if (r.archive_error) toast.warning(`Arkiveringen misslyckades: ${r.archive_error}`);
+      else toast.success(`Faktura ${p.invoice_number} arkiverad i Drive`);
+      if (r.log_error) toast.warning(`Loggningen misslyckades: ${r.log_error}`);
+      refresh();
+      if (detail?.id === p.id) void supabase.from('consultant_payouts').select('*').eq('id', p.id).maybeSingle().then(({ data }) => data && setDetail(data));
+    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    setArchiving(null);
+  };
+
+  const doBackfill = async () => {
+    if (!consultant) return;
+    setBackfilling(true);
+    try {
+      const r = await invokeConsultantPayout<{ skipped?: boolean; rows?: number }>({ action: 'log_backfill', consultant_id: consultant.id });
+      toast.success(r.skipped ? 'Loggen var redan fylld' : `Loggen fylld med ${r.rows ?? 0} rader`);
+      void loadConsultants();
+    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    setBackfilling(false);
+  };
+
   const fmtLoan = (loan: number) => (loan ? (loan < 0 ? `−${fmtKr(Math.abs(loan))}` : `+${fmtKr(loan)}`) : '—');
   const existingPayout = preview?.existing_payout_id ? payouts.find(p => p.id === preview.existing_payout_id) ?? null : null;
 
@@ -163,6 +196,7 @@ export function ConsultantPayView({ currentUser }: Props) {
     ];
     if (p.invoice_pdf_path) items.push({ label: 'Faktura', onClick: () => openPdf(p.invoice_pdf_path, consultantInvoicePdfName(consultant ?? {}, p.invoice_number, p.invoice_date)) });
     if (p.spec_pdf_path) items.push({ label: 'Specifikation', onClick: () => openPdf(p.spec_pdf_path, consultantSpecPdfName(consultant ?? {}, p.invoice_number, p.payout_month)) });
+    if (p.invoice_pdf_path && ['invoiced', 'sent', 'paid'].includes(p.status)) items.push({ label: p.sent_at ? 'Skicka igen' : 'Skicka', onClick: () => setSendPayout(p) });
     if (p.status !== 'paid' && p.invoice_number) items.push({ label: 'Markera betald', onClick: () => { setMarkPaid(p); setPaidDate(new Date().toISOString().slice(0, 10)); } });
     if (p.status === 'paid') items.push({ label: 'Ångra betald', onClick: () => setUndoPaid(p) });
     if (p.status === 'draft') items.push({ label: 'Radera utkast', onClick: () => setDeleteDraft(p), danger: true });
@@ -190,6 +224,15 @@ export function ConsultantPayView({ currentUser }: Props) {
           )}
         </div>
       </div>
+
+      {monthsLoaded && logSheet && consultant && !consultant.log_backfilled_at && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground border-l-2 border-gold pl-3">
+          <span>Loggarket är hittat men saknar historiken.</span>
+          <Button size="sm" variant="outline" className="h-8" onClick={() => void doBackfill()} disabled={backfilling}>
+            {backfilling && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}Fyll loggen med historiken
+          </Button>
+        </div>
+      )}
 
       {monthsLoaded && !logSheet && consultant && (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground border-l-2 border-gold pl-3">
@@ -272,7 +315,13 @@ export function ConsultantPayView({ currentUser }: Props) {
                             <Chip tone={st.tone}>{st.label}</Chip>
                             {p.source === 'imported' && <Chip tone="neutral">Importerad</Chip>}
                             {p.kind === 'advance' && <Chip tone="warning">Förskott</Chip>}
+                            {p.archive_error && <Chip tone="warning">Ej arkiverad</Chip>}
                           </div>
+                          {p.archive_error && (
+                            <Button size="sm" variant="ghost" className="h-8 px-2 mt-1 text-xs" onClick={() => void doArchive(p)} disabled={archiving === p.id}>
+                              {archiving === p.id && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}Arkivera igen
+                            </Button>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="hidden lg:flex flex-wrap gap-1">
@@ -313,6 +362,7 @@ export function ConsultantPayView({ currentUser }: Props) {
         initialPayout={wizard.payout ?? null}
         initialFolderId={wizard.folderId ?? null}
         onDone={refresh}
+        onCreated={id => void openSendFor(id)}
       />
       <AdvanceInvoiceDialog
         open={advanceOpen}
@@ -321,6 +371,7 @@ export function ConsultantPayView({ currentUser }: Props) {
         loanBalance={loanBalance}
         currentUser={currentUser}
         onDone={refresh}
+        onCreated={id => void openSendFor(id)}
       />
       <LoanLedgerSheet open={ledgerOpen} onOpenChange={setLedgerOpen} consultant={consultant} loans={loans} currentUser={currentUser} onChanged={refresh} />
       <ConsultantSettingsDialog
@@ -330,7 +381,22 @@ export function ConsultantPayView({ currentUser }: Props) {
         onSaved={() => { void loadConsultants(); }}
       />
 
-      <PayoutDetailSheet payout={detail} onClose={() => setDetail(null)} />
+      <PayoutDetailSheet
+        payout={detail}
+        onClose={() => setDetail(null)}
+        onSend={p => setSendPayout(p)}
+        onArchive={p => void doArchive(p)}
+        archiving={archiving}
+      />
+      <SendPayoutDialog
+        payout={sendPayout}
+        consultant={consultant}
+        onClose={() => setSendPayout(null)}
+        onSent={() => {
+          refresh();
+          if (detail?.id && detail.id === sendPayout?.id) void supabase.from('consultant_payouts').select('*').eq('id', detail.id).maybeSingle().then(({ data }) => data && setDetail(data));
+        }}
+      />
 
       <Dialog open={!!markPaid} onOpenChange={v => !v && setMarkPaid(null)}>
         <DialogContent>
@@ -378,7 +444,7 @@ export function ConsultantPayView({ currentUser }: Props) {
   );
 }
 
-function PayoutDetailSheet({ payout, onClose }: { payout: any | null; onClose: () => void }) {
+function PayoutDetailSheet({ payout, onClose, onSend, onArchive, archiving }: { payout: any | null; onClose: () => void; onSend: (p: any) => void; onArchive: (p: any) => void; archiving: string | null }) {
   const [lines, setLines] = useState<any[]>([]);
   useEffect(() => {
     if (!payout) { setLines([]); return; }
@@ -468,6 +534,46 @@ function PayoutDetailSheet({ payout, onClose }: { payout: any | null; onClose: (
             <section>
               <h3 className="font-medium mb-1">Anteckningar</h3>
               <p className="text-xs whitespace-pre-wrap">{payout.notes}</p>
+            </section>
+          )}
+
+          {payout.invoice_pdf_path && ['invoiced', 'sent', 'paid'].includes(payout.status) && (
+            <section className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-medium">Utskick</h3>
+                <Button size="sm" variant="outline" onClick={() => onSend(payout)}>{payout.sent_at ? 'Skicka igen' : 'Skicka'}</Button>
+              </div>
+              {Array.isArray(payout.sent_log) && payout.sent_log.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {payout.sent_log.map((e: any, i: number) => (
+                    <li key={i} className="text-xs rounded-md border p-2">
+                      <div className="font-medium">{e.at ? new Date(e.at).toLocaleString('sv-SE') : '—'}{e.by ? ` · av ${e.by}` : ''}</div>
+                      <div className="text-muted-foreground break-all">{Array.isArray(e.to) ? e.to.join(', ') : String(e.to ?? '')}</div>
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="text-xs text-muted-foreground">Inte skickad ännu.</p>}
+            </section>
+          )}
+
+          {payout.invoice_pdf_path && (
+            <section className="space-y-1.5">
+              <h3 className="font-medium">Drive</h3>
+              {payout.invoice_drive_payer_link
+                ? <a href={payout.invoice_drive_payer_link} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-primary">Betalarens bokföring{payout.invoice_drive_payer_folder ? ` (${payout.invoice_drive_payer_folder})` : ''} <ExternalLink className="h-3 w-3" /></a>
+                : <p className="text-xs text-muted-foreground">Inte arkiverad i betalarens bokföring.</p>}
+              {payout.invoice_drive_link
+                ? <a href={payout.invoice_drive_link} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-primary">Löner-mappen <ExternalLink className="h-3 w-3" /></a>
+                : <p className="text-xs text-muted-foreground">Inte arkiverad i Löner-mappen.</p>}
+              {payout.archive_error && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Chip tone="warning">Ej arkiverad</Chip>
+                  <span className="text-xs text-muted-foreground">{payout.archive_error}</span>
+                  <Button size="sm" variant="outline" onClick={() => onArchive(payout)} disabled={archiving === payout.id}>
+                    {archiving === payout.id && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}Arkivera igen
+                  </Button>
+                </div>
+              )}
             </section>
           )}
 
