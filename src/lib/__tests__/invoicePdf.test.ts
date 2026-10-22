@@ -14,14 +14,14 @@ const opts = { invoiceNo: '1002', invoiceDate: new Date('2026-10-22') };
 
 describe('invoicePdf', () => {
   it('handpenning privatkund', () => {
-    const s = JSON.stringify(buildHandpenningDocDef(priv, privOffer, opts, assets));
+    const s = JSON.stringify(buildHandpenningDocDef(priv, privOffer, opts, assets)).replace(/[\u00A0\u202F]/g, ' ');
     expect(s).toContain('124 938 kr');
     expect(s).toContain('Moms 25 %');
     expect(s).not.toContain('Personnr');
   });
 
   it('slutfaktura privatkund', () => {
-    const s = JSON.stringify(buildSlutfakturaDocDef(priv, privOffer, opts, assets));
+    const s = JSON.stringify(buildSlutfakturaDocDef(priv, privOffer, opts, assets)).replace(/[\u00A0\u202F]/g, ' ');
     expect(s).toContain('324 812 kr');
     expect(s).toContain('Avgår handpenning');
     expect(s).toContain('−50 000 kr');
@@ -33,7 +33,7 @@ describe('invoicePdf', () => {
       revenue_ex_vat: 400000, revenue_incl_vat: 400000, handpenning_amount: 100000, slutfaktura_amount: 300000 };
     const offer: any = { ...privOffer, vat_mode: 'omvand' };
     for (const d of [buildHandpenningDocDef(company, offer, opts, assets), buildSlutfakturaDocDef(company, offer, opts, assets)]) {
-      const s = JSON.stringify(d);
+      const s = JSON.stringify(d).replace(/[\u00A0\u202F]/g, ' ');
       expect(s).toContain('Omvänd betalningsskyldighet');
       expect(s).not.toContain('Moms 25 %');
     }
