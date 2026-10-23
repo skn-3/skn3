@@ -19,6 +19,8 @@ interface CaseItem {
   id: string;
   address: string;
   customer_name?: string | null;
+  /** Visas som liten grå text efter adressen när den finns. */
+  statusLabel?: string | null;
 }
 
 interface Props {
@@ -75,7 +77,7 @@ export function CaseCombobox({ cases, value, onChange, placeholder = 'Välj äre
                   )}
                 />
                 <div className="flex flex-col">
-                  <span>{c.address}</span>
+                  <span>{c.address}{c.statusLabel && <span className="ml-2 text-xs text-muted-foreground">{c.statusLabel}</span>}</span>
                   {c.customer_name && (
                     <span className="text-xs text-muted-foreground">{c.customer_name}</span>
                   )}

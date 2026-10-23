@@ -399,7 +399,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('a_orders')
-        .select('id, order_number, total_amount, status, team_id, invoice_number, date, line_items, window_count, door_count, roof_window_count, paid_at, montor_teams(name)')
+        .select('id, order_number, total_amount, status, team_id, invoice_number, date, line_items, window_count, door_count, roof_window_count, paid_at, order_kind, montor_teams(name)')
         .eq('case_id', caseData.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -2390,11 +2390,11 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     ? <Badge className="bg-blue-600 hover:bg-blue-600/90 text-white">Fakturerad</Badge>
                     : order.status === 'credited'
                     ? <Badge variant="destructive">Krediterad</Badge>
-                    : <Badge className="bg-yellow-500 hover:bg-yellow-500/90 text-white">A-ORDER</Badge>;
+                    : <Badge className="bg-yellow-500 hover:bg-yellow-500/90 text-white">{order.order_kind === 'service' ? 'SERVICEORDER' : 'A-ORDER'}</Badge>;
                   return (
                     <div key={order.id} className="rounded-md border p-3 space-y-1 text-sm">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium">A-order #{order.order_number ?? idx + 1}</span>
+                        <span className="font-medium">{order.order_kind === 'service' ? 'Serviceorder' : 'A-order'} #{order.order_number ?? idx + 1}</span>
                         <div className="flex items-center gap-2">
                           {statusBadge}
                           {isSeller && (
