@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Calendar, dateFnsLocalizer, Views, type View, type ToolbarProps } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, addHours, startOfDay, endOfDay, setISOWeek, setYear, startOfISOWeek, endOfISOWeek } from 'date-fns';
 import { sv } from 'date-fns/locale';
-import { fetchAllCases, type CaseRow } from '@/lib/supabaseClient';
+import { fetchAllCases, fetchCasesForMontor, type CaseRow } from '@/lib/supabaseClient';
 import { SELLERS } from '@/lib/constants';
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,8 @@ interface CalEvent {
 
 interface CalendarViewProps {
   onSelectCase: (c: CaseRow) => void;
+  /** 'cases_montor' i montörvyn (utan ekonomifält), annars 'cases'. */
+  source?: 'cases' | 'cases_montor';
 }
 
 function combineDateTime(dateStr: string, timeStr: string | null): Date {
@@ -228,8 +230,8 @@ export function CalendarView({ onSelectCase }: CalendarViewProps) {
 
 
   const { data: cases, isLoading } = useQuery({
-    queryKey: ['cases', 'all-calendar'],
-    queryFn: fetchAllCases,
+    queryKey: ['cases', 'all-calendar', source],
+    queryFn: source === 'cases_montor' ? fetchCasesForMontor : fetchAllCases,
   });
 
   const allEvents = useMemo(() => detectConflicts(buildEvents(cases || [])), [cases]);

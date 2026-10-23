@@ -293,7 +293,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
         {activeTab === 'uppdrag' ? (
           <MontorOrdersList myTeamName={role.name} adminFilter={isAdmin ? adminFilter : 'alla'} onOpenCase={openCaseById} />
         ) : activeTab === 'kalender' ? (
-          <CalendarView onSelectCase={setSelectedCase} />
+          <CalendarView source="cases_montor" onSelectCase={openCase} />
         ) : isLoading ? (
           <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : filtered.length === 0 ? (
@@ -302,7 +302,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
           <MontorCaseList
             cases={filtered}
             unresolvedDeviationCaseIds={unresolvedDeviationCaseIds}
-            onSelect={setSelectedCase}
+            onSelect={openCase}
           />
         )}
       </main>
