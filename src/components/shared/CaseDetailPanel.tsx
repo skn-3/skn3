@@ -9,6 +9,7 @@ import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAI
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { isCurrentUserAdmin } from '@/lib/authState';
 import { canEnterStatus } from '@/lib/statusRules';
+import { splitCaseChanges } from '@/lib/caseEvents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
