@@ -22,6 +22,8 @@ import { HOUR_RATE } from '@/lib/constants';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
 import { CoupleAOrderDialog } from '@/components/aorders/CoupleAOrderDialog';
 import { UnhandledCostsBlock } from '@/components/aorders/UnhandledCostsBlock';
+import { MockfjardsInvoiceImportDialog } from '@/components/aorders/MockfjardsInvoiceImportDialog';
+import { PAYER_LABEL, type ServicePayer, type ServiceOrderPrefill } from '@/lib/serviceOrder';
 import { costToLine, linkedCostIds, syncCostLinksForOrder, COST_PAYOUT_QUERY_KEYS, type PayoutCost } from '@/lib/caseCostPayout';
 
 
@@ -46,14 +48,18 @@ interface Props {
   } | null;
   currentUser: string;
   onSaved?: () => void;
-  mode?: 'standard' | 'komplettering';
+  mode?: 'standard' | 'komplettering' | 'service';
 }
 
 function newId() { return 'al_' + Math.random().toString(36).slice(2, 10); }
 function fmt(n: number) { return Math.round(n).toLocaleString('sv-SE') + ' kr'; }
 
 export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, onSaved, mode = 'standard' }: Props) {
-  const isKomp = (order?.order_kind || mode) === 'komplettering';
+  const kind = order?.order_kind || mode;
+  const isKomp = kind === 'komplettering';
+  const isService = kind === 'service';
+  /** Bantade lägen: inga fasad-/antal-/km-fält, valfri ärendekoppling. */
+  const isSlim = isKomp || isService;
   const isEdit = !!order?.id;
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
@@ -76,6 +82,10 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [deliveryTime, setDeliveryTime] = useState<string>(order?.delivery_time?.toString().slice(0, 5) ?? '');
   const [description, setDescription] = useState<string>(order?.description ?? prefill?.description ?? '');
   const [teamId, setTeamId] = useState<string>(order?.team_id ?? prefill?.team_id ?? '__none__');
+  const [payer, setPayer] = useState<ServicePayer>((order?.payer as ServicePayer) || 'mockfjards');
+  const [mockfjardsOrderNumber, setMockfjardsOrderNumber] = useState<string>(order?.mockfjards_order_number ?? '');
+  const [mfInvoiceNumber, setMfInvoiceNumber] = useState<string | null | undefined>(order?.mockfjards_invoice_number ?? undefined);
+  const [importOpen, setImportOpen] = useState(false);
   const [internalExtraHours, setInternalExtraHours] = useState<number>(order?.internal_extra_hours ?? prefill?.internalExtraHours ?? 0);
   const [internalHourRate, setInternalHourRate] = useState<number>(order?.internal_hour_rate ?? prefill?.internalHourRate ?? 0);
   const [internalExtraAmount, setInternalExtraAmount] = useState<number>(order?.internal_extra_amount ?? 0);
@@ -91,16 +101,16 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     : null;
 
   const [lines, setLines] = useState<AOrderLine[]>(
-    isKomp ? normalizeLines(order?.line_items) : (prefillLines ?? normalizeLines(order?.line_items))
+    isSlim ? normalizeLines(order?.line_items) : (prefillLines ?? normalizeLines(order?.line_items))
   );
-  const autoRegenEnabled = !isKomp && !order?.id && !prefillLines;
+  const autoRegenEnabled = !isSlim && !order?.id && !prefillLines;
   const [resetConfirm, setResetConfirm] = useState(false);
 
 
   const [kompCaseId, setKompCaseId] = useState<string>(order?.case_id ?? prefill?.case_id ?? '');
 
   // Effective case_id: existing order.case_id or prefill.case_id (or komp selection)
-  const effectiveCaseId: string | null = (isKomp ? (kompCaseId || null) : null) ?? (order?.case_id ?? prefill?.case_id) ?? null;
+  const effectiveCaseId: string | null = (isSlim ? (kompCaseId || null) : null) ?? (order?.case_id ?? prefill?.case_id) ?? null;
 
   // Fetch case extra_hours for prefilling (new order with case_id).
   const { data: caseExtra } = useQuery({
@@ -148,7 +158,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
   useEffect(() => {
     if (!open) { extraHoursAppliedRef.current = false; return; }
-    if (isEdit) return;
+    if (isEdit || isService) return;
     if (extraHoursAppliedRef.current) return;
     if (!caseExtra) return;
     extraHoursAppliedRef.current = true;
@@ -215,7 +225,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       if (error) throw error;
       return data as any[];
     },
-    enabled: open && isKomp,
+    enabled: open && isSlim,
   });
 
   const productsByCat = useMemo(() => {
@@ -318,6 +328,9 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   }
 
   async function save(opts?: { silent?: boolean }): Promise<string | null> {
+    if (isService && (!teamId || teamId === '__none__')) { toast.error('Montör krävs för serviceorder'); return null; }
+    if (isService && !customerName.trim()) { toast.error('Kund krävs'); return null; }
+    if (isService && lines.length === 0) { toast.error('Lägg till minst en rad'); return null; }
     if (!isKomp && !customerAddress.trim()) { toast.error('Adress krävs'); return null; }
     if (isKomp && (!teamId || teamId === '__none__')) { toast.error('Montör krävs för kompletteringsfaktura'); return null; }
     if (isKomp && lines.length === 0) { toast.error('Lägg till minst en rad'); return null; }
@@ -340,14 +353,20 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         delivery_time: !isSlim && scheduledDelivery && deliveryTime ? deliveryTime : null,
         team_id: teamId && teamId !== '__none__' ? teamId : null,
         case_id: isSlim ? (kompCaseId || null) : (prefill?.case_id ?? order?.case_id ?? null),
-        internal_extra_hours: internalExtraHours || 0,
-        internal_hour_rate: internalHourRate || 0,
-        internal_extra_amount: internalExtraAmount || 0,
-        order_kind: isKomp ? 'komplettering' : (order?.order_kind || 'standard'),
+        internal_extra_hours: isService ? 0 : (internalExtraHours || 0),
+        internal_hour_rate: isService ? 0 : (internalHourRate || 0),
+        internal_extra_amount: isService ? 0 : (internalExtraAmount || 0),
+        order_kind: isKomp ? 'komplettering' : isService ? 'service' : (order?.order_kind || 'standard'),
         status: order?.status || 'order',
-        ...(prefill?.mockfjards_invoice_number !== undefined
-          ? { mockfjards_invoice_number: prefill.mockfjards_invoice_number }
-          : {}),
+        ...(isService
+          ? {
+              payer,
+              mockfjards_order_number: mockfjardsOrderNumber.trim() || null,
+              ...(mfInvoiceNumber !== undefined ? { mockfjards_invoice_number: mfInvoiceNumber } : {}),
+            }
+          : prefill?.mockfjards_invoice_number !== undefined
+            ? { mockfjards_invoice_number: prefill.mockfjards_invoice_number }
+            : {}),
       };
       let orderId = order?.id as string | undefined;
       if (isEdit && orderId) {
@@ -381,7 +400,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         }
       }
       if (!opts?.silent) {
-        toast.success(isEdit ? 'A-order uppdaterad' : (teamId && teamId !== '__none__' ? 'A-order sparad' : 'A-order sparad som utestående'));
+        toast.success(isService ? (isEdit ? 'Serviceorder uppdaterad' : 'Serviceorder sparad') : isEdit ? 'A-order uppdaterad' : (teamId && teamId !== '__none__' ? 'A-order sparad' : 'A-order sparad som utestående'));
       }
       // Trigger koppling-dialog (en gång per A-order)
       if (orderId && !coupledHandled) {
@@ -392,7 +411,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
           teamName: selTeam?.name ?? null,
           customerAddress: customerAddress || '',
           customerName: customerName || '',
-          existingCaseId: (isKomp ? (kompCaseId || null) : (prefill?.case_id ?? order?.case_id ?? null)) ?? null,
+          existingCaseId: (isSlim ? (kompCaseId || null) : (prefill?.case_id ?? order?.case_id ?? null)) ?? null,
         });
       }
       onSaved?.();
@@ -434,7 +453,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   }
 
   async function doSend() {
-    if (!isKomp && (!kmDistance || kmDistance <= 0)) {
+    if (!isSlim && (!kmDistance || kmDistance <= 0)) {
       setConfirmSend(false);
       setKmError(true);
       toast.error('Fyll i avstånd (km) innan A-ordern skickas');
@@ -470,7 +489,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         body: { a_order_id: orderId, pdf_base64, file_name: aOrderPdfName(o) },
       });
       if (error) throw error;
-      toast.success(`A-order skickad till ${o.montor_teams?.email}`);
+      toast.success(`${isService ? 'Serviceorder' : 'A-order'} skickad till ${o.montor_teams?.email}`);
       setConfirmSend(false);
       onSaved?.();
       // Stäng inte sheet om kopplingsdialog ska visas — den stänger via onDone.
@@ -481,6 +500,27 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
     } finally {
       setSending(false);
     }
+  }
+
+  function selectServiceCase(id: string) {
+    setKompCaseId(id);
+    const c = kompCases.find((x: any) => x.id === id);
+    if (c) {
+      if (c.customer_name) setCustomerName(c.customer_name);
+      if (c.address) setCustomerAddress(c.address);
+    }
+  }
+
+  function applyServicePrefill(p: ServiceOrderPrefill) {
+    setLines(p.line_items.map(li => ({ id: newId(), name: li.name, unit_price: li.unit_price, qty: li.qty, amount: li.amount, auto: false })));
+    if (!customerName.trim() && p.customer_name) setCustomerName(p.customer_name);
+    if (p.date) setDate(p.date);
+    setMfInvoiceNumber(p.mockfjards_invoice_number);
+    if (p.mockfjards_order_number) setMockfjardsOrderNumber(p.mockfjards_order_number);
+    setPayer('mockfjards');
+    if ((!teamId || teamId === '__none__') && p.team_id) setTeamId(p.team_id);
+    setDescription(prev => (prev.includes(p.description_line) ? prev : (prev.trim() ? `${prev.trim()}\n${p.description_line}` : p.description_line)));
+    toast.success('Serviceordern ifylld från fakturan');
   }
 
   const hasTeam = teamId && teamId !== '__none__';
@@ -494,8 +534,8 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         <SheetHeader className="px-5 py-4 border-b sticky top-0 bg-background z-10">
           <SheetTitle>
             {isEdit
-              ? (isKomp ? `Kompletteringsfaktura #${order?.order_number ?? ''}` : `A-order #${order?.order_number ?? ''}`)
-              : (isKomp ? 'Ny kompletteringsfaktura' : 'Ny A-order')}
+              ? (isKomp ? `Kompletteringsfaktura #${order?.order_number ?? ''}` : isService ? `Serviceorder #${order?.order_number ?? ''}` : `A-order #${order?.order_number ?? ''}`)
+              : (isKomp ? 'Ny kompletteringsfaktura' : isService ? 'Ny serviceorder' : 'Ny A-order')}
           </SheetTitle>
         </SheetHeader>
 
@@ -505,7 +545,59 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
 
         <div className="p-5 space-y-5">
 
+          {isService && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>Montör *</Label>
+                <Select value={teamId === '__none__' ? '' : teamId} onValueChange={setTeamId}>
+                  <SelectTrigger><SelectValue placeholder="Välj montör..." /></SelectTrigger>
+                  <SelectContent>
+                    {teams.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}{t.company_name ? ` (${t.company_name})` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Datum</Label>
+                <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Koppla till ärende (valfritt)</Label>
+                <CaseCombobox cases={kompCases} value={kompCaseId} onChange={selectServiceCase} />
+              </div>
+              <div>
+                <Label>Kund *</Label>
+                <Input value={customerName} onChange={e => setCustomerName(e.target.value)} />
+              </div>
+              <div>
+                <Label>Adress *</Label>
+                <Input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
+              </div>
+              <div>
+                <Label>Ersätts av</Label>
+                <Select value={payer} onValueChange={(v) => setPayer(v as ServicePayer)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PAYER_LABEL) as ServicePayer[]).map(k => (
+                      <SelectItem key={k} value={k}>{PAYER_LABEL[k]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Mockfjärds ordernr (valfritt)</Label>
+                <Input value={mockfjardsOrderNumber} onChange={e => setMockfjardsOrderNumber(e.target.value)} inputMode="numeric" />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Utfört arbete</Label>
+                <RichTextarea value={description} onChange={setDescription} rows={3} />
+              </div>
+            </div>
+          )}
+
           {/* Header */}
+          {!isService && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <Label>Datum</Label>
@@ -568,6 +660,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               </>
             )}
           </div>
+          )}
 
           {isKomp && (
             <div>
@@ -607,6 +700,14 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
             addedCostIds={linkedCostIds(lines)}
             onAdd={(c: PayoutCost) => setLines(prev => [...prev, costToLine(c, newId)])}
           />
+
+          {isService && (
+            <div className="flex justify-end">
+              <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4" /> Läs in Mockfjärds-faktura
+              </Button>
+            </div>
+          )}
 
           {/* Lines */}
           <div className="border rounded-md">
@@ -688,12 +789,15 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
             </div>
           </div>
 
+          {!isService && (
           <div>
             <Label>Beskrivning</Label>
             <RichTextarea value={description} onChange={setDescription} rows={3} />
           </div>
+          )}
 
           {/* Internal block */}
+          {!isService && (
           <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="text-xs font-semibold text-amber-900 dark:text-amber-300 uppercase">Internt — visas EJ för montör</div>
@@ -734,9 +838,11 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
             </div>
             <div className="text-sm text-amber-900 dark:text-amber-300">Internt värde: <span className="font-semibold">{fmt(internalValue)}</span></div>
           </div>
+          )}
 
 
           {/* Team */}
+          {!isService && (
           <div>
             <Label>Montör{isKomp ? ' *' : ''}</Label>
             <Select value={teamId} onValueChange={setTeamId}>
@@ -749,6 +855,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               </SelectContent>
             </Select>
           </div>
+          )}
 
           {/* Images */}
           <div className="space-y-2">
@@ -847,7 +954,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
           <AlertDialog open={confirmSend} onOpenChange={setConfirmSend}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Skicka A-order?</AlertDialogTitle>
+                <AlertDialogTitle>{isService ? 'Skicka serviceorder?' : 'Skicka A-order?'}</AlertDialogTitle>
                 <AlertDialogDescription>
                   <strong>Skickas till: {teamEmail || '—'}</strong><br />
                   En kopia skickas även till er.<br />
@@ -862,6 +969,15 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {isService && (
+            <MockfjardsInvoiceImportDialog
+              open={importOpen}
+              onOpenChange={setImportOpen}
+              variant="service"
+              onPrefillReady={(p: ServiceOrderPrefill) => applyServicePrefill(p)}
+            />
+          )}
 
           {couplingFor && (
             <CoupleAOrderDialog
