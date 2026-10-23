@@ -428,6 +428,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       team: o.montor_teams ?? null,
 
       logoDataUrl: logo,
+      orderKind: o.order_kind,
     });
     doc.save(aOrderPdfName(o));
   }
@@ -460,6 +461,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         description: o.description,
         team: o.montor_teams,
         logoDataUrl: logo,
+        orderKind: o.order_kind,
       });
       // datauristring -> base64
       const dataUri = doc.output('datauristring');

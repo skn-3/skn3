@@ -20,6 +20,7 @@ export async function regenerateAOrderPdf(order: any, sendEmail: boolean): Promi
     team: order.montor_teams,
     aOrderNumber: order.order_number,
     aOrderDate: order.date,
+    orderKind: order.order_kind,
     logoDataUrl: await loadAOrderLogo(),
   });
   const { data, error } = await supabase.functions.invoke('send-a-order-invoice', {

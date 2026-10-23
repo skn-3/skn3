@@ -267,6 +267,7 @@ export function AOrdersView({ currentUser }: Props) {
         description: full.description,
         team: full.montor_teams,
         logoDataUrl: logo,
+        orderKind: full.order_kind,
       });
       doc.save(aOrderPdfName(full));
     } catch (e: any) {
@@ -292,6 +293,7 @@ export function AOrdersView({ currentUser }: Props) {
         description: full.description,
         team: full.montor_teams,
         logoDataUrl: logo,
+        orderKind: full.order_kind,
       });
       const pdf_base64 = (doc.output('datauristring').split(',')[1]) || '';
       const { error } = await supabase.functions.invoke('send-a-order', { body: { a_order_id: o.id, pdf_base64, file_name: aOrderPdfName(full) } });
