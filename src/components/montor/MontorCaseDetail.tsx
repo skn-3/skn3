@@ -469,10 +469,17 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <div className="text-sm space-y-1">
             <div className="font-medium">{caseData.customer_name}</div>
             <div className="flex items-center gap-2">
-              <a href={`tel:${caseData.customer_phone}`} className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground rounded-full px-4 py-2 text-sm font-medium min-h-[48px]">
-                <Phone className="h-4 w-4" />
-                {caseData.customer_phone}
-              </a>
+              {caseData.customer_phone ? (
+                <a href={`tel:${caseData.customer_phone}`} className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground rounded-full px-4 py-2 text-sm font-medium min-h-[48px]">
+                  <Phone className="h-4 w-4" />
+                  {caseData.customer_phone}
+                </a>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 bg-muted text-muted-foreground rounded-full px-4 py-2 text-sm font-medium min-h-[48px]">
+                  <Phone className="h-4 w-4" />
+                  Telefon saknas
+                </span>
+              )}
             </div>
             {caseData.customer_email && <div className="text-muted-foreground">{caseData.customer_email}</div>}
             <div className="text-muted-foreground">{caseData.address}</div>
@@ -621,7 +628,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                 {caseData.extra_hours_approved > 0 ? (
                   <span className="font-medium text-green-600 dark:text-green-400">Godkända ({caseData.extra_hours_approved} st)</span>
                 ) : caseData.status === 'vantar_godkannande' ? (
-                  <span className="font-medium" style={{ color: '#D97706' }}>Väntar på godkännande</span>
+                  <span className="font-medium text-warning-ink">Väntar på godkännande</span>
                 ) : (
                   <span className="font-medium text-muted-foreground">Avslagna</span>
                 )}
@@ -952,7 +959,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               </label>
               {costFile && (
                 <div className="relative w-16 h-16 rounded-lg overflow-hidden border mt-2">
-                  <img src={URL.createObjectURL(costFile)} alt="" className="w-full h-full object-cover" />
+                  {costFileUrl && <img src={costFileUrl} alt="" className="w-full h-full object-cover" />}
                   <button onClick={() => setCostFile(null)} className="absolute top-0 right-0 bg-black/60 text-white rounded-bl-lg p-0.5">
                     <X className="h-3 w-3" />
                   </button>
