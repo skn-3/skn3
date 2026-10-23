@@ -39,6 +39,19 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFo
 import { useIsMobile } from '@/hooks/use-mobile';
 import { summarizeAOrderStatuses } from '@/lib/aOrderStatusSummary';
 import { AOrderStatusDots } from './AOrderStatusDots';
+import { PAYER_LABEL, type ServicePayer } from '@/lib/serviceOrder';
+
+function KindChips({ o }: { o: any }) {
+  return (
+    <>
+      {o.order_kind === 'komplettering' && <Badge variant="secondary" className="ml-1 text-[10px] font-normal">Komplettering</Badge>}
+      {o.order_kind === 'service' && <Badge variant="secondary" className="ml-1 text-[10px] font-normal">Service</Badge>}
+      {o.payer && PAYER_LABEL[o.payer as ServicePayer] && (
+        <span className="ml-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-normal bg-muted text-muted-foreground">{PAYER_LABEL[o.payer as ServicePayer]}</span>
+      )}
+    </>
+  );
+}
 
 interface Props { currentUser: string }
 
@@ -54,7 +67,8 @@ export function AOrdersView({ currentUser }: Props) {
   const { role } = useRole();
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
-  const [formMode, setFormMode] = useState<'standard' | 'komplettering'>('standard');
+  const [formMode, setFormMode] = useState<'standard' | 'komplettering' | 'service'>('standard');
+  const [kindFilter, setKindFilter] = useState<'all' | 'standard' | 'komplettering' | 'service'>('all');
   const [editing, setEditing] = useState<any | null>(null);
   const [formPrefill, setFormPrefill] = useState<any | null>(null);
   const [mockfjardsOpen, setMockfjardsOpen] = useState(false);
@@ -156,6 +170,7 @@ export function AOrdersView({ currentUser }: Props) {
       if (onlyPayReady && !(o.case_id && paidCaseMap.has(o.case_id) && o.status === 'order')) return false;
       if (payStatus === 'unpaid' && !(o.status === 'invoiced' && !o.paid_at)) return false;
       if (payStatus === 'paid' && !o.paid_at) return false;
+      if (kindFilter !== 'all' && (o.order_kind || 'standard') !== kindFilter) return false;
       if (!q) return true;
       return (
         (o.customer_address || '').toLowerCase().includes(q) ||
@@ -163,7 +178,7 @@ export function AOrdersView({ currentUser }: Props) {
         String(o.order_number || '').includes(q)
       );
     });
-  }, [orders, search, teamFilter, onlyPayReady, paidCaseMap, payStatus]);
+  }, [orders, search, teamFilter, onlyPayReady, paidCaseMap, payStatus, kindFilter]);
 
   // Obetalt till montörer: fakturerade A-ordrar utan betaldatum.
   // Respekterar montörsfiltret men inte betalstatusfiltret.
@@ -223,7 +238,8 @@ export function AOrdersView({ currentUser }: Props) {
 
   function openNew() { setEditing(null); setFormPrefill(null); setFormMode('standard'); setFormOpen(true); }
   function openNewKomp() { setEditing(null); setFormPrefill(null); setFormMode('komplettering'); setFormOpen(true); }
-  function openEdit(o: any) { setEditing(o); setFormPrefill(null); setFormMode(o?.order_kind === 'komplettering' ? 'komplettering' : 'standard'); setFormOpen(true); }
+  function openNewService() { setEditing(null); setFormPrefill(null); setFormMode('service'); setFormOpen(true); }
+  function openEdit(o: any) { setEditing(o); setFormPrefill(null); setFormMode(o?.order_kind === 'komplettering' ? 'komplettering' : o?.order_kind === 'service' ? 'service' : 'standard'); setFormOpen(true); }
 
   async function doAssign() {
     if (!assignFor || !assignTeam) return;
@@ -267,6 +283,7 @@ export function AOrdersView({ currentUser }: Props) {
         description: full.description,
         team: full.montor_teams,
         logoDataUrl: logo,
+        orderKind: full.order_kind,
       });
       doc.save(aOrderPdfName(full));
     } catch (e: any) {
@@ -292,6 +309,7 @@ export function AOrdersView({ currentUser }: Props) {
         description: full.description,
         team: full.montor_teams,
         logoDataUrl: logo,
+        orderKind: full.order_kind,
       });
       const pdf_base64 = (doc.output('datauristring').split(',')[1]) || '';
       const { error } = await supabase.functions.invoke('send-a-order', { body: { a_order_id: o.id, pdf_base64, file_name: aOrderPdfName(full) } });
@@ -350,12 +368,15 @@ export function AOrdersView({ currentUser }: Props) {
     <div className="px-3 md:px-6 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-xl font-semibold">A-ordrar</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" onClick={() => setMockfjardsOpen(true)} className="gap-2">
             <FileUp className="h-4 w-4" /> Från Mockfjärds-faktura
           </Button>
           <Button variant="outline" onClick={openNewKomp} className="gap-2">
-            <FilePlus className="h-4 w-4" /> Kompletteringsfaktura
+            <FilePlus className="h-4 w-4" /> Ny kompletteringsfaktura
+          </Button>
+          <Button variant="outline" onClick={openNewService} className="gap-2">
+            <FilePlus className="h-4 w-4" /> Ny serviceorder
           </Button>
           <Button variant="outline" onClick={() => setDebitOpen(true)} className="gap-2">
             <ArrowUpRight className="h-4 w-4" /> Fakturera montör
@@ -406,7 +427,7 @@ export function AOrdersView({ currentUser }: Props) {
                   const intern = internalOf(o);
                   return (
                     <tr key={o.id} className="hover:bg-muted/30">
-                      <td className="px-3 py-2 font-mono">#{o.order_number}</td>
+                      <td className="px-3 py-2 font-mono">#{o.order_number}<KindChips o={o} /></td>
                       <td className="px-3 py-2">{o.date}</td>
                       <td className="px-3 py-2">{o.customer_name || '—'}</td>
                       <td className="px-3 py-2">{o.customer_address}{costFlag(o)}</td>
@@ -452,6 +473,17 @@ export function AOrdersView({ currentUser }: Props) {
                 <SelectItem value="all">Alla</SelectItem>
                 <SelectItem value="unpaid">Obetalda fakturor</SelectItem>
                 <SelectItem value="paid">Betalda</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as any)}>
+              <SelectTrigger className="w-full sm:w-[170px]">
+                <SelectValue placeholder="Typ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alla</SelectItem>
+                <SelectItem value="standard">Montage</SelectItem>
+                <SelectItem value="komplettering">Komplettering</SelectItem>
+                <SelectItem value="service">Service</SelectItem>
               </SelectContent>
             </Select>
             <label className="flex items-center gap-2 text-sm whitespace-nowrap cursor-pointer">
@@ -503,9 +535,7 @@ export function AOrdersView({ currentUser }: Props) {
                     <tr key={o.id} className="hover:bg-muted/30">
                       <td className="px-3 py-2 font-mono">
                         {o.order_number ? `#${o.order_number}` : <span className="text-muted-foreground">—</span>}
-                        {o.order_kind === 'komplettering' && (
-                          <Badge variant="secondary" className="ml-1 text-[10px] font-normal">Komplettering</Badge>
-                        )}
+                        <KindChips o={o} />
                       </td>
                       <td className="px-3 py-2">{o.date}</td>
                       <td className="px-3 py-2">{o.customer_name || '—'}</td>

@@ -12,6 +12,7 @@ import { Loader2, Search, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarView } from '@/components/calendar/CalendarView';
+import { MontorOrdersList } from '@/components/montor/MontorOrdersList';
 
 
 interface MontorViewProps {
@@ -24,7 +25,7 @@ interface MontorViewProps {
 }
 
 
-type Tab = 'alla' | 'montage' | 'reklamationer' | 'klara' | 'kalender';
+type Tab = 'alla' | 'montage' | 'uppdrag' | 'reklamationer' | 'klara' | 'kalender';
 
 const statusOrder = ['vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat', 'montage_pagar', 'montage_klart', 'fakturerad', 'pausad'];
 
@@ -167,16 +168,24 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
     reklamationer: searched.filter(c => unresolvedDeviationCaseIds.has(c.id)).length,
     klara: searched.filter(c => ['montage_klart', 'fakturerad'].includes(c.status)).length,
     kalender: null,
+    uppdrag: null,
   }), [searched, unresolvedDeviationCaseIds]);
 
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'alla', label: 'Alla' },
     { key: 'montage', label: 'Montage' },
+    { key: 'uppdrag', label: 'Mina uppdrag' },
     { key: 'kalender', label: 'Kalender' },
     { key: 'reklamationer', label: 'Reklam.' },
     { key: 'klara', label: 'Klara' },
   ];
+
+  async function openCaseById(id: string) {
+    const { data, error } = await supabase.from('cases').select('*').eq('id', id).maybeSingle();
+    if (error || !data) { toast.error('Kunde inte öppna ärendet'); return; }
+    setSelectedCase(data as CaseRow);
+  }
 
   if (selectedCase) {
     return (
@@ -218,7 +227,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
         )}
 
         {/* Search */}
-        <div className="mb-4 space-y-1">
+        <div className={`mb-4 space-y-1 ${activeTab === 'uppdrag' ? 'hidden' : ''}`}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
@@ -272,7 +281,9 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
           ))}
         </div>
 
-        {activeTab === 'kalender' ? (
+        {activeTab === 'uppdrag' ? (
+          <MontorOrdersList myTeamName={role.name} adminFilter={isAdmin ? adminFilter : 'alla'} onOpenCase={openCaseById} />
+        ) : activeTab === 'kalender' ? (
           <CalendarView onSelectCase={setSelectedCase} />
         ) : isLoading ? (
           <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>

@@ -73,6 +73,7 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
         variant: 'invoice',
         aOrderNumber: order.order_number,
         aOrderDate: order.date,
+        orderKind: order.order_kind,
       });
       const pdf_base64 = doc.output('datauristring').split(',')[1] || '';
 

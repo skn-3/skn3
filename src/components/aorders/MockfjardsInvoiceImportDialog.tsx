@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Upload, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { HOUR_RATE } from '@/lib/constants';
+import { serviceOrderPrefillFromInvoice } from '@/lib/serviceOrder';
 
 interface Parsed {
   invoice_number: string | null;
@@ -24,6 +25,8 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onPrefillReady: (prefill: any) => void;
+  /** 'service' fyller en öppen serviceorder (se serviceOrderPrefillFromInvoice) */
+  variant?: 'a-order' | 'service';
 }
 
 const norm = (s: string | null | undefined) =>
@@ -46,7 +49,9 @@ async function fileToBase64(file: File): Promise<string> {
   });
 }
 
-export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillReady }: Props) {
+export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillReady, variant = 'a-order' }: Props) {
+  const isService = variant === 'service';
+  const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [parsing, setParsing] = useState(false);
@@ -90,6 +95,13 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
         .eq('mockfjards_invoice_number', p.invoice_number)
         .limit(1);
       if (dups && dups.length) dupNum = dups[0].order_number ?? null;
+    }
+
+    if (isService) {
+      const { data: teamRows } = await (supabase as any).from('montor_teams').select('id, invoice_prefix');
+      setPendingPrefill(serviceOrderPrefillFromInvoice(p, teamRows ?? []));
+      if (dupNum !== null) setDuplicate({ orderNumber: dupNum });
+      return;
     }
 
     // Case match by order_number
@@ -149,7 +161,7 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
     <>
       <Dialog open={open} onOpenChange={v => { if (!v) reset(); onOpenChange(v); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Skapa A-order från Mockfjärds-faktura</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{isService ? 'Fyll serviceordern från Mockfjärds-faktura' : 'Skapa A-order från Mockfjärds-faktura'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
@@ -159,12 +171,12 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
                 const f = e.dataTransfer.files?.[0];
                 if (f) setFile(f);
               }}
-              onClick={() => document.getElementById('mfi-file-input')?.click()}
+              onClick={() => fileRef.current?.click()}
               className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer ${dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 hover:border-muted-foreground/60'}`}
             >
               <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
               <div className="text-sm">{file ? file.name : 'Klicka eller dra hit EN PDF'}</div>
-              <input id="mfi-file-input" type="file" accept="application/pdf" className="hidden"
+              <input ref={fileRef} type="file" accept="application/pdf" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) setFile(f); e.target.value = ''; }} />
             </div>
 
@@ -189,7 +201,7 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
               </Button>
             )}
             {parsed && !duplicate && (
-              <Button onClick={proceed} className="gap-2">Öppna A-order</Button>
+              <Button onClick={proceed} className="gap-2">{isService ? 'Fyll i serviceordern' : 'Öppna A-order'}</Button>
             )}
           </DialogFooter>
         </DialogContent>
@@ -200,12 +212,12 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
           <AlertDialogHeader>
             <AlertDialogTitle>Dubblettvarning</AlertDialogTitle>
             <AlertDialogDescription>
-              Faktura {parsed?.invoice_number} är redan inläst{duplicate?.orderNumber ? ` (A-order #${duplicate.orderNumber})` : ''}.
+              Faktura {parsed?.invoice_number} är redan inläst{duplicate?.orderNumber ? ` (order #${duplicate.orderNumber})` : ''}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setDuplicate(null)}>Avbryt</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setDuplicate(null); proceed(); }}>Skapa ändå</AlertDialogAction>
+            <AlertDialogAction onClick={() => { setDuplicate(null); proceed(); }}>{isService ? 'Fortsätt ändå' : 'Skapa ändå'}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
