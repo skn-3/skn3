@@ -39,6 +39,8 @@ export interface BuildAOrderPdfArgs {
   /** A-orderns nummer och datum — skrivs som referens på faktura/kreditfaktura */
   aOrderNumber?: number | string | null;
   aOrderDate?: string | null;
+  /** a_orders.order_kind — 'service' ger rubriken SERVICEORDER och referensen "Serviceorder #N" */
+  orderKind?: string | null;
 }
 
 const GREEN: [number, number, number] = [34, 197, 94];
@@ -77,15 +79,16 @@ export async function loadAOrderLogo(): Promise<string | null> {
  * betalningsskyldighet för moms. Layouten delas med KM-/utbetalningsfakturorna.
  */
 function buildSelfBillingFromAOrder(args: BuildAOrderPdfArgs, lines: AOrderPdfLine[]): jsPDF {
-  const { date, orderNumber, customerAddress, customerName, description, team, logoDataUrl, variant, subNote, aOrderNumber, aOrderDate } = args;
+  const { date, orderNumber, customerAddress, customerName, description, team, logoDataUrl, variant, subNote, aOrderNumber, aOrderDate, orderKind } = args;
+  const isService = orderKind === 'service';
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   const total = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
 
   const ref: string[] = [];
   if (customerAddress || customerName) {
-    ref.push(`Montage ${[customerAddress, customerName ? `(${customerName})` : ''].filter(Boolean).join(' ')}`);
+    ref.push(`${isService ? 'Service' : 'Montage'} ${[customerAddress, customerName ? `(${customerName})` : ''].filter(Boolean).join(' ')}`);
   }
-  if (aOrderNumber) ref.push(`A-order #${aOrderNumber}${aOrderDate ? ` av ${aOrderDate}` : ''}`);
+  if (aOrderNumber) ref.push(`${isService ? 'Serviceorder' : 'A-order'} #${aOrderNumber}${aOrderDate ? ` av ${aOrderDate}` : ''}`);
 
   // Kreditdialogen skickar samma text som både beskrivning och notis — skriv den bara en gång.
   const note = subNote && subNote.trim() ? subNote.trim() : null;
@@ -118,11 +121,12 @@ export function buildAOrderPdf(args: BuildAOrderPdfArgs): jsPDF {
   }
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-  doc.setProperties({ title: `A-order ${orderNumber}` });
+  const isService = args.orderKind === 'service';
+  doc.setProperties({ title: `${isService ? 'Serviceorder' : 'A-order'} ${orderNumber}` });
   const margin = 15;
   const pageW = 210;
 
-  const titleText = 'A-ORDER';
+  const titleText = isService ? 'SERVICEORDER' : 'A-ORDER';
   const titleColor: [number, number, number] = GREEN;
   const totalColor: [number, number, number] = GREEN;
 
