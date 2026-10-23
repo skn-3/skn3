@@ -20,6 +20,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { MontorLitteraSection } from '@/components/montor/MontorLitteraSection';
+import { submitKontrollmatning, fetchPendingLitteror } from '@/lib/kontrollmatning';
 import { aOrderPdfName, invoicePdfName, creditPdfName } from '@/lib/pdfNames';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { CostPayoutChip } from '@/components/shared/CostPayoutChip';
@@ -76,6 +77,14 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     queryKey: ['case_costs', caseData.id],
     queryFn: () => fetchCaseCosts(caseData.id),
   });
+
+  // Ej inskickade littera — avgör om "Rapportera KM klar" även skickar in mätningen.
+  const { data: litteraRows } = useQuery({
+    queryKey: ['litteror', caseData.id],
+    queryFn: () => fetchPendingLitteror(caseData.id),
+    enabled: caseData.status === 'km_bokad',
+  });
+  const pendingLittera = (litteraRows ?? []).filter((r) => r.cm_status === 'ej_paborjad' || r.cm_status === 'justerad');
 
   // Montörens eget team (profilnamn = teamnamn). Admin som tittar i montörvyn har inget team och ser då alla ordrar på ärendet.
   const myTeamQuery = useQuery({
