@@ -1,0 +1,1 @@
+ALTER TABLE public.uppdrag ADD COLUMN IF NOT EXISTS handpenning_invoice_date date, ADD COLUMN IF NOT EXISTS slutfaktura_invoice_date date;
