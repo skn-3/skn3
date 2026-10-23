@@ -40,6 +40,11 @@ describe('pdfNames', () => {
     expect(aOrderPdfName({ order_number: 12, customer_address: '', date: '2026-04-13', montor_teams: null })).toBe('A-order-12-2026-04-13.pdf');
   });
 
+  it('namnger serviceordrar', () => {
+    expect(aOrderPdfName({ order_kind: 'service', order_number: 812, montor_teams: { name: 'Alex NBD' }, customer_address: 'Aprilvägen 3, Järfälla', date: '2026-10-23' }))
+      .toBe('Serviceorder-812-Alex-NBD-Aprilvagen-3-Jarfalla-2026-10-23.pdf');
+  });
+
   it('namnger montörsfakturor, offerter och uppdragsfakturor', () => {
     expect(montorInvoicePdfName({ invoice_number: 'GVMO-048', kind: 'self_billing', title: 'Kontrollmätningar', date: '2026-09-18', total: 2791, montor_teams: { name: 'GVMO' } }))
       .toBe('Sjalvfaktura-GVMO-048-GVMO-Kontrollmatningar-2026-09-18.pdf');

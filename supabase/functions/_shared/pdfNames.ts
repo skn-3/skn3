@@ -42,13 +42,14 @@ export interface AOrderNameSource {
   status?: string | null;
   credited_from_order_id?: string | null;
   montor_teams?: { name?: string | null } | null;
+  order_kind?: string | null;
 }
 
 const teamOf = (o: { montor_teams?: { name?: string | null } | null }) => o.montor_teams?.name ?? '';
 
-/** A-order-1234-Samy-Bollgrand-8-Ekero-2026-07-22.pdf */
+/** A-order-1234-Samy-Bollgrand-8-Ekero-2026-07-22.pdf (Serviceorder-… för order_kind service) */
 export function aOrderPdfName(o: AOrderNameSource): string {
-  return join(['A-order', o.order_number ?? 'utkast', teamOf(o), o.customer_address, datePart(o.date)]);
+  return join([o.order_kind === 'service' ? 'Serviceorder' : 'A-order', o.order_number ?? 'utkast', teamOf(o), o.customer_address, datePart(o.date)]);
 }
 
 /** Faktura-SAMY-039-Samy-Bollgrand-8-Ekero-2026-07-22.pdf */
