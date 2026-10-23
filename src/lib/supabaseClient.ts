@@ -34,6 +34,27 @@ export async function fetchCaseById(id: string) {
   return data;
 }
 
+// Montörvyn läser via vyn cases_montor (utan ekonomifält). Uppdateringar går
+// fortfarande mot cases via updateCase — RLS-policyn på cases tillåter det.
+export async function fetchCasesForMontor(): Promise<CaseRow[]> {
+  const { data, error } = await (supabase as any)
+    .from('cases_montor')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as CaseRow[];
+}
+
+export async function fetchCaseByIdForMontor(id: string): Promise<CaseRow> {
+  const { data, error } = await (supabase as any)
+    .from('cases_montor')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return data as CaseRow;
+}
+
 export async function createCase(caseData: CaseInsert) {
   const { data, error } = await supabase.from('cases').insert(caseData).select().single();
   if (error) throw error;
