@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseByIdForMontor, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
@@ -27,7 +27,6 @@ import { CostPayoutChip } from '@/components/shared/CostPayoutChip';
 interface Props {
   caseData: CaseRow;
   currentUser: string;
-  hasUnresolvedDeviation: boolean;
   onBack: () => void;
 }
 
@@ -37,7 +36,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
   const { data: liveCaseData } = useQuery({
     queryKey: ['case', initialCaseData.id],
-    queryFn: () => fetchCaseById(initialCaseData.id),
+    queryFn: () => fetchCaseByIdForMontor(initialCaseData.id),
     initialData: initialCaseData,
   });
   const caseData = liveCaseData ?? initialCaseData;
@@ -115,17 +114,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     queryClient.invalidateQueries({ queryKey: ['case_costs', caseData.id] });
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, setter: (files: File[]) => void, current: File[]) => {
-    const files = Array.from(e.target.files || []);
-    const allowed = files.filter(f => /\.(jpe?g|png|heic)$/i.test(f.name));
-    const combined = [...current, ...allowed].slice(0, 5);
-    setter(combined);
-    e.target.value = '';
-  };
+  // Kvittobildens förhandsvisnings-URL skapas en gång per fil och frigörs vid byte.
+  const costFileUrl = useMemo(() => (costFile ? URL.createObjectURL(costFile) : null), [costFile]);
+  useEffect(() => {
+    return () => { if (costFileUrl) URL.revokeObjectURL(costFileUrl); };
+  }, [costFileUrl]);
 
-  const removeFile = (index: number, setter: (files: File[]) => void, current: File[]) => {
-    setter(current.filter((_, i) => i !== index));
-  };
 
 
   const klarMutation = useMutation({
@@ -452,24 +446,6 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     onError: (e: Error) => toast.error(`Anteckningen kunde inte sparas: ${e.message || 'okänt fel'}`),
   });
 
-
-  const FileThumbnails = ({ files, setter }: { files: File[]; setter: (f: File[]) => void }) => (
-    files.length > 0 ? (
-      <div className="flex gap-2 flex-wrap mt-2">
-        {files.map((f, i) => (
-          <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border">
-            <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
-            <button
-              onClick={() => removeFile(i, setter, files)}
-              className="absolute top-0 right-0 bg-black/60 text-white rounded-bl-lg p-0.5"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-        ))}
-      </div>
-    ) : null
-  );
 
   const totalCosts = (costs || []).reduce((sum, c) => sum + Number(c.amount), 0);
 
