@@ -271,12 +271,18 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const bookMontageMutation = useMutation({
     mutationFn: async () => {
       if (!montageDate) throw new Error('Datum krävs');
+      // Saknar ärendet montageteam och inloggad är ett montörsteam: tilldela sig själv.
+      const selfAssign = !caseData.team && !!myTeamQuery.data;
+      const team = selfAssign ? currentUser : (caseData.team ?? null);
+      const check = canEnterStatus('montage_bokat', { ...caseData, team, montage_date: montageDate });
+      if (!check.ok) throw new Error(check.reason || 'Förutsättning saknas');
       await updateCase(caseData.id, {
         montage_date: montageDate,
         montage_time: montageTime || null,
         status: 'montage_bokat',
+        ...(selfAssign ? { team: currentUser } : {}),
       } as any);
-      const desc = `Montage bokat ${montageDate}${montageTime ? ' ' + montageTime : ''} av ${currentUser}`;
+      const desc = `Montage bokat ${montageDate}${montageTime ? ' ' + montageTime : ''} av ${currentUser}${selfAssign ? `. Montage-montör: ${currentUser}` : ''}`;
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'montage_booked',
@@ -291,7 +297,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         metadata: { montage_date: montageDate, montage_time: montageTime || null, case_id: caseData.id },
       });
       await sendMontorAssignmentEmail(
-        { ...caseData, montage_date: montageDate, montage_time: montageTime || null },
+        { ...caseData, team, montage_date: montageDate, montage_time: montageTime || null },
         'montage',
         currentUser,
         { montage_date: montageDate, montage_time: montageTime || null },

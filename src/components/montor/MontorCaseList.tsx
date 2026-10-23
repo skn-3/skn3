@@ -36,14 +36,21 @@ export function MontorCaseList({ cases, unresolvedDeviationCaseIds, onSelect }: 
             <div className="text-sm text-muted-foreground space-y-1">
               <div>{c.customer_name}</div>
               <div className="flex items-center justify-between gap-2">
-                <a
-                  href={`tel:${c.customer_phone}`}
-                  onClick={e => e.stopPropagation()}
-                  className="inline-flex min-h-8 items-center gap-1.5 font-semibold text-primary hover:underline"
-                >
-                  <Phone className="h-3.5 w-3.5" />
-                  {c.customer_phone}
-                </a>
+                {c.customer_phone ? (
+                  <a
+                    href={`tel:${c.customer_phone}`}
+                    onClick={e => e.stopPropagation()}
+                    className="inline-flex min-h-8 items-center gap-1.5 font-semibold text-primary hover:underline"
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                    {c.customer_phone}
+                  </a>
+                ) : (
+                  <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-muted px-3 text-xs font-medium text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5" />
+                    Telefon saknas
+                  </span>
+                )}
                 {hasDeviation && (
                   <Chip tone="warning" icon={<AlertTriangle />}>Öppen reklamation</Chip>
                 )}
