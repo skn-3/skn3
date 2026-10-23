@@ -545,7 +545,7 @@ function CostSheet({
       }
       await createCaseEvent({
         case_id: dev.case_id,
-        event_type: 'deviation_cost',
+        event_type: 'economy',
         description: `Kostnad för reklamation uppdaterad till ${num.toLocaleString('sv-SE')} kr av ${coordinatorName}`,
         created_by: coordinatorName,
       });

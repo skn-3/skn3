@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { fetchCases, type CaseRow } from '@/lib/supabaseClient';
+import { fetchCasesForMontor, fetchCaseByIdForMontor, type CaseRow } from '@/lib/supabaseClient';
 import { type UserRole } from '@/lib/constants';
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { AppHeader } from '@/components/AppHeader';
@@ -46,6 +46,17 @@ function matchesSearch(c: CaseRow, term: string): boolean {
 export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialCaseId, onInitialCaseHandled }: MontorViewProps) {
   const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
+  const listScrollY = useRef(0);
+  const openCase = (c: CaseRow) => {
+    listScrollY.current = window.scrollY;
+    setSelectedCase(c);
+  };
+  // Återställ listans scrollposition när man går tillbaka från ett ärende.
+  useEffect(() => {
+    if (!selectedCase) {
+      requestAnimationFrame(() => window.scrollTo(0, listScrollY.current));
+    }
+  }, [selectedCase]);
   const [activeTab, setActiveTab] = useState<Tab>('alla');
   const [adminFilter, setAdminFilter] = useState<string>('alla');
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,7 +69,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
     if (!initialCaseId) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase.from('cases').select('*').eq('id', initialCaseId).maybeSingle();
+      const { data, error } = await supabase.from('cases_montor').select('*').eq('id', initialCaseId).maybeSingle();
       if (cancelled) return;
       if (error || !data) {
         toast.info('Kunde inte hitta ärendet — kontrollera att du är inloggad som rätt roll');
