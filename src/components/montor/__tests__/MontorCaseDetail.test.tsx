@@ -37,9 +37,14 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 vi.mock('@/lib/supabaseClient', () => ({
   fetchCaseById: async () => caseData,
+  fetchCaseByIdForMontor: async () => caseData,
   fetchCaseEvents: async () => [],
   fetchDeviations: async () => [],
   fetchCaseCosts: async () => [],
+}));
+vi.mock('@/lib/kontrollmatning', () => ({
+  submitKontrollmatning: vi.fn(),
+  fetchPendingLitteror: async () => [],
 }));
 vi.mock('@/lib/activityLog', () => ({ logActivity: vi.fn() }));
 vi.mock('@/lib/openDocument', () => ({
@@ -59,7 +64,7 @@ import { MontorCaseDetail } from '../MontorCaseDetail';
 const caseData = { id: 'case-test', address: 'Testvägen 12', customer_name: 'Testkund', customer_phone: '', status: 'fakturerad', extra_hours_requested: 0 } as CaseRow;
 function renderDetail() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><MemoryRouter><MontorCaseDetail caseData={caseData} currentUser="Test Team" hasUnresolvedDeviation={false} onBack={() => {}} /></MemoryRouter></QueryClientProvider>);
+  return render(<QueryClientProvider client={client}><MemoryRouter><MontorCaseDetail caseData={caseData} currentUser="Test Team" onBack={() => {}} /></MemoryRouter></QueryClientProvider>);
 }
 
 describe('MontorCaseDetail A-order access', () => {

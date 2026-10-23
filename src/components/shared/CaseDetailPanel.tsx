@@ -9,6 +9,7 @@ import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAI
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { isCurrentUserAdmin } from '@/lib/authState';
 import { canEnterStatus } from '@/lib/statusRules';
+import { splitCaseChanges } from '@/lib/caseEvents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -310,12 +311,25 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           await supabase.from('visits').update({ order_value: ov }).eq('id', caseData.visit_id);
         }
 
-        await createCaseEvent({
-          case_id: caseData.id,
-          event_type: 'update',
-          description: `Ärendedata kompletterad efter KM${changes.length ? ': ' + changes.join(', ') : ''}`,
-          created_by: currentUser,
-        });
+        {
+          const split = splitCaseChanges(changes);
+          if (split.update.length > 0) {
+            await createCaseEvent({
+              case_id: caseData.id,
+              event_type: 'update',
+              description: `Ärendedata kompletterad efter KM: ${split.update.join(', ')}`,
+              created_by: currentUser,
+            });
+          }
+          if (split.economy.length > 0) {
+            await createCaseEvent({
+              case_id: caseData.id,
+              event_type: 'economy',
+              description: `Ärendedata kompletterad efter KM: ${split.economy.join(', ')}`,
+              created_by: currentUser,
+            });
+          }
+        }
 
         // Montörmail när montage-montör tilldelas i steget (blockerar inte sparandet).
         const newTeam = (subset.team as string | null) || null;
@@ -358,13 +372,24 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
       // (n3prenad-synken är borttagen — A-ordrar bor lokalt nu.)
 
 
-      if (changes.length > 0) {
-        await createCaseEvent({
-          case_id: caseData.id,
-          event_type: 'update',
-          description: changes.join(', '),
-          created_by: currentUser,
-        });
+      {
+        const split = splitCaseChanges(changes);
+        if (split.update.length > 0) {
+          await createCaseEvent({
+            case_id: caseData.id,
+            event_type: 'update',
+            description: split.update.join(', '),
+            created_by: currentUser,
+          });
+        }
+        if (split.economy.length > 0) {
+          await createCaseEvent({
+            case_id: caseData.id,
+            event_type: 'economy',
+            description: split.economy.join(', '),
+            created_by: currentUser,
+          });
+        }
       }
     },
     onSuccess: () => {

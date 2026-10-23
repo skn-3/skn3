@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseById, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseByIdForMontor, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
@@ -20,6 +20,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 import { SignedImage } from '@/components/shared/SignedImage';
 import { MontorLitteraSection } from '@/components/montor/MontorLitteraSection';
+import { submitKontrollmatning, fetchPendingLitteror } from '@/lib/kontrollmatning';
 import { aOrderPdfName, invoicePdfName, creditPdfName } from '@/lib/pdfNames';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { CostPayoutChip } from '@/components/shared/CostPayoutChip';
@@ -27,7 +28,6 @@ import { CostPayoutChip } from '@/components/shared/CostPayoutChip';
 interface Props {
   caseData: CaseRow;
   currentUser: string;
-  hasUnresolvedDeviation: boolean;
   onBack: () => void;
 }
 
@@ -37,7 +37,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
   const { data: liveCaseData } = useQuery({
     queryKey: ['case', initialCaseData.id],
-    queryFn: () => fetchCaseById(initialCaseData.id),
+    queryFn: () => fetchCaseByIdForMontor(initialCaseData.id),
     initialData: initialCaseData,
   });
   const caseData = liveCaseData ?? initialCaseData;
@@ -78,6 +78,14 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     queryFn: () => fetchCaseCosts(caseData.id),
   });
 
+  // Ej inskickade littera — avgör om "Rapportera KM klar" även skickar in mätningen.
+  const { data: litteraRows } = useQuery({
+    queryKey: ['litteror', caseData.id],
+    queryFn: () => fetchPendingLitteror(caseData.id),
+    enabled: caseData.status === 'km_bokad',
+  });
+  const pendingLittera = (litteraRows ?? []).filter((r) => r.cm_status === 'ej_paborjad' || r.cm_status === 'justerad');
+
   // Montörens eget team (profilnamn = teamnamn). Admin som tittar i montörvyn har inget team och ser då alla ordrar på ärendet.
   const myTeamQuery = useQuery({
     queryKey: ['montor-team', currentUser],
@@ -115,17 +123,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     queryClient.invalidateQueries({ queryKey: ['case_costs', caseData.id] });
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, setter: (files: File[]) => void, current: File[]) => {
-    const files = Array.from(e.target.files || []);
-    const allowed = files.filter(f => /\.(jpe?g|png|heic)$/i.test(f.name));
-    const combined = [...current, ...allowed].slice(0, 5);
-    setter(combined);
-    e.target.value = '';
-  };
+  // Kvittobildens förhandsvisnings-URL skapas en gång per fil och frigörs vid byte.
+  const costFileUrl = useMemo(() => (costFile ? URL.createObjectURL(costFile) : null), [costFile]);
+  useEffect(() => {
+    return () => { if (costFileUrl) URL.revokeObjectURL(costFileUrl); };
+  }, [costFileUrl]);
 
-  const removeFile = (index: number, setter: (files: File[]) => void, current: File[]) => {
-    setter(current.filter((_, i) => i !== index));
-  };
 
 
   const klarMutation = useMutation({
@@ -226,6 +229,16 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
   const kmReportMutation = useMutation({
     mutationFn: async () => {
+      // Ett enda KM-klar-flöde: ej inskickade littera skickas in samtidigt.
+      if (pendingLittera.length > 0) {
+        await submitKontrollmatning({
+          caseId: caseData.id,
+          rows: litteraRows ?? [],
+          currentUser,
+          caseAddress: caseData.address,
+          customerName: caseData.customer_name,
+        });
+      }
       const hrs = Number(extraHoursReq);
       const newStatus = hrs > 0 ? 'vantar_godkannande' : 'km_klar';
       await updateCase(caseData.id, { status: newStatus, extra_hours_requested: hrs });
@@ -277,12 +290,18 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const bookMontageMutation = useMutation({
     mutationFn: async () => {
       if (!montageDate) throw new Error('Datum krävs');
+      // Saknar ärendet montageteam och inloggad är ett montörsteam: tilldela sig själv.
+      const selfAssign = !caseData.team && !!myTeamQuery.data;
+      const team = selfAssign ? currentUser : (caseData.team ?? null);
+      const check = canEnterStatus('montage_bokat', { ...caseData, team, montage_date: montageDate });
+      if (!check.ok) throw new Error(check.reason || 'Förutsättning saknas');
       await updateCase(caseData.id, {
         montage_date: montageDate,
         montage_time: montageTime || null,
         status: 'montage_bokat',
+        ...(selfAssign ? { team: currentUser } : {}),
       } as any);
-      const desc = `Montage bokat ${montageDate}${montageTime ? ' ' + montageTime : ''} av ${currentUser}`;
+      const desc = `Montage bokat ${montageDate}${montageTime ? ' ' + montageTime : ''} av ${currentUser}${selfAssign ? `. Montage-montör: ${currentUser}` : ''}`;
       await createCaseEvent({
         case_id: caseData.id,
         event_type: 'montage_booked',
@@ -297,7 +316,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         metadata: { montage_date: montageDate, montage_time: montageTime || null, case_id: caseData.id },
       });
       await sendMontorAssignmentEmail(
-        { ...caseData, montage_date: montageDate, montage_time: montageTime || null },
+        { ...caseData, team, montage_date: montageDate, montage_time: montageTime || null },
         'montage',
         currentUser,
         { montage_date: montageDate, montage_time: montageTime || null },
@@ -453,24 +472,6 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   });
 
 
-  const FileThumbnails = ({ files, setter }: { files: File[]; setter: (f: File[]) => void }) => (
-    files.length > 0 ? (
-      <div className="flex gap-2 flex-wrap mt-2">
-        {files.map((f, i) => (
-          <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border">
-            <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
-            <button
-              onClick={() => removeFile(i, setter, files)}
-              className="absolute top-0 right-0 bg-black/60 text-white rounded-bl-lg p-0.5"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-        ))}
-      </div>
-    ) : null
-  );
-
   const totalCosts = (costs || []).reduce((sum, c) => sum + Number(c.amount), 0);
 
   return (
@@ -493,10 +494,17 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <div className="text-sm space-y-1">
             <div className="font-medium">{caseData.customer_name}</div>
             <div className="flex items-center gap-2">
-              <a href={`tel:${caseData.customer_phone}`} className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground rounded-full px-4 py-2 text-sm font-medium min-h-[48px]">
-                <Phone className="h-4 w-4" />
-                {caseData.customer_phone}
-              </a>
+              {caseData.customer_phone ? (
+                <a href={`tel:${caseData.customer_phone}`} className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground rounded-full px-4 py-2 text-sm font-medium min-h-[48px]">
+                  <Phone className="h-4 w-4" />
+                  {caseData.customer_phone}
+                </a>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 bg-muted text-muted-foreground rounded-full px-4 py-2 text-sm font-medium min-h-[48px]">
+                  <Phone className="h-4 w-4" />
+                  Telefon saknas
+                </span>
+              )}
             </div>
             {caseData.customer_email && <div className="text-muted-foreground">{caseData.customer_email}</div>}
             <div className="text-muted-foreground">{caseData.address}</div>
@@ -566,6 +574,11 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               <Button disabled={kmReportMutation.isPending} onClick={() => kmReportMutation.mutate()} className="min-h-[48px] w-full">
                 {kmReportMutation.isPending ? 'Sparar...' : 'Rapportera KM klar'}
               </Button>
+              {pendingLittera.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Kontrollmätningen ({pendingLittera.length} littera) skickas in samtidigt.
+                </p>
+              )}
             </div>
           )}
 
@@ -645,7 +658,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                 {caseData.extra_hours_approved > 0 ? (
                   <span className="font-medium text-green-600 dark:text-green-400">Godkända ({caseData.extra_hours_approved} st)</span>
                 ) : caseData.status === 'vantar_godkannande' ? (
-                  <span className="font-medium" style={{ color: '#D97706' }}>Väntar på godkännande</span>
+                  <span className="font-medium text-warning-ink">Väntar på godkännande</span>
                 ) : (
                   <span className="font-medium text-muted-foreground">Avslagna</span>
                 )}
@@ -976,7 +989,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               </label>
               {costFile && (
                 <div className="relative w-16 h-16 rounded-lg overflow-hidden border mt-2">
-                  <img src={URL.createObjectURL(costFile)} alt="" className="w-full h-full object-cover" />
+                  {costFileUrl && <img src={costFileUrl} alt="" className="w-full h-full object-cover" />}
                   <button onClick={() => setCostFile(null)} className="absolute top-0 right-0 bg-black/60 text-white rounded-bl-lg p-0.5">
                     <X className="h-3 w-3" />
                   </button>

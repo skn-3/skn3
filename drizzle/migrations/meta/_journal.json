@@ -162,6 +162,13 @@
       "when": 1792754264186,
       "tag": "0022_0022_service_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792757321845,
+      "tag": "0023_0023_cases_montor_view_and_economy_events",
+      "breakpoints": true
     }
   ]
 }

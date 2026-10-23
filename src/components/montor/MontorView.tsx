@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { fetchCases, type CaseRow } from '@/lib/supabaseClient';
+import { fetchCasesForMontor, fetchCaseByIdForMontor, type CaseRow } from '@/lib/supabaseClient';
 import { type UserRole } from '@/lib/constants';
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { AppHeader } from '@/components/AppHeader';
@@ -46,6 +46,17 @@ function matchesSearch(c: CaseRow, term: string): boolean {
 export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialCaseId, onInitialCaseHandled }: MontorViewProps) {
   const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
+  const listScrollY = useRef(0);
+  const openCase = (c: CaseRow) => {
+    listScrollY.current = window.scrollY;
+    setSelectedCase(c);
+  };
+  // Återställ listans scrollposition när man går tillbaka från ett ärende.
+  useEffect(() => {
+    if (!selectedCase) {
+      requestAnimationFrame(() => window.scrollTo(0, listScrollY.current));
+    }
+  }, [selectedCase]);
   const [activeTab, setActiveTab] = useState<Tab>('alla');
   const [adminFilter, setAdminFilter] = useState<string>('alla');
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,7 +69,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
     if (!initialCaseId) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase.from('cases').select('*').eq('id', initialCaseId).maybeSingle();
+      const { data, error } = await supabase.from('cases_montor').select('*').eq('id', initialCaseId).maybeSingle();
       if (cancelled) return;
       if (error || !data) {
         toast.info('Kunde inte hitta ärendet — kontrollera att du är inloggad som rätt roll');
@@ -101,32 +112,29 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   // Fetch all + filter client-side (server-side .eq can't OR).
   const { data: allCases, isLoading } = useQuery({
     queryKey: ['cases', 'montor', isAdmin ? 'admin' : role.name],
-    queryFn: () => fetchCases({}),
+    queryFn: fetchCasesForMontor,
   });
   const cases = useMemo(() => {
     if (isAdmin) return allCases || [];
     return (allCases || []).filter(c => c.team === role.name || (c as any).km_team === role.name);
   }, [allCases, isAdmin, role.name]);
 
-  // Fetch all deviations for cases
-  const caseIds = useMemo(() => (cases || []).map(c => c.id), [cases]);
+  // Olösta avvikelser — RLS begränsar montören till egna ärenden, admin får alla.
   const { data: allDeviations } = useQuery({
-    queryKey: ['deviations_bulk', caseIds],
+    queryKey: ['deviations_bulk', 'unresolved', isAdmin ? 'admin' : role.name],
     queryFn: async () => {
-      if (caseIds.length === 0) return [];
       const { data, error } = await supabase
         .from('deviations')
-        .select('*')
-        .in('case_id', caseIds);
+        .select('case_id')
+        .eq('resolved', false);
       if (error) throw error;
       return data;
     },
-    enabled: caseIds.length > 0,
   });
 
   const unresolvedDeviationCaseIds = useMemo(() => {
     const set = new Set<string>();
-    (allDeviations || []).forEach(d => { if (!d.resolved) set.add(d.case_id); });
+    (allDeviations || []).forEach(d => { if (d.case_id) set.add(d.case_id); });
     return set;
   }, [allDeviations]);
 
@@ -182,9 +190,12 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   ];
 
   async function openCaseById(id: string) {
-    const { data, error } = await supabase.from('cases').select('*').eq('id', id).maybeSingle();
-    if (error || !data) { toast.error('Kunde inte öppna ärendet'); return; }
-    setSelectedCase(data as CaseRow);
+    try {
+      const data = await fetchCaseByIdForMontor(id);
+      openCase(data);
+    } catch {
+      toast.error('Kunde inte öppna ärendet');
+    }
   }
 
   if (selectedCase) {
@@ -192,7 +203,6 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
       <MontorCaseDetail
         caseData={selectedCase}
         currentUser={isAdmin ? role.name : role.name}
-        hasUnresolvedDeviation={unresolvedDeviationCaseIds.has(selectedCase.id)}
         onBack={() => setSelectedCase(null)}
       />
     );
@@ -237,7 +247,6 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Sök ärenden..."
               className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              autoFocus
             />
             {searchTerm && (
               <button
@@ -284,7 +293,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
         {activeTab === 'uppdrag' ? (
           <MontorOrdersList myTeamName={role.name} adminFilter={isAdmin ? adminFilter : 'alla'} onOpenCase={openCaseById} />
         ) : activeTab === 'kalender' ? (
-          <CalendarView onSelectCase={setSelectedCase} />
+          <CalendarView source="cases_montor" onSelectCase={openCase} />
         ) : isLoading ? (
           <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : filtered.length === 0 ? (
@@ -293,7 +302,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
           <MontorCaseList
             cases={filtered}
             unresolvedDeviationCaseIds={unresolvedDeviationCaseIds}
-            onSelect={setSelectedCase}
+            onSelect={openCase}
           />
         )}
       </main>
