@@ -18,7 +18,7 @@ import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { aOrderPdfName } from '@/lib/pdfNames';
 import { lineAmount } from '@/lib/invoiceMath';
 import { SignedImage } from '@/components/shared/SignedImage';
-import { HOUR_RATE } from '@/lib/constants';
+import { HOUR_RATE, STATUS_LABELS } from '@/lib/constants';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
 import { CoupleAOrderDialog } from '@/components/aorders/CoupleAOrderDialog';
 import { UnhandledCostsBlock } from '@/components/aorders/UnhandledCostsBlock';
@@ -221,9 +221,10 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const { data: kompCases = [] } = useQuery({
     queryKey: ['cases_for_komp'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from('cases').select('id, address, customer_name').order('address');
+      // Alla ärenden oavsett status (efterarbete sker ofta hos kunder vars montage är klart).
+      const { data, error } = await (supabase as any).from('cases').select('id, address, customer_name, status').order('address').limit(5000);
       if (error) throw error;
-      return data as any[];
+      return (data as any[]).map(c => ({ ...c, statusLabel: STATUS_LABELS[c.status] ?? c.status ?? null }));
     },
     enabled: open && isSlim,
   });
@@ -403,7 +404,9 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         toast.success(isService ? (isEdit ? 'Serviceorder uppdaterad' : 'Serviceorder sparad') : isEdit ? 'A-order uppdaterad' : (teamId && teamId !== '__none__' ? 'A-order sparad' : 'A-order sparad som utestående'));
       }
       // Trigger koppling-dialog (en gång per A-order)
-      if (orderId && !coupledHandled) {
+      // Kopplingsdialogen hör bara till montage-A-ordrar (den flyttar ärendet till Montage bokat).
+      // Serviceordrar kopplas via case_id i formuläret och ändrar aldrig ärendets status.
+      if (orderId && !coupledHandled && !isService) {
         const selTeam = teams.find((t: any) => t.id === teamId);
         setCouplingFor({
           aOrderId: orderId,
@@ -415,6 +418,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         });
       }
       onSaved?.();
+      if (isService && !opts?.silent) onOpenChange(false);
       return orderId || null;
     } catch (e: any) {
       console.error(e);
@@ -493,7 +497,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       setConfirmSend(false);
       onSaved?.();
       // Stäng inte sheet om kopplingsdialog ska visas — den stänger via onDone.
-      if (coupledHandled) onOpenChange(false);
+      if (coupledHandled || isService) onOpenChange(false);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Kunde inte skicka');
