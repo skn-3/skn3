@@ -134,7 +134,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
 
   const unresolvedDeviationCaseIds = useMemo(() => {
     const set = new Set<string>();
-    (allDeviations || []).forEach(d => { if (!d.resolved) set.add(d.case_id); });
+    (allDeviations || []).forEach(d => { if (d.case_id) set.add(d.case_id); });
     return set;
   }, [allDeviations]);
 
