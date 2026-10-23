@@ -208,7 +208,7 @@ function FullEvent({ event }: { event: CalEvent }) {
   return <span className={cn('truncate', type === 'montage' && 'font-semibold')}>{event.title}</span>;
 }
 
-export function CalendarView({ onSelectCase }: CalendarViewProps) {
+export function CalendarView({ onSelectCase, source = 'cases' }: CalendarViewProps) {
   const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
   const [view, setView] = useState<View>(isMobile ? Views.AGENDA : Views.MONTH);
