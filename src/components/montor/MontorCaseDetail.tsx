@@ -720,8 +720,8 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   : o.invoice_sent_at
                   ? `Fakturerad ${o.invoice_number ?? ''}`.trim()
                   : o.order_sent_at
-                  ? 'A-order skickad'
-                  : 'A-order skapad';
+                  ? `${o.order_kind === 'service' ? 'Serviceorder' : 'A-order'} skickad`
+                  : `${o.order_kind === 'service' ? 'Serviceorder' : 'A-order'} skapad`;
                 const openPdf = async (path: string, name: string) => {
                   const ok = await openDocumentInNewTab(async () => {
                     const { data } = await supabase.storage.from('case-documents').createSignedUrl(path, 600, { download: name });
@@ -734,7 +734,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   <div key={o.id} className="rounded-lg border p-3 text-sm space-y-2">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="font-medium">{isCreditNote ? 'Kreditfaktura' : 'A-order'} #{o.order_number ?? '—'}</div>
+                        <div className="font-medium">{isCreditNote ? 'Kreditfaktura' : o.order_kind === 'service' ? 'Serviceorder' : 'A-order'} #{o.order_number ?? '—'}</div>
                         <div className="text-xs text-muted-foreground">
                           {o.date || (o.created_at ? new Date(o.created_at).toLocaleDateString('sv-SE') : '')} · {statusLabel}
                         </div>
@@ -754,7 +754,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                         <>
                           {o.order_sent_at && (
                             <Button size="sm" variant="outline" onClick={() => openPdf(`a-orders/${o.id}.pdf`, aOrderPdfName(o))}>
-                              <FileText className="h-4 w-4 mr-1" /> A-order PDF
+                              <FileText className="h-4 w-4 mr-1" /> {o.order_kind === 'service' ? 'Serviceorder PDF' : 'A-order PDF'}
                             </Button>
                           )}
                           {o.invoice_sent_at && o.pdf_path && (
