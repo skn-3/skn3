@@ -1,42 +1,18 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { buildHtml, invoiceEmailData } from './email.ts';
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
 const COPY_TO = 'n3prenad@smartklimat.org';
 const ARCHIVE_CC = 'inbox.ver.1638171@arkivplats.se';
 
-function buildHtml(opts: { kindLabel: string; invoiceNo: string; customerName: string; title: string; logoUrl: string; downloadUrl?: string }): string {
-  return `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;"><tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-<tr><td style="background:#22C55E;padding:20px 28px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td style="vertical-align:middle;width:40px;"><img src="${opts.logoUrl}" alt="SmartKlimat" width="36" height="36" style="display:block;border-radius:50%;background:#fff;padding:3px;"/></td>
-<td style="vertical-align:middle;padding-left:12px;color:#fff;font-size:20px;font-weight:bold;">SmartKlimat N3prenad</td>
-</tr></table></td></tr>
-<tr><td style="padding:28px 28px 8px;"><h1 style="margin:0;font-size:22px;color:#1a1a1a;">${opts.kindLabel} ${opts.invoiceNo}</h1></td></tr>
-<tr><td style="padding:8px 28px 12px;">
-<p style="margin:0 0 12px;">Hej ${opts.customerName},</p>
-<p style="margin:0 0 12px;">Bifogat finner du ${opts.kindLabel.toLowerCase()} avseende <strong>${opts.title}</strong>.</p>
-${opts.downloadUrl ? `<p style="margin:0 0 12px;"><a href="${opts.downloadUrl}" style="color:#15803D;">Ladda ner fakturan (PDF)</a></p>` : ''}
-<p style="margin:0 0 12px;">Betalningsvillkor 10 dagar netto. Bankgiro 5032-4573.</p>
-<p style="margin:0;">Har du frågor? Svara på detta mejl eller ring 070-719 72 35.</p>
-</td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #f0f0f0;"><p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">SmartKlimat N3prenad AB · n3prenad@smartklimat.org</p></td></tr>
-</table></td></tr></table></body></html>`;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
@@ -46,7 +22,7 @@ Deno.serve(async (req) => {
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, {
+    const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
       global: { headers: { Authorization: authHeader } },
     });
     const token = authHeader.replace('Bearer ', '');
@@ -96,20 +72,18 @@ Deno.serve(async (req) => {
     }
     const base64 = btoa(binary);
 
-    // Signed URL fallback (30 days)
-    const { data: signed } = await admin.storage.from('case-documents').createSignedUrl(pdfPath, 60 * 60 * 24 * 30);
-
+    const { data: offer, error: offerErr } = uppdrag.offer_id
+      ? await admin.from('offers').select('offer_number, handpenning_percent, vat_mode').eq('id', uppdrag.offer_id).maybeSingle()
+      : { data: null, error: null };
+    if (offerErr) throw offerErr;
+    const email = invoiceEmailData(uppdrag, offer || {}, kind, invoiceNo);
+    const filename = email.attachmentName;
+    // Signed URL fallback (30 days), using the same logical name as the attachment.
+    const { data: signed } = await admin.storage.from('case-documents').createSignedUrl(pdfPath, 60 * 60 * 24 * 30, { download: filename });
     const envUrl = Deno.env.get('PUBLIC_APP_URL') || 'https://smartklimatentreprenad.com';
-    const logoUrl = `${envUrl.replace(/\/$/, '')}/logo.png`;
-    const kindLabel = kind === 'handpenning' ? 'Handpenningsfaktura' : 'Slutfaktura';
-    const filename = `${kindLabel}-${invoiceNo}.pdf`;
-
     const html = buildHtml({
-      kindLabel,
-      invoiceNo,
-      customerName: uppdrag.customer_name || 'kund',
-      title: uppdrag.title || '',
-      logoUrl,
+      ...email,
+      logoUrl: `${envUrl.replace(/\/$/, '')}/brand/logo-stamp-vit-n3.png`,
       downloadUrl: signed?.signedUrl,
     });
 
@@ -118,7 +92,7 @@ Deno.serve(async (req) => {
       reply_to: 'n3prenad@smartklimat.org',
       to: [recipient],
       cc: [COPY_TO, ARCHIVE_CC],
-      subject: `Faktura ${invoiceNo} – ${uppdrag.title || ''}`.trim(),
+      subject: `${email.kindLabel} ${invoiceNo} – SmartKlimat N3prenad`,
       html,
       attachments: [{ filename, content: base64 }],
     };

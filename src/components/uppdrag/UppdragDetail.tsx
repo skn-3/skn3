@@ -38,9 +38,11 @@ type Uppdrag = {
   handpenning_invoice_no: string | null;
   handpenning_pdf_path: string | null;
   handpenning_sent_at: string | null;
+  handpenning_invoice_date: string | null;
   slutfaktura_invoice_no: string | null;
   slutfaktura_pdf_path: string | null;
   slutfaktura_sent_at: string | null;
+  slutfaktura_invoice_date: string | null;
   paid_at: string | null;
 };
 
@@ -104,16 +106,18 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
         if (oErr) throw oErr;
         offer = data;
       }
-      const blob = await buildHandpenningPdfBlob(u, offer || {}, { invoiceNo: hpNo.trim() });
+      const invoiceDate = new Date();
+      const date = invoiceDate.toISOString().slice(0, 10);
+      const blob = await buildHandpenningPdfBlob(u, offer || {}, { invoiceNo: hpNo.trim(), invoiceDate });
       const path = `invoices/${u.id}-handpenning.pdf`;
       const { error: upErr } = await supabase.storage.from('case-documents').upload(path, blob, { upsert: true, contentType: 'application/pdf' });
       if (upErr) throw upErr;
       const { error: dbErr } = await (supabase as any).from('uppdrag').update({
-        handpenning_pdf_path: path, handpenning_invoice_no: hpNo.trim(),
+        handpenning_pdf_path: path, handpenning_invoice_no: hpNo.trim(), handpenning_invoice_date: date,
       }).eq('id', u.id);
       if (dbErr) throw dbErr;
       await refresh();
-      await openSigned(path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'handpenning', hpNo.trim()));
+      await openSigned(path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'handpenning', hpNo.trim(), date));
       toast.success('Handpenningsfaktura genererad');
     } catch (e: any) {
       console.error(e); toast.error(e?.message || 'Kunde inte generera PDF');
@@ -129,16 +133,18 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
     try {
       const { data: offer, error: oErr } = await (supabase as any).from('offers').select('line_items, rot_base, rot_percent, offer_number, vat_mode, handpenning_percent, payment_terms').eq('id', u.offer_id).maybeSingle();
       if (oErr) throw oErr;
-      const blob = await buildSlutfakturaPdfBlob(u, offer || {}, { invoiceNo: sfNo.trim() });
+      const invoiceDate = new Date();
+      const date = invoiceDate.toISOString().slice(0, 10);
+      const blob = await buildSlutfakturaPdfBlob(u, offer || {}, { invoiceNo: sfNo.trim(), invoiceDate });
       const path = `invoices/${u.id}-slutfaktura.pdf`;
       const { error: upErr } = await supabase.storage.from('case-documents').upload(path, blob, { upsert: true, contentType: 'application/pdf' });
       if (upErr) throw upErr;
       const { error: dbErr } = await (supabase as any).from('uppdrag').update({
-        slutfaktura_pdf_path: path, slutfaktura_invoice_no: sfNo.trim(),
+        slutfaktura_pdf_path: path, slutfaktura_invoice_no: sfNo.trim(), slutfaktura_invoice_date: date,
       }).eq('id', u.id);
       if (dbErr) throw dbErr;
       await refresh();
-      await openSigned(path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'slutfaktura', sfNo.trim()));
+      await openSigned(path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'slutfaktura', sfNo.trim(), date));
       toast.success('Slutfaktura genererad');
     } catch (e: any) {
       console.error(e); toast.error(e?.message || 'Kunde inte generera PDF');
@@ -248,7 +254,7 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
               </div>
               <div className="flex items-center gap-3">
                 {u.handpenning_pdf_path && (
-                  <button type="button" onClick={() => u.handpenning_pdf_path && openSigned(u.handpenning_pdf_path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'handpenning', u.handpenning_invoice_no, u.handpenning_sent_at))} className="text-xs text-primary hover:underline">
+                  <button type="button" onClick={() => u.handpenning_pdf_path && openSigned(u.handpenning_pdf_path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'handpenning', u.handpenning_invoice_no, u.handpenning_invoice_date || u.handpenning_sent_at))} className="text-xs text-primary hover:underline">
                     Visa PDF
                   </button>
                 )}
@@ -286,7 +292,7 @@ export function UppdragDetail({ uppdragId, onClose }: Props) {
               </div>
               <div className="flex items-center gap-3">
                 {u.slutfaktura_pdf_path && (
-                  <button type="button" onClick={() => u.slutfaktura_pdf_path && openSigned(u.slutfaktura_pdf_path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'slutfaktura', u.slutfaktura_invoice_no, u.slutfaktura_sent_at))} className="text-xs text-primary hover:underline">
+                  <button type="button" onClick={() => u.slutfaktura_pdf_path && openSigned(u.slutfaktura_pdf_path, uppdragInvoicePdfName({ ...u, address: u.customer_address }, 'slutfaktura', u.slutfaktura_invoice_no, u.slutfaktura_invoice_date || u.slutfaktura_sent_at))} className="text-xs text-primary hover:underline">
                     Visa PDF
                   </button>
                 )}
