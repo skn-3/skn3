@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { HOUR_RATE } from '@/lib/constants';
+import { serviceOrderPrefillFromInvoice } from '@/lib/serviceOrder';
 
 interface Parsed {
   invoice_number: string | null;
@@ -24,6 +25,8 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onPrefillReady: (prefill: any) => void;
+  /** 'service' fyller en öppen serviceorder (se serviceOrderPrefillFromInvoice) */
+  variant?: 'a-order' | 'service';
 }
 
 const norm = (s: string | null | undefined) =>
@@ -46,7 +49,8 @@ async function fileToBase64(file: File): Promise<string> {
   });
 }
 
-export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillReady }: Props) {
+export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillReady, variant = 'a-order' }: Props) {
+  const isService = variant === 'service';
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [parsing, setParsing] = useState(false);
@@ -90,6 +94,13 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
         .eq('mockfjards_invoice_number', p.invoice_number)
         .limit(1);
       if (dups && dups.length) dupNum = dups[0].order_number ?? null;
+    }
+
+    if (isService) {
+      const { data: teamRows } = await (supabase as any).from('montor_teams').select('id, invoice_prefix');
+      setPendingPrefill(serviceOrderPrefillFromInvoice(p, teamRows ?? []));
+      if (dupNum !== null) setDuplicate({ orderNumber: dupNum });
+      return;
     }
 
     // Case match by order_number
@@ -149,7 +160,7 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
     <>
       <Dialog open={open} onOpenChange={v => { if (!v) reset(); onOpenChange(v); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Skapa A-order från Mockfjärds-faktura</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{isService ? 'Fyll serviceordern från Mockfjärds-faktura' : 'Skapa A-order från Mockfjärds-faktura'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
@@ -189,7 +200,7 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
               </Button>
             )}
             {parsed && !duplicate && (
-              <Button onClick={proceed} className="gap-2">Öppna A-order</Button>
+              <Button onClick={proceed} className="gap-2">{isService ? 'Fyll i serviceordern' : 'Öppna A-order'}</Button>
             )}
           </DialogFooter>
         </DialogContent>
@@ -200,12 +211,12 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
           <AlertDialogHeader>
             <AlertDialogTitle>Dubblettvarning</AlertDialogTitle>
             <AlertDialogDescription>
-              Faktura {parsed?.invoice_number} är redan inläst{duplicate?.orderNumber ? ` (A-order #${duplicate.orderNumber})` : ''}.
+              Faktura {parsed?.invoice_number} är redan inläst{duplicate?.orderNumber ? ` (order #${duplicate.orderNumber})` : ''}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setDuplicate(null)}>Avbryt</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setDuplicate(null); proceed(); }}>Skapa ändå</AlertDialogAction>
+            <AlertDialogAction onClick={() => { setDuplicate(null); proceed(); }}>{isService ? 'Fortsätt ändå' : 'Skapa ändå'}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
