@@ -229,6 +229,16 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
   const kmReportMutation = useMutation({
     mutationFn: async () => {
+      // Ett enda KM-klar-flöde: ej inskickade littera skickas in samtidigt.
+      if (pendingLittera.length > 0) {
+        await submitKontrollmatning({
+          caseId: caseData.id,
+          rows: litteraRows ?? [],
+          currentUser,
+          caseAddress: caseData.address,
+          customerName: caseData.customer_name,
+        });
+      }
       const hrs = Number(extraHoursReq);
       const newStatus = hrs > 0 ? 'vantar_godkannande' : 'km_klar';
       await updateCase(caseData.id, { status: newStatus, extra_hours_requested: hrs });
@@ -564,6 +574,11 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               <Button disabled={kmReportMutation.isPending} onClick={() => kmReportMutation.mutate()} className="min-h-[48px] w-full">
                 {kmReportMutation.isPending ? 'Sparar...' : 'Rapportera KM klar'}
               </Button>
+              {pendingLittera.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Kontrollmätningen ({pendingLittera.length} littera) skickas in samtidigt.
+                </p>
+              )}
             </div>
           )}
 
