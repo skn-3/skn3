@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Fakturamejl egna uppdrag: fakturadatum, levererad mejlmall, gemensamma filnamn, tester och driftsättning utan publicering.
+
 - [x] Drive-säkerhet: hård läsa/skapa-spärr, vakttest, admintext och bestående regel; 156 tester gröna, bygge OK, funktionen utlagd och mappåtkomst verifierad utan apppublicering.
 
 - [x] Drive-synk: mappregler, dokumenturval, dubblettskydd och gemensamma PDF-namn.

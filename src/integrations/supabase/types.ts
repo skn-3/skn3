@@ -2116,6 +2116,7 @@ export type Database = {
           done_date: string | null
           fastighetsbeteckning: string | null
           handpenning_amount: number | null
+          handpenning_invoice_date: string | null
           handpenning_invoice_no: string | null
           handpenning_pdf_path: string | null
           handpenning_sent_at: string | null
@@ -2128,6 +2129,7 @@ export type Database = {
           revenue_incl_vat: number | null
           rot_amount: number | null
           slutfaktura_amount: number | null
+          slutfaktura_invoice_date: string | null
           slutfaktura_invoice_no: string | null
           slutfaktura_pdf_path: string | null
           slutfaktura_sent_at: string | null
@@ -2151,6 +2153,7 @@ export type Database = {
           done_date?: string | null
           fastighetsbeteckning?: string | null
           handpenning_amount?: number | null
+          handpenning_invoice_date?: string | null
           handpenning_invoice_no?: string | null
           handpenning_pdf_path?: string | null
           handpenning_sent_at?: string | null
@@ -2163,6 +2166,7 @@ export type Database = {
           revenue_incl_vat?: number | null
           rot_amount?: number | null
           slutfaktura_amount?: number | null
+          slutfaktura_invoice_date?: string | null
           slutfaktura_invoice_no?: string | null
           slutfaktura_pdf_path?: string | null
           slutfaktura_sent_at?: string | null
@@ -2186,6 +2190,7 @@ export type Database = {
           done_date?: string | null
           fastighetsbeteckning?: string | null
           handpenning_amount?: number | null
+          handpenning_invoice_date?: string | null
           handpenning_invoice_no?: string | null
           handpenning_pdf_path?: string | null
           handpenning_sent_at?: string | null
@@ -2198,6 +2203,7 @@ export type Database = {
           revenue_incl_vat?: number | null
           rot_amount?: number | null
           slutfaktura_amount?: number | null
+          slutfaktura_invoice_date?: string | null
           slutfaktura_invoice_no?: string | null
           slutfaktura_pdf_path?: string | null
           slutfaktura_sent_at?: string | null
