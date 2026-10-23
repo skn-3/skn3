@@ -10,3 +10,4 @@ Keep payout grouping, explicit inclusion, totals and per-team invoice plans in p
 In installer submit flows, create the primary row first and treat later steps (events, logging, image uploads) as non-fatal, with duplicate detection in deviationDedup; a late failure must never invite a retry that duplicates the submission.
 - Only case_documents with payout_kind='montage' mean the installation is paid (classification and paid-date maps live in src/lib/payoutKind.ts); KM/extra payouts are already self-billed and must never trigger installer-invoicing prompts.
 - Consultants' own pay view (Min lön) reads only through the consultant-self function and preview action; PDFs reach them solely via short-lived signed URLs, never direct storage access.
+- Service orders are a_orders rows with order_kind='service' (payer, mockfjards_order_number) and reuse the whole A-order invoice/PDF/Drive flow; prefill logic lives in src/lib/serviceOrder.ts so it stays testable.
