@@ -35,7 +35,7 @@ function richToHtml(input: string): string {
   }).join('<br/>');
 }
 
-function buildHtml(opts: { orderNo: string; address: string; customerName?: string; phone?: string; description?: string }) {
+function buildHtml(opts: { kindLabel: string; orderNo: string; address: string; customerName?: string; phone?: string; description?: string }) {
   const desc = opts.description?.trim()
     ? `<p style="white-space:pre-wrap;margin:8px 0 0;">${richToHtml(opts.description)}</p>`
     : '';
@@ -44,7 +44,7 @@ function buildHtml(opts: { orderNo: string; address: string; customerName?: stri
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
 <tr><td style="padding:24px 28px 8px;">
-<h1 style="margin:0 0 8px;font-size:22px;color:#22C55E;">A-ORDER ${esc(opts.orderNo)}</h1>
+<h1 style="margin:0 0 8px;font-size:22px;color:#22C55E;">${esc(opts.kindLabel)} ${esc(opts.orderNo)}</h1>
 <div style="font-size:18px;font-weight:bold;color:#1a1a1a;">${esc(opts.address)}</div>
 </td></tr>
 <tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;"/></td></tr>
@@ -92,7 +92,8 @@ Deno.serve(async (req) => {
 
     const addrSafe = sanitizeFilename(order.customer_address || 'adress');
     const orderNo = String(order.order_number ?? '');
-    const filename = attachmentPdfName(file_name, `A-ORDER-${orderNo}-${addrSafe}.pdf`);
+    const kindLabel = (order as any).order_kind === 'service' ? 'SERVICEORDER' : 'A-ORDER';
+    const filename = attachmentPdfName(file_name, `${kindLabel}-${orderNo}-${addrSafe}.pdf`);
 
     // Save PDF to storage
     const pdfBytes = Uint8Array.from(atob(pdf_base64), c => c.charCodeAt(0));
@@ -118,6 +119,7 @@ Deno.serve(async (req) => {
     }
 
     const html = buildHtml({
+      kindLabel,
       orderNo,
       address: order.customer_address || '',
       customerName: order.customer_name || '',
@@ -130,7 +132,7 @@ Deno.serve(async (req) => {
       reply_to: 'n3prenad@smartklimat.org',
       to: [team.email],
       cc: ['n3prenad@smartklimat.org', 'daniel@malke.se'],
-      subject: `A-ORDER ${orderNo} — ${order.customer_address || ''}`.trim(),
+      subject: `${kindLabel} ${orderNo} — ${order.customer_address || ''}`.trim(),
       html,
       attachments,
     };
