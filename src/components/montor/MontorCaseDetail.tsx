@@ -96,7 +96,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     queryFn: async () => {
       let q = (supabase as any)
         .from('a_orders')
-        .select('id, order_number, created_at, date, total_amount, status, pdf_path, order_sent_at, invoice_number, invoice_sent_at, credited_from_order_id, paid_at, customer_address, montor_teams(name)')
+        .select('id, order_number, created_at, date, total_amount, status, pdf_path, order_sent_at, invoice_number, invoice_sent_at, credited_from_order_id, paid_at, customer_address, order_kind, montor_teams(name)')
         .eq('case_id', caseData.id)
         .order('created_at', { ascending: false });
       if (myTeamId) q = q.eq('team_id', myTeamId);
