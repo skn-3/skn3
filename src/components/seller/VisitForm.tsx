@@ -96,6 +96,8 @@ export function VisitForm({ sellerName }: VisitFormProps) {
   const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const queryClient = useQueryClient();
   const [form, setForm] = useState(emptyForm());
+  // Affärsförslagsnumret är obligatoriskt vid Signerat; felet visas först när fältet rörts.
+  const [offerNumberTouched, setOfferNumberTouched] = useState(false);
 
   const update = (key: string, value: string | boolean) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -225,12 +227,15 @@ export function VisitForm({ sellerName }: VisitFormProps) {
   const emailTrim = form.customer_email.trim();
   const emailInvalid = emailTrim !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
   const baseValid = !!form.date && !!form.customer_name.trim() && !!form.address.trim() && !emailInvalid;
+  const offerNumberMissing =
+    form.result === 'signerat' && offerNumberTouched && !form.offer_number.trim();
   const canSubmit =
     baseValid &&
     !!form.result &&
     (form.result !== 'aterkoppla' || !!form.follow_up_date) &&
     (form.result !== 'signerat' ||
       (!!form.city.trim() &&
+        !!form.offer_number.trim() &&
         unitsValid &&
         (!form.future_job || (!!form.future_job_description.trim() && !!form.future_job_date))));
 
@@ -277,8 +282,8 @@ export function VisitForm({ sellerName }: VisitFormProps) {
           customer_email: form.customer_email.trim() || null,
           address: form.address,
           city: form.city,
-          offer_number: form.offer_number || null,
-          order_value: null,
+          offer_number: form.offer_number.trim() || null,
+          order_value: form.order_value !== '' ? Number(form.order_value) : null,
           tb_percent: null,
           extra_hours_sold: 0,
           units: form.units !== '' ? Math.max(0, Math.floor(Number(form.units))) : null,
@@ -412,6 +417,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       setForm(emptyForm());
       setExistingCase(null);
       setEarlyClaim(null);
+      setOfferNumberTouched(false);
       claimInFlight.current = null;
       setPreVisitId(crypto.randomUUID());
     },
@@ -674,21 +680,41 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                 <p className="text-xs text-muted-foreground">Planterar träd…</p>
               )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label>Ort *</Label>
                   <Input value={form.city} onChange={(e) => update('city', e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Offertnummer (Mockfjärds)</Label>
+                  <Label>Affärsförslagsnummer (Mockfjärds) *</Label>
                   <Input
                     value={form.offer_number}
-                    onChange={(e) => update('offer_number', e.target.value)}
+                    onChange={(e) => {
+                      setOfferNumberTouched(true);
+                      update('offer_number', e.target.value);
+                    }}
+                    onBlur={() => setOfferNumberTouched(true)}
+                    aria-invalid={offerNumberMissing}
+                  />
+                  {offerNumberMissing && (
+                    <p className="text-xs text-destructive">Affärsförslagsnumret måste fyllas i.</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>
+                    Ordervärde (kr){' '}
+                    <span className="text-muted-foreground text-xs ml-1">ex moms</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    value={form.order_value}
+                    onChange={(e) => update('order_value', e.target.value)}
                   />
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Telefon, ordervärde, TB, montörer m.m. kompletteras efter kontrollmätningen.
+                Telefon, TB, montörer m.m. kompletteras efter kontrollmätningen.
               </p>
 
               <div className="space-y-2 rounded-lg border bg-card/60 p-3">
