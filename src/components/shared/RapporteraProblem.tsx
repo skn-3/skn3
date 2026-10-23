@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCaseById,
+  fetchCaseByIdForMontor,
   createDeviation,
   updateDeviation,
   uploadDeviationImages,
@@ -46,8 +47,8 @@ export default function RapporteraProblem() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['case', caseId],
-    queryFn: () => fetchCaseById(caseId!),
+    queryKey: ['case', caseId, role?.type === 'montor' ? 'montor' : 'full'],
+    queryFn: () => (role?.type === 'montor' ? fetchCaseByIdForMontor(caseId!) : fetchCaseById(caseId!)),
     enabled: !!caseId,
   });
 
