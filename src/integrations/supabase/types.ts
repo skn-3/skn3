@@ -171,6 +171,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "a_orders_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "a_orders_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -266,6 +273,13 @@ export type Database = {
             referencedRelation: "cases"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "case_climate_compensation_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: true
+            referencedRelation: "cases_montor"
+            referencedColumns: ["id"]
+          },
         ]
       }
       case_costs: {
@@ -327,6 +341,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_costs_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
             referencedColumns: ["id"]
           },
         ]
@@ -394,6 +415,13 @@ export type Database = {
             referencedRelation: "cases"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "case_documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
+            referencedColumns: ["id"]
+          },
         ]
       }
       case_events: {
@@ -430,6 +458,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
             referencedColumns: ["id"]
           },
           {
@@ -636,6 +671,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "climate_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
             referencedColumns: ["id"]
           },
         ]
@@ -1275,6 +1317,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "deviations_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "deviations_merged_into_id_fkey"
             columns: ["merged_into_id"]
             isOneToOne: false
@@ -1448,6 +1497,13 @@ export type Database = {
             referencedRelation: "cases"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "future_jobs_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
+            referencedColumns: ["id"]
+          },
         ]
       }
       insight_history: {
@@ -1561,6 +1617,13 @@ export type Database = {
             referencedRelation: "cases"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "litteror_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
+            referencedColumns: ["id"]
+          },
         ]
       }
       montor_debit_invoices: {
@@ -1639,6 +1702,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "montor_debit_invoices_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
             referencedColumns: ["id"]
           },
           {
@@ -1903,6 +1973,13 @@ export type Database = {
             referencedRelation: "cases"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "offers_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
+            referencedColumns: ["id"]
+          },
         ]
       }
       order_climate_compensation: {
@@ -2013,6 +2090,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sheet_metal_orders_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
             referencedColumns: ["id"]
           },
         ]
@@ -2241,11 +2325,142 @@ export type Database = {
             referencedRelation: "cases"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "visits_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      cases_montor: {
+        Row: {
+          address: string | null
+          carry_help_needed: boolean | null
+          city: string | null
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          delivery_date: string | null
+          delivery_time: string | null
+          delivery_week: number | null
+          delivery_year: number | null
+          extra_hours_approved: number | null
+          extra_hours_requested: number | null
+          id: string | null
+          imported: boolean | null
+          is_gotland: boolean | null
+          klimat_status: string | null
+          km_date: string | null
+          km_team: string | null
+          km_time: string | null
+          media_consent: boolean | null
+          montage_date: string | null
+          montage_time: string | null
+          montor_notes: string | null
+          notes: string | null
+          offer_number: string | null
+          order_number: string | null
+          public_token: string | null
+          scheduled_delivery: boolean | null
+          seller: string | null
+          status: string | null
+          status_changed_at: string | null
+          team: string | null
+          units: number | null
+          updated_at: string | null
+          visit_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          carry_help_needed?: boolean | null
+          city?: string | null
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          delivery_date?: string | null
+          delivery_time?: string | null
+          delivery_week?: number | null
+          delivery_year?: number | null
+          extra_hours_approved?: number | null
+          extra_hours_requested?: number | null
+          id?: string | null
+          imported?: boolean | null
+          is_gotland?: boolean | null
+          klimat_status?: string | null
+          km_date?: string | null
+          km_team?: string | null
+          km_time?: string | null
+          media_consent?: boolean | null
+          montage_date?: string | null
+          montage_time?: string | null
+          montor_notes?: string | null
+          notes?: string | null
+          offer_number?: string | null
+          order_number?: string | null
+          public_token?: string | null
+          scheduled_delivery?: boolean | null
+          seller?: string | null
+          status?: string | null
+          status_changed_at?: string | null
+          team?: string | null
+          units?: number | null
+          updated_at?: string | null
+          visit_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          carry_help_needed?: boolean | null
+          city?: string | null
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          delivery_date?: string | null
+          delivery_time?: string | null
+          delivery_week?: number | null
+          delivery_year?: number | null
+          extra_hours_approved?: number | null
+          extra_hours_requested?: number | null
+          id?: string | null
+          imported?: boolean | null
+          is_gotland?: boolean | null
+          klimat_status?: string | null
+          km_date?: string | null
+          km_team?: string | null
+          km_time?: string | null
+          media_consent?: boolean | null
+          montage_date?: string | null
+          montage_time?: string | null
+          montor_notes?: string | null
+          notes?: string | null
+          offer_number?: string | null
+          order_number?: string | null
+          public_token?: string | null
+          scheduled_delivery?: boolean | null
+          seller?: string | null
+          status?: string | null
+          status_changed_at?: string | null
+          team?: string | null
+          units?: number | null
+          updated_at?: string | null
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cases_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       append_deviation_log: {
