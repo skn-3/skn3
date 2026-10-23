@@ -68,11 +68,13 @@ export type Database = {
           km_distance: number
           line_items: Json
           mockfjards_invoice_number: string | null
+          mockfjards_order_number: string | null
           order_kind: string
           order_number: number | null
           order_sent_at: string | null
           paid_at: string | null
           paid_by: string | null
+          payer: string | null
           pdf_path: string | null
           roof_window_count: number
           scheduled_delivery: boolean | null
@@ -105,11 +107,13 @@ export type Database = {
           km_distance?: number
           line_items?: Json
           mockfjards_invoice_number?: string | null
+          mockfjards_order_number?: string | null
           order_kind?: string
           order_number?: number | null
           order_sent_at?: string | null
           paid_at?: string | null
           paid_by?: string | null
+          payer?: string | null
           pdf_path?: string | null
           roof_window_count?: number
           scheduled_delivery?: boolean | null
@@ -142,11 +146,13 @@ export type Database = {
           km_distance?: number
           line_items?: Json
           mockfjards_invoice_number?: string | null
+          mockfjards_order_number?: string | null
           order_kind?: string
           order_number?: number | null
           order_sent_at?: string | null
           paid_at?: string | null
           paid_by?: string | null
+          payer?: string | null
           pdf_path?: string | null
           roof_window_count?: number
           scheduled_delivery?: boolean | null
