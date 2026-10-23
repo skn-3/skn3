@@ -167,7 +167,7 @@ export function AOrdersView({ currentUser }: Props) {
     return orders.filter(o => {
       if (teamFilter === 'unassigned' && o.team_id) return false;
       if (teamFilter !== 'all' && teamFilter !== 'unassigned' && o.team_id !== teamFilter) return false;
-      if (onlyPayReady && !(o.case_id && paidCaseMap.has(o.case_id) && o.status === 'order')) return false;
+      if (onlyPayReady && !(o.order_kind !== 'service' && o.case_id && paidCaseMap.has(o.case_id) && o.status === 'order')) return false;
       if (payStatus === 'unpaid' && !(o.status === 'invoiced' && !o.paid_at)) return false;
       if (payStatus === 'paid' && !o.paid_at) return false;
       if (kindFilter !== 'all' && (o.order_kind || 'standard') !== kindFilter) return false;
@@ -550,14 +550,14 @@ export function AOrdersView({ currentUser }: Props) {
                       <td className="px-3 py-2">
                         <Badge className={meta.cls}>{isCredit ? 'Kreditfaktura' : meta.label}</Badge>
                         {costFlag(o)}
-                        {o.case_id && paidCaseMap.has(o.case_id) && (
+                        {o.order_kind !== 'service' && o.case_id && paidCaseMap.has(o.case_id) && (
                           <div className="text-[10px] mt-1 inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300 font-medium">
                             <BanknoteIcon className="h-3 w-3" />
                             MF betald {paidCaseMap.get(o.case_id)}
                             {o.status === 'order' && <span className="text-amber-700 dark:text-amber-300 font-semibold"> · dags att fakturera montör</span>}
                           </div>
                         )}
-                        {o.case_id && !paidCaseMap.has(o.case_id) && kmPaidMap.has(o.case_id) && (
+                        {o.order_kind !== 'service' && o.case_id && !paidCaseMap.has(o.case_id) && kmPaidMap.has(o.case_id) && (
                           <div className="text-[10px] mt-1 text-muted-foreground">KM betald {kmPaidMap.get(o.case_id)}</div>
                         )}
                         {o.invoice_number && (
