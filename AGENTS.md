@@ -1,5 +1,6 @@
 Use the same ProfileSvg rendering for the sheet-metal form and the order PDF, rasterized in the browser before PDF generation; this keeps measurements and angle annotations identical in both places.
 Keep assignment invoice email rendering and payment/date derivation in the function-local pure email module; this allows testing without dispatching customer emails.
+Limit package-install network concurrency in bunfig.toml to reduce registry throttling without changing dependency versions or registry routing.
 Keep logical PDF download and attachment names in pdfNames, separate from storage paths; this keeps naming consistent without moving saved documents.
 Keep PDF name logic in the pure edge-shared module with a frontend re-export; Drive archival and existing downloads must use identical names.
 Keep Drive sync isolated from invoice workflows, with service-only leases, parent-scoped paginated Drive lists and event-driven bounded retries that unschedule after drain; archival failures must never block the source document or alter its accounting state.
