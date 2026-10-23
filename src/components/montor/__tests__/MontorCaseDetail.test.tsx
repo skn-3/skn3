@@ -82,7 +82,7 @@ describe('MontorCaseDetail A-order access', () => {
   it('hämtar inga internal_*-fält', async () => {
     renderDetail();
     await waitFor(() => expect(mocks.selects).toHaveLength(1));
-    expect(mocks.selects[0]).toBe('id, order_number, created_at, date, total_amount, status, pdf_path, order_sent_at, invoice_number, invoice_sent_at, credited_from_order_id, paid_at, customer_address, montor_teams(name)');
+    expect(mocks.selects[0]).toBe('id, order_number, created_at, date, total_amount, status, pdf_path, order_sent_at, invoice_number, invoice_sent_at, credited_from_order_id, paid_at, customer_address, order_kind, montor_teams(name)');
     expect(mocks.selects[0]).not.toMatch(/internal_|\*/);
   });
 
