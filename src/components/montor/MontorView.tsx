@@ -112,27 +112,24 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   // Fetch all + filter client-side (server-side .eq can't OR).
   const { data: allCases, isLoading } = useQuery({
     queryKey: ['cases', 'montor', isAdmin ? 'admin' : role.name],
-    queryFn: () => fetchCases({}),
+    queryFn: fetchCasesForMontor,
   });
   const cases = useMemo(() => {
     if (isAdmin) return allCases || [];
     return (allCases || []).filter(c => c.team === role.name || (c as any).km_team === role.name);
   }, [allCases, isAdmin, role.name]);
 
-  // Fetch all deviations for cases
-  const caseIds = useMemo(() => (cases || []).map(c => c.id), [cases]);
+  // Olösta avvikelser — RLS begränsar montören till egna ärenden, admin får alla.
   const { data: allDeviations } = useQuery({
-    queryKey: ['deviations_bulk', caseIds],
+    queryKey: ['deviations_bulk', 'unresolved', isAdmin ? 'admin' : role.name],
     queryFn: async () => {
-      if (caseIds.length === 0) return [];
       const { data, error } = await supabase
         .from('deviations')
-        .select('*')
-        .in('case_id', caseIds);
+        .select('case_id')
+        .eq('resolved', false);
       if (error) throw error;
       return data;
     },
-    enabled: caseIds.length > 0,
   });
 
   const unresolvedDeviationCaseIds = useMemo(() => {
@@ -193,9 +190,12 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   ];
 
   async function openCaseById(id: string) {
-    const { data, error } = await supabase.from('cases').select('*').eq('id', id).maybeSingle();
-    if (error || !data) { toast.error('Kunde inte öppna ärendet'); return; }
-    setSelectedCase(data as CaseRow);
+    try {
+      const data = await fetchCaseByIdForMontor(id);
+      openCase(data);
+    } catch {
+      toast.error('Kunde inte öppna ärendet');
+    }
   }
 
   if (selectedCase) {
@@ -203,7 +203,6 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
       <MontorCaseDetail
         caseData={selectedCase}
         currentUser={isAdmin ? role.name : role.name}
-        hasUnresolvedDeviation={unresolvedDeviationCaseIds.has(selectedCase.id)}
         onBack={() => setSelectedCase(null)}
       />
     );
@@ -248,7 +247,6 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Sök ärenden..."
               className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              autoFocus
             />
             {searchTerm && (
               <button
