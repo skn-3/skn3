@@ -7,6 +7,7 @@ import { type UserRole } from '@/lib/constants';
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { AppHeader } from '@/components/AppHeader';
 import { MontorCaseList } from '@/components/montor/MontorCaseList';
+import { ScrollFadeRow } from '@/components/montor/ScrollFadeRow';
 import { MontorCaseDetail } from '@/components/montor/MontorCaseDetail';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -245,7 +246,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
       />
 
 
-      <main className="mx-auto max-w-[640px] px-4 py-5 pb-24 lg:max-w-[1100px] lg:px-6">
+      <main className="mx-auto max-w-[640px] px-4 py-5 pb-28 lg:max-w-[1100px] lg:px-6">
         {isAdmin && <div className="mb-4 flex justify-end">
           <Select value={adminFilter} onValueChange={setAdminFilter}>
             <SelectTrigger className="h-11 w-auto min-w-[180px] rounded-full bg-background text-sm"><SelectValue /></SelectTrigger>
@@ -253,11 +254,11 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
           </Select>
         </div>}
         <div className="mb-4 flex items-center gap-2">
-          <div className="flex min-w-0 flex-1 snap-x gap-2 overflow-x-auto pb-1" aria-label="Montörens listor">
+          <ScrollFadeRow label="Montörens listor">
             {tabs.map(t => <Button key={t.key} variant={activeTab === t.key ? 'default' : 'outline'} aria-pressed={activeTab === t.key} onClick={() => setActiveTab(t.key)} className={`h-11 shrink-0 snap-start rounded-full border-border px-4 text-[15px] ${activeTab === t.key ? 'bg-ink text-primary-foreground' : 'bg-background text-muted-foreground'}`}>
               {t.label}{counts[t.key] !== null && <span className={`font-mono text-[11px] ${activeTab === t.key ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{counts[t.key]}</span>}
             </Button>)}
-          </div>
+          </ScrollFadeRow>
           {activeTab !== 'uppdrag' && <ListSearchToggle open={searchOpen} active={!!searchTerm} onToggle={() => setSearchOpen(v => !v)} />}
         </div>
         {searchOpen && activeTab !== 'uppdrag' && <div className="mb-4 space-y-2">
