@@ -8,11 +8,14 @@ import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { AppHeader } from '@/components/AppHeader';
 import { MontorCaseList } from '@/components/montor/MontorCaseList';
 import { MontorCaseDetail } from '@/components/montor/MontorCaseDetail';
-import { Loader2, Search, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarView } from '@/components/calendar/CalendarView';
 import { MontorOrdersList } from '@/components/montor/MontorOrdersList';
+import { Button } from '@/components/ui/button';
+import { ListSearchToggle, ListSearchField } from './ListSearch';
+import { KM_STATUSES, MONTAGE_STATUSES, compareMontorCases } from '@/lib/montorLists';
 
 
 interface MontorViewProps {
@@ -25,9 +28,9 @@ interface MontorViewProps {
 }
 
 
-type Tab = 'alla' | 'montage' | 'uppdrag' | 'reklamationer' | 'klara' | 'kalender';
+type Tab = 'km' | 'alla' | 'montage' | 'uppdrag' | 'reklamationer' | 'klara' | 'kalender';
 
-const statusOrder = ['vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat', 'montage_pagar', 'montage_klart', 'fakturerad', 'pausad'];
+
 
 function matchesSearch(c: CaseRow, term: string): boolean {
   if (!term) return true;
@@ -60,6 +63,8 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   const [activeTab, setActiveTab] = useState<Tab>('alla');
   const [adminFilter, setAdminFilter] = useState<string>('alla');
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [ordersCount, setOrdersCount] = useState<number | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -101,7 +106,8 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
       if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA'].includes(target.tagName))) return;
       if (e.key === '/' && document.activeElement !== inputRef.current) {
         e.preventDefault();
-        inputRef.current?.focus();
+        setSearchOpen(true);
+        requestAnimationFrame(() => inputRef.current?.focus());
       }
       if (e.key === 'Escape') {
         setSearchTerm('');
@@ -149,8 +155,8 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   }, [cases, isAdmin, adminFilter]);
 
   const sorted = useMemo(() => {
-    return [...teamFiltered].sort((a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status));
-  }, [teamFiltered]);
+    return [...teamFiltered].sort((a, b) => compareMontorCases(a, b, activeTab));
+  }, [teamFiltered, activeTab]);
 
   // Search filter before tab filter
   const searched = useMemo(() => {
@@ -163,8 +169,10 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
 
   const filtered = useMemo(() => {
     switch (activeTab) {
+      case 'km':
+        return searched.filter(c => KM_STATUSES.includes(c.status));
       case 'montage':
-        return searched.filter(c => ['montage_bokat', 'montage_pagar', 'leverans_klar'].includes(c.status));
+        return searched.filter(c => MONTAGE_STATUSES.includes(c.status));
       case 'reklamationer':
         return searched.filter(c => unresolvedDeviationCaseIds.has(c.id));
       case 'klara':
@@ -175,21 +183,23 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   }, [searched, activeTab, unresolvedDeviationCaseIds]);
 
   const counts: Record<Tab, number | null> = useMemo(() => ({
-    alla: searched.filter(c => ['montage_bokat', 'montage_pagar', 'leverans_klar', 'vantar_km', 'km_bokad', 'km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'montage_klart', 'fakturerad', 'pausad'].includes(c.status)).length,
+    alla: searched.length,
+    km: searched.filter(c => KM_STATUSES.includes(c.status)).length,
     montage: searched.filter(c => ['montage_bokat', 'montage_pagar', 'leverans_klar'].includes(c.status)).length,
     reklamationer: searched.filter(c => unresolvedDeviationCaseIds.has(c.id)).length,
     klara: searched.filter(c => ['montage_klart', 'fakturerad'].includes(c.status)).length,
-    kalender: null,
-    uppdrag: null,
-  }), [searched, unresolvedDeviationCaseIds]);
+    kalender: searched.filter(c => c.km_date || c.montage_date).length,
+    uppdrag: ordersCount,
+  }), [searched, unresolvedDeviationCaseIds, ordersCount]);
 
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'alla', label: 'Alla' },
+    { key: 'km', label: 'KM' },
     { key: 'montage', label: 'Montage' },
     { key: 'uppdrag', label: 'Mina uppdrag' },
     { key: 'kalender', label: 'Kalender' },
-    { key: 'reklamationer', label: 'Reklam.' },
+    { key: 'reklamationer', label: 'Reklamationer' },
     { key: 'klara', label: 'Klara' },
   ];
 
@@ -224,78 +234,28 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
       />
 
 
-      <main className="py-4 max-w-[480px] mx-auto px-3">
-        {/* Admin montör filter */}
-        {isAdmin && (
-          <div className="mb-4">
-            <Select value={adminFilter} onValueChange={setAdminFilter}>
-              <SelectTrigger className="min-h-[48px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="alla">Alla montörer</SelectItem>
-                {MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-              </SelectContent>
-            </Select>
+      <main className="mx-auto max-w-[640px] px-4 py-5 pb-24 lg:max-w-[1100px] lg:px-6">
+        {isAdmin && <div className="mb-4 flex justify-end">
+          <Select value={adminFilter} onValueChange={setAdminFilter}>
+            <SelectTrigger className="h-11 w-auto min-w-[180px] rounded-full bg-background text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="alla">Alla montörer</SelectItem>{MONTORS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>}
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 snap-x gap-2 overflow-x-auto pb-1" aria-label="Montörens listor">
+            {tabs.map(t => <Button key={t.key} variant={activeTab === t.key ? 'default' : 'outline'} aria-pressed={activeTab === t.key} onClick={() => setActiveTab(t.key)} className={`h-11 shrink-0 snap-start rounded-full border-border px-4 text-[15px] ${activeTab === t.key ? 'bg-ink text-primary-foreground' : 'bg-background text-muted-foreground'}`}>
+              {t.label}{counts[t.key] !== null && <span className={`font-mono text-[11px] ${activeTab === t.key ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{counts[t.key]}</span>}
+            </Button>)}
           </div>
-        )}
-
-        {/* Search */}
-        <div className={`mb-4 space-y-1 ${activeTab === 'uppdrag' ? 'hidden' : ''}`}>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              ref={inputRef}
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Sök ärenden..."
-              className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-8 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => { setSearchTerm(''); setDebouncedSearch(''); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label="Rensa sökning"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          {debouncedSearch && (
-            <p className="text-xs text-muted-foreground flex items-center gap-2">
-              <span>Visar {totalVisible} ärenden av {totalCases}</span>
-              <button onClick={() => { setSearchTerm(''); setDebouncedSearch(''); }} className="text-primary hover:underline">
-                Rensa
-              </button>
-            </p>
-          )}
+          {activeTab !== 'uppdrag' && <ListSearchToggle open={searchOpen} active={!!searchTerm} onToggle={() => setSearchOpen(v => !v)} />}
         </div>
-
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-1 mb-4 bg-muted rounded-xl p-1">
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors min-h-[48px] ${
-                activeTab === t.key
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {t.label}
-              {counts[t.key] !== null && (
-                <span className={`ml-1 text-xs ${activeTab === t.key ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                  {counts[t.key]}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        {searchOpen && activeTab !== 'uppdrag' && <div className="mb-4 space-y-2">
+          <ListSearchField inputRef={inputRef} value={searchTerm} onChange={setSearchTerm} placeholder="Sök ärenden..." />
+          {debouncedSearch && <p className="text-xs text-muted-foreground">Visar {totalVisible} ärenden av {totalCases}</p>}
+        </div>}
 
         {activeTab === 'uppdrag' ? (
-          <MontorOrdersList myTeamName={isAdmin ? null : role.name} adminFilter={isAdmin ? adminFilter : 'alla'} onOpenCase={openCaseById} initialOpenId={initialAOrderId} onInitialOpenHandled={() => setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('aorder'); return next; }, { replace: true })} />
+          <MontorOrdersList myTeamName={isAdmin ? null : role.name} adminFilter={isAdmin ? adminFilter : 'alla'} onOpenCase={openCaseById} onCountChange={setOrdersCount} initialOpenId={initialAOrderId} onInitialOpenHandled={() => setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('aorder'); return next; }, { replace: true })} />
         ) : activeTab === 'kalender' ? (
           <CalendarView source="cases_montor" onSelectCase={openCase} />
         ) : isLoading ? (
@@ -305,6 +265,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
         ) : (
           <MontorCaseList
             cases={filtered}
+            teamName={isAdmin ? (adminFilter === 'alla' ? null : adminFilter) : role.name}
             unresolvedDeviationCaseIds={unresolvedDeviationCaseIds}
             onSelect={openCase}
           />
