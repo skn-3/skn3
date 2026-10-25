@@ -2,12 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 import { Eraser } from 'lucide-react';
 
 const W = 420;
-const H = 140;
+const H_DESKTOP = 140;
+const H_TOUCH = 180;
 
-// Signaturyta för kundens offertsida. "Skriv" ritar namnet i handstilsfont, "Rita" låter kunden signera med finger/mus.
-// Resultatet levereras som PNG-dataURL till det signerade avtalet.
+// Signaturyta för kundens offertsida. "Skriv namnet" ritar namnet i handstilsfont, "Rita för hand" låter kunden signera med finger/mus.
+// På pekskärm startar ytan i ritläge. Resultatet levereras som PNG-dataURL till det signerade avtalet.
 export function SignaturePad({ name, onChange }: { name: string; onChange: (dataUrl: string | null) => void }) {
-  const [mode, setMode] = useState<'skriv' | 'rita'>('skriv');
+  const [isTouch] = useState(() => {
+    try {
+      return typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    } catch {
+      return false;
+    }
+  });
+  const H = isTouch ? H_TOUCH : H_DESKTOP;
+  const [mode, setMode] = useState<'skriv' | 'rita'>(isTouch ? 'rita' : 'skriv');
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
   const hasInk = useRef(false);
@@ -107,7 +116,7 @@ export function SignaturePad({ name, onChange }: { name: string; onChange: (data
       role="radio"
       aria-checked={mode === m}
       onClick={() => setMode(m)}
-      className={`min-h-9 px-3.5 rounded-lg text-[13px] font-semibold transition-colors ${mode === m ? 'bg-card text-primary shadow-card' : 'text-muted-foreground hover:text-foreground'}`}
+      className={`min-h-[44px] flex-1 px-3.5 rounded-lg text-[13px] font-semibold transition-colors ${mode === m ? 'bg-card text-primary shadow-card' : 'text-muted-foreground hover:text-foreground'}`}
     >
       {label}
     </button>
@@ -115,19 +124,10 @@ export function SignaturePad({ name, onChange }: { name: string; onChange: (data
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <label className="text-[13px] font-semibold">Din signatur</label>
-        <div className="flex items-center gap-2">
-          {mode === 'rita' && (
-            <button type="button" onClick={clearDraw} className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
-              <Eraser className="h-3.5 w-3.5" /> Rensa
-            </button>
-          )}
-          <div role="radiogroup" aria-label="Signaturläge" className="inline-flex gap-0.5 rounded-xl bg-background p-[3px] border border-border">
-            {segBtn('skriv', 'Skriv')}
-            {segBtn('rita', 'Rita')}
-          </div>
-        </div>
+      <label className="block text-[13px] font-semibold">Din signatur</label>
+      <div role="radiogroup" aria-label="Signaturläge" className="flex gap-0.5 rounded-xl bg-background p-[3px] border border-border" style={{ maxWidth: W }}>
+        {segBtn('skriv', 'Skriv namnet')}
+        {segBtn('rita', 'Rita för hand')}
       </div>
       <div className="relative rounded-xl border border-dashed border-border-strong bg-white overflow-hidden" style={{ maxWidth: W }}>
         <canvas
@@ -139,10 +139,19 @@ export function SignaturePad({ name, onChange }: { name: string; onChange: (data
           onPointerUp={up}
           onPointerLeave={up}
         />
+        {mode === 'rita' && (
+          <button
+            type="button"
+            onClick={clearDraw}
+            className="absolute right-2 top-2 inline-flex min-h-8 items-center gap-1 rounded-lg border border-border bg-card/90 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+          >
+            <Eraser className="h-3.5 w-3.5" /> Rensa
+          </button>
+        )}
         <span aria-hidden="true" className="pointer-events-none absolute left-4 right-4 bottom-6 h-px bg-border" />
       </div>
       <p className="text-xs text-muted-foreground">
-        {mode === 'skriv' ? 'Skapas av ditt namn. Välj Rita för att signera för hand.' : 'Rita din signatur med fingret eller musen.'}
+        {mode === 'skriv' ? 'Skapas av ditt namn. Vill du signera för hand, välj Rita för hand.' : 'Rita din signatur med fingret eller musen.'}
       </p>
     </div>
   );
