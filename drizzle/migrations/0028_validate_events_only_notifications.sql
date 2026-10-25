@@ -1,0 +1,1 @@
+ALTER TABLE public.notifications VALIDATE CONSTRAINT notifications_events_only;
