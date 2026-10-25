@@ -9,8 +9,8 @@ export function LogoWithHat({ src, alt, className }: { src: string; alt: string;
       {active && (
         <SantaHat
           style={{
-            position: 'absolute', top: '-30%', right: '-24%', width: '70%', height: 'auto',
-            transform: 'rotate(20deg)', transformOrigin: '50% 100%',
+            position: 'absolute', top: '-32%', left: '8%', width: '84%', height: 'auto',
+            transform: 'rotate(4deg)', transformOrigin: '50% 100%',
           }}
         />
       )}
