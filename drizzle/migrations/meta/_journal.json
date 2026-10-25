@@ -176,6 +176,13 @@
       "when": 1792760286246,
       "tag": "0024_0024_uppdrag_invoice_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792964610347,
+      "tag": "0025_notifications_and_chat",
+      "breakpoints": true
     }
   ]
 }
