@@ -17,6 +17,7 @@ import { MontorOrdersList } from '@/components/montor/MontorOrdersList';
 import { Button } from '@/components/ui/button';
 import { ListSearchToggle, ListSearchField } from './ListSearch';
 import { KM_STATUSES, MONTAGE_STATUSES, compareMontorCases } from '@/lib/montorLists';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 
 interface MontorViewProps {
@@ -50,6 +51,10 @@ function matchesSearch(c: CaseRow, term: string): boolean {
 export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialCaseId, onInitialCaseHandled }: MontorViewProps) {
   const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
+  const pull = usePullToRefresh([
+    ['cases'], ['deviations_bulk'], ['montor-orders-count'],
+    ['montor-team'], ['montor-orders-list'], ['montor-own-invoices'],
+  ], !selectedCase);
   const listScrollY = useRef(0);
   const openCase = (c: CaseRow) => {
     listScrollY.current = window.scrollY;
@@ -246,7 +251,11 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
       />
 
 
-      <main className="mx-auto max-w-[640px] px-4 py-5 pb-28 lg:max-w-[1100px] lg:px-6">
+      <main ref={pull.containerRef} className="mx-auto max-w-[640px] px-4 py-5 pb-28 lg:max-w-[1100px] lg:px-6">
+        {pull.state !== 'idle' && <div role="status" aria-live="polite" className="flex h-11 items-center justify-center gap-2 text-sm text-muted-foreground">
+          {pull.state === 'refreshing' && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none text-ink" />}
+          {pull.state === 'refreshing' ? 'Uppdaterar…' : pull.state === 'ready' ? 'Släpp för att uppdatera' : 'Dra för att uppdatera'}
+        </div>}
         {isAdmin && <div className="mb-4 flex justify-end">
           <Select value={adminFilter} onValueChange={setAdminFilter}>
             <SelectTrigger className="h-11 w-auto min-w-[180px] rounded-full bg-background text-sm"><SelectValue /></SelectTrigger>
