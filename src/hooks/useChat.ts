@@ -80,9 +80,9 @@ export function useChat(activeId: string | null) {
     await qc.invalidateQueries({ queryKey: ['chat', userId] });
     return data;
   }
-  async function send(id: string, body: string) {
+  async function send(id: string, body: string, caseId?: string | null) {
     if (!userId || !body.trim()) return;
-    const { error } = await supabase.from('messages').insert({ conversation_id: id, sender_id: userId, body: body.trim() });
+    const { error } = await supabase.from('messages').insert({ conversation_id: id, sender_id: userId, body: body.trim(), case_id: caseId ?? null });
     if (error) throw error;
     await qc.invalidateQueries({ queryKey: ['chat', userId] });
   }
