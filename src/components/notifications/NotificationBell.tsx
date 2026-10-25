@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MessageCircle, FileText, Calendar, AlertTriangle, CheckCheck, X } from 'lucide-react';
+import { Bell, FileText, Calendar, AlertTriangle, CheckCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -8,7 +8,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNotifications } from '@/hooks/useNotifications';
 import { relativeTimeSv } from '@/lib/relativeTimeSv';
-import { openChat } from '@/lib/chat';
 
 export function NotificationBell({ onDark = true }: { onDark?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -27,14 +26,13 @@ export function NotificationBell({ onDark = true }: { onDark?: boolean }) {
     </div>
     <div className="overflow-y-auto max-h-[70dvh]">
       {isLoading ? <div className="p-3 space-y-2"><Skeleton className="h-20" /><Skeleton className="h-20" /></div> : error ? <div className="p-4"><p>Kunde inte hämta notiser.</p><Button variant="outline" onClick={() => void refetch()}>Försök igen</Button></div> : !rows.length ? <p className="py-12 text-center text-muted-foreground">Inga notiser ännu</p> : rows.map(row => {
-        const Icon = row.kind === 'message' ? MessageCircle : row.kind.startsWith('a_order') ? FileText : row.kind.includes('deviation') || row.kind === 'cost' ? AlertTriangle : Calendar;
+        const Icon = row.kind.startsWith('a_order') ? FileText : row.kind.includes('deviation') || row.kind === 'cost' ? AlertTriangle : Calendar;
         return <Button key={row.id} variant="ghost" className="w-full h-auto min-h-20 rounded-none px-4 py-3 flex items-start gap-3 text-left whitespace-normal border-b" onClick={async () => {
           try { await markRead(row.id); } catch { return; }
           setOpen(false);
           const link = row.link as { type?: string; id?: string } | null;
           if (!link?.id) return;
-          if (link.type === 'chat') openChat(link.id);
-          else if (link.type === 'case') navigate(`/?case=${encodeURIComponent(link.id)}`);
+          if (link.type === 'case') navigate(`/?case=${encodeURIComponent(link.id)}`);
           else if (link.type === 'a_order') navigate(`/?aorder=${encodeURIComponent(link.id)}`);
         }}>
           <Icon className="h-5 w-5 mt-1 shrink-0 text-muted-foreground" />

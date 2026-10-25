@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Separera chatt från notiser: ta bort meddelandetrigger/klockkoppling och lägg till chattens egen tryckbara toast.
+
 - [x] Notiser/chatt: migration 0025 och kompletterande 0026 för explicita kolumnrättigheter, mottagarregler och realtime verifierade.
 - [x] Notiser/chatt: klocka, chattpanel, olästmarkeringar och djuplänkar; send-a-order driftsatt med verifierad avsändaridentitet.
 - [x] Notiser/chatt: 234 tester och automatiskt bygge gröna, paneler visuellt kontrollerade på dator/telefon med lokala testuppgifter, ingen publicering.
