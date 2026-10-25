@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] N3prenad-AI etapp 2 del 1: generella sparade kostnadsförslag, 15 min bekräftelse/avbryt med dubblettskydd, kvittobilder och befintlig kostnadshistorik; tester och telefonbilder, inga paket eller publicering.
+
 - [x] N3prenad-AI: händelser berikade med synliga adresser/ort/kund/status, id-regeln skärpt, migration 0034 och befintlig rad bytta till google/gemini-3-flash-preview (3.1 Flash saknas); admin listar Flash/Lite och behåller fritt modellfält. 321 tester och automatisk typkontroll gröna, n3-ai driftsatt, riktigt gateway-verktygsanrop/följdsvar med syntetisk adress verifierat; ingen apppublicering eller paket. Inloggat appflöde fortsatt ej verifierat, eget konto saknas.
 
 - [x] Chattbilder: migration 0033 (0030 redan upptagen), privat chat-images med 10 MB och JPEG/PNG/WebP verifierad samt medlemsstyrda INSERT/SELECT-policyer; komprimering, bilagor, batchsignering, fullskärmsbild och nedladdning klara. 318 tester och automatiskt bygge gröna; lokalt bildskick och uppladdningsfel verifierade på 390/1280 px. Notiser oförändrade, inga paket eller publicering.
