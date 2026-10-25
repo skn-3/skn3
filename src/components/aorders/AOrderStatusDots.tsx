@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 
 import type { AOrderStatusGroup, AOrderStatusKey } from '@/lib/aOrderStatusSummary';
+import { Button } from '@/components/ui/button';
 
 const DOT: Record<AOrderStatusKey, string> = {
   order: 'bg-yellow-500',
@@ -9,16 +10,19 @@ const DOT: Record<AOrderStatusKey, string> = {
   paid: 'bg-emerald-600',
 };
 
-function Dot({ group }: { group: AOrderStatusGroup }) {
+const INSTALLER_DOT: Record<AOrderStatusKey, string> = { order: 'bg-gold', invoiced: 'bg-ink', paid: 'bg-success' };
+
+function Dot({ group, appearance }: { group: AOrderStatusGroup; appearance?: 'installer' }) {
   const [open, setOpen] = useState(false);
   const lastPointer = useRef<string>('mouse');
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
-        <button
+        <Button
+          variant="ghost"
           type="button"
           aria-expanded={open}
-          className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs hover:bg-muted/60"
+          className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs hover:bg-muted/60 ${appearance === 'installer' ? 'h-11' : 'h-auto'}`}
           onPointerDown={(e) => { lastPointer.current = e.pointerType; }}
           onPointerEnter={(e) => { if (e.pointerType === 'mouse') setOpen(true); }}
           onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpen(false); }}
@@ -27,10 +31,10 @@ function Dot({ group }: { group: AOrderStatusGroup }) {
             else setOpen((v) => !v);
           }}
         >
-          <span className={`h-2.5 w-2.5 rounded-full ${DOT[group.key]}`} />
+          <span className={`h-2.5 w-2.5 rounded-full ${appearance === 'installer' ? INSTALLER_DOT[group.key] : DOT[group.key]}`} />
           <span className="font-medium tabular-nums">{group.total}</span>
           <span className="text-muted-foreground">{group.label}</span>
-        </button>
+        </Button>
       </PopoverAnchor>
 
       <PopoverContent
@@ -55,10 +59,10 @@ function Dot({ group }: { group: AOrderStatusGroup }) {
   );
 }
 
-export function AOrderStatusDots({ groups }: { groups: AOrderStatusGroup[] }) {
+export function AOrderStatusDots({ groups, appearance }: { groups: AOrderStatusGroup[]; appearance?: 'installer' }) {
   return (
     <div className="inline-flex items-center gap-1">
-      {groups.map((g) => <Dot key={g.key} group={g} />)}
+      {groups.map((g) => <Dot key={g.key} group={g} appearance={appearance} />)}
     </div>
   );
 }
