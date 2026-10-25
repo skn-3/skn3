@@ -68,7 +68,10 @@ export function statusDotClass(status: string | null | undefined): string {
 }
 
 export function statusLabel(status: string | null | undefined): string {
-  return (status && STATUS_LABELS[status]) || status || '—';
+  if (!status) return '—';
+  if (STATUS_LABELS[status]) return STATUS_LABELS[status];
+  const text = status.replace(/_/g, ' ').trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : '—';
 }
 
 export function phaseOf(status: string | null | undefined): (typeof PHASES)[number] | undefined {
