@@ -1,5 +1,12 @@
 import { expect, it } from 'vitest';
-import { countUnreadMessages, extractCaseIdFromText, caseFallbackBody } from '../chat';
+import { countUnreadMessages, extractCaseIdFromText, caseFallbackBody, shouldSendOnKey } from '../chat';
+it('skickar vid Enter och radbryter vid Shift+Enter, oavsett skärm', () => {
+  expect(shouldSendOnKey({ key: 'Enter' })).toBe(true);
+  expect(shouldSendOnKey({ key: 'Enter', shiftKey: false, isComposing: false })).toBe(true);
+  expect(shouldSendOnKey({ key: 'Enter', shiftKey: true })).toBe(false);
+  expect(shouldSendOnKey({ key: 'Enter', isComposing: true })).toBe(false);
+  expect(shouldSendOnKey({ key: 'a' })).toBe(false);
+});
 it('räknar bara nya inkommande meddelanden i medlemmens konversation', () => {
   const member = { conversation_id: 'c', user_id: 'me', last_read_at: '2026-10-25T10:00:00Z' };
   const messages = [

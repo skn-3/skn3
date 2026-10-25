@@ -11,7 +11,7 @@ import { useChat } from '@/hooks/useChat';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { relativeTimeSv } from '@/lib/relativeTimeSv';
 import { useNavigate } from 'react-router-dom';
-import { caseFallbackBody, extractCaseIdFromText } from '@/lib/chat';
+import { caseFallbackBody, extractCaseIdFromText, shouldSendOnKey } from '@/lib/chat';
 import { useChatCases } from '@/hooks/useChatCases';
 import { AiConversation } from './AiConversation';
 import { ChatCaseCard } from './ChatCaseCard';
