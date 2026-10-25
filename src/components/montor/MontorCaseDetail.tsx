@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { formatDaySv, formatDayTimeSv } from '@/lib/dateSv';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseByIdForMontor, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail } from '@/lib/supabaseClient';
@@ -609,7 +610,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   <div className="text-sm">
                     <div className="text-muted-foreground">Montagedatum</div>
                     <div className="font-medium">
-                      {caseData.montage_date}{(caseData as any).montage_time ? ` kl ${((caseData as any).montage_time as string).slice(0,5)}` : ''}
+                      {formatDayTimeSv(caseData.montage_date, (caseData as any).montage_time)}
                     </div>
                   </div>
                   {caseData.status !== 'montage_klart' && caseData.status !== 'fakturerad' && (
@@ -731,9 +732,9 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                   : o.status === 'credited'
                   ? 'Krediterad'
                   : o.paid_at
-                  ? `Betald ${o.paid_at} · Faktura ${o.invoice_number ?? ''}`.trim()
+                  ? `Betald ${formatDaySv(o.paid_at)} · Faktura ${o.invoice_number ?? ''}`.trim()
                   : o.invoice_sent_at
-                  ? `Fakturerad ${o.invoice_number ?? ''}`.trim()
+                  ? [`Fakturerad ${o.invoice_number ?? ''}`.trim(), formatDaySv(o.invoice_sent_at)].filter(Boolean).join(' · ')
                   : o.order_sent_at
                   ? `${o.order_kind === 'service' ? 'Serviceorder' : 'A-order'} skickad`
                   : `${o.order_kind === 'service' ? 'Serviceorder' : 'A-order'} skapad`;
@@ -751,7 +752,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                       <div className="min-w-0">
                         <div className="font-medium">{isCreditNote ? 'Kreditfaktura' : o.order_kind === 'service' ? 'Serviceorder' : 'A-order'} #{o.order_number ?? '—'}</div>
                         <div className="text-xs text-muted-foreground">
-                          {o.date || (o.created_at ? new Date(o.created_at).toLocaleDateString('sv-SE') : '')} · {statusLabel}
+                          {formatDaySv(o.date || o.created_at)} · {statusLabel}
                         </div>
                       </div>
                       {typeof o.total_amount === 'number' && (
@@ -831,7 +832,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                     )}
                     <CostPayoutChip cost={{ a_order_id: c.a_order_id ?? null, payout_excluded_at: c.payout_excluded_at ?? null }} showPending={false} />
                   </div>
-                  <div className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString('sv-SE')} — {c.created_by}</div>
+                  <div className="text-xs text-muted-foreground">{formatDaySv(c.created_at)} — {c.created_by}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">{Number(c.amount).toLocaleString('sv-SE')} kr</span>
@@ -867,7 +868,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                       {d.resolved ? 'Löst' : 'Olöst'}
                     </Badge>
                   </div>
-                  <span className="text-xs text-muted-foreground">{new Date(d.created_at).toLocaleDateString('sv-SE')}</span>
+                  <span className="text-xs text-muted-foreground">{formatDaySv(d.created_at)}</span>
                 </div>
                 <p className="text-card-foreground">{d.description}</p>
                 <p className="text-muted-foreground text-xs">
@@ -878,7 +879,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
                     <span className="font-semibold text-blue-900 dark:text-blue-200">Nästa steg (ditt): </span>
                     <span className="text-blue-900 dark:text-blue-200">{(d as any).next_step}</span>
                     {(d as any).next_step_due && (
-                      <span className="text-xs text-blue-800 dark:text-blue-300"> · senast {new Date((d as any).next_step_due + 'T00:00:00').toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                      <span className="text-xs text-blue-800 dark:text-blue-300"> · senast {formatDaySv((d as any).next_step_due)}</span>
                     )}
                   </div>
                 )}
@@ -919,7 +920,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             {events?.filter(e => e.event_type !== 'economy' && e.event_type !== 'deviation_cost').map(e => (
               <div key={e.id} className="flex gap-2 text-sm">
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {new Date(e.created_at).toLocaleString('sv-SE', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  {formatDayTimeSv(e.created_at, new Date(e.created_at).toTimeString().slice(0, 5))}
                 </span>
                 <div>
                   <span className="text-card-foreground">{e.description}</span>
