@@ -327,7 +327,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     onSuccess: () => {
       invalidate();
       queryClient.invalidateQueries({ queryKey: ['calendar'] });
-      toast.success(`Montage bokat ${montageDate}`);
+      toast.success(`Montage bokat ${formatDaySv(montageDate)}`);
       setMontageDate('');
       setMontageTime('');
     },
@@ -361,7 +361,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     onSuccess: () => {
       invalidate();
       queryClient.invalidateQueries({ queryKey: ['calendar'] });
-      toast.success(`Montagedatum ändrat till ${editMontageDate}`);
+      toast.success(`Montagedatum ändrat till ${formatDaySv(editMontageDate)}`);
       setEditingMontage(false);
     },
     onError: (e: Error) => toast.error(e.message),
