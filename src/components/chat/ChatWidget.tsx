@@ -36,7 +36,7 @@ export function ChatWidget() {
     setBusy(true);
     try { await chat.send(activeId, body); setBody(''); } catch { toast.error('Meddelandet kunde inte skickas. Försök igen.'); } finally { setBusy(false); }
   }
-  const content = <div className="flex h-full min-h-0 flex-col text-foreground">
+  const content = <div className="safe-bottom flex h-full min-h-0 flex-col text-foreground">
     <div className="flex shrink-0 items-center gap-2 px-3 py-2 border-b">
       {(activeId || creating) && <Button size="icon" variant="ghost" className="h-12 w-12 shrink-0" aria-label="Tillbaka till konversationer" onClick={() => { setActiveId(null); setCreating(false); setBody(''); }}><ArrowLeft className="h-5 w-5" /></Button>}
       <h2 className="font-display font-bold text-lg flex-1 min-w-0 truncate">{creating ? 'Ny chatt' : activeId ? conversation?.name || 'Konversation' : 'Meddelanden'}</h2>
@@ -69,7 +69,7 @@ export function ChatWidget() {
           </div></div></div>;
         })}<div ref={bottom} />
       </div>
-      <form className="p-3 border-t flex gap-2 items-end shrink-0 safe-bottom" onSubmit={e => { e.preventDefault(); void send(); }}>
+      <form className="p-3 border-t flex gap-2 items-end shrink-0" onSubmit={e => { e.preventDefault(); void send(); }}>
         <Textarea aria-label="Meddelande" placeholder="Skriv ett meddelande..." className="min-h-12 max-h-28 resize-none" rows={2} maxLength={10000} value={body} onChange={e => setBody(e.target.value)} onKeyDown={e => { if (!mobile && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
         <Button type="submit" className="min-h-12 px-3" disabled={!conversation || !body.trim() || busy}><Send className="h-4 w-4 mr-1" />Skicka</Button>
       </form>
@@ -78,7 +78,7 @@ export function ChatWidget() {
     </Button>)}</div>}
   </div>;
   return <>
-    <Button size="icon" className="fixed right-4 bottom-24 md:bottom-5 z-40 h-14 w-14 rounded-full shadow-lg" aria-label={`Öppna meddelanden, ${chat.unread} olästa`} onClick={() => setOpen(!open)}><MessageCircle className="h-6 w-6" />{chat.unread > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full px-1 bg-destructive text-destructive-foreground text-[11px] font-bold flex items-center justify-center">{chat.unread > 9 ? '9+' : chat.unread}</span>}</Button>
+    <Button size="icon" className="fixed right-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-40 h-14 w-14 rounded-full shadow-lg" aria-label={`Öppna meddelanden, ${chat.unread} olästa`} onClick={() => setOpen(!open)}><MessageCircle className="h-6 w-6" />{chat.unread > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full px-1 bg-destructive text-destructive-foreground text-[11px] font-bold flex items-center justify-center">{chat.unread > 9 ? '9+' : chat.unread}</span>}</Button>
     {mobile ? <Sheet open={open} onOpenChange={setOpen}><SheetContent side="right" className="w-full max-w-full h-[100dvh] p-0 [&>button]:hidden"><SheetTitle className="sr-only">Meddelanden</SheetTitle><SheetDescription className="sr-only">Dina konversationer</SheetDescription>{content}</SheetContent></Sheet> : open && <section aria-label="Meddelanden" className="fixed right-4 bottom-24 z-50 w-[380px] max-w-[calc(100vw-32px)] h-[560px] max-h-[calc(100dvh-160px)] bg-card border rounded-lg shadow-xl overflow-hidden">{content}</section>}
   </>;
 }

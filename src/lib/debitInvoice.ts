@@ -197,7 +197,11 @@ export async function createAndSendCreditInvoice(
   });
   if (sendErr) throw sendErr;
 
-  await (supabase as any).from('montor_debit_invoices').update({ status: 'credited' }).eq('id', originalId);
+  const { error: creditErr } = await (supabase as any)
+    .from('montor_debit_invoices').update({ status: 'credited' }).eq('id', originalId);
+  if (creditErr) {
+    throw new Error(`Kreditfakturan har skickats, men originalfakturan kunde inte markeras som krediterad: ${creditErr.message || 'Okänt fel'}`);
+  }
 
   if (original.case_id) {
     await (supabase as any).from('case_events').insert({
