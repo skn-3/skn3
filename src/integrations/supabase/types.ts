@@ -2680,6 +2680,7 @@ export type Database = {
       drive_sync_wake: { Args: never; Returns: undefined }
       fix_a_order_sequence: { Args: never; Returns: undefined }
       is_conversation_member: { Args: { p_id: string }; Returns: boolean }
+      is_montor_name: { Args: { p_name: string }; Returns: boolean }
       login_directory: {
         Args: never
         Returns: {
