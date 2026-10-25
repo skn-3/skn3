@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { z } from 'npm:zod@3.25.76';
 import { readTools } from './tools/index.ts';
-import { safeExecute, type ToolContext, visibleCase } from './tools/context.ts';
+import { safeExecute, visibleCase } from './tools/context.ts';
 import { parseAiReply, stockholmDate, isoWeek } from './logic.ts';
 import { createLovableAiGatewayRunIdFetch, getLovableAiGatewayResponseHeaders } from './run-id.ts';
 import { actionTools, decideAction } from './actions/index.ts';
@@ -71,7 +71,7 @@ ${settings.extra_instructions??''}`},...historyMessages(history)];
  if(!calls.length){final=answer.content??'';if(!final.trim())throw Object.assign(new Error('AI-tjänsten kunde inte besvara frågan.'),{status:403,refusal:true});break;}
  if(calls.length>10)throw new Error('För många verktygsanrop');
  unwrap(await adminClient.from('ai_messages').insert({thread_id:threadId,role:'assistant',content:answer.content??'',tool_calls:{calls,reasoning_details:answer.reasoning_details}}));messages.push({role:'assistant',content:answer.content??null,tool_calls:calls,reasoning_details:answer.reasoning_details});
- for(const call of calls){tool_calls++;let result:unknown;try{const tool=tools.find(t=>t.name===call.function.name);const args=JSON.parse(call.function.arguments);result=tool?await tool.handler(args,ctx):{error:'Verktyget är inte tillgängligt.'};}catch(e){result={error:e instanceof Error?e.message:'Ogiltiga verktygsargument'};}
+ for(const call of calls){tool_calls++;let result:unknown;try{const args=JSON.parse(call.function.arguments);const read=readTools.find(t=>t.name===call.function.name);const proposal=actionTools.find(t=>t.name===call.function.name);result=read?await safeExecute(read,args,ctx):proposal?await proposal.handler(args,ctx):{error:'Verktyget är inte tillgängligt.'};}catch(e){result={error:e instanceof Error?e.message:'Ogiltiga verktygsargument'};}
  const content=JSON.stringify(result);unwrap(await adminClient.from('ai_messages').insert({thread_id:threadId,role:'tool',content,tool_call_id:call.id,tool_name:call.function.name,case_ids:[...ctx.seenCaseIds]}));messages.push({role:'tool',content,tool_call_id:call.id});}
  if(ctx.proposalId){final='Bekräfta i kortet nedan så läggs kostnaden till.';break;}
  }
