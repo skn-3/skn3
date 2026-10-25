@@ -29,3 +29,12 @@ export async function compressImageToDataUrl(file: File, maxWidth = 1200, qualit
   ctx.drawImage(img, 0, 0, w, h);
   return canvas.toDataURL('image/jpeg', quality);
 }
+
+export async function compressImageToBlob(file: File, maxWidth = 1600, quality = 0.82): Promise<{blob: Blob; width: number; height: number}> {
+  const dataUrl = await compressImageToDataUrl(file, maxWidth, quality);
+  const blob = await (await fetch(dataUrl)).blob();
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error('Bilden kunde inte läsas')); img.src = dataUrl;
+  });
+  return { blob, width: image.naturalWidth, height: image.naturalHeight };
+}

@@ -1,4 +1,5 @@
-export interface ChatMessage { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; case_id?: string | null }
+import type { ChatAttachment } from './chatAttachments';
+export interface ChatMessage { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; case_id?: string | null; attachments?: ChatAttachment[] }
 export interface ChatMember { conversation_id: string; user_id: string; last_read_at: string | null }
 export function countUnreadMessages(messages: ChatMessage[], member: ChatMember | undefined, userId: string): number {
   if (!member) return 0;
