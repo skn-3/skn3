@@ -64,7 +64,6 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   const [adminFilter, setAdminFilter] = useState<string>('alla');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [ordersCount, setOrdersCount] = useState<number | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -153,6 +152,18 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
     if (!isAdmin || adminFilter === 'alla') return cases || [];
     return (cases || []).filter(c => c.team === adminFilter || (c as any).km_team === adminFilter);
   }, [cases, isAdmin, adminFilter]);
+
+  const { data: ordersCount = 0 } = useQuery({
+    queryKey: ['montor-orders-count', role.name, isAdmin, adminFilter],
+    queryFn: async () => {
+      const team = isAdmin ? (adminFilter === 'alla' ? null : adminFilter) : role.name;
+      let query = supabase.from('a_orders').select('id, montor_teams!inner(name)', { count: 'exact', head: true });
+      if (team) query = query.eq('montor_teams.name', team);
+      const { count, error } = await query;
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
 
   const sorted = useMemo(() => {
     return [...teamFiltered].sort((a, b) => compareMontorCases(a, b, activeTab));
@@ -255,7 +266,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
         </div>}
 
         {activeTab === 'uppdrag' ? (
-          <MontorOrdersList myTeamName={isAdmin ? null : role.name} adminFilter={isAdmin ? adminFilter : 'alla'} onOpenCase={openCaseById} onCountChange={setOrdersCount} initialOpenId={initialAOrderId} onInitialOpenHandled={() => setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('aorder'); return next; }, { replace: true })} />
+          <MontorOrdersList myTeamName={isAdmin ? null : role.name} adminFilter={isAdmin ? adminFilter : 'alla'} onOpenCase={openCaseById} initialOpenId={initialAOrderId} onInitialOpenHandled={() => setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('aorder'); return next; }, { replace: true })} />
         ) : activeTab === 'kalender' ? (
           <CalendarView source="cases_montor" onSelectCase={openCase} />
         ) : isLoading ? (
