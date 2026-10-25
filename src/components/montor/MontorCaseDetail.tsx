@@ -553,7 +553,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
   const canBookMontage = ['godkand', 'i_produktion', 'leverans_klar'].includes(caseData.status) && !caseData.montage_date;
   const hasNextStep = ['vantar_km', 'km_bokad', 'montage_bokat', 'montage_pagar'].includes(caseData.status) || canBookMontage;
-  const PRIMARY = 'w-full min-h-[52px] text-base font-semibold bg-ink text-paper hover:bg-ink-deep';
+  const PRIMARY = 'w-full min-h-[52px] text-base font-semibold bg-primary text-primary-foreground hover:bg-primary/90';
 
   const openPdf = async (path: string, name: string) => {
     const ok = await openDocumentInNewTab(async () => {
