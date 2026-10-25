@@ -183,6 +183,13 @@
       "when": 1792964610347,
       "tag": "0025_notifications_and_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792964796934,
+      "tag": "0026_messaging_explicit_column_grants",
+      "breakpoints": true
     }
   ]
 }
