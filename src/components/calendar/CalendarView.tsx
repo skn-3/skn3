@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import { formatDaySv } from '@/lib/dateSv';
 import { useQuery } from '@tanstack/react-query';
 import { Calendar, dateFnsLocalizer, Views, type View, type ToolbarProps } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, addHours, startOfDay, endOfDay, setISOWeek, setYear, startOfISOWeek, endOfISOWeek } from 'date-fns';
@@ -390,6 +391,11 @@ export function CalendarView({ onSelectCase, source = 'cases' }: CalendarViewPro
         <Calendar
           localizer={localizer}
           culture="sv"
+          formats={source === 'cases_montor' ? {
+            agendaDateFormat: (d: Date) => formatDaySv(d),
+            agendaHeaderFormat: ({ start, end }: { start: Date; end: Date }) => `${formatDaySv(start)} – ${formatDaySv(end)}`,
+            dayHeaderFormat: (d: Date) => formatDaySv(d),
+          } : undefined}
           events={displayedEvents}
           view={view}
           onView={setView}
