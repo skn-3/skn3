@@ -4,6 +4,8 @@ import { Phone, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { statusDotClass } from '@/lib/statusTheme';
 import { dayTagSv, formatDayTimeSv } from '@/lib/dateSv';
+import { hasMontagePartial } from '@/lib/montagePartial';
+import { ListChecks } from 'lucide-react';
 
 interface Props {
   cases: CaseRow[];
@@ -70,6 +72,7 @@ export function MontorCaseList({ cases, unresolvedDeviationCaseIds, onSelect, te
                   )}
                 </div>
                 {hasDeviation && <Chip className="bg-gold-soft text-ink" icon={<AlertTriangle />}>Öppen reklamation</Chip>}
+                {hasMontagePartial(c) && <Chip className="bg-warning-soft text-warning-ink" icon={<ListChecks />}>Delrapport</Chip>}
               </div>
             </div>
           </article>

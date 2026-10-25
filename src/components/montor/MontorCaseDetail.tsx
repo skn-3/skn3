@@ -27,6 +27,10 @@ import { aOrderPdfName, invoicePdfName, creditPdfName } from '@/lib/pdfNames';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { CostPayoutChip } from '@/components/shared/CostPayoutChip';
+import { ListChecks, Share2 } from 'lucide-react';
+import { submitMontagePartial } from '@/lib/montagePartial';
+import { MontagePartialBlock } from '@/components/shared/MontagePartialBlock';
+import { shareCaseInChat } from '@/lib/chat';
 
 const HEADING = 'text-[10px] font-semibold uppercase tracking-[1.3px] text-muted-foreground';
 
@@ -82,6 +86,8 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const caseData = liveCaseData ?? initialCaseData;
 
   const [showKlar, setShowKlar] = useState(false);
+  const [showPartial, setShowPartial] = useState(false);
+  const [partialNote, setPartialNote] = useState('');
   const [showCost, setShowCost] = useState(false);
   const [klarComment, setKlarComment] = useState('');
   const [kmDate, setKmDate] = useState('');
@@ -240,6 +246,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       celebrateMontageDone();
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  const partialMutation = useMutation({
+    mutationFn: () => submitMontagePartial(caseData, currentUser, partialNote),
+    onSuccess: () => { setShowPartial(false); setPartialNote(''); invalidate(); toast.success('Delrapport skickad'); },
+    onError: (e: Error) => { invalidate(); toast.error(e.message); },
   });
 
   const startMontageMutation = useMutation({
@@ -628,6 +640,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           Montage klart
         </Button>
       )}
+      {['montage_bokat', 'montage_pagar'].includes(caseData.status) && <Button variant="outline" className="w-full min-h-[48px] border-ink text-ink bg-card font-semibold" onClick={() => setShowPartial(true)} disabled={partialMutation.isPending}><ListChecks className="h-5 w-5 mr-2" />Delrapportera montage</Button>}
     </section>
   ) : (
     <p className="px-1 py-2 text-sm text-muted-foreground">Inget att göra just nu – kontoret tar nästa steg.</p>
@@ -973,6 +986,8 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <div className="space-y-4 min-w-0">
             {nextStepCard}
             {reportButton}
+            <Button variant="outline" className="w-full min-h-[48px]" onClick={() => shareCaseInChat({ id: caseData.id, address: caseData.address })}><Share2 className="h-4 w-4 mr-2" />Dela i chatt</Button>
+            <MontagePartialBlock caseData={caseData} />
             {customerCard}
             {timesCard}
             {deviationsCard}
@@ -1068,6 +1083,14 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               <Button variant="outline" className="min-h-[48px]">Avbryt</Button>
             </DrawerClose>
           </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={showPartial} onOpenChange={setShowPartial}>
+        <DrawerContent>
+          <DrawerHeader><DrawerTitle>Delrapportera montage</DrawerTitle></DrawerHeader>
+          <div className="px-4 pb-2 space-y-2"><Label htmlFor="partial-note">Allt är klart utom:</Label><Textarea id="partial-note" required value={partialNote} onChange={e => setPartialNote(e.target.value)} rows={3} placeholder="T.ex. fönsterbleck på baksidan saknas, lister i köket" /></div>
+          <DrawerFooter><Button className="min-h-[48px]" disabled={!partialNote.trim() || partialMutation.isPending} onClick={() => partialMutation.mutate()}>{partialMutation.isPending ? 'Skickar…' : 'Skicka delrapport'}</Button><DrawerClose asChild><Button variant="outline" className="min-h-[48px]">Avbryt</Button></DrawerClose></DrawerFooter>
         </DrawerContent>
       </Drawer>
 

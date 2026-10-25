@@ -9,6 +9,7 @@ describe('notificationIcon', () => {
     ['sheet_metal', Hammer],
     ['kontrollmatning', Ruler], ['km_booked_by_montor', Ruler], ['km_klar', Ruler],
     ['note', MessageSquare], ['montor_event', MessageSquare],
+    ['montage_delrapport', Wrench],
     ['montage_pagar', Wrench], ['montage_klart', Wrench], ['montage_booked', Wrench], ['montage_booked_by_montor', Wrench], ['montage_rescheduled', Wrench],
     ['case_assigned', Calendar], ['km_assigned', Calendar], ['vantar_godkannande', Calendar], ['unknown', Calendar],
   ])('%s uses the expected icon', (kind, icon) => {

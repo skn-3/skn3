@@ -55,6 +55,9 @@ import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBad
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { sellerStepsFor, upcomingWeekOptions } from '@/lib/sellerSteps';
 import { needsCompletion, consumeCompletionRequest } from '@/lib/caseCompletion';
+import { Share2 } from 'lucide-react';
+import { shareCaseInChat } from '@/lib/chat';
+import { MontagePartialBlock } from '@/components/shared/MontagePartialBlock';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -1193,6 +1196,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             <h2 className="font-bold text-card-foreground">{caseData.address}</h2>
             <Badge variant="secondary" className="mt-1">{STATUS_LABELS[caseData.status] || caseData.status}</Badge>
           </div>
+          <Button variant="outline" className="min-h-12 ml-auto mr-2" onClick={() => shareCaseInChat({ id: caseData.id, address: caseData.address })}><Share2 className="h-4 w-4 mr-1" />Dela i chatt</Button>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
@@ -1407,6 +1411,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           </section>
 
           {/* Datum */}
+          <div className="px-4"><MontagePartialBlock caseData={caseData} /></div>
           <section className="p-4 space-y-2">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Datum</h3>
             {(() => {

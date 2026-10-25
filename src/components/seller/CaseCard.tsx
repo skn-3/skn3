@@ -8,6 +8,8 @@ import { differenceInCalendarDays, startOfISOWeek } from 'date-fns';
 import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBadge';
 import { Chip } from '@/components/ui/chip';
 import type { Tone } from '@/lib/statusTheme';
+import { hasMontagePartial } from '@/lib/montagePartial';
+import { ListChecks } from 'lucide-react';
 
 const DELIVERY_RELEVANT_STATUSES = new Set([
   'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat',
@@ -215,6 +217,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
       )}
 
       <KlimatKompenseradBadge caseId={caseData.id} compact />
+      {hasMontagePartial(caseData) && <div><Chip tone="warning" className="bg-warning-soft text-warning-ink" icon={<ListChecks />}>Delrapport</Chip></div>}
     </button>
     {mustComplete && (
       <Button
