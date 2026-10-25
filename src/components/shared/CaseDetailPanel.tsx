@@ -45,6 +45,7 @@ import { LitterorSection } from '@/components/shared/LitterorSection';
 import { CaseMarginBlock } from '@/components/shared/CaseMarginBlock';
 import { MontageReportButton } from '@/components/shared/MontageReportButton';
 import { SignedImage } from '@/components/shared/SignedImage';
+import { AiReceipt } from '@/components/shared/AiReceipt';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { OfferForm } from '@/components/offers/OfferForm';
 import { AOrderForm } from '@/components/aorders/AOrderForm';
@@ -2763,7 +2764,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{Number(c.amount).toLocaleString('sv-SE')} kr</span>
-                    {c.receipt_url && (
+                    {c.receipt_path ? <AiReceipt path={c.receipt_path}/> : c.receipt_url && (
                       <button onClick={() => setFullscreenImg(c.receipt_url)} className="w-10 h-10 rounded border overflow-hidden hover:ring-2 ring-primary">
                         <SignedImage value={c.receipt_url} alt="Kvitto" className="w-full h-full object-cover" />
                       </button>

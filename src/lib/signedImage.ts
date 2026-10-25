@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type SignedBucket = 'case-images' | 'sheet-metal-sketches' | 'case-documents';
+export type SignedBucket = 'case-images' | 'sheet-metal-sketches' | 'case-documents' | 'ai-receipts';
 
 const SIGNED_TTL_SECONDS = 3600;
 
