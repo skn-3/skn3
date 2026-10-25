@@ -1,3 +1,4 @@
+import { AiUsageAdmin } from '@/components/ai/AiUsageAdmin';
 import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ImportCaseForm } from './ImportCaseForm';
@@ -19,6 +20,7 @@ interface AdminViewProps {
 }
 
 const ADMIN_SUBTABS = [
+  { value: 'ai', label: 'AI-användning' },
   { value: 'import', label: 'Importera ärende' },
   { value: 'validate', label: 'Validera pipeline' },
   { value: 'clean-addresses', label: 'Städa adresser' },
@@ -41,7 +43,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
       <Tabs value={sub} onValueChange={setSub} className="w-full">
         <div className="overflow-x-auto -mx-3 md:mx-0 px-3 md:px-0">
           <TabsList className="inline-flex w-max">
-            {ADMIN_SUBTABS.filter(t => (t.value !== 'drive-sync' && t.value !== 'consultants') || role?.isAdmin).map(t => (
+            {ADMIN_SUBTABS.filter(t => (t.value !== 'ai' || role?.isAdmin || role?.type === 'coordinator') && ( (t.value !== 'drive-sync' && t.value !== 'consultants') || role?.isAdmin)).map(t => (
               <TabsTrigger key={t.value} value={t.value} className="whitespace-nowrap">
                 {t.label}
               </TabsTrigger>
@@ -49,6 +51,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
           </TabsList>
         </div>
 
+        {(role?.isAdmin || role?.type === 'coordinator') && <TabsContent value="ai" className="mt-4"><AiUsageAdmin /></TabsContent>}
         <TabsContent value="import" className="mt-4">
           <ImportCaseForm sellerName={currentUser} />
         </TabsContent>
