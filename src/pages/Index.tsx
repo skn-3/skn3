@@ -9,6 +9,8 @@ import { WelcomeDashboard } from '@/components/WelcomeDashboard';
 import { ForcePinChangeGate } from '@/components/ForcePinChangeGate';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatWidget } from '@/components/chat/ChatWidget';
+import { WinterLayer } from '@/components/winter/WinterLayer';
+import { useTheme } from 'next-themes';
 
 const WELCOME_KEY_PREFIX = 'smartklimat_welcome_shown_';
 
@@ -27,6 +29,7 @@ function markWelcomeShown(name: string) {
 }
 
 const Index = () => {
+  const { resolvedTheme } = useTheme();
   const { role, clearRole } = useRole();
   const [showMontorView, setShowMontorView] = useState(false);
   const [showCoordinatorView, setShowCoordinatorView] = useState(false);
@@ -70,6 +73,7 @@ const Index = () => {
     }
   }, [role, initialCaseId, mustChangePin, searchParams]);
 
+  const renderView = (): React.ReactNode => {
   if (!role) {
     return <RolePicker />;
   }
@@ -156,6 +160,10 @@ const Index = () => {
       onInitialCaseHandled={() => setInitialCaseId(null)}
     />
   );
+  };
+
+  const tone: 'dark' | 'light' = !role ? 'dark' : resolvedTheme === 'dark' ? 'dark' : 'light';
+  return <><WinterLayer tone={tone} />{renderView()}</>;
 };
 
 export default Index;

@@ -471,6 +471,16 @@ a[href*="lovable.app"][class*="badge"] {
     animation: none !important;
   }
   .insight-lockon::before { display: none !important; }
+  .winter-flyby { display: none !important; }
+}
+
+@keyframes winter-flyby {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(calc(100vw + 10%)); }
+}
+@keyframes winter-bob {
+  0%, 100% { transform: translateY(-6px); }
+  50% { transform: translateY(6px); }
 }
 
 /* Mobil: innehåll som råkar bli bredare än skärmen får inte bredda layout-viewporten (ger "inzoomad" sida på iOS/Android).
