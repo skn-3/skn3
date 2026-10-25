@@ -1,8 +1,9 @@
 # Roadmap
 
-- [ ] Notiser/chatt: migration 0025, säkra mottagarregler och realtime.
-- [ ] Notiser/chatt: klocka, chattpanel, olästmarkeringar och djuplänkar.
-- [ ] Notiser/chatt: tester och inloggad kontroll på dator/telefon, ingen publicering.
+- [x] Notiser/chatt: migration 0025 och kompletterande 0026 för explicita kolumnrättigheter, mottagarregler och realtime verifierade.
+- [x] Notiser/chatt: klocka, chattpanel, olästmarkeringar och djuplänkar; send-a-order driftsatt med verifierad avsändaridentitet.
+- [x] Notiser/chatt: 234 tester och automatiskt bygge gröna, paneler visuellt kontrollerade på dator/telefon med lokala testuppgifter, ingen publicering.
+- [ ] Notiser/chatt: verklig sändning/mottagning och djuplänkar mellan inloggade konton — eget konto saknas och session kunde inte skapas; kräver inloggning i förhandsvisningen.
 
 - [x] Fakturamejl egna uppdrag: migration 0024 verifierad, levererad mejlmall och fakturadatum/filnamn införda, 228 tester gröna, automatiskt bygge OK och send-invoice driftsatt; dator/mobil kontrollerade utan verkligt mejlutskick eller publicering.
 

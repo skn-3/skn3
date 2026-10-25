@@ -97,6 +97,8 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   // Keyboard shortcut "/" + Escape to clear
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const target = e.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA'].includes(target.tagName))) return;
       if (e.key === '/' && document.activeElement !== inputRef.current) {
         e.preventDefault();
         inputRef.current?.focus();
