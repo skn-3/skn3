@@ -38,7 +38,14 @@ export function useChat(activeId: string | null) {
     qc.setQueryData<typeof query.data>(['chat', userId], (old) => old ? { ...old, members: old.members.map(m => m.conversation_id === id && m.user_id === userId ? { ...m, last_read_at: readAt } : m) } : old);
     qc.invalidateQueries({ queryKey: ['notifications', userId] });
   }, [userId, qc]);
-  useEffect(() => { if (activeId) void markRead(activeId); }, [activeId, markRead]);
+  useEffect(() => {
+    if (!activeId) return;
+    void markRead(activeId);
+    const interval = setInterval(() => void markRead(activeId), 60000);
+    return () => clearInterval(interval);
+  }, [activeId, markRead]);
+  const latestActiveMessage = query.data?.messages.filter(m => m.conversation_id === activeId).at(-1)?.id;
+  useEffect(() => { if (activeId && latestActiveMessage) void markRead(activeId); }, [activeId, latestActiveMessage, markRead]);
   useEffect(() => {
     if (!userId) return;
     const channel = supabase.channel(`chat-${userId}-${Math.random().toString(36).slice(2)}`)

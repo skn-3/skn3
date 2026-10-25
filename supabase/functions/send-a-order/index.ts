@@ -154,7 +154,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    await admin.from('a_orders').update({ order_sent_at: new Date().toISOString(), pdf_path: pdfPath }).eq('id', a_order_id);
+    // Preserve the verified sender identity for notification triggers, instead of service-role auth.uid() = null.
+    const senderClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY') || '', {
+      global: { headers: { Authorization: req.headers.get('Authorization') || '' } },
+    });
+    const { error: sentError } = await senderClient.from('a_orders').update({ order_sent_at: new Date().toISOString(), pdf_path: pdfPath }).eq('id', a_order_id);
+    if (sentError) throw sentError;
 
     return new Response(JSON.stringify({ ok: true, recipient: team.email, id: emailData?.id ?? null }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
