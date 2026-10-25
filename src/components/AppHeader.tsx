@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/lib/constants';
-import { LogOut, Eye, Calendar, KeyRound, Check, ChevronDown } from 'lucide-react';
+import { LogOut, Eye, Calendar, KeyRound, Check, ChevronDown, Snowflake } from 'lucide-react';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { LogoWithHat } from '@/components/winter/LogoWithHat';
+import { useWinterMode } from '@/lib/winterMode';
 import { MyCalendarDialog } from '@/components/calendar/MyCalendarDialog';
 import { ChangePinDialog } from '@/components/ChangePinDialog';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -76,7 +79,7 @@ function ViewSwitcher({ options }: { options: HeaderViewOption[] }) {
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5 shrink-0 select-none">
-      <img src="/brand/logo-stamp-vit-n3.png" alt="SmartKlimat N3prenad" className={compact ? 'h-8 w-8 object-contain' : 'h-9 w-9 object-contain'} />
+      <LogoWithHat src="/brand/logo-stamp-vit-n3.png" alt="SmartKlimat N3prenad" className={compact ? 'h-8 w-8 object-contain' : 'h-9 w-9 object-contain'} />
       <span className="flex flex-col leading-none">
         <span className={`font-display font-bold text-white ${compact ? 'text-[15px]' : 'text-[17px]'}`}>SmartKlimat</span>
         <span className={`uppercase text-ink-muted ${compact ? 'text-[9.5px] tracking-[0.14em]' : 'text-[10.5px] tracking-[0.14em]'}`}>N3prenad</span>
@@ -90,6 +93,7 @@ export function AppHeader({ role, onChangeRole, viewOptions = [], children, acti
   const initials = getInitials(role.name);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
+  const winter = useWinterMode();
 
   return (
     <header className="sticky top-0 z-50 bg-ink-deep text-white shadow-[0_1px_0_hsl(var(--ink-deep))]">
@@ -141,6 +145,16 @@ export function AppHeader({ role, onChangeRole, viewOptions = [], children, acti
                 <KeyRound className="h-4 w-4 mr-2" />
                 Byt PIN
               </DropdownMenuItem>
+              {winter.season && (
+                <DropdownMenuCheckboxItem
+                  checked={winter.enabled}
+                  onCheckedChange={(v) => winter.setEnabled(!!v)}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  <Snowflake className="h-4 w-4 mr-2" />
+                  Julpynt
+                </DropdownMenuCheckboxItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onChangeRole}>
                 <LogOut className="h-4 w-4 mr-2" />

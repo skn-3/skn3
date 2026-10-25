@@ -8,6 +8,7 @@ import { SELLERS, MONTORS, COORDINATORS, loginEmailFor, padPinForAuth, type Role
 import { logActivity } from '@/lib/activityLog';
 import { supabase } from '@/integrations/supabase/client';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
+import { LogoWithHat } from '@/components/winter/LogoWithHat';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const ROLE_OPTIONS: { type: RoleType; label: string; icon: LucideIcon }[] = [
@@ -131,7 +132,7 @@ export function RolePicker() {
           className="pointer-events-none absolute -right-14 -top-6 w-44 opacity-[0.14] -rotate-12 md:-right-36 md:-bottom-32 md:top-auto md:w-[560px]"
         />
         <div className="relative flex items-center gap-3">
-          <img src="/brand/logo-stamp-vit-n3.png" alt="SmartKlimat N3prenad" className="h-10 w-10 md:h-12 md:w-12 object-contain" />
+          <LogoWithHat src="/brand/logo-stamp-vit-n3.png" alt="SmartKlimat N3prenad" className="h-10 w-10 md:h-12 md:w-12 object-contain" />
           <span className="flex flex-col leading-none">
             <span className="font-display font-bold text-xl md:text-2xl">SmartKlimat</span>
             <span className="text-[10.5px] md:text-[11px] tracking-[0.14em] uppercase text-ink-muted">N3prenad</span>
