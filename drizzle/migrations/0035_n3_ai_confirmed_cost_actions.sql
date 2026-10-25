@@ -1,0 +1,13 @@
+CREATE TABLE public.ai_actions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), thread_id uuid NOT NULL REFERENCES public.ai_threads(id) ON DELETE CASCADE, user_id uuid NOT NULL, assistant_message_id uuid REFERENCES public.ai_messages(id) ON DELETE SET NULL, kind text NOT NULL, payload jsonb NOT NULL, summary text NOT NULL, status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','confirmed','cancelled','expired','failed')), result jsonb, error text, created_at timestamptz NOT NULL DEFAULT now(), decided_at timestamptz);
+GRANT SELECT ON public.ai_actions TO authenticated;
+GRANT ALL ON public.ai_actions TO service_role;
+ALTER TABLE public.ai_actions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY ai_actions_own_read ON public.ai_actions FOR SELECT TO authenticated USING (user_id=auth.uid());
+CREATE INDEX ai_actions_thread_date ON public.ai_actions(thread_id,created_at);
+ALTER TABLE public.ai_messages ADD COLUMN action_id uuid REFERENCES public.ai_actions(id) ON DELETE SET NULL;
+ALTER TABLE public.case_costs ADD COLUMN receipt_path text;
+CREATE FUNCTION public.ai_claim_action(p_action_id uuid,p_user_id uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ DECLARE a public.ai_actions%ROWTYPE; BEGIN SELECT * INTO a FROM public.ai_actions WHERE id=p_action_id AND user_id=p_user_id FOR UPDATE; IF NOT FOUND THEN RETURN jsonb_build_object('error','Förslaget finns inte.'); END IF; IF a.status<>'pending' OR a.decided_at IS NOT NULL THEN RETURN jsonb_build_object('error','Förslaget är redan beslutat eller behandlas.'); END IF; IF a.created_at<=now()-interval '15 minutes' THEN UPDATE public.ai_actions SET status='expired',decided_at=now() WHERE id=a.id; RETURN jsonb_build_object('expired',true,'action',to_jsonb(a)); END IF; UPDATE public.ai_actions SET decided_at=now() WHERE id=a.id; RETURN jsonb_build_object('action',to_jsonb(a)); END $$;
+REVOKE ALL ON FUNCTION public.ai_claim_action(uuid,uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.ai_claim_action(uuid,uuid) TO service_role;
+CREATE POLICY ai_receipts_own_insert ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id='ai-receipts' AND (storage.foldername(name))[1]=auth.uid()::text AND owner=auth.uid() AND lower(storage.extension(name)) IN ('jpg','jpeg','png','webp'));
+CREATE POLICY ai_receipts_read ON storage.objects FOR SELECT TO authenticated USING (bucket_id='ai-receipts' AND ((storage.foldername(name))[1]=auth.uid()::text OR public.auth_is_admin() OR public.auth_user_role()='coordinator'));
