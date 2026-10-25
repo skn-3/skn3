@@ -293,7 +293,7 @@ export type Database = {
           gateway_error?: string | null
           gateway_status?: number | null
           id?: number
-          model: string
+          model?: string
           updated_at?: string
         }
         Update: {

@@ -239,6 +239,13 @@
       "when": 1792971589785,
       "tag": "0033_chat_image_attachments",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792971885599,
+      "tag": "0034_n3_ai_full_flash_default",
+      "breakpoints": true
     }
   ]
 }

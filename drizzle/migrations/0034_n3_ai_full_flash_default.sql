@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_settings ALTER COLUMN model SET DEFAULT 'google/gemini-3-flash-preview';
