@@ -1,4 +1,6 @@
 Use the same ProfileSvg rendering for the sheet-metal form and the order PDF, rasterized in the browser before PDF generation; this keeps measurements and angle annotations identical in both places.
+Keep messaging membership creation inside start_conversation and expose only profiles_public for recipient selection; column-level grants protect read markers and security-definer membership checks avoid recursive RLS.
+Mount chat once in the authenticated Index shell and scope query keys and realtime channels to the signed-in user; this prevents public-page exposure and duplicate subscriptions.
 Keep assignment invoice email rendering and payment/date derivation in the function-local pure email module; this allows testing without dispatching customer emails.
 Limit package-install network concurrency in bunfig.toml to reduce registry throttling without changing dependency versions or registry routing.
 Keep logical PDF download and attachment names in pdfNames, separate from storage paths; this keeps naming consistent without moving saved documents.

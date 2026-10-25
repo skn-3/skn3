@@ -1191,6 +1191,92 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "consultants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_members: {
+        Row: {
+          conversation_id: string
+          last_read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          last_read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          last_read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_group: boolean
+          title: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_group?: boolean
+          title?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_group?: boolean
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       deviations: {
@@ -1626,6 +1712,52 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       montor_debit_invoices: {
         Row: {
           case_id: string | null
@@ -1774,6 +1906,57 @@ export type Database = {
           phone?: string | null
         }
         Relationships: []
+      }
+      notifications: {
+        Row: {
+          actor: string | null
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+          link: Json | null
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          actor?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          link?: Json | null
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          actor?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          link?: Json | null
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       number_counters: {
         Row: {
@@ -2467,6 +2650,14 @@ export type Database = {
           },
         ]
       }
+      profiles_public: {
+        Row: {
+          id: string | null
+          name: string | null
+          role: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       append_deviation_log: {
@@ -2488,6 +2679,7 @@ export type Database = {
       }
       drive_sync_wake: { Args: never; Returns: undefined }
       fix_a_order_sequence: { Args: never; Returns: undefined }
+      is_conversation_member: { Args: { p_id: string }; Returns: boolean }
       login_directory: {
         Args: never
         Returns: {
@@ -2497,6 +2689,43 @@ export type Database = {
       }
       next_team_invoice_number: { Args: { p_team_id: string }; Returns: string }
       next_yearly_number: { Args: { p_series: string }; Returns: string }
+      notify_montor_team: {
+        Args: {
+          p_actor: string
+          p_body: string
+          p_kind: string
+          p_link: Json
+          p_team_name: string
+          p_title: string
+        }
+        Returns: undefined
+      }
+      notify_staff: {
+        Args: {
+          p_actor: string
+          p_body: string
+          p_kind: string
+          p_link: Json
+          p_seller_name: string
+          p_title: string
+        }
+        Returns: undefined
+      }
+      notify_user: {
+        Args: {
+          p_actor: string
+          p_body: string
+          p_kind: string
+          p_link: Json
+          p_title: string
+          p_user: string
+        }
+        Returns: undefined
+      }
+      start_conversation: {
+        Args: { p_title?: string; p_user_ids: string[] }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MyCalendarDialog } from '@/components/calendar/MyCalendarDialog';
 import { ChangePinDialog } from '@/components/ChangePinDialog';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 export interface HeaderViewOption {
   label: string;
@@ -116,6 +117,7 @@ export function AppHeader({ role, onChangeRole, viewOptions = [], children, acti
           )}
           <ViewSwitcher options={viewOptions} />
           <ThemeToggle userKey={role.name} onDark />
+          <NotificationBell />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button

@@ -23,6 +23,7 @@ import { MontorLitteraSection } from '@/components/montor/MontorLitteraSection';
 import { submitKontrollmatning, fetchPendingLitteror } from '@/lib/kontrollmatning';
 import { aOrderPdfName, invoicePdfName, creditPdfName } from '@/lib/pdfNames';
 import { openDocumentInNewTab } from '@/lib/openDocument';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { CostPayoutChip } from '@/components/shared/CostPayoutChip';
 
 interface Props {
@@ -485,6 +486,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <h1 className="font-bold text-card-foreground truncate">{caseData.address}</h1>
           <Badge variant="secondary" className="mt-0.5">{STATUS_LABELS[caseData.status] || caseData.status}</Badge>
         </div>
+        <NotificationBell onDark={false} />
       </div>
 
       <div className="max-w-[480px] mx-auto px-4 pb-32">

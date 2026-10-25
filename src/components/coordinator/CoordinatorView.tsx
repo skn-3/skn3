@@ -27,7 +27,9 @@ interface Props {
 export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initialCaseId, onInitialCaseHandled }: Props) {
   const [tab, setTab] = useState<CoordinatorTab>('inbox');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialAOrderId = searchParams.get('aorder');
+  useEffect(() => { if (initialAOrderId) setTab('aorders'); }, [initialAOrderId]);
   const bottomNav = coordinatorBottomNavItems();
 
   useEffect(() => {
@@ -74,7 +76,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
           <TicketCenter currentUser={role.name} role="coordinator" onSelectCase={setSelectedCase} />
         )}
         {tab === 'offers' && <OffersHub currentUser={role.name} />}
-        {tab === 'aorders' && <AOrdersView currentUser={role.name} />}
+        {tab === 'aorders' && <AOrdersView currentUser={role.name} initialOpenId={initialAOrderId} onInitialOpenHandled={() => setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('aorder'); return next; }, { replace: true })} />}
         {tab === 'economy' && <EconomyView />}
       </main>
 

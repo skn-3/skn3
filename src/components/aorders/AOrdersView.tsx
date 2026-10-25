@@ -1,5 +1,5 @@
 import { paidDatesByCase } from '@/lib/payoutKind';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight, Banknote as BanknoteIcon, Undo2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -53,7 +53,7 @@ function KindChips({ o }: { o: any }) {
   );
 }
 
-interface Props { currentUser: string }
+interface Props { currentUser: string; initialOpenId?: string | null; onInitialOpenHandled?: () => void }
 
 function fmt(n: number) { return Math.round(n || 0).toLocaleString('sv-SE') + ' kr'; }
 
@@ -63,7 +63,7 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   credited: { label: 'Krediterad', cls: 'bg-red-500 hover:bg-red-500/90 text-white' },
 };
 
-export function AOrdersView({ currentUser }: Props) {
+export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }: Props) {
   const { role } = useRole();
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
@@ -240,6 +240,19 @@ export function AOrdersView({ currentUser }: Props) {
   function openNewKomp() { setEditing(null); setFormPrefill(null); setFormMode('komplettering'); setFormOpen(true); }
   function openNewService() { setEditing(null); setFormPrefill(null); setFormMode('service'); setFormOpen(true); }
   function openEdit(o: any) { setEditing(o); setFormPrefill(null); setFormMode(o?.order_kind === 'komplettering' ? 'komplettering' : o?.order_kind === 'service' ? 'service' : 'standard'); setFormOpen(true); }
+
+  useEffect(() => {
+    if (!initialOpenId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.from('a_orders').select('*, montor_teams(*)').eq('id', initialOpenId).maybeSingle();
+      if (cancelled) return;
+      if (error || !data) toast.error('Kunde inte hitta ordern');
+      else openEdit(data);
+      onInitialOpenHandled?.();
+    })();
+    return () => { cancelled = true; };
+  }, [initialOpenId]);
 
   async function doAssign() {
     if (!assignFor || !assignTeam) return;

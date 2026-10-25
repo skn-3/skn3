@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useRole } from '@/hooks/useRole';
 import { RolePicker } from '@/components/RolePicker';
@@ -8,6 +8,7 @@ import { CoordinatorView } from '@/components/coordinator/CoordinatorView';
 import { WelcomeDashboard } from '@/components/WelcomeDashboard';
 import { ForcePinChangeGate } from '@/components/ForcePinChangeGate';
 import { supabase } from '@/integrations/supabase/client';
+import { ChatWidget } from '@/components/chat/ChatWidget';
 
 const WELCOME_KEY_PREFIX = 'smartklimat_welcome_shown_';
 
@@ -30,6 +31,7 @@ const Index = () => {
   const [showMontorView, setShowMontorView] = useState(false);
   const [showCoordinatorView, setShowCoordinatorView] = useState(false);
   const [searchParams] = useSearchParams();
+  const arrivedViaLink = useRef(!!searchParams.get('case') || !!searchParams.get('aorder'));
   const [initialCaseId, setInitialCaseId] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const [mustChangePin, setMustChangePin] = useState<boolean | null>(null);
@@ -37,6 +39,7 @@ const Index = () => {
 
   useEffect(() => {
     const cid = searchParams.get('case');
+    if (cid || searchParams.get('aorder')) { arrivedViaLink.current = true; setShowWelcome(false); }
     if (cid) setInitialCaseId(cid);
   }, [searchParams]);
 
@@ -62,10 +65,10 @@ const Index = () => {
 
   // Show welcome once per day per user (skip if deep-linking to a case)
   useEffect(() => {
-    if (role && role.type !== 'coordinator' && !initialCaseId && shouldShowWelcome(role.name) && mustChangePin === false) {
+    if (role && role.type !== 'coordinator' && !arrivedViaLink.current && !initialCaseId && !searchParams.get('case') && !searchParams.get('aorder') && shouldShowWelcome(role.name) && mustChangePin === false) {
       setShowWelcome(true);
     }
-  }, [role, initialCaseId, mustChangePin]);
+  }, [role, initialCaseId, mustChangePin, searchParams]);
 
   if (!role) {
     return <RolePicker />;
@@ -82,8 +85,10 @@ const Index = () => {
     );
   }
 
+  const withChat = (view: React.ReactNode) => <>{view}<ChatWidget /></>;
+
   if (showWelcome) {
-    return (
+    return withChat(
       <WelcomeDashboard
         role={role}
         onContinue={() => {
@@ -95,7 +100,7 @@ const Index = () => {
   }
 
   if (role.isAdmin && showMontorView) {
-    return (
+    return withChat(
       <MontorView
         role={role}
         onChangeRole={clearRole}
@@ -108,7 +113,7 @@ const Index = () => {
   }
 
   if (role.isAdmin && showCoordinatorView && role.type === 'seller') {
-    return (
+    return withChat(
       <CoordinatorView
         role={role}
         onChangeRole={clearRole}
@@ -120,7 +125,7 @@ const Index = () => {
   }
 
   if (role.type === 'seller') {
-    return (
+    return withChat(
       <SellerView
         role={role}
         onChangeRole={clearRole}
@@ -133,7 +138,7 @@ const Index = () => {
   }
 
   if (role.type === 'coordinator') {
-    return (
+    return withChat(
       <CoordinatorView
         role={role}
         onChangeRole={clearRole}
@@ -143,7 +148,7 @@ const Index = () => {
     );
   }
 
-  return (
+  return withChat(
     <MontorView
       role={role}
       onChangeRole={clearRole}
