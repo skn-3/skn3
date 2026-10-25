@@ -1,0 +1,13 @@
+import { useEffect,useState } from 'react';
+import { Check,ListChecks } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AiReceipt } from '@/components/shared/AiReceipt';
+import type { AiAction } from '@/hooks/useAiChat';
+import { ACTION_TTL_MS } from '../../../supabase/functions/n3-ai/actions/logic';
+const labels:Record<string,string>={confirmed:'Bekräftad',cancelled:'Avbruten',expired:'Utgången',failed:'Misslyckades'};
+export function AiActionCard({action,onDecide}:{action:AiAction;onDecide:(id:string,decision:'confirm'|'cancel')=>Promise<void>}){
+ const [busy,setBusy]=useState(false);const [now,setNow]=useState(Date.now());useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),10000);return()=>clearInterval(timer);},[]);
+ const status=action.status==='pending'&&now-Date.parse(action.created_at)>=ACTION_TTL_MS?'expired':action.status;const pending=status==='pending'&&!action.decided_at;
+ async function decide(decision:'confirm'|'cancel'){if(busy)return;setBusy(true);try{await onDecide(action.id,decision);}finally{setBusy(false);}}
+ return <section className="rounded-lg border border-border bg-card text-card-foreground p-3 space-y-3" aria-label="Kostnadsförslag"><h3 className="font-display font-bold flex items-center gap-2"><ListChecks className="h-5 w-5"/>Lägg till kostnad</h3><dl className="text-sm space-y-2"><div><dt className="text-muted-foreground">Ärende</dt><dd className="break-words">{action.payload.address}{action.payload.city?`, ${action.payload.city}`:''}</dd></div><div><dt className="text-muted-foreground">Belopp</dt><dd className="font-mono font-semibold">{action.payload.amount.toLocaleString('sv-SE')} kr ex moms</dd></div><div><dt className="text-muted-foreground">Beskrivning</dt><dd className="break-words whitespace-pre-wrap">{action.payload.description}</dd></div></dl>{action.payload.receipt_path&&<AiReceipt path={action.payload.receipt_path}/>} {pending?<div className="flex gap-2"><Button className="min-h-12 flex-1" disabled={busy} onClick={()=>void decide('confirm')}><Check className="h-4 w-4 mr-2"/>{busy?'Skickar…':'Bekräfta'}</Button><Button variant="outline" className="min-h-12" disabled={busy} onClick={()=>void decide('cancel')}>Avbryt</Button></div>:<p className="text-sm font-semibold" role="status">{labels[status]??'Behandlas…'}</p>}{action.error&&<p className="text-sm text-destructive">{action.error}</p>}</section>;
+}
