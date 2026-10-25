@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Montörlistor: nya status- och typfilter, egna summeringar, KM-flik, datumsortering och gemensamt kortspråk; 241 tester och automatisk typkontroll gröna, filter/expansion/sökning verifierade med lokala testuppgifter vid 390/768/1280 px, ingen datamodelländring eller publicering.
+- [ ] Montörlistor: kontroll med riktiga inloggade uppgifter — session för användaren kunde inte skapas; kräver inloggning i förhandsvisningen.
+
 - [x] Separera chatt från notiser: meddelandetrigger och klockkoppling borttagna, gamla chattnotiser rensade, chattens egen tryckbara toast infördes; 235 tester och automatiskt bygge gröna.
 
 - [x] Notiser/chatt: migration 0025 och kompletterande 0026 för explicita kolumnrättigheter, mottagarregler och realtime verifierade.
