@@ -17,3 +17,4 @@ In installer submit flows, create the primary row first and treat later steps (e
 - Consultants' own pay view (Min lön) reads only through the consultant-self function and preview action; PDFs reach them solely via short-lived signed URLs, never direct storage access.
 - Service orders are a_orders rows with order_kind='service' (payer, mockfjards_order_number) and reuse the whole A-order invoice/PDF/Drive flow; prefill logic lives in src/lib/serviceOrder.ts so it stays testable.
 - If node_modules/canvas appears without its native build (installs run with --ignore-scripts), delete that directory; jsdom then loads and vitest runs, because a half-installed optional canvas crashes every test file.
+- Keep installer list classification, summaries and date ordering in montorLists and scope persisted order filters to the viewer; this makes list rules testable and prevents cross-account filter leakage.
