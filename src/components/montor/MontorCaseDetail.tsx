@@ -832,7 +832,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
               {typeof o.total_amount === 'number' && (
                 <div className="text-right">
                   <div className={`font-display text-[18px] tabular-nums whitespace-nowrap ${negative ? 'text-muted-foreground' : 'text-card-foreground'}`}>{fmtKr(o.total_amount)} kr</div>
-                  <div className="text-[10px] uppercase tracking-[1.3px] text-muted-foreground">ex moms</div>
+                  <div className="text-[10px] font-normal uppercase tracking-[1px] text-muted-foreground/80">ex moms</div>
                 </div>
               )}
             </div>
@@ -869,13 +869,13 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
   const sheetCard = (
     <Card title="Plåtbeställningar" id="sheet" collapsible summary={`${sheetCount} beställningar`} open={isOpen('sheet')} onToggle={() => toggle('sheet')}>
-      <SheetMetalOrdersSection caseId={caseData.id} variant="mobile" />
+      <SheetMetalOrdersSection caseId={caseData.id} variant="mobile" hideTitle />
     </Card>
   );
 
   const litteraCard = (
     <Card title="Kontrollmätning / littera" id="littera" collapsible summary={`${litteraCount} littera`} open={isOpen('littera')} onToggle={() => toggle('littera')}>
-      <MontorLitteraSection caseId={caseData.id} currentUser={currentUser} caseAddress={caseData.address} customerName={caseData.customer_name} />
+      <MontorLitteraSection caseId={caseData.id} currentUser={currentUser} caseAddress={caseData.address} customerName={caseData.customer_name} hideTitle />
     </Card>
   );
 
