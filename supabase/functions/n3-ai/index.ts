@@ -10,7 +10,7 @@ const statuses = {ny:'Ny',vantar_km:'Väntar KM',km_bokad:'KM bokad',km_klar:'KM
 function unwrap(result: any) { if(result.error)throw new Error(result.error.message); return result.data; }
 function historyMessages(rows: any[]) {
  let start=0; while(start<rows.length && (rows[start].role==='tool'||(rows[start].role==='assistant'&&rows[start].tool_calls)))start++;
- return rows.slice(start).map(m=>m.role==='tool'?{role:'tool',content:m.content,tool_call_id:m.tool_call_id}:m.tool_calls?{role:'assistant',content:m.content||null,tool_calls:m.tool_calls}:{role:m.role,content:m.content+(m.case_ids?.length?'\n'+m.case_ids.map((id:string)=>`[[case:${id}]]`).join('\n'):'')});
+ return rows.slice(start).map(m=>m.role==='tool'?{role:'tool',content:m.content,tool_call_id:m.tool_call_id}:m.tool_calls?{role:'assistant',content:m.content||null,tool_calls:Array.isArray(m.tool_calls)?m.tool_calls:m.tool_calls.calls,reasoning_details:m.tool_calls.reasoning_details}:{role:m.role,content:m.content+(m.case_ids?.length?'\n'+m.case_ids.map((id:string)=>`[[case:${id}]]`).join('\n'):'')});
 }
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response('ok',{headers:corsHeaders});
@@ -38,6 +38,12 @@ Deno.serve(async req=>{
  const name=unwrap(nameResult),role=unwrap(roleResult),isAdmin=unwrap(adminResult);if(!name||!role)throw new Error('Användarens profil saknas');
  const ctx:ToolContext={userClient,name,role,isAdmin,now:new Date(),seenCaseIds:new Set()};
  const history=unwrap(await adminClient.from('ai_messages').select('*').eq('thread_id',threadId).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(30)).reverse();
+ // Recheck access when assignments change; stale tool data must not enter a new prompt.
+ for(const previous of history) {
+   for(const id of previous.case_ids??[]) {
+     if(!await visibleCase(id,ctx)) { previous.content='Uppgifterna är inte längre synliga för användaren. Hämta aktuella fakta med verktygen.'; previous.case_ids=[]; break; }
+   }
+ }
  let messages:any[]=[{role:'system',content:`Du är N3prenad-AI, assistent i SmartKlimat N3prenads interna app. Du hjälper montörer, säljare och kontoret med frågor om ärenden.
 Användare: ${name}. Roll: ${role}. Admin: ${isAdmin}. Montörteam: ${role==='montor'?name:'ej montör'}. Idag: ${stockholmDate(ctx.now)}, vecka ${isoWeek(ctx.now)} Europe/Stockholm. Statusetiketter: ${JSON.stringify(statuses)}.
 Svara kort, konkret och på svenska. Inga emojis. Använd alltid verktygen för fakta om ärenden, gissa aldrig. Flera träffar: lista dem kort och fråga vilket som avses. Säg tydligt när något inte finns eller inte är synligt för användaren. Verktygen visar högst 20 träffar; säg till om listan kan vara begränsad.
@@ -57,9 +63,9 @@ ${settings.extra_instructions??''}`},...historyMessages(history)];
  const calls=answer.tool_calls??[];
  if(!calls.length){final=answer.content??'';if(!final.trim())throw Object.assign(new Error('AI-tjänsten kunde inte besvara frågan.'),{status:403,refusal:true});break;}
  if(calls.length>10)throw new Error('För många verktygsanrop');
- unwrap(await adminClient.from('ai_messages').insert({thread_id:threadId,role:'assistant',content:answer.content??'',tool_calls:calls}));messages.push({role:'assistant',content:answer.content??null,tool_calls:calls});
+ unwrap(await adminClient.from('ai_messages').insert({thread_id:threadId,role:'assistant',content:answer.content??'',tool_calls:{calls,reasoning_details:answer.reasoning_details}}));messages.push({role:'assistant',content:answer.content??null,tool_calls:calls,reasoning_details:answer.reasoning_details});
  for(const call of calls){tool_calls++;let result:unknown;try{const tool=readTools.find(t=>t.name===call.function.name);const args=JSON.parse(call.function.arguments);result=tool?await safeExecute(tool,args,ctx):{error:'Verktyget är inte tillgängligt i läsläget.'};}catch{result={error:'Ogiltiga verktygsargument'};}
- const content=JSON.stringify(result);unwrap(await adminClient.from('ai_messages').insert({thread_id:threadId,role:'tool',content,tool_call_id:call.id,tool_name:call.function.name}));messages.push({role:'tool',content,tool_call_id:call.id});}
+ const content=JSON.stringify(result);unwrap(await adminClient.from('ai_messages').insert({thread_id:threadId,role:'tool',content,tool_call_id:call.id,tool_name:call.function.name,case_ids:[...ctx.seenCaseIds]}));messages.push({role:'tool',content,tool_call_id:call.id});}
  }
  if(!final.trim())throw new Error('Frågan kunde inte besvaras inom sex rundor.');
  const answer=parseAiReply(final);const case_ids:string[]=[];
