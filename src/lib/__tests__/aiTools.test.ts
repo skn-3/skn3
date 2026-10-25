@@ -1,0 +1,11 @@
+import { it, expect } from 'vitest';
+import { cases, ownScope, searchWords, safeExecute, type ToolContext } from '../../../supabase/functions/n3-ai/tools/context';
+import { getCase } from '../../../supabase/functions/n3-ai/tools/getCase';
+import { summarizeAiUsage } from '../aiUsage';
+const ctx=(role:string):ToolContext=>({role,name:'Alex NBD',isAdmin:false,now:new Date(),seenCaseIds:new Set(),userClient:{from:(table:string)=>table} as never});
+it('montörverktyg använder endast cases_montor',()=>{expect(cases(ctx('montor'))).toBe('cases_montor');expect(cases(ctx('seller'))).toBe('cases');});
+it('säljare begränsas till sitt namn utan adminbehörighet',()=>{let args:unknown[]=[];const q={eq:(...a:unknown[])=>{args=a;return q;}};ownScope(q,ctx('seller'));expect(args).toEqual(['seller','Alex NBD']);});
+it('alla sökord måste matcha något fält i en gemensam AND-grupp',()=>{let filter='';searchWords({or:(s:string)=>{filter=s;}},'Testvägen kund',['address','customer_name']);expect(filter).toBe('and(or(address.ilike."%Testvägen%",customer_name.ilike."%Testvägen%"),or(address.ilike."%kund%",customer_name.ilike."%kund%"))');});
+it('sökning tillåter inte att text ändrar filtergrammatiken',()=>{expect(()=>searchWords({},'x),status.eq.ny',['address'])).toThrow();});
+it('verktygsfel blir data och kraschar inte modellanropet',async()=>{const result=await safeExecute(getCase,{case_id:'invalid'},ctx('montor'));expect(result).toEqual({error:'Ogiltigt ärende-id'});});
+it('AI-usage skiljer dagstak från skickade användarfrågor',()=>{const row={user_id:'u',prompt_tokens:10,completion_tokens:5,total_tokens:15,created_at:'2026-10-26T01:00:00Z'};const totals=summarizeAiUsage([{...row,status:'ok'},{...row,status:'limit',total_tokens:0}], '2026-10-25T23:00:00Z');expect(totals.today).toEqual({messages:1,tokens:15});expect(totals.limits).toBe(1);});
