@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Notiser/chatt: migration 0025, säkra mottagarregler och realtime.
+- [ ] Notiser/chatt: klocka, chattpanel, olästmarkeringar och djuplänkar.
+- [ ] Notiser/chatt: tester och inloggad kontroll på dator/telefon, ingen publicering.
+
 - [x] Fakturamejl egna uppdrag: migration 0024 verifierad, levererad mejlmall och fakturadatum/filnamn införda, 228 tester gröna, automatiskt bygge OK och send-invoice driftsatt; dator/mobil kontrollerade utan verkligt mejlutskick eller publicering.
 
 - [x] Drive-säkerhet: hård läsa/skapa-spärr, vakttest, admintext och bestående regel; 156 tester gröna, bygge OK, funktionen utlagd och mappåtkomst verifierad utan apppublicering.
