@@ -1,0 +1,5 @@
+import { useEffect,useState } from 'react';
+import { X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+function Draft({file,disabled,onRemove}:{file:File;disabled:boolean;onRemove:()=>void}){const [url,setUrl]=useState('');useEffect(()=>{const next=URL.createObjectURL(file);setUrl(next);return()=>URL.revokeObjectURL(next);},[file]);return <div className="relative h-16 w-16 shrink-0"><img src={url} alt={file.name} className="h-16 w-16 rounded-lg object-cover"/><Button type="button" size="icon" variant="secondary" className="absolute -right-1 -top-1 h-8 w-8 rounded-full" disabled={disabled} aria-label={`Ta bort bild ${file.name}`} onClick={onRemove}><X className="h-4 w-4"/></Button></div>;}
+export function ChatImageDrafts({files,disabled,onRemove}:{files:File[];disabled:boolean;onRemove:(index:number)=>void}){if(!files.length)return null;return <div className="flex gap-3 overflow-x-auto p-1 pt-2">{files.map((file,i)=><Draft key={`${i}-${file.name}-${file.lastModified}`} file={file} disabled={disabled} onRemove={()=>onRemove(i)}/>)}</div>;}

@@ -2,6 +2,7 @@ Use the same ProfileSvg rendering for the sheet-metal form and the order PDF, ra
 Keep messaging membership creation inside start_conversation and expose only profiles_public for recipient selection; column-level grants protect read markers and security-definer membership checks avoid recursive RLS.
 Mount chat once in the authenticated Index shell and scope query keys and realtime channels to the signed-in user; this prevents public-page exposure and duplicate subscriptions.
 Keep chat realtime, read markers and incoming-message toasts independent of notifications; event notifications must never read or modify conversation state.
+Keep chat image validation in chatAttachments and batch signed URLs per conversation/viewer in useChatImages; upload all compressed images before inserting a message, never upsert or delete client-side, and keep image activity out of notifications.
 Route installer case-event notifications through notify_montor_case_event with explicit exclusions for already-covered event types; this keeps future installer submissions covered without duplicating existing cost, deviation and status notifications.
 Keep notification icon mapping in notificationKinds; one tested mapping supplies every notification row without changing bell behavior.
 Keep partial montage submission and visibility rules in montagePartial and reuse MontagePartialBlock across installer and office views; this keeps status guards and retained-report visibility consistent.

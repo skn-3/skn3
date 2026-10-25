@@ -1,0 +1,12 @@
+import { it, expect } from 'vitest';
+import { validateChatImages,previewText,MAX_CHAT_IMAGE_BYTES } from '../chatAttachments';
+const image=(name='foto.jpg',type='image/jpeg',size=3)=>({name,type,size} as File);
+const attachment={path:'c/photo.jpg',name:'photo.jpg',type:'image/jpeg',size:3,width:1600,height:1200};
+it('accepterar högst sex bilder totalt inklusive redan valda',()=>{const r=validateChatImages(Array.from({length:7},()=>image()),2);expect(r.accepted).toHaveLength(4);expect(r.rejectedReason).toBeDefined();});
+it('sex bilder accepteras när inga redan valts',()=>{expect(validateChatImages(Array.from({length:6},()=>image())).accepted).toHaveLength(6);});
+it('bara image/* accepteras',()=>{const r=validateChatImages([image('a.pdf','application/pdf'),image('a.webp','image/webp')]);expect(r.accepted).toEqual([image('a.webp','image/webp')]);expect(r.rejectedReason).toBeDefined();});
+it('10 MB accepteras men större originalbilder avvisas',()=>{const r=validateChatImages([image('ok.jpg','image/jpeg',MAX_CHAT_IMAGE_BYTES),image('stor.jpg','image/jpeg',MAX_CHAT_IMAGE_BYTES+1)]);expect(r.accepted).toHaveLength(1);expect(r.accepted[0].name).toBe('ok.jpg');expect(r.rejectedReason).toBeDefined();});
+it('ingen ny bild tillåts när sex redan är valda',()=>{expect(validateChatImages([image()],6).accepted).toHaveLength(0);});
+it('bildmeddelande utan text ger Bild',()=>{expect(previewText({body:' ',attachments:[attachment]})).toBe('Bild');});
+it('tre bilder utan text ger 3 bilder',()=>{expect(previewText({body:'',attachments:[attachment,attachment,attachment]})).toBe('3 bilder');});
+it('text har företräde över bilder',()=>{expect(previewText({body:'Se montaget',attachments:[attachment]})).toBe('Se montaget');});

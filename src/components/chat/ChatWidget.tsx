@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, MessageCircle, Plus, Send, X, Sparkles } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Plus, Send, X, Sparkles, ImagePlus, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,10 @@ import { useChatCases } from '@/hooks/useChatCases';
 import { AiConversation } from './AiConversation';
 import { ChatCaseCard } from './ChatCaseCard';
 import { ChatCasePicker, type PendingChatCase } from './ChatCasePicker';
+import { validateChatImages, previewText, readChatAttachments } from '@/lib/chatAttachments';
+import { useChatImages } from '@/hooks/useChatImages';
+import { ChatImageGallery } from './ChatImageGallery';
+import { ChatImageDrafts } from './ChatImageDrafts';
 
 export function ChatWidget() {
   const navigate = useNavigate();
@@ -29,9 +33,18 @@ export function ChatWidget() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const sendLock = useRef(false);
   const mobile = useIsMobile();
   const chat = useChat(open ? activeId : null);
   const conversation = chat.conversations.find(c => c.id === activeId);
+  const signedImages = useChatImages(activeId, conversation?.messages.flatMap(m => readChatAttachments(m.attachments).map(a => a.path)) ?? []);
+  useEffect(() => { setFiles([]); }, [activeId, aiActive, chat.userId]);
+  function addFiles(next: File[]) {
+    if (busy) return;
+    setFiles(old => { const result = validateChatImages(next, old.length); if (result.rejectedReason) toast.error(result.rejectedReason); return [...old, ...result.accepted]; });
+  }
   const caseIds = chat.conversations.flatMap(c => c.messages.map(m => m.case_id || extractCaseIdFromText(m.body))).filter((id): id is string => !!id);
   const chatCases = useChatCases(caseIds);
   const bottom = useRef<HTMLDivElement>(null);
@@ -52,9 +65,10 @@ export function ChatWidget() {
     return () => window.removeEventListener('smartklimat:share-case', handler);
   }, []);
   async function send() {
-    if (!activeId || (!body.trim() && !pendingCase) || busy) return;
+    if (!activeId || (!body.trim() && !pendingCase && !files.length) || sendLock.current) return;
+    sendLock.current = true;
     setBusy(true);
-    try { await chat.send(activeId, body.trim() || caseFallbackBody(pendingCase?.address ?? ''), pendingCase?.id); setBody(''); setPendingCase(null); } catch { toast.error('Meddelandet kunde inte skickas. Försök igen.'); } finally { setBusy(false); }
+    try { await chat.send(activeId, body.trim() || (pendingCase ? caseFallbackBody(pendingCase.address) : ''), files, pendingCase?.id); setBody(''); setPendingCase(null); setFiles([]); } catch (error) { toast.error(error instanceof Error ? error.message : 'Meddelandet kunde inte skickas. Försök igen.'); } finally { sendLock.current = false; setBusy(false); }
   }
   const content = aiActive ? <AiConversation onBack={() => setAiActive(false)} onClose={() => setOpen(false)} onOpenCase={id => { setOpen(false); navigate('/?case=' + encodeURIComponent(id)); }} /> : <div className="safe-bottom flex h-full min-h-0 flex-col text-foreground">
     <div className="flex shrink-0 items-center gap-2 px-3 py-2 border-b">
@@ -89,7 +103,8 @@ export function ChatWidget() {
           return <div key={m.id}>{newDay && <div className="text-center text-xs text-muted-foreground my-4">{date}</div>}<div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}><div className="max-w-[85%] min-w-0">
             {conversation.is_group && !mine && <p className="text-xs text-muted-foreground mb-1">{chat.profiles.find(p => p.id === m.sender_id)?.name ?? 'Användare'}</p>}
             <div className={`px-3 py-2 rounded-lg space-y-2 text-sm ${mine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
-              {!fallbackOnly && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+              <ChatImageGallery attachments={readChatAttachments(m.attachments)} urls={signedImages.data} loading={signedImages.isLoading} />
+              {!fallbackOnly && m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
               {caseId && <ChatCaseCard caseData={linkedCase} loading={chatCases.isLoading} onOpen={() => { setOpen(false); navigate('/?case=' + encodeURIComponent(caseId)); }} />}
             </div>
             <p className={`text-[11px] text-muted-foreground mt-1 ${mine ? 'text-right' : ''}`}>{new Date(m.created_at).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}</p>
@@ -97,15 +112,18 @@ export function ChatWidget() {
         })}<div ref={bottom} />
       </div>
       <form className="p-3 border-t space-y-2 shrink-0" onSubmit={e => { e.preventDefault(); void send(); }}>
+        <input ref={fileInput} type="file" accept="image/*" multiple className="hidden" aria-label="Välj chattbilder" onChange={e => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
+        <ChatImageDrafts files={files} disabled={busy} onRemove={index => setFiles(old => old.filter((_, i) => i !== index))} />
         {pendingCase && <div className="flex items-center gap-2 rounded-lg border bg-muted px-2 text-sm"><span className="min-w-0 flex-1 break-words">Bifogat ärende: {pendingCase.address}</span><Button type="button" variant="ghost" size="icon" className="h-12 w-12 shrink-0" aria-label="Ta bort bifogat ärende" onClick={() => setPendingCase(null)}><X className="h-4 w-4" /></Button></div>}
         <div className="flex gap-1 items-end">
+          <Button type="button" variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Bifoga bilder" disabled={busy || files.length >= 6} onClick={() => fileInput.current?.click()}><ImagePlus className="h-5 w-5" /></Button>
           <ChatCasePicker onSelect={setPendingCase} />
-          <Textarea aria-label="Meddelande" placeholder="Skriv ett meddelande..." className="min-w-0 flex-1 min-h-12 max-h-28 resize-none" rows={2} maxLength={10000} value={body} onChange={e => setBody(e.target.value)} onKeyDown={e => { if (!mobile && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
-          <Button type="submit" className="min-h-12 px-2 shrink-0" disabled={!conversation || (!body.trim() && !pendingCase) || busy}><Send className="h-4 w-4 mr-1" />Skicka</Button>
+          <Textarea aria-label="Meddelande" placeholder="Skriv ett meddelande..." className="min-w-0 flex-1 min-h-12 max-h-28 resize-none" rows={2} maxLength={10000} value={body} disabled={busy} onChange={e => setBody(e.target.value)} onPaste={e => { if (mobile) return; const images = Array.from(e.clipboardData.items).filter(item => item.type.startsWith('image/')).map(item => item.getAsFile()).filter((file): file is File => !!file); if (images.length) { e.preventDefault(); addFiles(images); } }} onKeyDown={e => { if (!mobile && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
+          <Button type="submit" className="min-h-12 px-2 shrink-0" disabled={!conversation || (!body.trim() && !pendingCase && !files.length) || busy}>{busy ? <Loader2 className="h-4 w-4 mr-1 animate-spin motion-reduce:animate-none" /> : <Send className="h-4 w-4 mr-1" />}{busy ? 'Skickar…' : 'Skicka'}</Button>
         </div>
       </form>
     </> : <div className="overflow-y-auto flex-1"><Button variant="ghost" className="w-full rounded-none h-auto min-h-20 border-b p-4 gap-3 text-left whitespace-normal" onClick={() => { setAiActive(true); setActiveId(null); setPendingCase(null); }}><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold text-gold-ink"><Sparkles className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">N3prenad-AI</span><span className="block text-xs font-normal text-muted-foreground">Fråga om ärenden</span></span></Button>{!chat.conversations.length ? <p className="py-12 text-center text-muted-foreground">Inga konversationer ännu.</p> : chat.conversations.map(c => <Button key={c.id} variant="ghost" className="w-full rounded-none h-auto min-h-20 text-left whitespace-normal border-b p-4 gap-3" onClick={() => { setActiveId(c.id); setBody(''); }}>
-      <MessageCircle className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1"><span className={`block truncate ${c.unread ? 'font-bold' : 'font-medium'}`}>{c.name}</span><span className="block truncate text-xs text-muted-foreground font-normal">{c.latest?.body ?? 'Inga meddelanden ännu'}</span><span className="block text-[11px] text-muted-foreground mt-1 font-normal">{relativeTimeSv(c.latest?.created_at ?? c.created_at)}</span></span>{c.unread > 0 && <span className="w-2 h-2 rounded-full bg-destructive shrink-0" />}
+      <MessageCircle className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1"><span className={`block truncate ${c.unread ? 'font-bold' : 'font-medium'}`}>{c.name}</span><span className="flex items-center gap-1 text-xs text-muted-foreground font-normal">{!c.latest?.body.trim() && readChatAttachments(c.latest?.attachments).length > 0 && <ImageIcon className="h-3.5 w-3.5 shrink-0" />}<span className="truncate">{previewText(c.latest)}</span></span><span className="block text-[11px] text-muted-foreground mt-1 font-normal">{relativeTimeSv(c.latest?.created_at ?? c.created_at)}</span></span>{c.unread > 0 && <span className="w-2 h-2 rounded-full bg-destructive shrink-0" />}
     </Button>)}</div>}
   </div>;
   return <>

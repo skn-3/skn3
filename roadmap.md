@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Chattbilder: migration 0033 (0030 redan upptagen), privat chat-images med 10 MB och JPEG/PNG/WebP verifierad samt medlemsstyrda INSERT/SELECT-policyer; komprimering, bilagor, batchsignering, fullskärmsbild och nedladdning klara. 318 tester och automatiskt bygge gröna; lokalt bildskick och uppladdningsfel verifierade på 390/1280 px. Notiser oförändrade, inga paket eller publicering.
+- [ ] Chattbilder: verklig uppladdning och mottagning mellan konton — saknar godkänd kontosession; kräver inloggning i förhandsvisningen.
+
 - [x] N3prenad-AI etapp 1: migration 0032, privat läschatt, fyra RLS-läsverktyg och kontorets användning/inställningar; aktuell Gemini Flash Lite verifierad med riktigt verktygsanrop och följdsvar, 310 tester gröna. Telefon/dator i ljust/mörkt kontrollerade med lokala simulerade svar; inga paket eller publicering.
 - [ ] N3prenad-AI: verklig montör-/säljarsession, sparade ai_usage-rader och nekad åtkomst till annat team — session kunde inte skapas (kontogodkännande otillgängligt); kräver inloggning i förhandsvisningen.
 - [ ] N3prenad-AI etapp 2: åtgärder med bekräftelsekort — inväntar separat beställning.

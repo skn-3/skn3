@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMessagingUser } from './useMessagingUser';
 import { countUnreadMessages, type ChatMessage } from '@/lib/chat';
 import { incomingMessageToast } from '@/components/chat/incomingMessageToast';
+import { readChatAttachments, validateChatImages, type ChatAttachment } from '@/lib/chatAttachments';
+import { compressImageToBlob } from '@/lib/imageCompress';
 
 export function useChat(activeId: string | null) {
   const userId = useMessagingUser();
@@ -23,7 +25,7 @@ export function useChat(activeId: string | null) {
       for (let start = 0; ; start += 1000) {
         const result = await supabase.from('messages').select('*').order('created_at').order('id').range(start, start + 999);
         if (result.error) throw result.error;
-        messages.push(...(result.data ?? []));
+        messages.push(...(result.data ?? []).map(m => ({ ...m, attachments: readChatAttachments(m.attachments) })));
         if ((result.data?.length ?? 0) < 1000) break;
       }
       return { conversations: conversations.data ?? [], members: members.data ?? [], profiles: profiles.data ?? [], messages };
@@ -80,9 +82,22 @@ export function useChat(activeId: string | null) {
     await qc.invalidateQueries({ queryKey: ['chat', userId] });
     return data;
   }
-  async function send(id: string, body: string, caseId?: string | null) {
-    if (!userId || !body.trim()) return;
-    const { error } = await supabase.from('messages').insert({ conversation_id: id, sender_id: userId, body: body.trim(), case_id: caseId ?? null });
+  async function send(id: string, body: string, files: File[] = [], caseId?: string | null) {
+    if (!userId) throw new Error('Du måste vara inloggad.');
+    if (!body.trim() && !files.length) return;
+    const validated = validateChatImages(files, 0);
+    if (validated.rejectedReason) throw new Error(validated.rejectedReason);
+    const attachments: ChatAttachment[] = [];
+    try {
+      for (const file of files) {
+        const { blob, width, height } = await compressImageToBlob(file, 1600, 0.82);
+        const path = `${id}/${crypto.randomUUID()}.jpg`;
+        const { error } = await supabase.storage.from('chat-images').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+        if (error) throw error;
+        attachments.push({ path, name: file.name.replace(/[^a-zA-Z0-9._-]/g, '_'), type: 'image/jpeg', size: blob.size, width, height });
+      }
+    } catch { throw new Error('Bilden kunde inte laddas upp. Försök igen.'); }
+    const { error } = await supabase.from('messages').insert({ conversation_id: id, sender_id: userId, body: body.trim(), case_id: caseId ?? null, attachments: attachments.map(a => ({ ...a })) });
     if (error) throw error;
     await qc.invalidateQueries({ queryKey: ['chat', userId] });
   }
