@@ -18,3 +18,5 @@ In installer submit flows, create the primary row first and treat later steps (e
 - Service orders are a_orders rows with order_kind='service' (payer, mockfjards_order_number) and reuse the whole A-order invoice/PDF/Drive flow; prefill logic lives in src/lib/serviceOrder.ts so it stays testable.
 - If node_modules/canvas appears without its native build (installs run with --ignore-scripts), delete that directory; jsdom then loads and vitest runs, because a half-installed optional canvas crashes every test file.
 - Keep installer list classification, summaries and date ordering in montorLists and scope persisted order filters to the viewer; this makes list rules testable and prevents cross-account filter leakage.
+- Keep home-screen support manifest-only with no app-shell service worker; installed views must always load fresh data.
+- Keep touch pull-to-refresh in usePullToRefresh and invalidate the installer list query families; one gesture implementation covers cases, orders, invoices and calendar without duplicating fetching logic.

@@ -18,7 +18,7 @@ export function NotificationBell({ onDark = true }: { onDark?: boolean }) {
     <Bell className="h-5 w-5" />
     {unread > 0 && <span className="absolute right-0 top-0 min-w-5 h-5 px-1 rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold flex items-center justify-center">{unread > 9 ? '9+' : unread}</span>}
   </Button>;
-  const list = <div className="flex flex-col min-h-0 text-foreground">
+  const list = <div className="safe-bottom flex flex-col min-h-0 text-foreground">
     <div className="flex items-center justify-between gap-2 p-3 border-b">
       <h2 className="font-display font-bold text-lg">Notiser</h2>
       <Button size="sm" variant="ghost" className="min-h-12" disabled={!unread} onClick={() => void markRead().catch(() => {})}><CheckCheck className="h-4 w-4 mr-1" />Markera alla som lästa</Button>

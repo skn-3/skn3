@@ -96,7 +96,7 @@ export function AppHeader({ role, onChangeRole, viewOptions = [], children, acti
   const winter = useWinterMode();
 
   return (
-    <header className="sticky top-0 z-50 bg-ink-deep text-white shadow-[0_1px_0_hsl(var(--ink-deep))]">
+    <header className="safe-top sticky top-0 z-50 bg-ink-deep text-white shadow-[0_1px_0_hsl(var(--ink-deep))]">
       <div className="mx-auto flex h-14 md:h-[60px] max-w-[1600px] items-center gap-3 md:gap-5 px-3 md:px-6">
         <div className="md:hidden"><Brand compact /></div>
         <div className="hidden md:block"><Brand /></div>

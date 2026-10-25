@@ -935,7 +935,8 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   return (
     <div className="min-h-screen bg-background">
       {/* Topprad */}
-      <div className="sticky top-0 z-10 bg-card border-b px-4 py-3 flex items-start gap-3">
+      <div className="safe-top sticky top-0 z-10 bg-card border-b">
+      <div className="px-4 py-3 flex items-start gap-3">
         <button onClick={onBack} aria-label="Tillbaka" className="p-2 -ml-2 rounded-lg min-w-[48px] min-h-[48px] flex items-center justify-center">
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -953,6 +954,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           </div>
         </div>
         <NotificationBell onDark={false} />
+      </div>
       </div>
 
       <div className="mx-auto max-w-[640px] lg:max-w-[1200px] px-4 pb-32 pt-4">
