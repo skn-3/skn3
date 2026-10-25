@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useMessagingUser } from './useMessagingUser';
-import { countUnreadMessages, openChat, type ChatMessage } from '@/lib/chat';
+import { countUnreadMessages, type ChatMessage } from '@/lib/chat';
+import { incomingMessageToast } from '@/components/chat/incomingMessageToast';
 
 export function useChat(activeId: string | null) {
   const userId = useMessagingUser();
@@ -59,11 +60,7 @@ export function useChat(activeId: string | null) {
             const { data } = await supabase.from('profiles_public').select('name').eq('id', message.sender_id).maybeSingle();
             name = data?.name;
           }
-          toast(`Nytt meddelande från ${name || 'Användare'}`, {
-            id: `chat-message-${message.id}`,
-            action: { label: 'Öppna chatten', onClick: () => openChat(message.conversation_id) },
-            onClick: () => openChat(message.conversation_id),
-          });
+          incomingMessageToast(message.id, name || 'Användare', message.conversation_id);
         })();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members' }, () => qc.invalidateQueries({ queryKey: ['chat', userId] }))
