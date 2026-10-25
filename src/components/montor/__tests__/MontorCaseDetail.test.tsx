@@ -58,6 +58,7 @@ vi.mock('sonner', () => ({
 }));
 vi.mock('@/components/sheet-metal/SheetMetalOrdersSection', () => ({ SheetMetalOrdersSection: () => null }));
 vi.mock('@/components/montor/MontorLitteraSection', () => ({ MontorLitteraSection: () => null }));
+vi.mock('@/components/notifications/NotificationBell', () => ({ NotificationBell: () => null }));
 
 import { MontorCaseDetail } from '../MontorCaseDetail';
 
