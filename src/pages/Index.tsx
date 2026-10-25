@@ -83,8 +83,10 @@ const Index = () => {
     );
   }
 
+  const withChat = (view: React.ReactNode) => <>{view}<ChatWidget /></>;
+
   if (showWelcome) {
-    return (
+    return withChat(
       <WelcomeDashboard
         role={role}
         onContinue={() => {
@@ -96,7 +98,7 @@ const Index = () => {
   }
 
   if (role.isAdmin && showMontorView) {
-    return (
+    return withChat(
       <MontorView
         role={role}
         onChangeRole={clearRole}
@@ -109,7 +111,7 @@ const Index = () => {
   }
 
   if (role.isAdmin && showCoordinatorView && role.type === 'seller') {
-    return (
+    return withChat(
       <CoordinatorView
         role={role}
         onChangeRole={clearRole}
@@ -121,7 +123,7 @@ const Index = () => {
   }
 
   if (role.type === 'seller') {
-    return (
+    return withChat(
       <SellerView
         role={role}
         onChangeRole={clearRole}
@@ -134,7 +136,7 @@ const Index = () => {
   }
 
   if (role.type === 'coordinator') {
-    return (
+    return withChat(
       <CoordinatorView
         role={role}
         onChangeRole={clearRole}
@@ -144,7 +146,7 @@ const Index = () => {
     );
   }
 
-  return (
+  return withChat(
     <MontorView
       role={role}
       onChangeRole={clearRole}

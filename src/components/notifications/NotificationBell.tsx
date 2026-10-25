@@ -10,12 +10,12 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { relativeTimeSv } from '@/lib/relativeTimeSv';
 import { openChat } from '@/lib/chat';
 
-export function NotificationBell() {
+export function NotificationBell({ onDark = true }: { onDark?: boolean }) {
   const [open, setOpen] = useState(false);
   const mobile = useIsMobile();
   const navigate = useNavigate();
   const { rows, unread, markRead, isLoading, error, refetch } = useNotifications();
-  const trigger = <Button variant="onDark" size="icon" className="relative h-12 w-12" aria-label={`Notiser, ${unread} olästa`} onClick={() => setOpen(!open)}>
+  const trigger = <Button variant={onDark ? "onDark" : "ghost"} size="icon" className="relative h-12 w-12" aria-label={`Notiser, ${unread} olästa`} onClick={() => setOpen(!open)}>
     <Bell className="h-5 w-5" />
     {unread > 0 && <span className="absolute right-0 top-0 min-w-5 h-5 px-1 rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold flex items-center justify-center">{unread > 9 ? '9+' : unread}</span>}
   </Button>;
