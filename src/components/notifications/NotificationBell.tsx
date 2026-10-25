@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, FileText, Calendar, AlertTriangle, CheckCheck, X } from 'lucide-react';
+import { Bell, CheckCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNotifications } from '@/hooks/useNotifications';
 import { relativeTimeSv } from '@/lib/relativeTimeSv';
+import { notificationIcon } from '@/lib/notificationKinds';
 
 export function NotificationBell({ onDark = true }: { onDark?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -26,7 +27,7 @@ export function NotificationBell({ onDark = true }: { onDark?: boolean }) {
     </div>
     <div className="overflow-y-auto max-h-[70dvh]">
       {isLoading ? <div className="p-3 space-y-2"><Skeleton className="h-20" /><Skeleton className="h-20" /></div> : error ? <div className="p-4"><p>Kunde inte hämta notiser.</p><Button variant="outline" onClick={() => void refetch()}>Försök igen</Button></div> : !rows.length ? <p className="py-12 text-center text-muted-foreground">Inga notiser ännu</p> : rows.map(row => {
-        const Icon = row.kind.startsWith('a_order') ? FileText : row.kind.includes('deviation') || row.kind === 'cost' ? AlertTriangle : Calendar;
+        const Icon = notificationIcon(row.kind);
         return <Button key={row.id} variant="ghost" className="w-full h-auto min-h-20 rounded-none px-4 py-3 flex items-start gap-3 text-left whitespace-normal border-b" onClick={async () => {
           try { await markRead(row.id); } catch { return; }
           setOpen(false);
