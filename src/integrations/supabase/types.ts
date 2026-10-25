@@ -231,6 +231,161 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_messages: {
+        Row: {
+          case_ids: string[]
+          content: string
+          created_at: string
+          id: string
+          role: string
+          thread_id: string
+          tool_call_id: string | null
+          tool_calls: Json | null
+          tool_name: string | null
+        }
+        Insert: {
+          case_ids?: string[]
+          content?: string
+          created_at?: string
+          id?: string
+          role: string
+          thread_id: string
+          tool_call_id?: string | null
+          tool_calls?: Json | null
+          tool_name?: string | null
+        }
+        Update: {
+          case_ids?: string[]
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          thread_id?: string
+          tool_call_id?: string | null
+          tool_calls?: Json | null
+          tool_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "ai_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_settings: {
+        Row: {
+          daily_message_limit: number
+          enabled: boolean
+          extra_instructions: string | null
+          gateway_error: string | null
+          gateway_status: number | null
+          id: number
+          model: string
+          updated_at: string
+        }
+        Insert: {
+          daily_message_limit?: number
+          enabled?: boolean
+          extra_instructions?: string | null
+          gateway_error?: string | null
+          gateway_status?: number | null
+          id?: number
+          model: string
+          updated_at?: string
+        }
+        Update: {
+          daily_message_limit?: number
+          enabled?: boolean
+          extra_instructions?: string | null
+          gateway_error?: string | null
+          gateway_status?: number | null
+          id?: number
+          model?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_threads: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_usage: {
+        Row: {
+          completion_tokens: number
+          created_at: string
+          duration_ms: number | null
+          error: string | null
+          id: string
+          message_id: string | null
+          model: string
+          prompt_tokens: number
+          rounds: number
+          status: string
+          thread_id: string | null
+          tool_calls: number
+          total_tokens: number | null
+          user_id: string
+        }
+        Insert: {
+          completion_tokens?: number
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          message_id?: string | null
+          model: string
+          prompt_tokens?: number
+          rounds?: number
+          status?: string
+          thread_id?: string | null
+          tool_calls?: number
+          total_tokens?: number | null
+          user_id: string
+        }
+        Update: {
+          completion_tokens?: number
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          message_id?: string | null
+          model?: string
+          prompt_tokens?: number
+          rounds?: number
+          status?: string
+          thread_id?: string | null
+          tool_calls?: number
+          total_tokens?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       case_climate_compensation: {
         Row: {
           case_id: string
@@ -2689,6 +2844,11 @@ export type Database = {
       }
     }
     Functions: {
+      ai_archive_thread: { Args: never; Returns: undefined }
+      ai_begin_message: {
+        Args: { p_message: string; p_user_id: string }
+        Returns: Json
+      }
       append_deviation_log: {
         Args: { p_deviation_id: string; p_entry: Json }
         Returns: undefined

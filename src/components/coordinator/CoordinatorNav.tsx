@@ -6,7 +6,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { BottomNavItem } from '@/components/BottomNav';
 
-export type CoordinatorTab = 'inbox' | 'pipeline' | 'calendar' | 'deviations' | 'offers' | 'aorders' | 'economy';
+export type CoordinatorTab = 'inbox' | 'pipeline' | 'calendar' | 'deviations' | 'offers' | 'aorders' | 'economy' | 'ai';
 
 interface NavItem { value: CoordinatorTab; label: string; icon: LucideIcon }
 
@@ -21,6 +21,7 @@ export const COORDINATOR_MORE: NavItem[] = [
   { value: 'offers', label: 'Offerter', icon: FileText },
   { value: 'aorders', label: 'A-ordrar', icon: ClipboardList },
   { value: 'economy', label: 'Ekonomi', icon: Wallet },
+  { value: 'ai', label: 'AI-användning', icon: MessageSquare },
 ];
 
 interface Props {

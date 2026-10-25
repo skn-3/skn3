@@ -1,3 +1,4 @@
+import { AiUsageAdmin } from '@/components/ai/AiUsageAdmin';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -77,6 +78,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
         )}
         {tab === 'offers' && <OffersHub currentUser={role.name} />}
         {tab === 'aorders' && <AOrdersView currentUser={role.name} initialOpenId={initialAOrderId} onInitialOpenHandled={() => setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('aorder'); return next; }, { replace: true })} />}
+        {tab === 'ai' && <AiUsageAdmin />}
         {tab === 'economy' && <EconomyView />}
       </main>
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, MessageCircle, Plus, Send, X } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Plus, Send, X, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,12 +13,14 @@ import { relativeTimeSv } from '@/lib/relativeTimeSv';
 import { useNavigate } from 'react-router-dom';
 import { caseFallbackBody, extractCaseIdFromText } from '@/lib/chat';
 import { useChatCases } from '@/hooks/useChatCases';
+import { AiConversation } from './AiConversation';
 import { ChatCaseCard } from './ChatCaseCard';
 import { ChatCasePicker, type PendingChatCase } from './ChatCasePicker';
 
 export function ChatWidget() {
   const navigate = useNavigate();
   const [pendingCase, setPendingCase] = useState<PendingChatCase | null>(null);
+  const [aiActive, setAiActive] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -36,7 +38,7 @@ export function ChatWidget() {
   const lastMessageId = conversation?.latest?.id;
   useEffect(() => { if (open) bottom.current?.scrollIntoView({ block: 'end' }); }, [open, activeId, lastMessageId]);
   useEffect(() => {
-    const handler = (event: Event) => { setActiveId((event as CustomEvent<string>).detail); setCreating(false); setOpen(true); };
+    const handler = (event: Event) => { setAiActive(false); setActiveId((event as CustomEvent<string>).detail); setCreating(false); setOpen(true); };
     window.addEventListener('smartklimat:open-chat', handler);
     return () => window.removeEventListener('smartklimat:open-chat', handler);
   }, []);
@@ -44,7 +46,7 @@ export function ChatWidget() {
     const handler = (event: Event) => {
       const c = (event as CustomEvent<PendingChatCase>).detail;
       if (!c?.id || !c.address) return;
-      setPendingCase(c); setBody(''); setActiveId(null); setCreating(false); setOpen(true);
+      setAiActive(false); setPendingCase(c); setBody(''); setActiveId(null); setCreating(false); setOpen(true);
     };
     window.addEventListener('smartklimat:share-case', handler);
     return () => window.removeEventListener('smartklimat:share-case', handler);
@@ -54,7 +56,7 @@ export function ChatWidget() {
     setBusy(true);
     try { await chat.send(activeId, body.trim() || caseFallbackBody(pendingCase?.address ?? ''), pendingCase?.id); setBody(''); setPendingCase(null); } catch { toast.error('Meddelandet kunde inte skickas. Försök igen.'); } finally { setBusy(false); }
   }
-  const content = <div className="safe-bottom flex h-full min-h-0 flex-col text-foreground">
+  const content = aiActive ? <AiConversation onBack={() => setAiActive(false)} onClose={() => setOpen(false)} onOpenCase={id => { setOpen(false); navigate('/?case=' + encodeURIComponent(id)); }} /> : <div className="safe-bottom flex h-full min-h-0 flex-col text-foreground">
     <div className="flex shrink-0 items-center gap-2 px-3 py-2 border-b">
       {(activeId || creating) && <Button size="icon" variant="ghost" className="h-12 w-12 shrink-0" aria-label="Tillbaka till konversationer" onClick={() => { setActiveId(null); setCreating(false); setBody(''); }}><ArrowLeft className="h-5 w-5" /></Button>}
       <h2 className="font-display font-bold text-lg flex-1 min-w-0 truncate">{creating ? 'Ny chatt' : activeId ? conversation?.name || 'Konversation' : 'Meddelanden'}</h2>
@@ -102,7 +104,7 @@ export function ChatWidget() {
           <Button type="submit" className="min-h-12 px-2 shrink-0" disabled={!conversation || (!body.trim() && !pendingCase) || busy}><Send className="h-4 w-4 mr-1" />Skicka</Button>
         </div>
       </form>
-    </> : <div className="overflow-y-auto flex-1">{!chat.conversations.length ? <p className="py-12 text-center text-muted-foreground">Inga konversationer ännu.</p> : chat.conversations.map(c => <Button key={c.id} variant="ghost" className="w-full rounded-none h-auto min-h-20 text-left whitespace-normal border-b p-4 gap-3" onClick={() => { setActiveId(c.id); setBody(''); }}>
+    </> : <div className="overflow-y-auto flex-1"><Button variant="ghost" className="w-full rounded-none h-auto min-h-20 border-b p-4 gap-3 text-left whitespace-normal" onClick={() => { setAiActive(true); setActiveId(null); setPendingCase(null); }}><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold text-gold-ink"><Sparkles className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">N3prenad-AI</span><span className="block text-xs font-normal text-muted-foreground">Fråga om ärenden</span></span></Button>{!chat.conversations.length ? <p className="py-12 text-center text-muted-foreground">Inga konversationer ännu.</p> : chat.conversations.map(c => <Button key={c.id} variant="ghost" className="w-full rounded-none h-auto min-h-20 text-left whitespace-normal border-b p-4 gap-3" onClick={() => { setActiveId(c.id); setBody(''); }}>
       <MessageCircle className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1"><span className={`block truncate ${c.unread ? 'font-bold' : 'font-medium'}`}>{c.name}</span><span className="block truncate text-xs text-muted-foreground font-normal">{c.latest?.body ?? 'Inga meddelanden ännu'}</span><span className="block text-[11px] text-muted-foreground mt-1 font-normal">{relativeTimeSv(c.latest?.created_at ?? c.created_at)}</span></span>{c.unread > 0 && <span className="w-2 h-2 rounded-full bg-destructive shrink-0" />}
     </Button>)}</div>}
   </div>;
