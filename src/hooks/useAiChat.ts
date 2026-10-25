@@ -19,5 +19,6 @@ export function useAiChat() {
  finally{if(owner.current===viewer)setPending(null);lock.current=false;setBusy(false);}}
  async function archive(){if(lock.current)return;const {error}=await supabase.rpc('ai_archive_thread');if(error){toast.error('Konversationen kunde inte rensas.');return;}setFailure(null);await qc.invalidateQueries({queryKey:['ai-chat',userId]});}
  const messages=query.data?.messages??[];
- return {messages:pending?[...messages,pending]:messages,busy,failure,send,archive,isLoading:query.isLoading,error:query.error,refetch:query.refetch};
+ const duplicatePending=pending && messages.at(-1)?.role==='user' && messages.at(-1)?.content===pending.content;
+ return {messages:pending&&!duplicatePending?[...messages,pending]:messages,busy,failure,send,archive,isLoading:query.isLoading,error:query.error,refetch:query.refetch};
 }
