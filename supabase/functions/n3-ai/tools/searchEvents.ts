@@ -10,7 +10,7 @@ export const searchEvents: ReadTool={
  if(!ids.length)return {events:[],limit:20};
  // Resolve identities with the caller's client/view and seller scope, never service access.
  const identities=await rows(ownScope(cases(ctx).select('id,address,city,customer_name,status').in('id',ids),ctx));
- const byId=new Map(identities.map((item: {id:string;address:string;city:string|null;customer_name:string|null;status:string})=>[item.id,item]));
+ const byId=new Map<string,{id:string;address:string;city:string|null;customer_name:string|null;status:string}>(identities.map((item: {id:string;address:string;city:string|null;customer_name:string|null;status:string})=>[item.id,item]));
  const enriched=events.flatMap((event: {case_id:string})=>{
    const identity=byId.get(event.case_id);if(!identity)return [];
    ctx.seenCaseIds.add(event.case_id);
