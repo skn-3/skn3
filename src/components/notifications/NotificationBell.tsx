@@ -44,6 +44,6 @@ export function NotificationBell() {
       })}
     </div>
   </div>;
-  if (mobile) return <>{trigger}<Sheet open={open} onOpenChange={setOpen}><SheetContent side="right" className="w-full max-w-full p-0" hideCloseButton><SheetTitle className="sr-only">Notiser</SheetTitle><SheetDescription className="sr-only">Dina senaste notiser</SheetDescription>{list}</SheetContent></Sheet></>;
+  if (mobile) return <>{trigger}<Sheet open={open} onOpenChange={setOpen}><SheetContent side="right" className="w-full max-w-full p-0 [&>button]:hidden"><SheetTitle className="sr-only">Notiser</SheetTitle><SheetDescription className="sr-only">Dina senaste notiser</SheetDescription>{list}</SheetContent></Sheet></>;
   return <Popover open={open} onOpenChange={setOpen}><PopoverTrigger asChild>{trigger}</PopoverTrigger><PopoverContent align="end" className="w-[400px] max-w-[calc(100vw-24px)] p-0">{list}</PopoverContent></Popover>;
 }
