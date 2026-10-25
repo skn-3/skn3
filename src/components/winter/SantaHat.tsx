@@ -3,15 +3,15 @@ import type { CSSProperties } from 'react';
 export function SantaHat({ className, style }: { className?: string; style?: CSSProperties }) {
   return (
     <svg
-      viewBox="0 0 64 56"
+      viewBox="0 0 64 44"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
       className={`pointer-events-none ${className ?? ''}`}
       style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,.25))', ...style }}
     >
-      <path d="M9 44 C10 28 18 13 33 7 C42 3.5 52 5 58 12 C50.5 12.5 45.5 19 45 28 C44.7 34 45.6 39 46.5 44 Z" fill="#C8302B" />
-      <circle cx="57.5" cy="12.5" r="6.2" fill="#F7F4EC" />
-      <rect x="4" y="40" width="48" height="12" rx="6" fill="#F7F4EC" />
+      <path d="M7 36 C8 24 14 10 26 4.5 C35 0.5 47 2 56 9 C48 9.5 43 15 42.5 22 C42.2 27 43.5 32 45 36 Z" fill="#C8302B" />
+      <circle cx="56.5" cy="9.5" r="6" fill="#F7F4EC" />
+      <rect x="2" y="32" width="52" height="12" rx="6" fill="#F7F4EC" />
     </svg>
   );
 }
