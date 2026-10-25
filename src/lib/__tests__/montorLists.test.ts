@@ -34,3 +34,22 @@ describe('montörlistornas urval', () => {
     expect(relevantCaseDate({ status: 'montage_bokat', km_date: '2026-10-25', montage_date: '2026-11-01' })).toBe('2026-11-01');
   });
 });
+import { montorSummary } from '../montorLists';
+describe('montorSummary', () => {
+  it('räknar utestående och intjänat med fakturor, krediter och debiteringar', () => {
+    const orders = [
+      { status: 'invoiced', total_amount: 10000, invoice_number: 'A1', invoice_sent_at: '2026-03-01', paid_at: '2026-03-20' },
+      { status: 'invoiced', total_amount: 5000, invoice_number: 'A2', invoice_sent_at: '2026-10-01' },
+      { status: 'order', total_amount: 3000, order_sent_at: '2026-10-20' },
+      { status: 'credited', total_amount: -2000, credited_from_order_id: 'x', invoice_number: 'K1', date: '2026-09-01' },
+    ];
+    const invoices = [
+      { kind: 'self_billing', status: 'paid', total: 790, date: '2026-05-01', paid_at: '2026-05-10' },
+      { kind: 'debit', status: 'sent', total: 1200, date: '2026-10-10' },
+    ];
+    expect(montorSummary(orders, invoices, 2026)).toEqual({
+      pendingCount: 1, pendingAmount: 3000, waiting: 5000, unpaidDebit: 1200,
+      outstanding: 3000 + 5000 - 1200, earned: 10000 + 5000 - 2000 + 790 - 1200, paidOut: 10790,
+    });
+  });
+});
