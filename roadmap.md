@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Chattbilder: privat lagring, bilagor, komprimering, bildvisning/nedladdning, tester och verifiering; ingen publicering.
+
 - [x] N3prenad-AI etapp 1: migration 0032, privat läschatt, fyra RLS-läsverktyg och kontorets användning/inställningar; aktuell Gemini Flash Lite verifierad med riktigt verktygsanrop och följdsvar, 310 tester gröna. Telefon/dator i ljust/mörkt kontrollerade med lokala simulerade svar; inga paket eller publicering.
 - [ ] N3prenad-AI: verklig montör-/säljarsession, sparade ai_usage-rader och nekad åtkomst till annat team — session kunde inte skapas (kontogodkännande otillgängligt); kräver inloggning i förhandsvisningen.
 - [ ] N3prenad-AI etapp 2: åtgärder med bekräftelsekort — inväntar separat beställning.
