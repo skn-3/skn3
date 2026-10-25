@@ -4,6 +4,8 @@ Mount chat once in the authenticated Index shell and scope query keys and realti
 Keep chat realtime, read markers and incoming-message toasts independent of notifications; event notifications must never read or modify conversation state.
 Route installer case-event notifications through notify_montor_case_event with explicit exclusions for already-covered event types; this keeps future installer submissions covered without duplicating existing cost, deviation and status notifications.
 Keep notification icon mapping in notificationKinds; one tested mapping supplies every notification row without changing bell behavior.
+Keep partial montage submission and visibility rules in montagePartial and reuse MontagePartialBlock across installer and office views; this keeps status guards and retained-report visibility consistent.
+Keep chat case lookup in useChatCases with role- and viewer-scoped keys, and load only public-facing case fields; case links must never expose installer-hidden financial data or reuse another viewer's cached access.
 Keep assignment invoice email rendering and payment/date derivation in the function-local pure email module; this allows testing without dispatching customer emails.
 Limit package-install network concurrency in bunfig.toml to reduce registry throttling without changing dependency versions or registry routing.
 Keep logical PDF download and attachment names in pdfNames, separate from storage paths; this keeps naming consistent without moving saved documents.

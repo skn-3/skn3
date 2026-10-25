@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { countUnreadMessages } from '../chat';
+import { countUnreadMessages, extractCaseIdFromText, caseFallbackBody } from '../chat';
 it('räknar bara nya inkommande meddelanden i medlemmens konversation', () => {
   const member = { conversation_id: 'c', user_id: 'me', last_read_at: '2026-10-25T10:00:00Z' };
   const messages = [
@@ -10,4 +10,19 @@ it('räknar bara nya inkommande meddelanden i medlemmens konversation', () => {
   ];
   expect(countUnreadMessages(messages, member, 'me')).toBe(1);
   expect(countUnreadMessages(messages, { ...member, last_read_at: null }, 'me')).toBe(2);
+});
+it('hittar ärendet i en länk med ?case eller &case', () => {
+  const id = '12345678-1234-1234-1234-123456789abc';
+  expect(extractCaseIdFromText(`Se https://example.test/?case=${id}`)).toBe(id);
+  expect(extractCaseIdFromText(`Se https://example.test/?tab=alla&case=${id}&x=1`)).toBe(id);
+});
+it('returnerar null utan giltig ärendelänk', () => {
+  expect(extractCaseIdFromText('Ärende: Testvägen')).toBeNull();
+  expect(extractCaseIdFromText('?case=inte-en-uuid')).toBeNull();
+});
+it('väljer första ärendelänken när två finns', () => {
+  expect(extractCaseIdFromText('/?case=12345678-1234-1234-1234-123456789abc /?case=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')).toBe('12345678-1234-1234-1234-123456789abc');
+});
+it('ger adressen som förhandstext', () => {
+  expect(caseFallbackBody('Björkvägen 14')).toBe('Ärende: Björkvägen 14');
 });

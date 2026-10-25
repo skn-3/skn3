@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Delrapportera montage: migrering 0031, schema/vy/notistrigger verifierade; formulär, kontorsblock och listchips klara; 294 tester och automatiskt bygge gröna, sparning/readback kontrollerade med lokala uppgifter. Riktigt mejlutskick ej testat.
+- [x] Dela ärende i chatten: meddelandekoppling, behörighetsstyrda ärendekort/väljare och delningsknappar klara; dela/välj/skicka/kort/djuplänk verifierade på 390/1280 px med lokala uppgifter. Querynyckeln innehåller även roll och användare för säkert cacheurval. Inget publicerat; verklig sändning mellan inloggade konton ej verifierad.
+
 - [x] Komplettera montörernas händelsenotiser och ikonval; migrering 0030 applicerad, case_events/cases-triggrar och funktioner verifierade i databasen, 282 tester och automatiskt bygge gröna. Montörkontrollens authenticated EXECUTE behölls enligt verktygets skydd; inga verkliga inlämningar eller utskick testade, ingen publicering.
 
 - [x] Montörvy C del 1: hemskärmsapp utan service worker, säkra kanter, dra-för-att-uppdatera, migration 0029 och krediteringsfel; 259 tester och automatiskt bygge gröna, manifest/ikoner HTTP 200, draglägen verifierade med lokala testuppgifter; ingen verklig kreditering skickad, ingen publicering.
