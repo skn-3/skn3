@@ -10,6 +10,10 @@ export function extractCaseIdFromText(body: string): string | null {
   return body.match(/[?&]case=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?=$|[^0-9a-z-])/i)?.[1] ?? null;
 }
 export function caseFallbackBody(address: string) { return 'Ärende: ' + address; }
+export interface ChatKeyLike { key: string; shiftKey?: boolean; isComposing?: boolean }
+export function shouldSendOnKey(event: ChatKeyLike): boolean {
+  return event.key === 'Enter' && !event.shiftKey && !event.isComposing;
+}
 export function shareCaseInChat(c: { id: string; address: string }) {
   window.dispatchEvent(new CustomEvent('smartklimat:share-case', { detail: { id: c.id, address: c.address } }));
 }
