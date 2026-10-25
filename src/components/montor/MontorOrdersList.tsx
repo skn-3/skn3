@@ -228,7 +228,7 @@ function CardShell(p: CardShellProps) {
           </p>
           <div className="shrink-0 text-right">
             <div className={`font-display text-lg tabular-nums tracking-normal ${p.negative ? 'text-muted-foreground' : ''}`}>{p.negative ? '−' : ''}{kr(Math.abs(p.amount))}</div>
-            <div className="text-[10px] uppercase tracking-[1.3px] text-muted-foreground">ex moms</div>
+            <div className="text-[10px] font-normal uppercase tracking-[1px] text-muted-foreground/80">ex moms</div>
           </div>
         </div>
       </div>

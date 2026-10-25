@@ -8,6 +8,7 @@ import { Hammer } from 'lucide-react';
 interface Props {
   caseId: string;
   variant?: 'panel' | 'mobile';
+  hideTitle?: boolean;
 }
 
 interface SheetMetalOrderRow {
@@ -24,7 +25,7 @@ const STATUS_LABEL: Record<string, string> = {
   levererad: 'Levererad',
 };
 
-export function SheetMetalOrdersSection({ caseId, variant = 'panel' }: Props) {
+export function SheetMetalOrdersSection({ caseId, variant = 'panel', hideTitle = false }: Props) {
   const navigate = useNavigate();
 
   const { data: orders } = useQuery({
@@ -44,9 +45,11 @@ export function SheetMetalOrdersSection({ caseId, variant = 'panel' }: Props) {
 
   return (
     <section className={variant === 'mobile' ? 'space-y-2' : 'p-4 space-y-2'}>
-      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-        <Hammer className="h-4 w-4" /> Plåtbeställningar {orders && orders.length > 0 && `(${orders.length})`}
-      </h3>
+      {!hideTitle && (
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Hammer className="h-4 w-4" /> Plåtbeställningar {orders && orders.length > 0 && `(${orders.length})`}
+        </h3>
+      )}
 
       <Button
         variant="outline"

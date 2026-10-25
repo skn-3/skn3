@@ -120,11 +120,13 @@ export function MontorLitteraSection({
   currentUser,
   caseAddress,
   customerName,
+  hideTitle = false,
 }: {
   caseId: string;
   currentUser: string;
   caseAddress: string;
   customerName: string;
+  hideTitle?: boolean;
 }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<LitteraRow | null>(null);
@@ -238,9 +240,11 @@ export function MontorLitteraSection({
   if (isLoading) {
     return (
       <section className="py-4 border-t space-y-2">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-          <Ruler className="h-4 w-4" /> Littera / kontrollmätning
-        </h3>
+        {!hideTitle && (
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+            <Ruler className="h-4 w-4" /> Littera / kontrollmätning
+          </h3>
+        )}
         <p className="text-sm text-muted-foreground">Laddar...</p>
       </section>
     );
@@ -249,9 +253,11 @@ export function MontorLitteraSection({
   if (!rows || rows.length === 0) {
     return (
       <section className="py-4 border-t space-y-2">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-          <Ruler className="h-4 w-4" /> Littera / kontrollmätning
-        </h3>
+        {!hideTitle && (
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+            <Ruler className="h-4 w-4" /> Littera / kontrollmätning
+          </h3>
+        )}
         <p className="text-sm text-muted-foreground">
           Inga littera importerade ännu. Kontoret importerar littera från Mockfjärds kundportal.
         </p>
@@ -266,9 +272,11 @@ export function MontorLitteraSection({
 
   return (
     <section className="py-4 border-t space-y-3">
-      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-        <Ruler className="h-4 w-4" /> Littera / kontrollmätning ({rows.length})
-      </h3>
+      {!hideTitle && (
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Ruler className="h-4 w-4" /> Littera / kontrollmätning ({rows.length})
+        </h3>
+      )}
       <p className="text-xs text-muted-foreground">
         Granska säljarens littera mot verkligheten. Justera mått, kulör och tillbehör (lister, smyg, fönsterbänk, plissé, plåt) — ändra, ta bort eller lägg till. Skicka sedan in till kontoret.
       </p>
