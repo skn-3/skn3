@@ -504,6 +504,8 @@ export type Database = {
           km_time: string | null
           media_consent: boolean
           montage_date: string | null
+          montage_partial_at: string | null
+          montage_partial_note: string | null
           montage_time: string | null
           montor_notes: string | null
           notes: string | null
@@ -548,6 +550,8 @@ export type Database = {
           km_time?: string | null
           media_consent?: boolean
           montage_date?: string | null
+          montage_partial_at?: string | null
+          montage_partial_note?: string | null
           montage_time?: string | null
           montor_notes?: string | null
           notes?: string | null
@@ -592,6 +596,8 @@ export type Database = {
           km_time?: string | null
           media_consent?: boolean
           montage_date?: string | null
+          montage_partial_at?: string | null
+          montage_partial_note?: string | null
           montage_time?: string | null
           montor_notes?: string | null
           notes?: string | null
@@ -1715,6 +1721,7 @@ export type Database = {
       messages: {
         Row: {
           body: string
+          case_id: string | null
           conversation_id: string
           created_at: string
           id: string
@@ -1722,6 +1729,7 @@ export type Database = {
         }
         Insert: {
           body: string
+          case_id?: string | null
           conversation_id: string
           created_at?: string
           id?: string
@@ -1729,12 +1737,27 @@ export type Database = {
         }
         Update: {
           body?: string
+          case_id?: string | null
           conversation_id?: string
           created_at?: string
           id?: string
           sender_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases_montor"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_conversation_id_fkey"
             columns: ["conversation_id"]
@@ -2549,6 +2572,8 @@ export type Database = {
           km_time: string | null
           media_consent: boolean | null
           montage_date: string | null
+          montage_partial_at: string | null
+          montage_partial_note: string | null
           montage_time: string | null
           montor_notes: string | null
           notes: string | null
@@ -2587,6 +2612,8 @@ export type Database = {
           km_time?: string | null
           media_consent?: boolean | null
           montage_date?: string | null
+          montage_partial_at?: string | null
+          montage_partial_note?: string | null
           montage_time?: string | null
           montor_notes?: string | null
           notes?: string | null
@@ -2625,6 +2652,8 @@ export type Database = {
           km_time?: string | null
           media_consent?: boolean | null
           montage_date?: string | null
+          montage_partial_at?: string | null
+          montage_partial_note?: string | null
           montage_time?: string | null
           montor_notes?: string | null
           notes?: string | null
