@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Komplettera montörernas händelsenotiser och ikonval; applicera nästa lediga migrering och verifiera case_events/cases-triggrar i databasen, tester och automatiskt bygge.
+
 - [x] Montörvy C del 1: hemskärmsapp utan service worker, säkra kanter, dra-för-att-uppdatera, migration 0029 och krediteringsfel; 259 tester och automatiskt bygge gröna, manifest/ikoner HTTP 200, draglägen verifierade med lokala testuppgifter; ingen verklig kreditering skickad, ingen publicering.
 
 - [x] Montörlistor: nya status- och typfilter, egna summeringar, KM-flik, datumsortering och gemensamt kortspråk; 241 tester och automatisk typkontroll gröna, filter/expansion/sökning verifierade med lokala testuppgifter vid 390/768/1280 px, ingen datamodelländring eller publicering.
