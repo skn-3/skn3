@@ -24,3 +24,12 @@ In installer submit flows, create the primary row first and treat later steps (e
 - Keep installer list classification, summaries and date ordering in montorLists and scope persisted order filters to the viewer; this makes list rules testable and prevents cross-account filter leakage.
 - Keep home-screen support manifest-only with no app-shell service worker; installed views must always load fresh data.
 - Keep touch pull-to-refresh in usePullToRefresh and invalidate the installer list query families; one gesture implementation covers cases, orders, invoices and calendar without duplicating fetching logic.
+
+## N3prenad-AI
+- Keep AI persistence in ai_threads, ai_messages, ai_usage and ai_settings and calls in n3-ai; only the service client writes history/usage, while every case tool uses the caller's JWT and RLS.
+- Define each read tool in its own file with name, JSON schema and handler; require a separate approval-capable layer before adding any write tool.
+- Use ai_begin_message only with service_role for atomic quota reservation across archived threads; use ai_archive_thread only for the caller's active thread.
+- Reuse function-local pure AI date/marker logic through the frontend re-export and render checked case references with ChatCaseCard; this keeps date boundaries and access consistent.
+- Preserve existing chat primitives for this package-free phase: AI Elements requires ai/streamdown packages not installed here; the narrow escaped markdown subset avoids new dependencies and executable HTML.
+- Use the documented raw Chat Completions contract for the selected fast Google models without new npm packages; preserve the six-round read-only loop and server-side key/run-ID state. This scoped exception avoids adding AI SDK and adapter packages.
+- Persist gateway credit/access pauses and require owner recovery rather than automatic retries; never substitute a model after a terminal refusal or provider denial.

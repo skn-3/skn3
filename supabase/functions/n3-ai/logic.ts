@@ -30,4 +30,14 @@ export function compact(value: unknown): unknown {
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([,v]) => v !== null && v !== undefined && v !== '').map(([k,v]) => [k,compact(v)]));
   return value;
 }
-export function boundedResult(value: unknown) { const text = JSON.stringify(compact(value)); return text.length <= 8000 ? JSON.parse(text) : { truncated: true, data: text.slice(0, 7900) }; }
+export function boundedResult(value: unknown) {
+  const text = JSON.stringify(compact(value));
+  if (text.length <= 8000) return JSON.parse(text);
+  let length = 7900;
+  while (length > 0) {
+    const result = { truncated: true, data: text.slice(0, length) };
+    if (JSON.stringify(result).length <= 8000) return result;
+    length = Math.floor(length * 0.8);
+  }
+  return { truncated: true };
+}

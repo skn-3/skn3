@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseAiReply, stockholmMidnight, scopeInterval, dailyLimitReached, isoWeek } from '../aiChat';
+import { boundedResult } from '../../../supabase/functions/n3-ai/logic';
 const id = '12345678-1234-1234-1234-123456789abc';
 describe('AI ärendereferenser', () => {
   it('tar bort markörer och behåller högst tre unika giltiga id', () => {
@@ -21,3 +22,7 @@ it('scope week är måndag till söndag', () => { expect(scopeInterval('week', n
 it('upcoming omfattar 14 dagar inklusive idag', () => { expect(scopeInterval('upcoming', new Date('2026-10-25T12:00:00Z'))).toEqual({start:'2026-10-25',end:'2026-11-07'}); });
 it('active saknar datumgräns', () => { expect(scopeInterval('active')).toBeNull(); });
 it('veckonummer följer ISO och Stockholm', () => { expect(isoWeek(new Date('2026-10-25T23:29:00Z'))).toBe(44); });
+it('verktygsresultat är giltig JSON med högst 8000 tecken även med escape-tecken', () => {
+  const result=JSON.stringify(boundedResult({notes:'"\\\n'.repeat(9000)}));
+  expect(result.length).toBeLessThanOrEqual(8000); expect(JSON.parse(result).truncated).toBe(true);
+});
