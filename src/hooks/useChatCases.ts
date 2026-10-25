@@ -12,7 +12,10 @@ export function useChatCases(ids: string[]) {
     enabled: !!role && sortedIds.length > 0,
     staleTime: 60000,
     queryFn: async (): Promise<ChatCase[]> => {
-      const { data, error } = await supabase.from(source).select('id, address, customer_name, city, status').in('id', sortedIds);
+      const query = source === 'cases_montor'
+        ? supabase.from('cases_montor').select('id, address, customer_name, city, status')
+        : supabase.from('cases').select('id, address, customer_name, city, status');
+      const { data, error } = await query.in('id', sortedIds);
       if (error) throw error;
       return (data ?? []).filter((c): c is ChatCase => !!c.id && !!c.address && !!c.customer_name && !!c.status);
     },

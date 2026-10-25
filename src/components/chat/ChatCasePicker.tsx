@@ -19,7 +19,10 @@ export function ChatCasePicker({ onSelect }: { onSelect: (c: PendingChatCase) =>
   const query = useQuery({
     queryKey: ['chat-case-picker', role?.name, source], enabled: open && !!role,
     queryFn: async () => {
-      const { data, error } = await supabase.from(source).select('id, address, customer_name').order('updated_at', { ascending: false }).limit(300);
+      const query = source === 'cases_montor'
+        ? supabase.from('cases_montor').select('id, address, customer_name')
+        : supabase.from('cases').select('id, address, customer_name');
+      const { data, error } = await query.order('updated_at', { ascending: false }).limit(300);
       if (error) throw error;
       return data ?? [];
     },
