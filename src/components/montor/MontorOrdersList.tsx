@@ -1,6 +1,6 @@
 // "Mina uppdrag" i montörvyn: montörens A-ordrar, kompletteringar och serviceordrar.
 // Inga internal_*-fält hämtas här (se minnet om montörens A-orderdokument).
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, Search, ChevronDown, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
@@ -25,6 +25,8 @@ interface Props {
   /** Admins montörfilter ('alla' = ingen filtrering). */
   adminFilter?: string;
   onOpenCase: (caseId: string) => void;
+  initialOpenId?: string | null;
+  onInitialOpenHandled?: () => void;
 }
 
 function kr(n: number) { return Math.round(Number(n) || 0).toLocaleString('sv-SE') + ' kr'; }
@@ -45,7 +47,7 @@ async function openPdf(path: string, name: string) {
   if (!ok) toast.error('PDF:en kunde inte öppnas');
 }
 
-export function MontorOrdersList({ myTeamName, adminFilter = 'alla', onOpenCase }: Props) {
+export function MontorOrdersList({ myTeamName, adminFilter = 'alla', onOpenCase, initialOpenId, onInitialOpenHandled }: Props) {
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -60,7 +62,7 @@ export function MontorOrdersList({ myTeamName, adminFilter = 'alla', onOpenCase 
   });
   const myTeamId = teamQuery.data?.id ?? null;
 
-  const { data: orders = [], isLoading } = useQuery({
+  const { data: orders = [], isLoading, isFetched } = useQuery({
     queryKey: ['montor-orders-list', myTeamId],
     enabled: !myTeamName || teamQuery.isFetched,
     queryFn: async () => {
@@ -81,6 +83,15 @@ export function MontorOrdersList({ myTeamName, adminFilter = 'alla', onOpenCase 
         .some((f) => f != null && String(f).toLowerCase().includes(t));
     });
   }, [orders, search, adminFilter]);
+
+  useEffect(() => {
+    if (!initialOpenId || !isFetched) return;
+    if (orders.some(o => o.id === initialOpenId)) {
+      setSearch(''); setOpenId(initialOpenId);
+      requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById(`montor-order-${initialOpenId}`)?.scrollIntoView({ block: 'center' })));
+    } else toast.error('Kunde inte hitta ordern');
+    onInitialOpenHandled?.();
+  }, [initialOpenId, isFetched, orders]);
 
   return (
     <div className="space-y-3">
@@ -109,7 +120,7 @@ export function MontorOrdersList({ myTeamName, adminFilter = 'alla', onOpenCase 
           const lines = normalizeLines(o.line_items);
           const groups = summarizeAOrderStatuses([o]).filter((g) => g.total > 0);
           return (
-            <div key={o.id} className="rounded-lg border bg-card text-sm">
+            <div key={o.id} id={`montor-order-${o.id}`} className="rounded-lg border bg-card text-sm">
               <button
                 type="button"
                 className="w-full text-left p-3 space-y-1 min-h-[48px]"

@@ -62,7 +62,9 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialAOrderId = searchParams.get('aorder');
+  useEffect(() => { if (initialAOrderId) { setSelectedCase(null); setAdminFilter('alla'); setActiveTab('uppdrag'); } }, [initialAOrderId]);
 
   // Deep-link: open case panel when ?case=<id> is provided
   useEffect(() => {
@@ -291,7 +293,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
         </div>
 
         {activeTab === 'uppdrag' ? (
-          <MontorOrdersList myTeamName={role.name} adminFilter={isAdmin ? adminFilter : 'alla'} onOpenCase={openCaseById} />
+          <MontorOrdersList myTeamName={isAdmin ? null : role.name} adminFilter={isAdmin ? adminFilter : 'alla'} onOpenCase={openCaseById} initialOpenId={initialAOrderId} onInitialOpenHandled={() => setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('aorder'); return next; }, { replace: true })} />
         ) : activeTab === 'kalender' ? (
           <CalendarView source="cases_montor" onSelectCase={openCase} />
         ) : isLoading ? (

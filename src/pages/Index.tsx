@@ -8,6 +8,7 @@ import { CoordinatorView } from '@/components/coordinator/CoordinatorView';
 import { WelcomeDashboard } from '@/components/WelcomeDashboard';
 import { ForcePinChangeGate } from '@/components/ForcePinChangeGate';
 import { supabase } from '@/integrations/supabase/client';
+import { ChatWidget } from '@/components/chat/ChatWidget';
 
 const WELCOME_KEY_PREFIX = 'smartklimat_welcome_shown_';
 
@@ -62,10 +63,10 @@ const Index = () => {
 
   // Show welcome once per day per user (skip if deep-linking to a case)
   useEffect(() => {
-    if (role && role.type !== 'coordinator' && !initialCaseId && shouldShowWelcome(role.name) && mustChangePin === false) {
+    if (role && role.type !== 'coordinator' && !initialCaseId && !searchParams.get('case') && !searchParams.get('aorder') && shouldShowWelcome(role.name) && mustChangePin === false) {
       setShowWelcome(true);
     }
-  }, [role, initialCaseId, mustChangePin]);
+  }, [role, initialCaseId, mustChangePin, searchParams]);
 
   if (!role) {
     return <RolePicker />;

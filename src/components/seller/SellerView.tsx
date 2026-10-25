@@ -40,7 +40,9 @@ interface SellerViewProps {
 export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoordinatorView, initialCaseId, onInitialCaseHandled }: SellerViewProps) {
   const [tab, setTab] = useState<SellerTab>('pipeline');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialAOrderId = searchParams.get('aorder');
+  useEffect(() => { if (initialAOrderId) setTab('aorders'); }, [initialAOrderId]);
   const navigate = useNavigate();
 
   // Deep-link: open case panel when ?case=<id> is provided
@@ -120,7 +122,7 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
           <OffersHub currentUser={role.name} />
         )}
         {tab === 'aorders' && (
-          <AOrdersView currentUser={role.name} />
+          <AOrdersView currentUser={role.name} initialOpenId={initialAOrderId} onInitialOpenHandled={() => setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('aorder'); return next; }, { replace: true })} />
         )}
         {tab === 'futurejobs' && (
           <FutureJobsView currentUser={role.name} onSelectCase={setSelectedCase} />
