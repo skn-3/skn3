@@ -1,13 +1,15 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useMessagingUser } from './useMessagingUser';
 import { countUnreadMessages, type ChatMessage } from '@/lib/chat';
+import { incomingMessageToast } from '@/components/chat/incomingMessageToast';
 
 export function useChat(activeId: string | null) {
   const userId = useMessagingUser();
   const qc = useQueryClient();
+  const shownMessageIds = useRef(new Set<string>());
   const query = useQuery({
     queryKey: ['chat', userId], enabled: !!userId, refetchInterval: 60000,
     queryFn: async () => {
@@ -30,13 +32,9 @@ export function useChat(activeId: string | null) {
   const markRead = useCallback(async (id: string) => {
     if (!userId) return;
     const readAt = new Date().toISOString();
-    const results = await Promise.all([
-      supabase.from('conversation_members').update({ last_read_at: readAt }).eq('conversation_id', id).eq('user_id', userId),
-      supabase.from('notifications').update({ read_at: readAt }).eq('user_id', userId).eq('kind', 'message').eq('link->>id', id).is('read_at', null),
-    ]);
-    if (results.some(r => r.error)) { toast.error('Kunde inte markera meddelandena som lästa'); return; }
+    const { error } = await supabase.from('conversation_members').update({ last_read_at: readAt }).eq('conversation_id', id).eq('user_id', userId);
+    if (error) { toast.error('Kunde inte markera meddelandena som lästa'); return; }
     qc.setQueryData<typeof query.data>(['chat', userId], (old) => old ? { ...old, members: old.members.map(m => m.conversation_id === id && m.user_id === userId ? { ...m, last_read_at: readAt } : m) } : old);
-    qc.invalidateQueries({ queryKey: ['notifications', userId] });
   }, [userId, qc]);
   useEffect(() => {
     if (!activeId) return;
@@ -52,11 +50,21 @@ export function useChat(activeId: string | null) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         qc.invalidateQueries({ queryKey: ['chat', userId] });
         if (activeId && payload.new.conversation_id === activeId) void markRead(activeId);
+        const message = payload.new as ChatMessage;
+        if (message.sender_id === userId || shownMessageIds.current.has(message.id)) return;
+        shownMessageIds.current.add(message.id);
+        void (async () => {
+          const cached = qc.getQueryData<typeof query.data>(['chat', userId]);
+          let name = cached?.profiles.find(p => p.id === message.sender_id)?.name;
+          if (!name) {
+            const { data } = await supabase.from('profiles_public').select('name').eq('id', message.sender_id).maybeSingle();
+            name = data?.name;
+          }
+          incomingMessageToast(message.id, name || 'Användare', message.conversation_id);
+        })();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members' }, () => qc.invalidateQueries({ queryKey: ['chat', userId] }))
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, (payload) => {
-        if (activeId && payload.new.kind === 'message' && (payload.new.link as { id?: string })?.id === activeId) void markRead(activeId);
-      }).subscribe();
+      .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [userId, qc, activeId, markRead]);
   const data = query.data;

@@ -190,6 +190,20 @@
       "when": 1792964796934,
       "tag": "0026_messaging_explicit_column_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792965084929,
+      "tag": "0027_separate_chat_from_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792965095711,
+      "tag": "0028_validate_events_only_notifications",
+      "breakpoints": true
     }
   ]
 }
