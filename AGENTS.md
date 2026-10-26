@@ -28,7 +28,7 @@ In installer submit flows, create the primary row first and treat later steps (e
 
 ## N3prenad-AI
 - Keep AI persistence in ai_threads, ai_messages, ai_usage and ai_settings and calls in n3-ai; only the service client writes history/usage, while every case tool uses the caller's JWT and RLS.
-- Define each read tool in its own file with name, JSON schema and handler; require a separate approval-capable layer before adding any write tool.
+- Define each tool in its own file; action proposal tools only persist ai_actions, while the explicit confirm/cancel dispatcher atomically claims the caller's pending action and runs its registered executor through userClient. A cost uses the action UUID as its row ID to prevent duplicate writes; event/activity failures remain non-fatal after the primary insert.
 - Resolve event case identities in one caller-scoped query using the role-appropriate cases view; omit events whose case is no longer visible so enrichment cannot bypass access rules.
 - Use ai_begin_message only with service_role for atomic quota reservation across archived threads; use ai_archive_thread only for the caller's active thread.
 - Reuse function-local pure AI date/marker logic through the frontend re-export and render checked case references with ChatCaseCard; this keeps date boundaries and access consistent.

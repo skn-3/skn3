@@ -231,8 +231,69 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_actions: {
+        Row: {
+          assistant_message_id: string | null
+          created_at: string
+          decided_at: string | null
+          error: string | null
+          id: string
+          kind: string
+          payload: Json
+          result: Json | null
+          status: string
+          summary: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          assistant_message_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          error?: string | null
+          id?: string
+          kind: string
+          payload: Json
+          result?: Json | null
+          status?: string
+          summary: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          assistant_message_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          error?: string | null
+          id?: string
+          kind?: string
+          payload?: Json
+          result?: Json | null
+          status?: string
+          summary?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_actions_assistant_message_id_fkey"
+            columns: ["assistant_message_id"]
+            isOneToOne: false
+            referencedRelation: "ai_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_actions_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "ai_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_messages: {
         Row: {
+          action_id: string | null
           case_ids: string[]
           content: string
           created_at: string
@@ -244,6 +305,7 @@ export type Database = {
           tool_name: string | null
         }
         Insert: {
+          action_id?: string | null
           case_ids?: string[]
           content?: string
           created_at?: string
@@ -255,6 +317,7 @@ export type Database = {
           tool_name?: string | null
         }
         Update: {
+          action_id?: string | null
           case_ids?: string[]
           content?: string
           created_at?: string
@@ -266,6 +329,13 @@ export type Database = {
           tool_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_messages_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "ai_actions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ai_messages_thread_id_fkey"
             columns: ["thread_id"]
@@ -450,6 +520,7 @@ export type Database = {
           id: string
           payout_excluded_at: string | null
           payout_excluded_by: string | null
+          receipt_path: string | null
           receipt_url: string | null
           responsible: string | null
         }
@@ -465,6 +536,7 @@ export type Database = {
           id?: string
           payout_excluded_at?: string | null
           payout_excluded_by?: string | null
+          receipt_path?: string | null
           receipt_url?: string | null
           responsible?: string | null
         }
@@ -480,6 +552,7 @@ export type Database = {
           id?: string
           payout_excluded_at?: string | null
           payout_excluded_by?: string | null
+          receipt_path?: string | null
           receipt_url?: string | null
           responsible?: string | null
         }
@@ -2850,6 +2923,10 @@ export type Database = {
       ai_archive_thread: { Args: never; Returns: undefined }
       ai_begin_message: {
         Args: { p_message: string; p_user_id: string }
+        Returns: Json
+      }
+      ai_claim_action: {
+        Args: { p_action_id: string; p_user_id: string }
         Returns: Json
       }
       append_deviation_log: {

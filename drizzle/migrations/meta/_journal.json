@@ -246,6 +246,20 @@
       "when": 1792971885599,
       "tag": "0034_n3_ai_full_flash_default",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792972578674,
+      "tag": "0035_n3_ai_confirmed_cost_actions",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792972843768,
+      "tag": "0036_ai_actions_service_only_writes",
+      "breakpoints": true
     }
   ]
 }

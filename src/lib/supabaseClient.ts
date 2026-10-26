@@ -219,6 +219,7 @@ export interface CaseCost {
   description: string;
   amount: number;
   receipt_url: string | null;
+  receipt_path?: string | null;
   created_by: string;
   category: 'ovrigt' | 'reklamation';
   responsible: string | null;

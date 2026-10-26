@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] N3prenad-AI etapp 2 del 1: sparade kostnadsförslag, 15 min bekräftelse/avbryt med atomisk reservation och dubblettskydd, privat ai-receipts/receipt_path samt befintliga kostnads-/händelse-/aktivitetsinserts via userClient. Migration 0035–0036 och service-only skrivrättigheter verifierade, n3-ai driftsatt, 335 tester och automatisk typkontroll gröna. Åtta telefonbilder med lokala uppgifter visar motfrågor, kort, bekräftelse/omladdning och kostnadslista i ljust/mörkt utan runtimefel; inga paket eller apppublicering.
+- [ ] N3prenad-AI kostnad: verklig modellkonversation, kvittouppladdning och bekräftelse med databas-readback — eget appkonto saknas, därför endast lokala uppgifter och executortest verifierade.
+
 - [x] N3prenad-AI: händelser berikade med synliga adresser/ort/kund/status, id-regeln skärpt, migration 0034 och befintlig rad bytta till google/gemini-3-flash-preview (3.1 Flash saknas); admin listar Flash/Lite och behåller fritt modellfält. 321 tester och automatisk typkontroll gröna, n3-ai driftsatt, riktigt gateway-verktygsanrop/följdsvar med syntetisk adress verifierat; ingen apppublicering eller paket. Inloggat appflöde fortsatt ej verifierat, eget konto saknas.
 
 - [x] Chattbilder: migration 0033 (0030 redan upptagen), privat chat-images med 10 MB och JPEG/PNG/WebP verifierad samt medlemsstyrda INSERT/SELECT-policyer; komprimering, bilagor, batchsignering, fullskärmsbild och nedladdning klara. 318 tester och automatiskt bygge gröna; lokalt bildskick och uppladdningsfel verifierade på 390/1280 px. Notiser oförändrade, inga paket eller publicering.
@@ -10,7 +13,7 @@
 
 - [x] N3prenad-AI etapp 1: migration 0032, privat läschatt, fyra RLS-läsverktyg och kontorets användning/inställningar; aktuell Gemini Flash Lite verifierad med riktigt verktygsanrop och följdsvar, 310 tester gröna. Telefon/dator i ljust/mörkt kontrollerade med lokala simulerade svar; inga paket eller publicering.
 - [ ] N3prenad-AI: verklig montör-/säljarsession, sparade ai_usage-rader och nekad åtkomst till annat team — session kunde inte skapas (kontogodkännande otillgängligt); kräver inloggning i förhandsvisningen.
-- [ ] N3prenad-AI etapp 2: åtgärder med bekräftelsekort — inväntar separat beställning.
+- [ ] N3prenad-AI etapp 2 fortsättning: rapportera problem, delrapport, plåt och bokningar via bekräftelsekort — inväntar separat beställning.
 - [ ] N3prenad-AI etapp 3: kunskapskällor med textsökning — inväntar separat beställning.
 - [ ] N3prenad-AI etapp 4: eskalering till admin — inväntar separat beställning.
 

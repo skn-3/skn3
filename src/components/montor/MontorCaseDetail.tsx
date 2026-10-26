@@ -21,6 +21,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerC
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SheetMetalOrdersSection } from '@/components/sheet-metal/SheetMetalOrdersSection';
 import { SignedImage } from '@/components/shared/SignedImage';
+import { AiReceipt } from '@/components/shared/AiReceipt';
 import { MontorLitteraSection } from '@/components/montor/MontorLitteraSection';
 import { submitKontrollmatning, fetchPendingLitteror } from '@/lib/kontrollmatning';
 import { aOrderPdfName, invoicePdfName, creditPdfName } from '@/lib/pdfNames';
@@ -916,7 +917,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
             </div>
             <div className="flex items-center gap-2">
               <span className="font-semibold tabular-nums whitespace-nowrap">{Number(c.amount).toLocaleString('sv-SE')} kr</span>
-              {c.receipt_url && (
+              {c.receipt_path ? <AiReceipt path={c.receipt_path}/> : c.receipt_url && (
                 <button onClick={() => setFullscreenImg(c.receipt_url)} className="w-11 h-11 rounded border overflow-hidden">
                   <SignedImage value={c.receipt_url} alt="Kvitto" className="w-full h-full object-cover" />
                 </button>
