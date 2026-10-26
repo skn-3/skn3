@@ -2929,6 +2929,16 @@ export type Database = {
         Args: { p_action_id: string; p_user_id: string }
         Returns: Json
       }
+      ai_create_proposal: {
+        Args: {
+          p_kind: string
+          p_payload: Json
+          p_summary: string
+          p_thread_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       append_deviation_log: {
         Args: { p_deviation_id: string; p_entry: Json }
         Returns: undefined

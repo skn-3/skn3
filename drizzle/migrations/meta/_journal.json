@@ -260,6 +260,13 @@
       "when": 1792972843768,
       "tag": "0036_ai_actions_service_only_writes",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792998577414,
+      "tag": "0037_n3_ai_installer_proposal_guard",
+      "breakpoints": true
     }
   ]
 }
