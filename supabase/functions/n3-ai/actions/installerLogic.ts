@@ -20,7 +20,9 @@ export function validateInstallerArgs(kind:string,args:Record<string,unknown>,no
  return payload;
 }
 export function installerActionError(kind:string,c:any,ctx:{role:string;name:string;isAdmin:boolean},payload:any):string|null{
- if(ctx.role!=='montor'&&!ctx.isAdmin)return 'Åtgärden är endast tillgänglig för montörer och admin i montörvyn.';
+ // Anteckningar har säljare, admin och koordinator också i sina vyer; övriga åtgärder är montörvyns.
+ const officeNote=kind==='add_note'&&(ctx.role==='seller'||ctx.role==='coordinator');
+ if(ctx.role!=='montor'&&!ctx.isAdmin&&!officeNote)return 'Åtgärden är endast tillgänglig för montörer och admin i montörvyn.';
  if(ctx.role==='montor'&&!ctx.isAdmin){const assigned=['report_problem','add_note','book_km'].includes(kind)?(c.km_team===ctx.name||c.team===ctx.name):c.team===ctx.name;
  if(!assigned&&!(kind==='book_montage'&&!c.team))return 'Åtgärden hör till ett annat montörsteam.';}
  if(kind==='book_km'&&c.status!=='vantar_km')return 'KM kan bara bokas när ärendet väntar på KM.';
