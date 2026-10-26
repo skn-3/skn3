@@ -10,6 +10,7 @@ export function installerProposal(kind:string,properties:Record<string,unknown>,
  async handler(args:Record<string,unknown>,ctx:ActionContext){try{
  if(ctx.proposalId)return {error:'Bekräfta eller avbryt det nya kortet först.'};
  const payload=validateInstallerArgs(kind,args,ctx.now);const c=await installerCase(checkedId(args),ctx);const error=installerActionError(kind,c,ctx,payload);if(error)return {error};
+ if(kind==='book_montage'&&!c.team&&ctx.role==='montor'){const team=await ctx.userClient.from('montor_teams').select('id').eq('name',ctx.name).maybeSingle();if(team.error||!team.data)return {error:'Montage-montör måste tilldelas först.'};}
  if(kind==='report_problem'){
  if(payload.photo_path&&payload.photo_path!==ctx.receiptPath)return {error:'Bifoga bilden med gem-knappen först.'};
  if(ctx.receiptPath){if(!ownReceiptPath(ctx.receiptPath,ctx.userId))return {error:'Ogiltig bild.'};payload.photo_path=ctx.receiptPath;}

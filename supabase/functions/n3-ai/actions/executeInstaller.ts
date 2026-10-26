@@ -21,10 +21,12 @@ export async function executeInstaller(action:any,ctx:ActionContext){
  if(!reused){await required(ctx.userClient.from('deviations').insert({id,case_id:c.id,type:'ovrigt',description:p.description,responsible:'okant',created_by:ctx.name,priority:'medium',cost:null,title:p.description.split('\n')[0].replace(/\s+/g,' ').slice(0,80),action_log:[{at:ctx.now.toISOString(),by:ctx.name,action:'Rapporterad'+via}]}));
  await later('Historiken kunde inte uppdateras.',()=>event('deviation',`Avvikelse skapad: Övrigt — ${p.description}`,{deviation_id:id}));
  await activity('deviation_created',`Avvikelse skapad: Övrigt — ${p.description.slice(0,80)}`,{type:'ovrigt',responsible:'okant',priority:'medium',cost:0},{deviation_id:id});}
- if(p.photo_path)await later('Problemet är rapporterat men bilden kunde inte laddas upp — kontoret är informerat',async()=>{
+ const warningCount=warnings.length;
+ if(p.photo_path)await later('Problemet är rapporterat men bilden kunde inte laddas upp.',async()=>{
  const downloaded=await ctx.userClient.storage.from('ai-receipts').download(p.photo_path);if(downloaded.error||!downloaded.data)throw new Error('Bild saknas');
  const path=`${c.id}/${id}/${action.id}.jpg`;await required(ctx.userClient.storage.from('case-images').upload(path,downloaded.data,{contentType:'image/jpeg',upsert:false}));
  await required(ctx.userClient.from('deviations').update({image_urls:[...(existing?.image_urls??[]),path]}).eq('id',id));});
+ if(warnings.length>warningCount){await later('Historiken kunde inte uppdateras.',()=>event('note','Bilderna till avvikelsen kunde inte laddas upp (1 st)',{deviation_id:id}));await activity('deviation_images_failed','Bilduppladdning misslyckades för avvikelse (1 st)',{files:1},{deviation_id:id});}
  }else if(kind==='add_note'){
  await event('note',`Anteckning: ${p.text}`,{id:action.id});await activity('note_added',`La till anteckning på ${c.address}`,{note:p.text});
  }else {
@@ -41,7 +43,7 @@ export async function executeInstaller(action:any,ctx:ActionContext){
  await later('Historiken kunde inte uppdateras.',()=>event(type,description));await activity(actionName,description||titles[kind],metadata);Object.assign(c,patch);
  }
  const mail=actionEmail(kind,c,ctx.name,p);
- if(mail&&(!reused||warnings.length))await later('Åtgärden är sparad men mejlet kunde inte skickas.',async()=>{await sendActionEmail(mail);await event('notification',kind==='book_km'||kind==='book_montage'?`Tilldelningsmail skickat till montör (${mail.to})`:`Mail skickat till ${mail.to} (${titles[kind]})`);});
+ if(mail&&(!reused||warnings.length))await later('Åtgärden är sparad men mejlet kunde inte skickas.',async()=>{if(kind==='report_problem'&&warnings.length)mail.rows.push({label:'Bilder',value:'Bilden kunde inte laddas upp — be montören skicka den på annat sätt.'});await sendActionEmail(mail);await event('notification',kind==='book_km'||kind==='book_montage'?`Tilldelningsmail skickat till montör (${mail.to})`:`Mail skickat till ${mail.to} (${titles[kind]})`);});
  const receipt=kind==='partial_report'?'Delrapport skickad':kind==='complete_montage'?'Montage markerat som klart':kind==='start_montage'?'Montage påbörjat':kind==='report_problem'?'Problem rapporterat':kind==='add_note'?'Anteckning sparad':`${titles[kind]}: ${bookingLabel(p.date,p.time)}`;
  return {case_id:c.id,address:c.address,warnings,reply:`${receipt} på ${c.address}.`};
 }
