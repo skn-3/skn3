@@ -1,11 +1,11 @@
 import { useEffect,useState } from 'react';
-import { Check,ListChecks,AlertTriangle,StickyNote,Calendar,CheckCircle2,Wrench,Receipt } from 'lucide-react';
+import { Check,ListChecks,AlertTriangle,StickyNote,Calendar,CheckCircle2,Wrench,Receipt,FilePlus2,Pencil,ArrowRightLeft,Clock,MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AiReceipt } from '@/components/shared/AiReceipt';
 import type { AiAction } from '@/hooks/useAiChat';
 import { ACTION_TTL_MS } from '../../../supabase/functions/n3-ai/actions/logic';
 const labels:Record<string,string>={confirmed:'Bekräftad',cancelled:'Avbruten',expired:'Utgången',failed:'Misslyckades'};
-const icons:Record<string,typeof Check>={add_cost:Receipt,report_problem:AlertTriangle,add_note:StickyNote,partial_report:ListChecks,complete_montage:CheckCircle2,start_montage:Wrench,book_km:Calendar,book_montage:Calendar,reschedule_montage:Calendar};
+const icons:Record<string,typeof Check>={add_cost:Receipt,report_problem:AlertTriangle,add_note:StickyNote,partial_report:ListChecks,complete_montage:CheckCircle2,start_montage:Wrench,book_km:Calendar,book_montage:Calendar,reschedule_montage:Calendar,create_case:FilePlus2,update_case:Pencil,set_status:ArrowRightLeft,set_extra_hours:Clock,send_chat_message:MessageSquare};
 export function AiActionCard({action,onDecide}:{action:AiAction;onDecide:(id:string,decision:'confirm'|'cancel')=>Promise<void>}){
  const [busy,setBusy]=useState(false);const [now,setNow]=useState(Date.now());useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),10000);return()=>clearInterval(timer);},[]);
  const status=action.status==='pending'&&now-Date.parse(action.created_at)>=ACTION_TTL_MS?'expired':action.status;const pending=status==='pending'&&!action.decided_at;
