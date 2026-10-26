@@ -21,7 +21,7 @@ export function validateInstallerArgs(kind:string,args:Record<string,unknown>,no
 }
 export function installerActionError(kind:string,c:any,ctx:{role:string;name:string;isAdmin:boolean},payload:any):string|null{
  if(ctx.role!=='montor'&&!ctx.isAdmin)return 'Åtgärden är endast tillgänglig för montörer och admin i montörvyn.';
- if(ctx.role==='montor'&&!ctx.isAdmin){const assigned=kind==='book_km'?(c.km_team===ctx.name||(!c.km_team&&c.team===ctx.name)):c.team===ctx.name;
+ if(ctx.role==='montor'&&!ctx.isAdmin){const assigned=['report_problem','add_note','book_km'].includes(kind)?(c.km_team===ctx.name||c.team===ctx.name):c.team===ctx.name;
  if(!assigned&&!(kind==='book_montage'&&!c.team))return 'Åtgärden hör till ett annat montörsteam.';}
  if(kind==='book_km'&&c.status!=='vantar_km')return 'KM kan bara bokas när ärendet väntar på KM.';
  if(kind==='book_montage'&&(!['godkand','i_produktion','leverans_klar'].includes(c.status)||c.montage_date))return 'Montage kan inte bokas i nuvarande status.';

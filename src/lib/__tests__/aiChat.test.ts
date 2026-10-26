@@ -3,6 +3,11 @@ import { parseAiReply, stockholmMidnight, scopeInterval, dailyLimitReached, isoW
 import { boundedResult } from '../../../supabase/functions/n3-ai/logic';
 const id = '12345678-1234-1234-1234-123456789abc';
 describe('AI ärendereferenser', () => {
+  it('tolkar bara säkra interna länkar och tar bort samtliga markörer',()=>{
+    const path=`/?case=${id}&section=km`;
+    const result=parseAiReply(`Här.\n[[link:${path}|Öppna kontrollmätning]]\n[[link:https://evil.example|Fel]]\n[[link://evil.example|Fel]]\n[[link:/?case=${id}&redirect=evil|Fel]]`);
+    expect(result.reply).toBe('Här.');expect(result.links).toEqual([{path,label:'Öppna kontrollmätning'}]);
+  });
   it('tar bort markörer och behåller högst tre unika giltiga id', () => {
     const result = parseAiReply(`Klart.\n[[case:${id}]]\n[[case:${id}]]\n[[case:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee]]\n[[case:bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee]]\n[[case:cccccccc-bbbb-cccc-dddd-eeeeeeeeeeee]]\n[[case:ogiltig]]`);
     expect(result.reply).toBe('Klart.'); expect(result.case_ids).toEqual([id,'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee','bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee']);

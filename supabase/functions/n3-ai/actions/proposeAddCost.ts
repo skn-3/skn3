@@ -1,7 +1,7 @@
 import { visibleCase, type ToolContext } from '../tools/context.ts';
 import { validateCostArgs, ownReceiptPath, formatCostAmount } from './logic.ts';
 import { saveProposal } from './proposal.ts';
-export interface ActionContext extends ToolContext { adminClient:any; userId:string; threadId:string; receiptPath?:string; proposalId?:string }
+export interface ActionContext extends ToolContext { userClient:any; adminClient:any; userId:string; threadId:string; receiptPath?:string; proposalId?:string }
 export const proposeAddCost={
  name:'propose_add_cost',description:'Föreslå en kostnad efter att ärende, belopp, beskrivning och frågan om valfritt kvitto har klarlagts. Sparar bara ett förslag, aldrig en kostnad.',
  schema:{type:'object',properties:{case_id:{type:'string'},amount:{type:'number',exclusiveMinimum:0,maximum:200000},description:{type:'string',minLength:3},receipt_path:{type:'string'}},required:['case_id','amount','description'],additionalProperties:false},

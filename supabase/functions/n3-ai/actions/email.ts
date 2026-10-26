@@ -14,7 +14,8 @@ export function actionEmail(kind:string,c:any,name:string,p:any){
 }
 const escape=(v:string)=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]??c));
 export async function sendActionEmail(mail:NonNullable<ReturnType<typeof actionEmail>>){
- const key=Deno.env.get('LOVABLE_API_KEY'),connection=Deno.env.get('RESEND_API_KEY');if(!key||!connection)throw new Error('Mejltjänsten saknar konfiguration.');
+ const runtime=globalThis as typeof globalThis & {Deno?:{env:{get:(name:string)=>string|undefined}}};
+ const key=runtime.Deno?.env.get('LOVABLE_API_KEY'),connection=runtime.Deno?.env.get('RESEND_API_KEY');if(!key||!connection)throw new Error('Mejltjänsten saknar konfiguration.');
  const html=`<!doctype html><html lang="sv"><body><h2>${escape(mail.heading)}</h2><table>${mail.rows.map(r=>`<tr><th>${escape(r.label)}</th><td>${escape(r.value)}</td></tr>`).join('')}</table><p>via N3prenad-AI</p></body></html>`;
  const response=await fetch('https://connector-gateway.lovable.dev/resend/emails',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${key}`,'X-Connection-Api-Key':connection},body:JSON.stringify({from:'SmartKlimat N3prenad <noreply@smartklimat.org>',to:[mail.to],cc:['mf@malke.se'],subject:mail.subject,html})});if(!response.ok)throw new Error('Mejlet kunde inte skickas.');
 }
