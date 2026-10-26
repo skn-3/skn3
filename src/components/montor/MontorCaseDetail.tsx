@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { formatDaySv, formatDayTimeSv, dayTagSv } from '@/lib/dateSv';
 import { Chip, StatusChip } from '@/components/ui/chip';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCaseEvents, fetchDeviations, fetchCaseByIdForMontor, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail } from '@/lib/supabaseClient';
 import type { CaseRow } from '@/lib/supabaseClient';
@@ -78,6 +78,7 @@ interface Props {
 export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBack }: Props) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const { data: liveCaseData } = useQuery({
     queryKey: ['case', initialCaseData.id],
@@ -145,6 +146,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
     try { return { ...DEFAULT_COLLAPSED, ...JSON.parse(sessionStorage.getItem(storageKey) || '{}') }; } catch { return { ...DEFAULT_COLLAPSED }; }
   });
+  useEffect(() => {
+    if (searchParams.get('section') !== 'km') return;
+    setCollapsed(prev => ({ ...prev, littera: false }));
+    const timer = setTimeout(() => document.getElementById('km-form')?.scrollIntoView({ block: 'start' }), 200);
+    return () => clearTimeout(timer);
+  }, [searchParams, caseData.id]);
   const isOpen = (k: string) => !collapsed[k];
   const toggle = (k: string) => setCollapsed((prev) => {
     const next = { ...prev, [k]: !prev[k] };
@@ -888,9 +895,9 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   );
 
   const litteraCard = (
-    <Card title="Kontrollmätning / littera" id="littera" collapsible summary={`${litteraCount} littera`} open={isOpen('littera')} onToggle={() => toggle('littera')}>
+    <div id="km-form"><Card title="Kontrollmätning / littera" id="littera" collapsible summary={`${litteraCount} littera`} open={isOpen('littera')} onToggle={() => toggle('littera')}>
       <MontorLitteraSection caseId={caseData.id} currentUser={currentUser} caseAddress={caseData.address} customerName={caseData.customer_name} hideTitle />
-    </Card>
+    </Card></div>
   );
 
   const costsCard = (

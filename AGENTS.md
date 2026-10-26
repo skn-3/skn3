@@ -35,3 +35,7 @@ In installer submit flows, create the primary row first and treat later steps (e
 - Preserve existing chat primitives for this package-free phase: AI Elements requires ai/streamdown packages not installed here; the narrow escaped markdown subset avoids new dependencies and executable HTML.
 - Use the documented raw Chat Completions contract for the selected fast Google models without new npm packages; preserve the six-round read-only loop and server-side key/run-ID state. This scoped exception avoids adding AI SDK and adapter packages.
 - Persist gateway credit/access pauses and require owner recovery rather than automatic retries; never substitute a model after a terminal refusal or provider denial.
+
+- Keep installer AI proposal validation and execution in function-local modules, recheck caller role/team/status at confirmation and use atomic ai_create_proposal/ai_claim_action with a thread lock; only one unclaimed pending card can remain.
+- Store generic AI action titles/rows in payload; keep internal link markers strictly allowlisted and resolve KM links by opening the existing littera section, never a parallel form.
+- Send AI action emails only to fixed existing coordinator/team recipients after the primary userClient write; the general coordinator-only mail endpoint must not be widened for installers.

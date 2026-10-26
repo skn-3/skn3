@@ -1,6 +1,7 @@
 import { visibleCase, type ToolContext } from '../tools/context.ts';
 import { validateCostArgs, ownReceiptPath, formatCostAmount } from './logic.ts';
-export interface ActionContext extends ToolContext { adminClient:any; userId:string; threadId:string; receiptPath?:string; proposalId?:string }
+import { saveProposal } from './proposal.ts';
+export interface ActionContext extends ToolContext { userClient:any; adminClient:any; userId:string; threadId:string; receiptPath?:string; proposalId?:string }
 export const proposeAddCost={
  name:'propose_add_cost',description:'Föreslå en kostnad efter att ärende, belopp, beskrivning och frågan om valfritt kvitto har klarlagts. Sparar bara ett förslag, aldrig en kostnad.',
  schema:{type:'object',properties:{case_id:{type:'string'},amount:{type:'number',exclusiveMinimum:0,maximum:200000},description:{type:'string',minLength:3},receipt_path:{type:'string'}},required:['case_id','amount','description'],additionalProperties:false},
@@ -14,7 +15,6 @@ export const proposeAddCost={
  const previous=await ctx.adminClient.from('ai_actions').select('id,payload,status,created_at').eq('thread_id',ctx.threadId).order('created_at',{ascending:false}).limit(1).maybeSingle();if(previous.error)throw new Error(previous.error.message);
  if(previous.data&&previous.data.payload.case_id===payload.case_id&&previous.data.payload.amount===payload.amount&&previous.data.payload.description===payload.description)return {error:'Samma kostnad har redan föreslagits. Använd det befintliga kortet.'};
  const summary=`Kostnad ${formatCostAmount(payload.amount)} kr, ${payload.description}, ${found.address}`;
- const {data,error}=await ctx.adminClient.from('ai_actions').insert({thread_id:ctx.threadId,user_id:ctx.userId,kind:'add_cost',payload,summary}).select('id').single();if(error)throw new Error(error.message);
- ctx.proposalId=data.id;return {proposal_id:data.id,summary,needs_confirmation:true,case_id:found.id,address:found.address,city:found.city,customer_name:found.customer_name,status:found.status};
+  return {...await saveProposal('add_cost',{...payload,customer_name:found.customer_name,status:found.status},'Lägg till kostnad',[{label:'Ärende',value:[found.address,found.city].filter(Boolean).join(', ')},{label:'Belopp',value:formatCostAmount(payload.amount)+' kr ex moms'},{label:'Beskrivning',value:payload.description}],ctx),summary};
  }
 };
