@@ -6,7 +6,7 @@ export function sellerRoleError(ctx:{role:string;isAdmin:boolean}):string|null{
  return ctx.isAdmin||ctx.role==='seller'||ctx.role==='coordinator'?null:'Åtgärden är inte tillgänglig för din roll.';
 }
 const str=(v:unknown,key:string,max:number,required=false)=>{
- if(v===null&&!required)return null;
+ if((v===undefined||v===null)&&!required)return null;
  if(typeof v!=='string'||v.length>max)throw new Error(`Ogiltigt värde för ${key}.`);
  const t=v.trim();if(required&&!t)throw new Error(`${key} saknas.`);
  return t||null;
