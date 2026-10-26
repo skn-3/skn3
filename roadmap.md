@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] N3prenad-AI etapp 2 del 3: säljåtgärder (skapa ärende, ändra orderuppgifter med vitlista, status via samma grind som statusRules, godkända extra timmar), anteckning öppnad för seller/koordinator/admin, skicka till kollega via start_conversation och samma meddelandeinsert, list_my_cases med 50 rader och missing-filter. Ren logik i sellerLogic.ts, executors i executeSeller.ts, n3-ai driftsatt; 385 tester och automatisk typkontroll gröna, inga paket eller publicering.
+- [ ] N3prenad-AI etapp 2 del 3: verklig säljarkonversation med skapande/ändring/meddelande och databas-readback — kräver inloggat säljarkonto (--self saknar konto, n3-ai svarar 401 utan session).
+
 - [x] N3prenad-AI etapp 2 del 2: generiska kort, atomiska nya förslag som avbryter tidigare pending, problem/anteckning/delrapport/slutfört/start/KM-/montagebokning/ombokning, datumkontroll och säkra formulärlänkar. Migration 0037 och service-only RPC-rättigheter verifierade; 350 tester och automatisk typkontroll gröna. Telefonflöden med lokala uppgifter i ljust/mörkt, inga runtimefel; inga paket eller publicering. Problemtypen är Övrigt, ansvar Okänt, prioritet Medium (visas i kortet); slutfört montage har bara valfri slutkommentar. Mejlen använder fasta befintliga mottagare via en avgränsad sändare eftersom notify-email nekar montörer; dess behörighet är oförändrad.
 - [ ] N3prenad-AI etapp 2 del 2: verklig konversation, sparning/notiser och mejlleverans — --self saknar konto och n3-ai svarar 401 utan session; kräver inloggat valt montörkonto. Lokala notiser är simulerade, inte verifierad leverans.
 
