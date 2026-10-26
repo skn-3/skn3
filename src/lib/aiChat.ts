@@ -1,2 +1,2 @@
 // One pure implementation shared with the edge function; no server dependencies.
-export { parseAiReply, stockholmDate, stockholmMidnight, scopeInterval, isoWeek, dailyLimitReached } from '../../supabase/functions/n3-ai/logic';
+export { parseAiReply, stockholmDate, stockholmMidnight, scopeInterval, isoWeek, dailyLimitReached, buildVocabularyHint, pickAudioMimeType, validateTranscribeAudio, AUDIO_MIME_CANDIDATES, MAX_AUDIO_SECONDS, MAX_AUDIO_BYTES, DAILY_TRANSCRIBE_LIMIT } from '../../supabase/functions/n3-ai/logic';
