@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { parseAiReply } from '@/lib/aiChat';
 import { shouldSendOnKey } from '@/lib/chat';
-const suggestions={montor:['Lägg till en kostnad på …','Boka montage på …','Rapportera ett problem på …'],seller:['Vilka av mina ärenden väntar på kontrollmätning?','Vad har hänt på …?','Vilka leveranser kommer nästa vecka?'],coordinator:['Vilka montage pågår idag?','Vilka ärenden är delrapporterade?','Vad hände igår?']};
+const suggestions={montor:['Vilka toleranser gäller i lod?','Boka montage på …','Rapportera ett problem på …'],seller:['Hur gör jag en Del1?','Vad har hänt på …?','Vilka leveranser kommer nästa vecka?'],coordinator:['Vad säger montageboken om återvinning?','Vilka ärenden är delrapporterade?','Vad hände igår?']};
 export function AiConversation({onBack,onClose,onOpenCase}:{onBack:()=>void;onClose:()=>void;onOpenCase:(id:string)=>void}){
  const navigate=useNavigate();const ai=useAiChat(); const {role}=useRole();const [body,setBody]=useState('');const bottom=useRef<HTMLDivElement>(null);const input=useRef<HTMLTextAreaElement>(null);const chatCases=useChatCases(ai.messages.flatMap(m=>m.case_ids));
  useEffect(()=>{bottom.current?.scrollIntoView({block:'end'});if(!ai.busy)input.current?.focus();},[ai.messages.length,ai.busy,ai.failure]);
