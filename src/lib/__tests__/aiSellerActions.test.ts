@@ -21,6 +21,7 @@ describe('propose_update_case-fältvitlista',()=>{
   expect(validateCaseChanges({delivery_week:44,delivery_year:2026})).toMatchObject({delivery_week:44,delivery_year:2026,delivery_date:null,delivery_time:null});
  });
  it('exakt leveransdatum ersätter vecka',()=>expect(validateCaseChanges({delivery_date:'2026-11-02'})).toMatchObject({delivery_date:'2026-11-02',delivery_week:null,delivery_year:null}));
+ it('datum som inte finns avvisas',()=>{expect(()=>validateCaseChanges({delivery_date:'2026-02-30'})).toThrow('finns inte');expect(()=>validateCaseChanges({delivery_date:'30 oktober'})).toThrow('YYYY-MM-DD');});
  it('ändringsrader visar förut → nytt',()=>{
   const {rows,texts}=describeCaseChanges(validateCaseChanges({order_number:' 12345 ',delivery_week:45,delivery_year:2026}),base);
   expect(rows).toContainEqual({label:'Ordernummer',value:'— → 12345'});
@@ -64,6 +65,12 @@ describe('propose_send_chat_message-mottagare',()=>{
   const ctx=caseCtx();(ctx.userClient as any).from=()=>q;
   const result=await proposeSendChatMessage.handler({recipient_name:'mirna',text:'Hej'},ctx);
   expect((result as any).error).toContain('Mirna Malke');
+ });
+ it('är tillgängligt för alla roller, även montör',async()=>{
+  const q:any={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:base,error:null}),then:(r:any)=>r({data:profiles,error:null})};
+  const ctx=caseCtx(base,'montor');(ctx.userClient as any).from=()=>q;
+  const result=await proposeSendChatMessage.handler({recipient_name:'Tomek',text:'Hej'},ctx);
+  expect((result as any).needs_confirmation).toBe(true);
  });
 });
 describe('validering av nya ärenden och meddelanden',()=>{
