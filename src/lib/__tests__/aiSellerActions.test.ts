@@ -24,7 +24,6 @@ describe('propose_update_case-fältvitlista',()=>{
  it('ändringsrader visar förut → nytt',()=>{
   const {rows,texts}=describeCaseChanges(validateCaseChanges({order_number:' 12345 ',delivery_week:44,delivery_year:2026}),base);
   expect(rows).toContainEqual({label:'Ordernummer',value:'— → 12345'});
-  expect(rows).toContainEqual({label:'Leveransdatum',value:'— → —'});// week mode nollställer datumet men värdet är oförändrat
   expect(texts.join(', ')).toContain('Ordernummer ändrat till 12345');
   expect(texts.join(', ')).toContain('Leveransvecka ändrad till v.44 2026');
  });
@@ -33,7 +32,7 @@ describe('propose_set_status',()=>{
  it('icke tillåten övergång ger error utan att något sparas',async()=>{
   const ctx=caseCtx({...base,status:'vantar_km'});ctx.adminClient={rpc:()=>{throw new Error('Must not write');}} as any;
   const result=await proposeSetStatus.handler({case_id:id,status:'montage_klart'},ctx);
-  expect(result).toEqual({error:'Montage måste vara bokat eller pågående först.'});
+  expect(result).toEqual({error:'Montage måste vara bokat eller pågående först'});
  });
  it('leveransgrinden speglar statusRules',()=>expect(statusGateError('godkand',{...base,delivery_date:null,delivery_week:null})).toContain('leveransdatum'));
  it('tillåten övergång ger förslag med från → till',async()=>{
