@@ -1,5 +1,6 @@
 // Fixed recipients only: never allow model-supplied recipients or raw HTML.
-const coordinator='mirna.malke@mockfjards.se';
+export const COORDINATOR_EMAIL='mirna.malke@mockfjards.se';
+const coordinator=COORDINATOR_EMAIL;
 const teamEmails:Record<string,string>={'GVMO':'gvmo.bygg@gmail.com','Samy':'info@smtmbygg.se','Alex NBD':'alex@nbdentreprenad.com','Jerk':'jerk.ryttman@mockfjards.se','Villaspecialisten':'Edvin@villaspecialisten.se'};
 export function actionEmail(kind:string,c:any,name:string,p:any){
  const rows=[{label:'Adress',value:c.address},{label:'Kund',value:c.customer_name},{label:'Montör',value:name}];
