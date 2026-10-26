@@ -1847,6 +1847,77 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_chunks: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          page: number | null
+          position: number
+          section: string | null
+          source_id: string
+          tsv: unknown
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          page?: number | null
+          position?: number
+          section?: string | null
+          source_id: string
+          tsv?: unknown
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          page?: number | null
+          position?: number
+          section?: string | null
+          source_id?: string
+          tsv?: unknown
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_chunks_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_sources: {
+        Row: {
+          audience: string
+          enabled: boolean
+          id: string
+          key: string
+          origin: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audience: string
+          enabled?: boolean
+          id?: string
+          key: string
+          origin?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          enabled?: boolean
+          id?: string
+          key?: string
+          origin?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       litteror: {
         Row: {
           antal: number | null
@@ -2960,6 +3031,16 @@ export type Database = {
       fix_a_order_sequence: { Args: never; Returns: undefined }
       is_conversation_member: { Args: { p_id: string }; Returns: boolean }
       is_montor_name: { Args: { p_name: string }; Returns: boolean }
+      knowledge_replace: {
+        Args: {
+          p_audience: string
+          p_chunks: Json
+          p_key: string
+          p_origin: string
+          p_title: string
+        }
+        Returns: string
+      }
       login_directory: {
         Args: never
         Returns: {
@@ -3002,6 +3083,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      search_knowledge: {
+        Args: { p_limit?: number; p_query: string; p_source_key?: string }
+        Returns: {
+          chunk_id: string
+          content: string
+          page: number
+          rank: number
+          section: string
+          source_key: string
+          source_title: string
+        }[]
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       start_conversation: {
         Args: { p_title?: string; p_user_ids: string[] }
         Returns: string

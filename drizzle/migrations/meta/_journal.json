@@ -267,6 +267,13 @@
       "when": 1792998577414,
       "tag": "0037_n3_ai_installer_proposal_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792999239668,
+      "tag": "0038_n3_ai_knowledge_sources",
+      "breakpoints": true
     }
   ]
 }
