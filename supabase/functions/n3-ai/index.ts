@@ -2,13 +2,13 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { z } from 'npm:zod@3.25.76';
 import { readTools } from './tools/index.ts';
-import { safeExecute, visibleCase } from './tools/context.ts';
-import { parseAiReply, stockholmDate, isoWeek } from './logic.ts';
+import { safeExecute, visibleCase, cases, ownScope } from './tools/context.ts';
+import { parseAiReply, stockholmDate, stockholmMidnight, isoWeek, buildVocabularyHint, validateTranscribeAudio, DAILY_TRANSCRIBE_LIMIT } from './logic.ts';
 import { createLovableAiGatewayRunIdFetch, getLovableAiGatewayResponseHeaders } from './run-id.ts';
 import { actionTools, decideAction } from './actions/index.ts';
 import { ownReceiptPath } from './actions/logic.ts';
 import type { ActionContext } from './actions/proposeAddCost.ts';
-const Body = z.union([z.object({ message:z.string().trim().min(1).max(10000),receipt_path:z.string().max(512).optional() }).strict(),z.object({action:z.enum(['confirm','cancel']),action_id:z.string().uuid()}).strict()]);
+const Body = z.union([z.object({ message:z.string().trim().min(1).max(10000),receipt_path:z.string().max(512).optional() }).strict(),z.object({action:z.enum(['confirm','cancel']),action_id:z.string().uuid()}).strict(),z.object({action:z.literal('transcribe'),audio_base64:z.string().min(1).max(3000000),mime_type:z.string().max(100),duration_seconds:z.number()}).strict()]);
 const statuses = {ny:'Ny',vantar_km:'Väntar KM',km_bokad:'KM bokad',km_klar:'KM klar',vantar_godkannande:'Väntar godkännande',godkand:'Godkänd',i_produktion:'I produktion',leverans_klar:'Leverans klar',montage_bokat:'Montage bokat',montage_pagar:'Montage pågår',montage_klart:'Montage klart',fakturerad:'Fakturerad',pausad:'Pausad'};
 function unwrap(result: any) { if(result.error)throw new Error(result.error.message); return result.data; }
 function historyMessages(rows: any[]) {
@@ -28,12 +28,34 @@ Deno.serve(async req=>{
  const parsed=Body.safeParse(await req.json().catch(()=>null));if(!parsed.success)return respond({reply:'Skriv en fråga med högst 10 000 tecken.',error_code:'validation'},400);
  const adminClient=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
  const started=Date.now();let model='unconfigured',threadId:string|undefined,messageId:string|undefined,prompt_tokens=0,completion_tokens=0,tool_calls=0,rounds=0;
- const log=async(status:string,error?:string)=>{unwrap(await adminClient.from('ai_usage').insert({user_id:auth.user.id,thread_id:threadId,message_id:messageId,model,prompt_tokens,completion_tokens,tool_calls,rounds,duration_ms:Date.now()-started,status,error}));};
+ let kind:'chat'|'action'|'transcribe'='chat',audioSeconds:number|null=null;
+ const log=async(status:string,error?:string)=>{unwrap(await adminClient.from('ai_usage').insert({user_id:auth.user.id,thread_id:threadId,message_id:messageId,model,prompt_tokens,completion_tokens,tool_calls,rounds,duration_ms:Date.now()-started,status,error,kind,audio_seconds:audioSeconds}));};
  try {
  const settings=unwrap(await adminClient.from('ai_settings').select('*').eq('id',1).single());model=settings.model;
  const [nameResult,roleResult,adminResult]=await Promise.all([userClient.rpc('auth_user_name'),userClient.rpc('auth_user_role'),userClient.rpc('auth_is_admin')]);
  const name=unwrap(nameResult),role=unwrap(roleResult),isAdmin=unwrap(adminResult);if(!name||!role)throw new Error('Användarens profil saknas');
- if('action' in parsed.data){const decision=await decideAction(parsed.data.action_id,parsed.data.action,{userClient,adminClient,userId:auth.user.id,threadId:'',name,role,isAdmin,now:new Date(),seenCaseIds:new Set()});if('thread_id' in decision)threadId=decision.thread_id;if('message_id' in decision)messageId=decision.message_id;await log('ok');return respond({...decision,usage:{prompt_tokens:0,completion_tokens:0,tool_calls:0}});}
+ if('action' in parsed.data&&parsed.data.action==='transcribe'){
+  kind='transcribe';model='openai/gpt-transcribe';
+  if(!settings.enabled){await log('disabled');return respond({reply:'N3prenad-AI är avstängd just nu.',error_code:'disabled'});}
+  if(!settings.voice_enabled){await log('disabled');return respond({reply:'Röstinmatning är avstängd just nu.',error_code:'voice_disabled'});}
+  if(!parsed.data.mime_type.startsWith('audio/')){await log('error','Ogiltigt ljudformat');return respond({reply:'Ogiltigt ljudformat.',error_code:'validation'},400);}
+  let audio:Uint8Array;try{audio=Uint8Array.from(atob(parsed.data.audio_base64),c=>c.charCodeAt(0));}catch{await log('error','Ogiltigt ljud');return respond({reply:'Ljudet kunde inte läsas.',error_code:'validation'},400);}
+  const invalid=validateTranscribeAudio(audio.length,parsed.data.duration_seconds);if(invalid){await log('error',invalid);return respond({reply:invalid,error_code:'validation'},400);}
+  audioSeconds=Math.round(parsed.data.duration_seconds);
+  const midnight=stockholmMidnight();
+  const {count,error:countError}=await adminClient.from('ai_usage').select('id',{count:'exact',head:true}).eq('user_id',auth.user.id).eq('kind','transcribe').gte('created_at',midnight);
+  if(countError)throw new Error(countError.message);
+  if((count??0)>=DAILY_TRANSCRIBE_LIMIT){await log('limit');return respond({reply:'Dagens gräns för röstinmatning är nådd.',error_code:'limit'});}
+  const caseRows=unwrap(await ownScope(cases({userClient,name,role,isAdmin,now:new Date(),seenCaseIds:new Set()}).select('address,city,customer_name'),{userClient,name,role,isAdmin,now:new Date(),seenCaseIds:new Set()}).not('status','in','(montage_klart,fakturerad)').limit(30));
+  const prompt='Transkribera ordagrant på svenska. Returnera bara texten, utan kommentarer. Ord och namn som kan förekomma: '+buildVocabularyHint(caseRows??[]);
+  const key=Deno.env.get('LOVABLE_API_KEY');if(!key)throw Object.assign(new Error('AI-tjänsten saknar konfiguration.'),{status:401});
+  const form=new FormData();form.append('model',model);form.append('file',new Blob([audio],{type:parsed.data.mime_type}),'roster.'+(parsed.data.mime_type.includes('mp4')?'mp4':parsed.data.mime_type.includes('ogg')?'ogg':'webm'));form.append('response_format','json');form.append('language','sv');form.append('prompt',prompt);
+  const response=await gateway.fetch('https://ai.gateway.lovable.dev/v1/audio/transcriptions',{method:'POST',headers:{'Lovable-API-Key':key,'X-Lovable-AIG-SDK':'fetch'},body:form});
+  if(!response.ok){const body=await response.json().catch(()=>({}));throw Object.assign(new Error(body.message??body.error?.message??'AI-tjänsten svarade inte.'),{status:response.status,type:body.error?.type??body.type});}
+  const data=await response.json();const text=String(data.text??'').trim();
+  await log('ok');return respond({text,duration_seconds:audioSeconds,usage:{prompt_tokens:0,completion_tokens:0,tool_calls:0}});
+ }
+ if('action' in parsed.data){kind='action';const decision=await decideAction(parsed.data.action_id,parsed.data.action,{userClient,adminClient,userId:auth.user.id,threadId:'',name,role,isAdmin,now:new Date(),seenCaseIds:new Set()});if('thread_id' in decision)threadId=decision.thread_id;if('message_id' in decision)messageId=decision.message_id;await log('ok');return respond({...decision,usage:{prompt_tokens:0,completion_tokens:0,tool_calls:0}});}
  if(!settings.enabled){await log('disabled');return respond({reply:'N3prenad-AI är avstängd just nu.',error_code:'disabled'});}
  if(settings.gateway_error){await log('error',settings.gateway_error);return respond({reply:settings.gateway_error,error_code:'gateway_paused'});}
  // Atomic reservation prevents simultaneous requests or archived threads bypassing the daily cap.
