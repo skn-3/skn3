@@ -17,7 +17,7 @@
 - [x] N3prenad-AI etapp 1: migration 0032, privat läschatt, fyra RLS-läsverktyg och kontorets användning/inställningar; aktuell Gemini Flash Lite verifierad med riktigt verktygsanrop och följdsvar, 310 tester gröna. Telefon/dator i ljust/mörkt kontrollerade med lokala simulerade svar; inga paket eller publicering.
 - [ ] N3prenad-AI: verklig montör-/säljarsession, sparade ai_usage-rader och nekad åtkomst till annat team — session kunde inte skapas (kontogodkännande otillgängligt); kräver inloggning i förhandsvisningen.
 - [x] N3prenad-AI etapp 2 fortsättning: rapportering och bokningar via bekräftelsekort; plåt och kontrollmätningsformulär via länkar enligt del 2.
-- [ ] N3prenad-AI etapp 3: kunskapskällor med textsökning — inväntar separat beställning.
+- [ ] N3prenad-AI etapp 3: schema, rollstyrd textsökning, kunskapsverktyg, adminimport/test/radering och verifiering utan publicering.
 - [ ] N3prenad-AI etapp 4: eskalering till admin — inväntar separat beställning.
 
 - [x] Delrapportera montage: migrering 0031, schema/vy/notistrigger verifierade; formulär, kontorsblock och listchips klara; 294 tester och automatiskt bygge gröna, sparning/readback kontrollerade med lokala uppgifter. Riktigt mejlutskick ej testat.
