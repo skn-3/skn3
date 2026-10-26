@@ -11,20 +11,20 @@ export async function sellerCase(id:string,ctx:ActionContext){
  return data;
 }
 const caseRow=(c:any)=>({label:'Ärende',value:[c.address,c.city].filter(Boolean).join(', ')});
-function tool(name:string,description:string,properties:Record<string,unknown>,required:string[],handler:(args:Record<string,unknown>,ctx:ActionContext)=>Promise<unknown>){
+function tool(name:string,description:string,properties:Record<string,unknown>,required:string[],handler:(args:Record<string,unknown>,ctx:ActionContext)=>Promise<unknown>,anyRole=false){
  return {name,description,schema:{type:'object',properties,required,additionalProperties:false},
   async handler(args:Record<string,unknown>,ctx:ActionContext){try{
    if(ctx.proposalId)return {error:'Bekräfta eller avbryt det nya kortet först.'};
-   const roleError=sellerRoleError(ctx);if(roleError)return {error:roleError};
+   if(!anyRole){const roleError=sellerRoleError(ctx);if(roleError)return {error:roleError};}
    return await handler(args,ctx);
-  }catch(e){return {error:e instanceof Error?e.message:'Förslaget kunde inte skapas.'};}}};
+   }catch(e){return {error:e instanceof Error?e.message:'Förslaget kunde inte skapas.'};}}};
 }
 export const proposeCreateCase=tool('propose_create_case','Föreslå ett nytt ärende efter att adress, ort och kundnamn klarlagts. Fråga efter det som saknas först; sparar endast ett förslag för uttrycklig bekräftelse.',
  {address:{type:'string'},city:{type:'string'},customer_name:{type:'string'},customer_phone:{type:'string'},customer_email:{type:'string'},offer_number:{type:'string'},units:{type:'integer'},notes:{type:'string'},carry_help_needed:{type:'boolean'},media_consent:{type:'boolean'}},
  ['address','city','customer_name'],
  async(args,ctx)=>{
   const input=validateCreateCaseArgs(args);
-  const {data:dups,error}=await ctx.userClient.from('cases').select('id,address,status').ilike('address',input.address).limit(3);
+  const {data:dups,error}=await ctx.userClient.from('cases').select('id,address,status').ilike('address',input.address.replace(/[%_\\]/g,m=>'\\'+m)).limit(3);
   if(error)throw new Error(error.message);
   const rows=[{label:'Adress',value:[input.address,input.city].join(', ')},{label:'Kund',value:input.customer_name}];
   if(input.customer_phone)rows.push({label:'Telefon',value:input.customer_phone});
@@ -83,4 +83,4 @@ export const proposeSendChatMessage=tool('propose_send_chat_message','Föreslå 
   const rows=[{label:'Mottagare',value:found.match.name},{label:'Meddelande',value:input.text}];
   if(c)rows.push(caseRow(c));
   return await saveProposal('send_chat_message',{recipient_id:found.match.id,recipient_name:found.match.name,text:input.text,...(c?{case_id:c.id,address:c.address,city:c.city,customer_name:c.customer_name,status:c.status}:{})},sellerTitles.send_chat_message,rows,ctx);
- });
+ },true);
