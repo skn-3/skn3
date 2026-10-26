@@ -1,6 +1,6 @@
 import { UUID, boundedResult } from '../logic.ts';
 // Structural read-only client boundary also allows pure tests without Deno package imports.
-export interface ToolContext { userClient: { from: (table: string) => any }; name: string; role: string; isAdmin: boolean; now: Date; seenCaseIds: Set<string> }
+export interface ToolContext { userClient: { from: (table: string) => any }; name: string; role: string; isAdmin: boolean; now: Date; seenCaseIds: Set<string>; allowedLinks?: Set<string> }
 export interface ReadTool { name: string; description: string; schema: Record<string, unknown>; handler: (args: Record<string, unknown>, ctx: ToolContext) => Promise<unknown> }
 export const CASE_FIELDS = 'id,address,city,customer_name,status,team,km_team,seller,km_date,montage_date,delivery_week,delivery_year,order_number,offer_number';
 export function cases(ctx: ToolContext) { return ctx.userClient.from(ctx.role === 'montor' ? 'cases_montor' : 'cases'); }

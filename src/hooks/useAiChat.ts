@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useMessagingUser } from './useMessagingUser';
 export interface AiMessage { id:string; role:string; content:string; case_ids:string[]; created_at:string; action_id?:string|null }
-export interface AiAction { id:string;kind:string;status:string;created_at:string;decided_at:string|null;error:string|null;payload:{case_id:string;address:string;city?:string|null;amount:number;description:string;receipt_path?:string} }
+export interface AiAction { id:string;kind:string;status:string;created_at:string;decided_at:string|null;error:string|null;payload:{case_id:string;address:string;city?:string|null;amount?:number;description?:string;receipt_path?:string;photo_path?:string;title?:string;rows?:{label:string;value:string}[]} }
 interface AiReply { reply:string; message_id?:string; case_ids?:string[]; error_code?:string }
 export function useAiChat() {
  const userId=useMessagingUser(); const qc=useQueryClient();const [pending,setPending]=useState<AiMessage|null>(null);const [failure,setFailure]=useState<{reply:string;message:string}|null>(null);const [busy,setBusy]=useState(false);const lock=useRef(false); const owner=useRef(userId); owner.current=userId;
@@ -24,7 +24,7 @@ export function useAiChat() {
  const viewer=userId;if(!viewer)return;
  try{const {data,error}=await supabase.functions.invoke<AiReply>('n3-ai',{body:{action,action_id:actionId}});if(error)throw error;if(data?.error_code)toast.error(data.reply);}
  catch{toast.error('Beslutet kunde inte skickas. Kontrollera kortets status innan du försöker igen.');}
- finally{if(owner.current===viewer)await Promise.all(['ai-chat','ai-usage','case_costs','case_events','cases','case'].map(key=>qc.invalidateQueries({queryKey:key==='ai-chat'?[key,viewer]:[key]})));}
+  finally{if(owner.current===viewer)await Promise.all(['ai-chat','ai-usage','case_costs','case_events','cases','case','deviations','deviations_bulk','montor-cases','calendar','notifications'].map(key=>qc.invalidateQueries({queryKey:key==='ai-chat'?[key,viewer]:[key]})));}
  }
  const messages=query.data?.messages??[];
  const duplicatePending=pending && messages.at(-1)?.role==='user' && messages.at(-1)?.content===pending.content;

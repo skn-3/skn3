@@ -1,9 +1,11 @@
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function parseAiReply(text: string) {
   const ids: string[] = [];
-  const reply = text.replace(/\[\[case:([^\]]+)\]\]/g, (_, id: string) => { if (UUID.test(id) && !ids.includes(id.toLowerCase()) && ids.length < 3) ids.push(id.toLowerCase()); return ''; }).trim();
-  return { reply, case_ids: ids };
+  const links:{path:string;label:string}[]=[];
+  const reply = text.replace(/\[\[case:([^\]]+)\]\]/g, (_, id: string) => { if (UUID.test(id) && !ids.includes(id.toLowerCase()) && ids.length < 3) ids.push(id.toLowerCase()); return ''; }).replace(/\[\[link:([^|\]]+)\|([^\]]+)\]\]/g,(_,path:string,label:string)=>{if(isAiLinkPath(path)&&label.trim()&&label.length<=100&&!links.some(l=>l.path===path)&&links.length<3)links.push({path,label:label.trim()});return '';}).trim();
+  return { reply, case_ids: ids, links };
 }
+export function isAiLinkPath(path:string){const id='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';return new RegExp(`^(?:/\\?case=${id}(?:&section=km)?|/case/${id}/sheet-metal-order)$`,'i').test(path);}
 export function stockholmDate(now = new Date()) { return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now); }
 export function stockholmMidnight(now = new Date()) {
   const day = stockholmDate(now); const target = new Date(day + 'T00:00:00Z').getTime();
