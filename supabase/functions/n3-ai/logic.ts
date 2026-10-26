@@ -32,6 +32,33 @@ export function compact(value: unknown): unknown {
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([,v]) => v !== null && v !== undefined && v !== '').map(([k,v]) => [k,compact(v)]));
   return value;
 }
+export const VOICE_TERMS = ['Mockfjärds','N3prenad','littera','foder','smyg','fönsterbänk','kontrollmätning','KM','montage','plåtbeställning','avvikelse','delrapport','Kundportalen','KP'];
+export function buildVocabularyHint(activeCases: { address?: string | null; city?: string | null; customer_name?: string | null }[], maxChars = 800) {
+  const terms = [...VOICE_TERMS];
+  for (const c of activeCases) for (const value of [c.address, c.city, c.customer_name]) {
+    const term = (value ?? '').trim();
+    if (term && !terms.some(t => t.toLowerCase() === term.toLowerCase())) terms.push(term);
+  }
+  let hint = terms.join(', ');
+  while (hint.length > maxChars) {
+    const cut = hint.lastIndexOf(',', maxChars);
+    if (cut <= 0) return hint.slice(0, maxChars);
+    hint = hint.slice(0, cut);
+  }
+  return hint;
+}
+export const AUDIO_MIME_CANDIDATES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+export function pickAudioMimeType(isSupported: (type: string) => boolean) {
+  return AUDIO_MIME_CANDIDATES.find(isSupported) ?? null;
+}
+export const MAX_AUDIO_SECONDS = 60;
+export const MAX_AUDIO_BYTES = 2 * 1024 * 1024;
+export const DAILY_TRANSCRIBE_LIMIT = 150;
+export function validateTranscribeAudio(sizeBytes: number, durationSeconds: number): string | null {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || durationSeconds > MAX_AUDIO_SECONDS) return 'Inspelningen får vara högst 60 sekunder.';
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0 || sizeBytes > MAX_AUDIO_BYTES) return 'Ljudfilen får vara högst 2 MB.';
+  return null;
+}
 export function boundedResult(value: unknown) {
   const text = JSON.stringify(compact(value));
   if (text.length <= 8000) return JSON.parse(text);

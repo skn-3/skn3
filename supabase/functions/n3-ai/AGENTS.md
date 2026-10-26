@@ -1,0 +1,4 @@
+# N3prenad-AI edge function
+
+- Voice input goes through the `{action:'transcribe'}` body variant in index.ts to the gateway `/v1/audio/transcriptions` endpoint (`openai/gpt-transcribe`, buffered, `language: sv`) — never a separate OpenAI key. The vocabulary hint (fixed terms + the caller's 30 active cases, capped at 800 chars) is built by `buildVocabularyHint` in `logic.ts`; limits are validated by `validateTranscribeAudio` (60 s, 2 MB) and the 150/day per-user cap is counted from `ai_usage` rows with `kind='transcribe'`. Transcriptions must never count against the message daily cap, and the voice path must not call `ai_begin_message`.
+- The client-side `VoiceInputButton` (src/components/chat/) owns all MediaRecorder state, picks the first supported MIME via `pickAudioMimeType`, and never auto-sends transcribed text — it only fills the input field.

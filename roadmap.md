@@ -81,3 +81,6 @@
 
 - [x] Konsultlöner 1B: adminflik, guiden, faktura-/spec-PDF, förskott, lånereskontra, inställningar
 - [x] Konsultlöner 2: utskick, Drive-arkivering, loggbakfyllning
+
+- [x] N3prenad-AI röstinmatning: mikrofonknapp (MediaRecorder, 60 s/2 MB, avbryt, aldrig autoskick), transkribering via gatewayen (openai/gpt-transcribe) med vokabularhint, eget dagstak 150, ai_usage kind/audio_seconds, voice_enabled i ai_settings, adminväxel och röststatistik; migration 0041, 396 tester gröna, gateway-anrop verifierat med genererad ljudfil, funktionen kräver inloggning (401 utan).
+- [ ] N3prenad-AI röstinmatning: inloggat flöde med riktig svensk talinspelning och knappens tillstånd i appen — blockerat av att kontosession inte kan skapas (ditt konto saknas i appens inloggningsregister).

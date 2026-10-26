@@ -355,6 +355,7 @@ export type Database = {
           id: number
           model: string
           updated_at: string
+          voice_enabled: boolean
         }
         Insert: {
           daily_message_limit?: number
@@ -365,6 +366,7 @@ export type Database = {
           id?: number
           model?: string
           updated_at?: string
+          voice_enabled?: boolean
         }
         Update: {
           daily_message_limit?: number
@@ -375,6 +377,7 @@ export type Database = {
           id?: number
           model?: string
           updated_at?: string
+          voice_enabled?: boolean
         }
         Relationships: []
       }
@@ -407,11 +410,13 @@ export type Database = {
       }
       ai_usage: {
         Row: {
+          audio_seconds: number | null
           completion_tokens: number
           created_at: string
           duration_ms: number | null
           error: string | null
           id: string
+          kind: string
           message_id: string | null
           model: string
           prompt_tokens: number
@@ -423,11 +428,13 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          audio_seconds?: number | null
           completion_tokens?: number
           created_at?: string
           duration_ms?: number | null
           error?: string | null
           id?: string
+          kind?: string
           message_id?: string | null
           model: string
           prompt_tokens?: number
@@ -439,11 +446,13 @@ export type Database = {
           user_id: string
         }
         Update: {
+          audio_seconds?: number | null
           completion_tokens?: number
           created_at?: string
           duration_ms?: number | null
           error?: string | null
           id?: string
+          kind?: string
           message_id?: string | null
           model?: string
           prompt_tokens?: number
