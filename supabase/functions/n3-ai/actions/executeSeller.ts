@@ -1,5 +1,6 @@
 import type { ActionContext } from './proposeAddCost.ts';
 import { sellerCase } from './proposeSeller.ts';
+import { visibleCase } from '../tools/context.ts';
 import { validateCreateCaseArgs, validateCaseChanges, describeCaseChanges, statusGateError, SELLER_STATUS_LABELS, validateExtraHoursArgs, validateChatMessageArgs, matchRecipient } from './sellerLogic.ts';
 import { sendActionEmail, COORDINATOR_EMAIL, teamEmails } from './email.ts';
 const via=' via N3prenad-AI';
@@ -23,7 +24,7 @@ export async function executeSeller(action:any,ctx:ActionContext){
  }
  if(kind==='send_chat_message'){
   const input=validateChatMessageArgs(action.payload);
-  if(input.case_id){const c=await sellerCase(input.case_id,ctx);if(!c)throw new Error('Ärendet är inte längre synligt för dig.');}
+  if(input.case_id){const c=await visibleCase(input.case_id,ctx);if(!c)throw new Error('Ärendet är inte längre synligt för dig.');}
   const {data:profiles,error}=await ctx.userClient.from('profiles_public').select('id,name,role');
   if(error)throw new Error(error.message);
   const found=matchRecipient(profiles??[],input.recipient_name,ctx.userId);
