@@ -39,3 +39,4 @@ In installer submit flows, create the primary row first and treat later steps (e
 - Keep installer AI proposal validation and execution in function-local modules, recheck caller role/team/status at confirmation and use atomic ai_create_proposal/ai_claim_action with a thread lock; only one unclaimed pending card can remain.
 - Store generic AI action titles/rows in payload; keep internal link markers strictly allowlisted and resolve KM links by opening the existing littera section, never a parallel form.
 - Send AI action emails only to fixed existing coordinator/team recipients after the primary userClient write; the general coordinator-only mail endpoint must not be widened for installers.
+- Keep knowledge search in SECURITY INVOKER search_knowledge with audience/enabled RLS, and tools on userClient; admin-only text imports use pure heading/paragraph chunking and transactional knowledge_replace so a failed replacement preserves the previous source.
