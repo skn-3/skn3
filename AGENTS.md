@@ -32,7 +32,8 @@ In installer submit flows, create the primary row first and treat later steps (e
 - Resolve event case identities in one caller-scoped query using the role-appropriate cases view; omit events whose case is no longer visible so enrichment cannot bypass access rules.
 - Use ai_begin_message only with service_role for atomic quota reservation across archived threads; use ai_archive_thread only for the caller's active thread.
 - Reuse function-local pure AI date/marker logic through the frontend re-export and render checked case references with ChatCaseCard; this keeps date boundaries and access consistent.
-- Preserve existing chat primitives for this package-free phase: the narrow escaped markdown subset avoids new dependencies and executable HTML.
+- Keep chat primitives package-free: the narrow escaped markdown subset avoids new dependencies and executable HTML.
+Some subdirectories have their own AGENTS.md; read it before editing files there.
 - Use the documented raw Chat Completions contract for the selected fast Google models without new npm packages; preserve the six-round read-only loop and server-side key/run-ID state. This scoped exception avoids adding AI SDK and adapter packages.
 - Persist gateway credit/access pauses and require owner recovery rather than automatic retries; never substitute a model after a terminal refusal or provider denial.
 
