@@ -22,10 +22,11 @@ describe('propose_update_case-fältvitlista',()=>{
  });
  it('exakt leveransdatum ersätter vecka',()=>expect(validateCaseChanges({delivery_date:'2026-11-02'})).toMatchObject({delivery_date:'2026-11-02',delivery_week:null,delivery_year:null}));
  it('ändringsrader visar förut → nytt',()=>{
-  const {rows,texts}=describeCaseChanges(validateCaseChanges({order_number:' 12345 ',delivery_week:44,delivery_year:2026}),base);
+  const {rows,texts}=describeCaseChanges(validateCaseChanges({order_number:' 12345 ',delivery_week:45,delivery_year:2026}),base);
   expect(rows).toContainEqual({label:'Ordernummer',value:'— → 12345'});
+  expect(rows).toContainEqual({label:'Leveransvecka',value:'v.44 → v.45'});
   expect(texts.join(', ')).toContain('Ordernummer ändrat till 12345');
-  expect(texts.join(', ')).toContain('Leveransvecka ändrad till v.44 2026');
+  expect(texts.join(', ')).toContain('Leveransvecka ändrad till v.45 2026');
  });
 });
 describe('propose_set_status',()=>{
