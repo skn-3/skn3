@@ -7,6 +7,7 @@ const via=' via N3prenad-AI';
 export async function executeInstaller(action:any,ctx:ActionContext){
  const kind=action.kind,p=validateInstallerArgs(kind,action.payload,ctx.now),c=await installerCase(p.case_id,ctx);
  const blocked=installerActionError(kind,c,ctx,p);if(blocked)throw new Error(blocked);
+ if(kind==='book_montage'&&!c.team&&ctx.role==='montor'){const team=await ctx.userClient.from('montor_teams').select('id').eq('name',ctx.name).maybeSingle();if(team.error||!team.data)throw new Error('Montage-montör måste tilldelas först.');}
  const warnings:string[]=[];
  const required=async(q:any)=>{const result=await q;if(result.error)throw new Error(result.error.message);return result.data;};
  const later=async(label:string,fn:()=>Promise<unknown>)=>{try{await fn();}catch{warnings.push(label);}};

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { detectGotland } from '@/lib/constants';
 import { GotlandBadge, GOTLAND_LOCK_HINT, CONGARD_TEAM } from '@/components/shared/GotlandBadge';
@@ -72,6 +72,12 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('section') !== 'km') return;
+    const timer = setTimeout(() => document.getElementById('office-km-form')?.scrollIntoView({ block: 'start' }), 300);
+    return () => clearTimeout(timer);
+  }, [searchParams, initialCaseData.id]);
 
   const [futureJobOpen, setFutureJobOpen] = useState(false);
   const { data: openFutureJobs } = useQuery({
@@ -2731,7 +2737,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </div>
           )}
 
-          <LitterorSection caseId={caseData.id} isAdmin={isAdmin} currentUser={currentUser} />
+          <div id="office-km-form"><LitterorSection caseId={caseData.id} isAdmin={isAdmin} currentUser={currentUser} /></div>
 
 
           {/* Costs */}

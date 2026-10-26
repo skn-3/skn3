@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] N3prenad-AI etapp 2 del 2: generiska bekräftelsekort, ett aktivt förslag, montörens rapportering/anteckning/status/bokningar, säkra formulärlänkar, tester och telefonkontroll utan publicering.
+- [x] N3prenad-AI etapp 2 del 2: generiska kort, atomiska nya förslag som avbryter tidigare pending, problem/anteckning/delrapport/slutfört/start/KM-/montagebokning/ombokning, datumkontroll och säkra formulärlänkar. Migration 0037 och service-only RPC-rättigheter verifierade; 350 tester och automatisk typkontroll gröna. Telefonflöden med lokala uppgifter i ljust/mörkt, inga runtimefel; inga paket eller publicering. Problemtypen är Övrigt, ansvar Okänt, prioritet Medium (visas i kortet); slutfört montage har bara valfri slutkommentar. Mejlen använder fasta befintliga mottagare via en avgränsad sändare eftersom notify-email nekar montörer; dess behörighet är oförändrad.
+- [ ] N3prenad-AI etapp 2 del 2: verklig konversation, sparning/notiser och mejlleverans — --self saknar konto och n3-ai svarar 401 utan session; kräver inloggat valt montörkonto. Lokala notiser är simulerade, inte verifierad leverans.
 
 - [x] N3prenad-AI etapp 2 del 1: sparade kostnadsförslag, 15 min bekräftelse/avbryt med atomisk reservation och dubblettskydd, privat ai-receipts/receipt_path samt befintliga kostnads-/händelse-/aktivitetsinserts via userClient. Migration 0035–0036 och service-only skrivrättigheter verifierade, n3-ai driftsatt, 335 tester och automatisk typkontroll gröna. Åtta telefonbilder med lokala uppgifter visar motfrågor, kort, bekräftelse/omladdning och kostnadslista i ljust/mörkt utan runtimefel; inga paket eller apppublicering.
 - [ ] N3prenad-AI kostnad: verklig modellkonversation, kvittouppladdning och bekräftelse med databas-readback — eget appkonto saknas, därför endast lokala uppgifter och executortest verifierade.
@@ -15,7 +16,7 @@
 
 - [x] N3prenad-AI etapp 1: migration 0032, privat läschatt, fyra RLS-läsverktyg och kontorets användning/inställningar; aktuell Gemini Flash Lite verifierad med riktigt verktygsanrop och följdsvar, 310 tester gröna. Telefon/dator i ljust/mörkt kontrollerade med lokala simulerade svar; inga paket eller publicering.
 - [ ] N3prenad-AI: verklig montör-/säljarsession, sparade ai_usage-rader och nekad åtkomst till annat team — session kunde inte skapas (kontogodkännande otillgängligt); kräver inloggning i förhandsvisningen.
-- [ ] N3prenad-AI etapp 2 fortsättning: rapportera problem, delrapport, plåt och bokningar via bekräftelsekort — inväntar separat beställning.
+- [x] N3prenad-AI etapp 2 fortsättning: rapportering och bokningar via bekräftelsekort; plåt och kontrollmätningsformulär via länkar enligt del 2.
 - [ ] N3prenad-AI etapp 3: kunskapskällor med textsökning — inväntar separat beställning.
 - [ ] N3prenad-AI etapp 4: eskalering till admin — inväntar separat beställning.
 
