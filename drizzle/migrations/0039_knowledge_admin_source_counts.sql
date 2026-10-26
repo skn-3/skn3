@@ -1,0 +1,3 @@
+CREATE FUNCTION public.knowledge_source_counts() RETURNS TABLE(source_id uuid,chunk_count bigint) LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $$ BEGIN IF NOT public.auth_is_admin() THEN RAISE EXCEPTION 'Endast admin får räkna källornas textbitar.'; END IF; RETURN QUERY SELECT c.source_id,count(*) FROM public.knowledge_chunks c GROUP BY c.source_id; END $$;
+REVOKE ALL ON FUNCTION public.knowledge_source_counts() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.knowledge_source_counts() TO authenticated;

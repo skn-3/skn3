@@ -3041,6 +3041,13 @@ export type Database = {
         }
         Returns: string
       }
+      knowledge_source_counts: {
+        Args: never
+        Returns: {
+          chunk_count: number
+          source_id: string
+        }[]
+      }
       login_directory: {
         Args: never
         Returns: {
