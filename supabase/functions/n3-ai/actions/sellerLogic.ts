@@ -49,10 +49,13 @@ export function validateCaseChanges(changes:unknown):Record<string,unknown>{
    case 'delivery_year':patch[key]=intOrNull(value,'Leveransår',2020,2100);break;
    case 'units':patch[key]=intOrNull(value,'Antal enheter',0,9999);break;
    case 'scheduled_delivery':case 'carry_help_needed':case 'media_consent':case 'is_gotland':patch[key]=bool(value,key);break;
-   case 'delivery_date':
+   case 'delivery_date':{
     if(value===null){patch[key]=null;break;}
-    if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)||new Date(value+'T12:00:00Z').toISOString().slice(0,10)!==value)throw new Error('Leveransdatum ska vara YYYY-MM-DD.');
+    if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))throw new Error('Leveransdatum ska vara YYYY-MM-DD.');
+    const parsed=new Date(value+'T12:00:00Z');
+    if(Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==value)throw new Error('Leveransdatumet finns inte.');
     patch[key]=value;break;
+   }
   }
  }
  if(!Object.keys(patch).length)throw new Error('Ange minst ett fält att ändra.');
