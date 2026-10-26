@@ -1,5 +1,5 @@
 import { scopeInterval, type AiScope } from '../logic.ts';
-import { cases, ownScope, type ReadTool, type ToolContext } from './context.ts';
+import { cases, ownScope, type ReadTool } from './context.ts';
 const LIST_FIELDS='id,address,city,customer_name,status,seller,km_date,montage_date,delivery_week,delivery_year,order_number';
 const MISSING=['order_number','km_date','montage_date','delivery_week'] as const;
 export type MissingField=typeof MISSING[number];

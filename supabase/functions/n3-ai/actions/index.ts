@@ -9,9 +9,11 @@ import { proposeStartMontage } from './proposeStartMontage.ts';
 import { proposeBookKm } from './proposeBookKm.ts';
 import { proposeBookMontage } from './proposeBookMontage.ts';
 import { proposeRescheduleMontage } from './proposeRescheduleMontage.ts';
+import { proposeCreateCase, proposeUpdateCase, proposeSetStatus, proposeSetExtraHours, proposeSendChatMessage } from './proposeSeller.ts';
+import { executeSeller } from './executeSeller.ts';
 // Adding an action requires both a proposal tool and an explicit confirmation executor.
-export const actionTools=[proposeAddCost,proposeReportProblem,proposeAddNote,proposePartialReport,proposeCompleteMontage,proposeStartMontage,proposeBookKm,proposeBookMontage,proposeRescheduleMontage];
-const executors:Record<string,(action:any,ctx:ActionContext)=>Promise<any>>={add_cost:executeAddCost,...Object.fromEntries(['report_problem','add_note','partial_report','complete_montage','start_montage','book_km','book_montage','reschedule_montage'].map(kind=>[kind,executeInstaller]))};
+export const actionTools=[proposeAddCost,proposeReportProblem,proposeAddNote,proposePartialReport,proposeCompleteMontage,proposeStartMontage,proposeBookKm,proposeBookMontage,proposeRescheduleMontage,proposeCreateCase,proposeUpdateCase,proposeSetStatus,proposeSetExtraHours,proposeSendChatMessage];
+const executors:Record<string,(action:any,ctx:ActionContext)=>Promise<any>>={add_cost:executeAddCost,...Object.fromEntries(['report_problem','add_note','partial_report','complete_montage','start_montage','book_km','book_montage','reschedule_montage'].map(kind=>[kind,executeInstaller])),...Object.fromEntries(['create_case','update_case','set_status','set_extra_hours','send_chat_message'].map(kind=>[kind,executeSeller]))};
 export async function decideAction(actionId:string,decision:'confirm'|'cancel',ctx:ActionContext){
  const claim=await ctx.adminClient.rpc('ai_claim_action',{p_action_id:actionId,p_user_id:ctx.userId});if(claim.error)throw new Error(claim.error.message);
  if(claim.data.error)return {reply:claim.data.error,error_code:'action_decided'};
