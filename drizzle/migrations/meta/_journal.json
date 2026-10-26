@@ -281,6 +281,13 @@
       "when": 1792999373665,
       "tag": "0039_knowledge_admin_source_counts",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793000664185,
+      "tag": "0040_search_knowledge_ranked_levels",
+      "breakpoints": true
     }
   ]
 }
