@@ -3,7 +3,7 @@ import type { ActionContext } from './proposeAddCost.ts';
 import { sellerTitles, sellerRoleError, validateCreateCaseArgs, validateCaseChanges, describeCaseChanges, statusGateError, SELLER_STATUS_LABELS, validateExtraHoursArgs, validateChatMessageArgs, matchRecipient } from './sellerLogic.ts';
 import { approvedHoursWarning } from './extraHours.ts';
 import { saveProposal } from './proposal.ts';
-const SELLER_CASE_FIELDS='id,address,city,customer_name,status,team,seller,montage_date,delivery_date,delivery_time,delivery_week,delivery_year,order_number,offer_number,units,customer_phone,customer_email,notes,carry_help_needed,media_consent,is_gotland,scheduled_delivery,extra_hours_requested,extra_hours_approved,extra_hours_sold';
+const SELLER_CASE_FIELDS='id,address,city,customer_name,status,team,seller,montage_date,delivery_date,delivery_time,delivery_week,delivery_year,order_number,offer_number,units,customer_phone,customer_email,notes,carry_help_needed,media_consent,is_gotland,scheduled_delivery,extra_hours_requested,extra_hours_approved:extra_hours_approved_amount,extra_hours_sold';
 export async function sellerCase(id:string,ctx:ActionContext){
  const {data,error}=await ownScope(cases(ctx).select(SELLER_CASE_FIELDS),ctx).eq('id',id).maybeSingle();
  if(error)throw new Error(error.message);

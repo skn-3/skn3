@@ -303,7 +303,7 @@ Deno.serve(async (req) => {
 
       // Extra hours
       const totalRequested = allCases.reduce((s, c) => s + (c.extra_hours_requested || 0), 0);
-      const totalApproved = allCases.reduce((s, c) => s + (c.extra_hours_approved || 0), 0);
+      const totalApproved = allCases.reduce((s, c) => s + (c.extra_hours_approved_amount ?? c.extra_hours_approved ?? 0), 0);
 
       // Pipeline status count
       const statusCount: Record<string, number> = {};

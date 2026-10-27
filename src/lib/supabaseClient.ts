@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { approvedHoursError } from '@/lib/extraHours';
 import { EMAIL_MAP } from '@/lib/constants';
 
 export type CaseRow = Database['public']['Tables']['cases']['Row'];
@@ -13,25 +14,34 @@ export type VisitRow = Database['public']['Tables']['visits']['Row'];
 export type VisitInsert = Database['public']['Tables']['visits']['Insert'];
 export type VisitUpdate = Database['public']['Tables']['visits']['Update'];
 
+function withApprovedHours<T extends { extra_hours_approved?: number; extra_hours_approved_amount?: number }>(row: T): T {
+ return { ...row, extra_hours_approved: row.extra_hours_approved_amount ?? row.extra_hours_approved ?? 0 };
+}
+function approvedHoursPatch<T extends { extra_hours_approved?: number }>(input: T) {
+ if (input.extra_hours_approved === undefined) return input;
+ const invalid = approvedHoursError(input.extra_hours_approved); if (invalid) throw new Error(invalid);
+ const {extra_hours_approved,...rest}=input;
+ return {...rest,extra_hours_approved_amount:extra_hours_approved};
+}
 export async function fetchCases(filters?: { seller?: string; team?: string }) {
   let query = supabase.from('cases').select('*').order('created_at', { ascending: false });
   if (filters?.seller) query = query.eq('seller', filters.seller);
   if (filters?.team) query = query.eq('team', filters.team);
   const { data, error } = await query;
   if (error) throw error;
-  return data;
+  return data.map(withApprovedHours);
 }
 
 export async function fetchAllCases() {
   const { data, error } = await supabase.from('cases').select('*').order('created_at', { ascending: false });
   if (error) throw error;
-  return data;
+  return data.map(withApprovedHours);
 }
 
 export async function fetchCaseById(id: string) {
   const { data, error } = await supabase.from('cases').select('*').eq('id', id).single();
   if (error) throw error;
-  return data;
+  return withApprovedHours(data);
 }
 
 // Montörvyn läser via vyn cases_montor (utan ekonomifält). Uppdateringar går
@@ -42,7 +52,7 @@ export async function fetchCasesForMontor(): Promise<CaseRow[]> {
     .select('*')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []) as CaseRow[];
+  return (data ?? []).map(withApprovedHours) as CaseRow[];
 }
 
 export async function fetchCaseByIdForMontor(id: string): Promise<CaseRow> {
@@ -52,19 +62,19 @@ export async function fetchCaseByIdForMontor(id: string): Promise<CaseRow> {
     .eq('id', id)
     .single();
   if (error) throw error;
-  return data as CaseRow;
+  return withApprovedHours(data) as CaseRow;
 }
 
 export async function createCase(caseData: CaseInsert) {
-  const { data, error } = await supabase.from('cases').insert(caseData).select().single();
+  const { data, error } = await supabase.from('cases').insert(approvedHoursPatch(caseData)).select().single();
   if (error) throw error;
-  return data;
+  return withApprovedHours(data);
 }
 
 export async function updateCase(id: string, updates: CaseUpdate) {
-  const { data, error } = await supabase.from('cases').update(updates).eq('id', id).select().single();
+  const { data, error } = await supabase.from('cases').update(approvedHoursPatch(updates)).eq('id', id).select().single();
   if (error) throw error;
-  return data;
+  return withApprovedHours(data);
 }
 
 export async function deleteCase(id: string) {
@@ -117,7 +127,7 @@ export async function createDeviation(deviation: DeviationInsert) {
 }
 
 export async function updateDeviation(id: string, updates: Partial<Database['public']['Tables']['deviations']['Update']>) {
-  const { data, error } = await supabase.from('deviations').update(updates).eq('id', id).select().single();
+  const { data, error } = await supabase.from('deviations').update(approvedHoursPatch(updates)).eq('id', id).select().single();
   if (error) throw error;
   return data;
 }
@@ -159,7 +169,7 @@ export async function createVisit(visit: VisitInsert) {
 }
 
 export async function updateVisit(id: string, updates: VisitUpdate) {
-  const { data, error } = await supabase.from('visits').update(updates).eq('id', id).select().single();
+  const { data, error } = await supabase.from('visits').update(approvedHoursPatch(updates)).eq('id', id).select().single();
   if (error) throw error;
   return data;
 }

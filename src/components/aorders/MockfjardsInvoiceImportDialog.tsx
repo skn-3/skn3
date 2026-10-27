@@ -109,7 +109,7 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
     if (p.sales_order_number) {
       const { data: casesList } = await (supabase as any)
         .from('cases')
-        .select('id, order_number, address, customer_name, extra_hours_sold, extra_hours_approved')
+        .select('id, order_number, address, customer_name, extra_hours_sold, extra_hours_approved:extra_hours_approved_amount')
         .not('order_number', 'is', null);
 
       if (casesList) {
