@@ -85,4 +85,5 @@
 - [x] N3prenad-AI röstinmatning: mikrofonknapp (MediaRecorder, 60 s/2 MB, avbryt, aldrig autoskick), transkribering via gatewayen (openai/gpt-transcribe) med vokabularhint, eget dagstak 150, ai_usage kind/audio_seconds, voice_enabled i ai_settings, adminväxel och röststatistik; migration 0041, 396 tester gröna, gateway-anrop verifierat med genererad ljudfil, funktionen kräver inloggning (401 utan).
 - [ ] N3prenad-AI röstinmatning: inloggat flöde med riktig svensk talinspelning och knappens tillstånd i appen — blockerat av att kontosession inte kan skapas (ditt konto saknas i appens inloggningsregister).
 
-- [ ] N3prenad-AI Samtalsläge: röstbekräftelse, TTS med dagstak, delad inspelning/uppläsning, automatisk lyssning, admininställningar och verifiering.
+- [x] N3prenad-AI Samtalsläge: migration 0042, röstbeslut med samma atomiska skydd, TTS-karaktärreservation, delade inspelnings-/uppspelningshooks, automatisk lyssning, Läs upp och adminfält. OpenAI GPT-4o mini TTS/marin gav svensk MP3 (200, 1,419 s). 420 tester gröna; telefon/iPad simulerat röstflöde i ljust/mörkt utan runtimefel. Inga paket eller publicering.
+- [ ] Samtalsläge verklig inloggad sparning/TTS-logg och fysisk iOS-ljudupplåsning: testsession saknas (--self har inget konto); automatiskt tystnadsflöde ej end-to-end verifierat på fysisk enhet.
