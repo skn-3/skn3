@@ -4,7 +4,7 @@ export interface SpeechReply { speech_text?:string; audio_base64?:string; audio_
 export function useSpeech(open=false){
  const [speaking,setSpeaking]=useState(false);const finish=useRef<(()=>void)|null>(null);const sequence=useRef(0);const url=useRef<string>();
  const stop=useCallback(()=>{sequence.current++;sharedAudio?.pause();if(sharedAudio)sharedAudio.removeAttribute('src');window.speechSynthesis?.cancel();if(url.current)URL.revokeObjectURL(url.current);url.current=undefined;setSpeaking(false);finish.current?.();finish.current=null;},[]);
- const unlock=useCallback(()=>{sharedAudio??=new Audio();sharedAudio.playsInline=true;sharedAudio.src='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';void sharedAudio.play().catch(()=>{});},[]);
+ const unlock=useCallback(()=>{sharedAudio??=new Audio();sharedAudio.setAttribute('playsinline','');sharedAudio.src='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';void sharedAudio.play().catch(()=>{});},[]);
  const speak=useCallback(async(audioBase64?:string,mime='audio/mpeg',text='')=>{
   stop();const token=sequence.current;setSpeaking(true);
   await new Promise<void>(resolve=>{finish.current=resolve;const done=()=>{if(token!==sequence.current)return;setSpeaking(false);if(url.current)URL.revokeObjectURL(url.current);url.current=undefined;finish.current=null;resolve();};
