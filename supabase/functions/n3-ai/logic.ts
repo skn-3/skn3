@@ -1,8 +1,8 @@
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function interpretVoiceDecision(text: string): 'confirm' | 'cancel' | null {
   const normalized = text.toLocaleLowerCase('sv-SE').trim().replace(/[.!?]+$/g, '').trim().replace(/\s+/g, ' ');
-  if (['ja','ja kör','kör','okej','bekräfta','gör det','stämmer'].includes(normalized)) return 'confirm';
-  if (['nej','avbryt','vänta','nix','ta bort'].includes(normalized)) return 'cancel';
+  if (['ja','ja kör','kör','okej','bekräfta','gör det','stämmer','ja tack','japp','jo','ja gör det','kör på','kör bara','det stämmer','ja det stämmer','okej kör','bekräftar'].includes(normalized)) return 'confirm';
+  if (['nej','avbryt','vänta','nix','ta bort','nej tack','nej vänta','avbryt det','glöm det','nej avbryt'].includes(normalized)) return 'cancel';
   return null;
 }
 export function speechText(text: string): string {
