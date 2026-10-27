@@ -137,7 +137,7 @@ ${voiceMode?'Svaret läses upp högt. Högst 60 ord, hela meningar, inga listor,
  const storedReply=reply+links.map(link=>`\n[[link:${link.path}|${link.label}]]`).join('');
  const saved=unwrap(await adminClient.from('ai_messages').insert({thread_id:threadId,role:'assistant',content:storedReply,case_ids,action_id:ctx.proposalId??null,kind:voiceMode?'voice':'chat'}).select('id').single());messageId=saved.id;
  if(ctx.proposalId)unwrap(await adminClient.from('ai_actions').update({assistant_message_id:messageId}).eq('id',ctx.proposalId));
- unwrap(await adminClient.from('ai_threads').update({updated_at:new Date().toISOString()}).eq('id',threadId));await log('ok');return respond({reply,message_id:messageId,case_ids,action_id:ctx.proposalId??null,...(voiceMode?await synthesizeSpeech(storedReply,messageId,auth.user.id,adminClient,gateway):{}),usage:{prompt_tokens,completion_tokens,tool_calls}});
+ unwrap(await adminClient.from('ai_threads').update({updated_at:new Date().toISOString()}).eq('id',threadId));await log('ok');return respond({reply:voiceMode?storedReply:reply,message_id:messageId,case_ids,action_id:ctx.proposalId??null,...(voiceMode?await synthesizeSpeech(storedReply,messageId,auth.user.id,adminClient,gateway):{}),usage:{prompt_tokens,completion_tokens,tool_calls}});
  }catch(error){
  const e=error as Error & {status?:number;type?:string;refusal?:boolean};const status=e.status;
  const reply=status===429?'N3prenad-AI har för många frågor just nu, försök igen om en liten stund.':status===402?'AI-krediterna är slut, säg till admin.':status===403||status===400||status===401||status===404?e.message:'Något gick fel hos N3prenad-AI. Försök igen.';

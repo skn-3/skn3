@@ -27,7 +27,7 @@ export function VoiceModeSheet({open,onOpenChange,ai,onOpenCase}:{open:boolean;o
   empty.current=0;setUtterance(text);setThinking(true);setStatus('');const token=++turn.current;
   const data=await ai.send(text,undefined,'voice');if(token!==turn.current||!active.current)return;setThinking(false);
   if(!data||data===true){setAutomatic(false);setStatus('Något gick fel, försök igen.');await speech.speak(undefined,undefined,'Något gick fel, försök igen.');return;}
-  setAnswer(data);await play(data);
+  setAnswer(data);if(data.error_code){setAutomatic(false);setStatus(data.reply);await speech.speak(undefined,undefined,'Något gick fel, försök igen.');return;}await play(data);
  }
  const stored=ai.messages.find(m=>m.id===answer?.message_id);const actionId=answer?.action_id??stored?.action_id;const action=ai.actions.find(a=>a.id===actionId);const parsed=parseAiReply(answer?.reply??'');
  const label=status||(thinking||recorder.state==='transcribing'?'Tänker…':speech.speaking?'Talar…':recorder.state==='recording'?`Lyssnar… ${String(Math.floor(recorder.seconds/60)).padStart(2,'0')}:${String(recorder.seconds%60).padStart(2,'0')}`:'Tryck för att prata');
