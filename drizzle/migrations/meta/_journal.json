@@ -302,6 +302,13 @@
       "when": 1793084560688,
       "tag": "0042_n3_ai_conversation_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1793085255198,
+      "tag": "0043_approved_extra_hours_decimal",
+      "breakpoints": true
     }
   ]
 }
