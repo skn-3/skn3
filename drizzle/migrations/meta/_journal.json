@@ -309,6 +309,13 @@
       "when": 1793085255198,
       "tag": "0043_approved_extra_hours_decimal",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1793085339604,
+      "tag": "0044_validate_approved_hours_range",
+      "breakpoints": true
     }
   ]
 }
