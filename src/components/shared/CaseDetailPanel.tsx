@@ -8,6 +8,7 @@ import type { CaseRow } from '@/lib/supabaseClient';
 import { STATUS_LABELS, DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, COORDINATOR_CC, SELLERS, HOUR_RATE, SELLER_PIPELINE_COLUMNS } from '@/lib/constants';
 import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { isCurrentUserAdmin } from '@/lib/authState';
+import { approvedHoursError, approvedHoursWarning } from '@/lib/extraHours';
 import { canEnterStatus } from '@/lib/statusRules';
 import { splitCaseChanges } from '@/lib/caseEvents';
 import { Button } from '@/components/ui/button';
@@ -971,6 +972,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   const adjustHoursMutation = useMutation({
     mutationFn: async ({ field, newValue }: { field: 'extra_hours_sold' | 'extra_hours_approved'; newValue: number }) => {
+      if (field === 'extra_hours_approved') { const invalid = approvedHoursError(newValue); if (invalid) throw new Error(invalid); }
       const oldValue = field === 'extra_hours_sold' ? (caseData.extra_hours_sold ?? 0) : (caseData.extra_hours_approved ?? 0);
       await updateCase(caseData.id, { [field]: newValue });
       const label = field === 'extra_hours_sold' ? 'Extra tim sålda' : 'Extra tim godkända';
@@ -1647,7 +1649,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               </div>
               ) : (() => {
                 const soldNum = Math.max(0, Math.floor(Number(hoursSoldInput) || 0));
-                const apprNum = Math.max(0, Math.floor(Number(hoursApprovedInput) || 0));
+                const apprNum = Number(hoursApprovedInput);
                 const result = (soldNum - apprNum) * HOUR_RATE;
                 return (
                   <div className="space-y-3">
@@ -1661,7 +1663,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Godkända timmar (ersättning montör)</Label>
-                      <Input type="number" min={0} value={hoursApprovedInput} onChange={(e) => setHoursApprovedInput(e.target.value)} />
+                      <Input type="number" min={0} max={500} step="any" value={hoursApprovedInput} onChange={(e) => setHoursApprovedInput(e.target.value)} />
+                      {approvedHoursWarning(apprNum, soldNum, caseData.extra_hours_requested ?? 0) && <p className="text-xs text-warning-ink">Fler godkända än sålda och begärda timmar.</p>}
                       <p className="text-sm text-muted-foreground">
                         {(apprNum * HOUR_RATE).toLocaleString('sv-SE')} kr ex moms
                         <span className="text-xs"> ({HOUR_RATE} kr/tim)</span>
@@ -1678,6 +1681,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                             toast.error('Timmar kan inte vara negativa');
                             return;
                           }
+                          const invalid = approvedHoursError(apprNum); if (invalid) { toast.error(invalid); return; }
                           if (soldNum !== (caseData.extra_hours_sold ?? 0)) {
                             await adjustHoursMutation.mutateAsync({ field: 'extra_hours_sold', newValue: soldNum });
                           }
@@ -1972,7 +1976,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <Input
                       type="number"
                       min={0}
-                      max={caseData.extra_hours_requested ?? undefined}
+                      max={500}
+                      step="any"
                       className="h-7 w-20"
                       value={hoursEdit.value}
                       onChange={(e) => setHoursEdit({ field: 'extra_hours_approved', value: e.target.value })}
@@ -1981,8 +1986,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     <Button size="icon" variant="ghost" className="h-7 w-7" disabled={adjustHoursMutation.isPending} onClick={() => {
                       const n = Number(hoursEdit.value);
                       if (!Number.isFinite(n) || n < 0) { toast.error('Värdet får inte vara negativt'); return; }
-                      if (n > (caseData.extra_hours_requested ?? 0)) { toast.error('Godkända kan inte överstiga begärda timmar'); return; }
-                      adjustHoursMutation.mutate({ field: 'extra_hours_approved', newValue: Math.floor(n) });
+                      const invalid = approvedHoursError(n); if (invalid) { toast.error(invalid); return; }
+                      adjustHoursMutation.mutate({ field: 'extra_hours_approved', newValue: n });
                     }}><Check className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setHoursEdit(null)}><X className="h-4 w-4" /></Button>
                   </span>
@@ -1996,6 +2001,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                     )}
                   </>
                 )}
+                {approvedHoursWarning(hoursEdit?.field === 'extra_hours_approved' ? Number(hoursEdit.value) : caseData.extra_hours_approved, caseData.extra_hours_sold, caseData.extra_hours_requested) && <p className="basis-full text-xs text-warning-ink">Fler godkända än sålda och begärda timmar.</p>}
               </div>
             </div>
             )}

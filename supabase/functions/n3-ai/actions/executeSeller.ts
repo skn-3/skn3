@@ -70,7 +70,7 @@ export async function executeSeller(action:any,ctx:ActionContext){
  if(kind==='set_extra_hours'){
   const patch=validateExtraHoursArgs(action.payload,c);
   const old=Number(c.extra_hours_approved??0);
-  const changed=await required(ctx.userClient.from('cases').update(patch).eq('id',c.id).select('id'));
+  const changed=await required(ctx.userClient.from('cases').update({extra_hours_approved_amount:patch.extra_hours_approved}).eq('id',c.id).select('id'));
   if(!changed?.length)throw new Error('Ärendet kunde inte uppdateras.');
   await later('Historiken kunde inte uppdateras.',()=>event('hours_adjusted',`Extra tim godkända ändrade från ${old} till ${patch.extra_hours_approved} (av ${ctx.name})`));
   await activity('hours_adjusted',`Extra tim godkända: ${old} → ${patch.extra_hours_approved}`,{field:'extra_hours_approved',oldValue:old,newValue:patch.extra_hours_approved,case_id:c.id},c.id);

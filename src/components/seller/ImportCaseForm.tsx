@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { approvedHoursError, approvedHoursWarning } from '@/lib/extraHours';
 import { createCase, createCaseEvent, fetchAllCases, createVisit, type CaseRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { SELLERS, STATUS_LABELS, SELLER_PIPELINE_COLUMNS, HOUR_RATE } from '@/lib/constants';
@@ -272,6 +273,7 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
 
   const mutation = useMutation({
     mutationFn: async (vars: { dupReasons?: string[] } = {}) => {
+      const invalid = approvedHoursError(Number(form.extra_hours_approved)); if (invalid) throw new Error(invalid);
       const caseData: any = {
         customer_name: form.customer_name,
         customer_phone: form.customer_phone,
@@ -741,7 +743,8 @@ export function ImportCaseForm({ sellerName }: ImportCaseFormProps) {
         </div>
         <div className="space-y-1.5">
           <Label>Extra timmar godkända</Label>
-          <Input type="number" value={form.extra_hours_approved} onChange={(e) => update('extra_hours_approved', e.target.value)} />
+          <Input type="number" min={0} max={500} step="any" value={form.extra_hours_approved} onChange={(e) => update('extra_hours_approved', e.target.value)} />
+          {approvedHoursWarning(Number(form.extra_hours_approved), Number(form.extra_hours_sold), Number(form.extra_hours_requested)) && <p className="text-xs text-warning-ink">Fler godkända än sålda och begärda timmar.</p>}
         </div>
         <div className="space-y-1.5">
           <Label>Antal enheter</Label>

@@ -119,7 +119,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       if (!effectiveCaseId) return null;
       const { data, error } = await (supabase as any)
         .from('cases')
-        .select('extra_hours_sold, extra_hours_approved')
+        .select('extra_hours_sold, extra_hours_approved:extra_hours_approved_amount')
         .eq('id', effectiveCaseId)
         .maybeSingle();
       if (error) throw error;
@@ -814,7 +814,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
                   onClick={async () => {
                     const { data, error } = await (supabase as any)
                       .from('cases')
-                      .select('extra_hours_sold, extra_hours_approved')
+                      .select('extra_hours_sold, extra_hours_approved:extra_hours_approved_amount')
                       .eq('id', effectiveCaseId)
                       .maybeSingle();
                     if (error) { toast.error('Kunde inte hämta ärendet'); return; }

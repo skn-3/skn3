@@ -746,6 +746,7 @@ export type Database = {
           delivery_week: number | null
           delivery_year: number | null
           extra_hours_approved: number
+          extra_hours_approved_amount: number
           extra_hours_requested: number
           extra_hours_sold: number
           google_drive_link: string | null
@@ -792,6 +793,7 @@ export type Database = {
           delivery_week?: number | null
           delivery_year?: number | null
           extra_hours_approved?: number
+          extra_hours_approved_amount?: number
           extra_hours_requested?: number
           extra_hours_sold?: number
           google_drive_link?: string | null
@@ -838,6 +840,7 @@ export type Database = {
           delivery_week?: number | null
           delivery_year?: number | null
           extra_hours_approved?: number
+          extra_hours_approved_amount?: number
           extra_hours_requested?: number
           extra_hours_sold?: number
           google_drive_link?: string | null
@@ -2891,6 +2894,7 @@ export type Database = {
           delivery_week: number | null
           delivery_year: number | null
           extra_hours_approved: number | null
+          extra_hours_approved_amount: number | null
           extra_hours_requested: number | null
           id: string | null
           imported: boolean | null
@@ -2931,6 +2935,7 @@ export type Database = {
           delivery_week?: number | null
           delivery_year?: number | null
           extra_hours_approved?: number | null
+          extra_hours_approved_amount?: number | null
           extra_hours_requested?: number | null
           id?: string | null
           imported?: boolean | null
@@ -2971,6 +2976,7 @@ export type Database = {
           delivery_week?: number | null
           delivery_year?: number | null
           extra_hours_approved?: number | null
+          extra_hours_approved_amount?: number | null
           extra_hours_requested?: number | null
           id?: string | null
           imported?: boolean | null

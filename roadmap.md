@@ -87,3 +87,6 @@
 
 - [x] N3prenad-AI Samtalsläge: migration 0042, röstbeslut med samma atomiska skydd, TTS-karaktärreservation, delade inspelnings-/uppspelningshooks, automatisk lyssning, Läs upp och adminfält. OpenAI GPT-4o mini TTS/marin gav svensk MP3 (200, 1,419 s). 420 tester gröna; telefon/iPad simulerat röstflöde i ljust/mörkt utan runtimefel. Inga paket eller publicering.
 - [ ] Samtalsläge verklig inloggad sparning/TTS-logg och fysisk iOS-ljudupplåsning: testsession saknas (--self har inget konto); automatiskt tystnadsflöde ej end-to-end verifierat på fysisk enhet.
+
+- [x] Timrättning: begärda-spärr borttagen i orderinfo och AI-proposal/executor; gemensam 0–500-kontroll och mjuk varning, oförändrad resultatberäkning. Migration 0043–0044 för additivt decimalstöd (gamla heltalsfältet kompatibelt), 436 tester och automatisk typkontroll gröna. Orderinfo sparar 23 i fallet 53/0/23 och visar varning för 54 med simulerad post, utan runtimefel.
+- [ ] Timrättning verklig inloggad sparning/readback: --self saknar appkonto; verifierat UI-anrop men inte verklig kundpost. Inga paket eller publicering.

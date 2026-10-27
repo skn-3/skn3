@@ -1,4 +1,5 @@
 import { UUID } from '../logic.ts';
+import { approvedHoursError } from './extraHours.ts';
 export const sellerTitles:Record<string,string>={create_case:'Skapa ärende',update_case:'Ändra orderuppgifter',set_status:'Ändra status',set_extra_hours:'Ändra extra timmar',send_chat_message:'Skicka meddelande till kollega'};
 export const SELLER_STATUS_LABELS:Record<string,string>={ny:'Ny',vantar_km:'Väntar KM',km_bokad:'KM bokad',km_klar:'KM klar',vantar_godkannande:'Väntar godkännande',godkand:'Godkänd',i_produktion:'I produktion',leverans_klar:'Leverans klar',montage_bokat:'Montage bokat',montage_pagar:'Montage pågår',montage_klart:'Montage klart',fakturerad:'Fakturerad',pausad:'Pausad'};
 // Samma roller som har motsvarande knappar i säljarvyn (montörer har montörvyns åtgärder).
@@ -129,9 +130,9 @@ export function statusGateError(newStatus:unknown,c:Record<string,any>):string|n
 }
 export function validateExtraHoursArgs(args:Record<string,unknown>,c:Record<string,any>):{extra_hours_approved:number}{
  if(args.requested!==undefined)throw new Error('Begärda timmar sätts av montören i appen.');
- if(typeof args.approved!=='number'||!Number.isInteger(args.approved)||args.approved<0||args.approved>999)throw new Error('Ange godkända timmar som ett heltal.');
- const requested=Number(c.extra_hours_requested??0);
- if(args.approved>requested)throw new Error('Godkända kan inte överstiga begärda timmar.');
+ const invalid=approvedHoursError(args.approved);
+ if(invalid)throw new Error(invalid);
+ if(typeof args.approved!=='number')throw new Error('Ange godkända timmar mellan 0 och 500.');
  return {extra_hours_approved:args.approved};
 }
 export function validateChatMessageArgs(args:Record<string,unknown>):{recipient_name:string;text:string;case_id?:string}{

@@ -48,7 +48,9 @@ describe('propose_set_status',()=>{
 });
 describe('propose_set_extra_hours',()=>{
  it('begärda timmar kan inte ändras här',()=>expect(()=>validateExtraHoursArgs({requested:3},base)).toThrow('montören'));
- it('godkända får inte överstiga begärda',()=>expect(()=>validateExtraHoursArgs({approved:6},base)).toThrow('överstiga'));
+ it('53 sålda och 0 begärda tillåter 23 godkända',()=>expect(validateExtraHoursArgs({approved:23},{...base,extra_hours_sold:53,extra_hours_requested:0})).toEqual({extra_hours_approved:23}));
+ it.each([0,23.5,500])('tillåter %s godkända oavsett begärda',approved=>expect(validateExtraHoursArgs({approved},base)).toEqual({extra_hours_approved:approved}));
+ it.each([-1,500.1,NaN,Infinity])('avvisar orimligt värde %s',approved=>expect(()=>validateExtraHoursArgs({approved},base)).toThrow('0 och 500'));
  it('godkända inom begärda går igenom',()=>expect(validateExtraHoursArgs({approved:5},base)).toEqual({extra_hours_approved:5}));
 });
 describe('list_my_cases missing-filter',()=>{

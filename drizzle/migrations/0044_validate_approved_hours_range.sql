@@ -1,0 +1,1 @@
+ALTER TABLE public.cases VALIDATE CONSTRAINT cases_approved_hours_amount_range;
