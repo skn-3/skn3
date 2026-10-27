@@ -298,6 +298,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          kind: string
           role: string
           thread_id: string
           tool_call_id: string | null
@@ -310,6 +311,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          kind?: string
           role: string
           thread_id: string
           tool_call_id?: string | null
@@ -322,6 +324,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          kind?: string
           role?: string
           thread_id?: string
           tool_call_id?: string | null
@@ -348,34 +351,46 @@ export type Database = {
       ai_settings: {
         Row: {
           daily_message_limit: number
+          daily_tts_characters: number
           enabled: boolean
           extra_instructions: string | null
           gateway_error: string | null
           gateway_status: number | null
           id: number
           model: string
+          tts_enabled: boolean
+          tts_model: string
+          tts_voice: string
           updated_at: string
           voice_enabled: boolean
         }
         Insert: {
           daily_message_limit?: number
+          daily_tts_characters?: number
           enabled?: boolean
           extra_instructions?: string | null
           gateway_error?: string | null
           gateway_status?: number | null
           id?: number
           model?: string
+          tts_enabled?: boolean
+          tts_model?: string
+          tts_voice?: string
           updated_at?: string
           voice_enabled?: boolean
         }
         Update: {
           daily_message_limit?: number
+          daily_tts_characters?: number
           enabled?: boolean
           extra_instructions?: string | null
           gateway_error?: string | null
           gateway_status?: number | null
           id?: number
           model?: string
+          tts_enabled?: boolean
+          tts_model?: string
+          tts_voice?: string
           updated_at?: string
           voice_enabled?: boolean
         }
@@ -425,6 +440,7 @@ export type Database = {
           thread_id: string | null
           tool_calls: number
           total_tokens: number | null
+          tts_characters: number | null
           user_id: string
         }
         Insert: {
@@ -443,6 +459,7 @@ export type Database = {
           thread_id?: string | null
           tool_calls?: number
           total_tokens?: number | null
+          tts_characters?: number | null
           user_id: string
         }
         Update: {
@@ -461,6 +478,7 @@ export type Database = {
           thread_id?: string | null
           tool_calls?: number
           total_tokens?: number | null
+          tts_characters?: number | null
           user_id?: string
         }
         Relationships: []
@@ -3018,6 +3036,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      ai_reserve_tts: {
+        Args: { p_characters: number; p_message_id?: string; p_user_id: string }
+        Returns: Json
       }
       append_deviation_log: {
         Args: { p_deviation_id: string; p_entry: Json }

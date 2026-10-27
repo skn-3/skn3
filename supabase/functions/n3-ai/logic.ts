@@ -1,4 +1,21 @@
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function interpretVoiceDecision(text: string): 'confirm' | 'cancel' | null {
+  const normalized = text.toLocaleLowerCase('sv-SE').trim().replace(/[.!?]+$/g, '').trim().replace(/\s+/g, ' ');
+  if (['ja','ja kör','kör','okej','bekräfta','gör det','stämmer'].includes(normalized)) return 'confirm';
+  if (['nej','avbryt','vänta','nix','ta bort'].includes(normalized)) return 'cancel';
+  return null;
+}
+export function speechText(text: string): string {
+  const clean = text.replace(/\[\[(?:case|link):[^\]]*\]\]/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/https?:\/\/\S+/g, '')
+    .replace(/\b[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\b/gi, 'ärendet')
+    .replace(/^\s*(?:[-+*]|\d+[.)])\s+/gm, '').replace(/[#*_`~>]/g, '').replace(/\s+/g, ' ').trim();
+  if (clean.length <= 600) return clean;
+  const prefix = clean.slice(0, 600);
+  const ends = [...prefix.matchAll(/[.!?](?=\s|$)/g)];
+  const last = ends.at(-1)?.index;
+  return last !== undefined ? prefix.slice(0, last + 1) : prefix.slice(0, prefix.lastIndexOf(' ')).trim();
+}
 export function parseAiReply(text: string) {
   const ids: string[] = [];
   const links:{path:string;label:string}[]=[];
