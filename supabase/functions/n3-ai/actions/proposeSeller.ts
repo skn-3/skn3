@@ -1,8 +1,9 @@
 import { cases, ownScope, checkedId, visibleCase } from '../tools/context.ts';
 import type { ActionContext } from './proposeAddCost.ts';
 import { sellerTitles, sellerRoleError, validateCreateCaseArgs, validateCaseChanges, describeCaseChanges, statusGateError, SELLER_STATUS_LABELS, validateExtraHoursArgs, validateChatMessageArgs, matchRecipient } from './sellerLogic.ts';
+import { approvedHoursWarning } from './extraHours.ts';
 import { saveProposal } from './proposal.ts';
-const SELLER_CASE_FIELDS='id,address,city,customer_name,status,team,seller,montage_date,delivery_date,delivery_time,delivery_week,delivery_year,order_number,offer_number,units,customer_phone,customer_email,notes,carry_help_needed,media_consent,is_gotland,scheduled_delivery,extra_hours_requested,extra_hours_approved';
+const SELLER_CASE_FIELDS='id,address,city,customer_name,status,team,seller,montage_date,delivery_date,delivery_time,delivery_week,delivery_year,order_number,offer_number,units,customer_phone,customer_email,notes,carry_help_needed,media_consent,is_gotland,scheduled_delivery,extra_hours_requested,extra_hours_approved,extra_hours_sold';
 export async function sellerCase(id:string,ctx:ActionContext){
  const {data,error}=await ownScope(cases(ctx).select(SELLER_CASE_FIELDS),ctx).eq('id',id).maybeSingle();
  if(error)throw new Error(error.message);
@@ -57,8 +58,8 @@ export const proposeSetStatus=tool('propose_set_status','Föreslå en statusänd
   const from=SELLER_STATUS_LABELS[c.status]??c.status,to=SELLER_STATUS_LABELS[String(args.status)];
   return await saveProposal('set_status',{case_id:c.id,status:String(args.status),address:c.address,city:c.city,customer_name:c.customer_name,current_status:c.status},sellerTitles.set_status,[caseRow(c),{label:'Status',value:`${from} → ${to}`}],ctx);
  });
-export const proposeSetExtraHours=tool('propose_set_extra_hours','Föreslå ändrade godkända extra timmar på ett ärende. Godkända kan inte överstiga begärda. Begärda timmar sätts av montören i appen och kan inte ändras här. Sparar endast ett förslag för uttrycklig bekräftelse.',
- {case_id:{type:'string'},requested:{type:'integer'},approved:{type:'integer'}},
+export const proposeSetExtraHours=tool('propose_set_extra_hours','Föreslå ändrade godkända extra timmar på ett ärende. Godkända får vara 0–500, oavsett begärda. Begärda timmar sätts av montören i appen och kan inte ändras här. Sparar endast ett förslag för uttrycklig bekräftelse.',
+ {case_id:{type:'string'},requested:{type:'integer'},approved:{type:'number',minimum:0,maximum:500}},
  ['case_id'],
  async(args,ctx)=>{
   if(ctx.role==='coordinator'&&!ctx.isAdmin)return {error:'Extra timmar ändras av säljare eller admin.'};
@@ -66,7 +67,8 @@ export const proposeSetExtraHours=tool('propose_set_extra_hours','Föreslå änd
   const patch=validateExtraHoursArgs(args,c);
   const old=Number(c.extra_hours_approved??0);
   if(patch.extra_hours_approved===old)return {error:'Antalet är redan '+old+'.'};
-  return await saveProposal('set_extra_hours',{case_id:c.id,...patch,address:c.address,city:c.city,customer_name:c.customer_name,status:c.status,current_approved:old,requested:Number(c.extra_hours_requested??0)},sellerTitles.set_extra_hours,[caseRow(c),{label:'Godkända extra timmar',value:`${old} → ${patch.extra_hours_approved} (begärda ${Number(c.extra_hours_requested??0)})`}],ctx);
+  const warning=approvedHoursWarning(patch.extra_hours_approved,Number(c.extra_hours_sold??0),Number(c.extra_hours_requested??0));
+  return await saveProposal('set_extra_hours',{case_id:c.id,...patch,address:c.address,city:c.city,customer_name:c.customer_name,status:c.status,current_approved:old,requested:Number(c.extra_hours_requested??0)},sellerTitles.set_extra_hours,[caseRow(c),{label:'Godkända extra timmar',value:`${old} → ${patch.extra_hours_approved} (begärda ${Number(c.extra_hours_requested??0)})`},...(warning?[{label:'Varning',value:'Fler godkända än sålda och begärda timmar.'}]:[])],ctx);
  });
 export const proposeSendChatMessage=tool('propose_send_chat_message','Föreslå ett chattmeddelande till en kollega, bara när användaren uttryckligen ber dig skicka något till någon. Vid flera namnträffar: fråga vem som avses. Sparar endast ett förslag för uttrycklig bekräftelse; kvittensen i tråden skickar inget ytterligare.',
  {recipient_name:{type:'string'},text:{type:'string'},case_id:{type:'string'}},
