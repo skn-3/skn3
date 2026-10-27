@@ -127,7 +127,7 @@ export async function createDeviation(deviation: DeviationInsert) {
 }
 
 export async function updateDeviation(id: string, updates: Partial<Database['public']['Tables']['deviations']['Update']>) {
-  const { data, error } = await supabase.from('deviations').update(approvedHoursPatch(updates)).eq('id', id).select().single();
+  const { data, error } = await supabase.from('deviations').update(updates).eq('id', id).select().single();
   if (error) throw error;
   return data;
 }
@@ -169,7 +169,7 @@ export async function createVisit(visit: VisitInsert) {
 }
 
 export async function updateVisit(id: string, updates: VisitUpdate) {
-  const { data, error } = await supabase.from('visits').update(approvedHoursPatch(updates)).eq('id', id).select().single();
+  const { data, error } = await supabase.from('visits').update(updates).eq('id', id).select().single();
   if (error) throw error;
   return data;
 }
