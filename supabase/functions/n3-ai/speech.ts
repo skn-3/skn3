@@ -10,7 +10,8 @@ export async function synthesizeSpeech(text: string, messageId: string | undefin
     if (error) throw new Error(error.message);
     if (data.skipped) return { speech_text, tts_skipped: data.skipped, ...(data.error ? { tts_error: data.error } : {}) };
     usageId = data.usage_id;
-    const key = Deno.env.get('LOVABLE_API_KEY');
+    const runtime = globalThis as typeof globalThis & { Deno?: { env: { get: (key: string) => string | undefined } } };
+    const key = runtime.Deno?.env.get('LOVABLE_API_KEY');
     if (!key) throw new Error('Uppläsningen saknar konfiguration.');
     const response = await gateway.fetch('https://ai.gateway.lovable.dev/v1/audio/speech', {
       method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
