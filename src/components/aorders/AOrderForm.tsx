@@ -620,7 +620,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   }
 
   function selectServiceCase(id: string) {
-    setKompCaseId(id);
+    chooseCase(id);
     const c = kompCases.find((x: any) => x.id === id);
     if (c) {
       if (c.customer_name) setCustomerName(c.customer_name);
@@ -1063,6 +1063,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
                   setImagePaths([]);
                   setPendingImages([]);
                   setKompCaseId('');
+                  setLinkedHereId(null);
                   setResetConfirm(false);
                 }}>Nollställ</AlertDialogAction>
               </AlertDialogFooter>
