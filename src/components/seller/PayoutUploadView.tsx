@@ -1034,9 +1034,20 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 </Alert>
               )}
 
+              {pendingSuggestionGroups.length > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full min-h-12"
+                  onClick={() => pendingSuggestionGroups.forEach(g => confirmGroupCase(g.order_number, g.candidates[0].case))}
+                >
+                  Bekräfta alla {pendingSuggestionGroups.length} förslag
+                </Button>
+              )}
+
               {groups.map(g => {
                 
-                const showSearch = !g.choice || g.matchSource === 'manual';
+                const showSearch = !g.choice;
                 const results = filteredCasesForGroup(g.order_number);
                 const skipped = isMontorInvoice && isSkipped(g.order_number);
                 return (
@@ -1071,40 +1082,27 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                       {!skipped && (g.choice?.kind === 'case' ? (
                         <Alert>
                           <Check className="h-4 w-4" />
-                          <AlertTitle className="flex items-center gap-2">
-                            {g.matchSource === 'manual' && 'Valt ärende'}
-                            {g.matchSource === 'order' && 'Matchat ärende (ordernummer)'}
-                            {g.matchSource === 'name' && 'Föreslaget ärende'}
-                            {g.matchSource === 'address' && 'Matchat ärende (adress)'}
+                          <AlertTitle className="flex items-center gap-2 flex-wrap">
+                            {g.matchSource === 'manual' ? 'Valt ärende' : 'Matchat ärende'}
                             {g.matchSource === 'manual' && <Badge variant="outline">manuellt</Badge>}
-                            {g.matchSource === 'name' && <Badge variant="outline">namn</Badge>}
-                            {g.matchSource === 'address' && <Badge variant="outline">{g.addrCandidates[0]?.reason || 'adress'}</Badge>}
+                            {g.matchSource === 'auto' && g.autoMatch?.label && <Badge variant="outline">{g.autoMatch.label}</Badge>}
                           </AlertTitle>
                           <AlertDescription>
                             <button
                               type="button"
-                              className="text-sm text-left w-full rounded hover:bg-muted/60 -mx-1 px-1 py-0.5 transition-colors"
+                              className="text-sm text-left w-full min-h-11 rounded -mx-1 px-1 py-0.5"
                               onClick={() => setCaseDetailsOpen(prev => ({ ...prev, [g.order_number]: !prev[g.order_number] }))}
-                              title="Klicka för att granska ärendet"
                             >
                               <div className="flex items-center gap-1">
                                 <b>{g.choice.case.address}</b>
                                 <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${caseDetailsOpen[g.order_number] ? 'rotate-180' : ''}`} />
                               </div>
                               <div className="text-muted-foreground">
-                                {g.choice.case.customer_name}
-                                {g.matchSource === 'name' && g.nameCandidates[0]?.reason
-                                  ? ` · ${g.nameCandidates[0].reason}`
-                                  : ''}
+                                {[g.choice.case.customer_name, g.choice.case.seller, caseStatusLabel(g.choice.case.status)].filter(Boolean).join(' · ')}
                               </div>
                             </button>
                             {caseDetailsOpen[g.order_number] && <CaseInlineDetails c={g.choice.case} />}
-                            {g.matchSource === 'name' && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Ordernumret {g.order_number} hittades inte i systemet. Bekräfta att detta är rätt ärende.
-                              </p>
-                            )}
-                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
+                            <Button variant="ghost" size="sm" className="mt-2 min-h-11" onClick={() => clearGroupChoice(g.order_number)}>
                               Ändra val
                             </Button>
                           </AlertDescription>
@@ -1112,7 +1110,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                       ) : g.choice?.kind === 'aorder' ? (
                         <Alert>
                           <Check className="h-4 w-4" />
-                          <AlertTitle>Vald A-order</AlertTitle>
+                          <AlertTitle>Nytt ärende skapas från A-order</AlertTitle>
                           <AlertDescription>
                             <div className="text-sm">
                               A-order <strong>#{g.choice.aOrder.order_number ?? '—'}</strong> · {g.choice.aOrder.customer_name}
@@ -1120,9 +1118,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                               {typeof g.choice.aOrder.total_amount === 'number' ? ` · montörsvärde ${g.choice.aOrder.total_amount.toLocaleString('sv-SE')} kr` : ''}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Kundprofil/ärende skapas automatiskt vid import och kopplas till både A-ordern och utbetalningen.
+                              Kundprofil/ärende skapas vid import och kopplas till både A-ordern och utbetalningen.
                             </p>
-                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
+                            <Button variant="ghost" size="sm" className="mt-2 min-h-11" onClick={() => clearGroupChoice(g.order_number)}>
                               Ändra val
                             </Button>
                           </AlertDescription>
@@ -1135,57 +1133,73 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             <p className="text-sm text-muted-foreground">
                               Sparas under Okopplade dokument och kopplas när ärendet finns.
                             </p>
-                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
+                            <Button variant="ghost" size="sm" className="mt-2 min-h-11" onClick={() => clearGroupChoice(g.order_number)}>
                               Ändra val
                             </Button>
                           </AlertDescription>
                         </Alert>
-                      ) : isMontorInvoice ? (
-                        <Alert variant="destructive">
-                          <AlertTriangle className="h-4 w-4" />
-                          <AlertTitle>Inget ärende kunde matchas</AlertTitle>
-                          <AlertDescription>
-                            {g.keyKind === 'address'
-                              ? <>Adress "{g.order_number}" matchade inget ärende. Sök manuellt nedan.</>
-                              : <>Varken ordernummer {g.order_number} eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade. Sök manuellt nedan.</>}
-                            <div className="mt-2">
-                              <Button variant="outline" size="sm" onClick={() => toggleSkip(g.order_number, true)}>
-                                Hoppa över denna adress
-                              </Button>
-                            </div>
-                          </AlertDescription>
-                        </Alert>
                       ) : (
-                        <Alert>
-                          <Search className="h-4 w-4" />
-                          <AlertTitle>Välj koppling</AlertTitle>
+                        <Alert variant={g.candidates.length ? 'default' : (isMontorInvoice ? 'destructive' : 'default')}>
+                          {g.candidates.length ? <Search className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                          <AlertTitle>{g.candidates.length ? 'Stämmer detta ärende?' : (isMontorInvoice ? 'Inget ärende kunde matchas' : 'Välj koppling')}</AlertTitle>
                           <AlertDescription>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Ordernumret {g.order_number} hittades inte{g.groupCustomerName ? ` — alternativ för "${g.groupCustomerName}"` : ''}. Klicka för att välja:
-                            </p>
-                            <div className="border rounded-md divide-y">
-                              {g.nameCandidates.map(cand => (
-                                <button key={cand.case.id} type="button"
-                                  onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'case', case: cand.case } }))}
-                                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm">
-                                  <div className="font-medium">{cand.case.address}</div>
-                                  <div className="text-xs text-muted-foreground">Ärende · {cand.case.customer_name} · {cand.reason}</div>
-                                </button>
-                              ))}
-                              {g.aOrderCandidates.map(c => (
-                                <button key={c.aOrder.id} type="button"
-                                  onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'aorder', aOrder: c.aOrder } }))}
-                                  className="w-full text-left px-3 py-2 hover:bg-amber-50 dark:hover:bg-amber-950/60 text-sm">
-                                  <div className="font-medium">A-order #{c.aOrder.order_number ?? '—'} · {c.aOrder.customer_name}</div>
-                                  <div className="text-xs text-muted-foreground">{c.aOrder.customer_address || ''} · {c.reason} · ärende skapas vid import</div>
-                                </button>
-                              ))}
-                              <button type="button"
-                                onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'unlinked' } }))}
-                                className="w-full text-left px-3 py-2 hover:bg-muted text-sm text-muted-foreground">
-                                Importera utan koppling — koppla senare via Okopplade dokument
-                              </button>
-                            </div>
+                            {g.candidates.length === 0 && (
+                              <p className="text-xs text-muted-foreground mb-2">
+                                {g.keyKind === 'address'
+                                  ? <>Adress "{g.order_number}" matchade inget ärende. Sök manuellt nedan.</>
+                                  : <>Varken ordernummer {g.order_number}, adress eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade.</>}
+                              </p>
+                            )}
+                            {g.candidates.length > 0 && (
+                              <>
+                                <Button
+                                  type="button"
+                                  className="w-full min-h-12 h-auto justify-start whitespace-normal text-left"
+                                  onClick={() => confirmGroupCase(g.order_number, g.candidates[0].case)}
+                                >
+                                  Koppla till ärendet {g.candidates[0].case.address}{g.candidates[0].case.customer_name ? ` – ${g.candidates[0].case.customer_name}` : ''}
+                                </Button>
+                                <p className="text-xs text-muted-foreground mt-1">Träff på {g.candidates[0].label}{caseStatusLabel(g.candidates[0].case.status) ? ` · ${caseStatusLabel(g.candidates[0].case.status)}` : ''}</p>
+                              </>
+                            )}
+                            {(g.candidates.length > 1 || g.aOrderCandidates.length > 0 || !isMontorInvoice) && (
+                              <div className="border rounded-md divide-y mt-2">
+                                {g.candidates.slice(1).map(cand => (
+                                  <button key={cand.case.id} type="button"
+                                    onClick={() => confirmGroupCase(g.order_number, cand.case)}
+                                    className="w-full min-h-12 text-left px-3 py-2 text-sm">
+                                    <div className="font-medium">{cand.case.address}</div>
+                                    <div className="text-xs text-muted-foreground">Ärende · {cand.case.customer_name} · {cand.label}</div>
+                                  </button>
+                                ))}
+                                {g.aOrderCandidates.map(c => (
+                                  <button key={c.aOrder.id} type="button"
+                                    onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'aorder', aOrder: c.aOrder } }))}
+                                    className="w-full min-h-12 text-left px-3 py-2 text-sm">
+                                    <div className="font-medium">
+                                      {g.candidates.length > 0 ? 'Skapa nytt ärende trots att ett liknande finns' : 'Skapa ärende och koppla vid import'}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      A-order #{c.aOrder.order_number ?? '—'} · {c.aOrder.customer_name}{c.aOrder.customer_address ? ` · ${c.aOrder.customer_address}` : ''} · {c.reason}
+                                    </div>
+                                  </button>
+                                ))}
+                                {!isMontorInvoice && (
+                                  <button type="button"
+                                    onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'unlinked' } }))}
+                                    className="w-full min-h-12 text-left px-3 py-2 text-sm text-muted-foreground">
+                                    Importera utan koppling — koppla senare via Okopplade dokument
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                            {isMontorInvoice && (
+                              <div className="mt-2">
+                                <Button variant="outline" size="sm" className="min-h-11" onClick={() => toggleSkip(g.order_number, true)}>
+                                  Hoppa över denna adress
+                                </Button>
+                              </div>
+                            )}
                           </AlertDescription>
                         </Alert>
                       ))}
