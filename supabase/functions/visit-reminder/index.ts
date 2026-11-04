@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
+import { MAIL_LINK_BASE_URL } from '../_shared/mailLinks.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,7 +48,7 @@ ${ctaButton ? `<tr><td style="padding:0 28px 8px 28px;">${ctaButton}</td></tr>` 
 function buildCtaButton(text: string, color: string): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 <tr><td align="center" style="padding:8px 0 16px 0;">
-<a href="${APP_URL}" target="_blank" style="display:inline-block;padding:12px 32px;background-color:${color};color:#ffffff;font-weight:bold;font-size:14px;text-decoration:none;border-radius:6px;">${text}</a>
+<a href="${MAIL_LINK_BASE_URL}" target="_blank" style="display:inline-block;padding:12px 32px;background-color:${color};color:#ffffff;font-weight:bold;font-size:14px;text-decoration:none;border-radius:6px;">${text}</a>
 </td></tr>
 </table>`;
 }
