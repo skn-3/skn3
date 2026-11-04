@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireCoordinator } from '../_shared/auth.ts';
 import { attachmentPdfName } from '../_shared/pdfFilename.ts';
+import { INVOICE_EMAIL_FOOTER_ROW } from '../_shared/invoiceEmailFooter.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -34,9 +35,7 @@ function buildCreditHtml(opts: { number: string; original: string; customer: str
 <p style="margin:8px 0;">Krediten kvittas i första hand mot kommande utbetalningar mellan parterna. Är originalfakturan redan reglerad sker återbetalning till SmartKlimat N3prenad, bankgiro 5032-4573.</p>
 </td></tr>
 <tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/></td></tr>
-<tr><td style="padding:0 28px 24px;color:#6b7280;font-size:12px;">
-SmartKlimat N3prenad AB &middot; 559026-6630 &middot; Morsstigen 3, 141 71 Segeltorp
-</td></tr>
+${INVOICE_EMAIL_FOOTER_ROW}
 </table></td></tr></table></body></html>`;
 }
 
@@ -59,9 +58,7 @@ function buildHtml(opts: { number: string; customer: string; total: string; vatM
 <p style="margin:8px 0;color:#6b7280;font-size:12px;">St\u00e4mmer n\u00e5got inte? Svara p\u00e5 detta mejl s\u00e5 r\u00e4ttar vi avr\u00e4kningen.</p>
 </td></tr>
 <tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/></td></tr>
-<tr><td style="padding:0 28px 24px;color:#6b7280;font-size:12px;">
-SmartKlimat N3prenad AB &middot; 559026-6630 &middot; Morsstigen 3, 141 71 Segeltorp
-</td></tr>
+${INVOICE_EMAIL_FOOTER_ROW}
 </table></td></tr></table></body></html>`;
   }
   return `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/></head>
@@ -82,6 +79,7 @@ SmartKlimat N3prenad AB &middot; 559026-6630 &middot; Morsstigen 3, 141 71 Segel
 <tr><td style="padding:0 28px 24px;color:#6b7280;font-size:12px;">
 Bankgiro 5032-4573 &middot; SmartKlimat N3prenad AB &middot; 559026-6630
 </td></tr>
+${INVOICE_EMAIL_FOOTER_ROW}
 </table></td></tr></table></body></html>`;
 }
 

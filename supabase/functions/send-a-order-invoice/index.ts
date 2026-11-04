@@ -4,6 +4,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireCoordinator } from '../_shared/auth.ts';
 import { attachmentPdfName } from '../_shared/pdfFilename.ts';
+import { INVOICE_EMAIL_FOOTER_ROW } from '../_shared/invoiceEmailFooter.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -42,6 +43,7 @@ function buildHtml(opts: { kind: 'invoice' | 'credit'; number: string; address: 
 <tr><td style="padding:0 28px 24px;color:#6b7280;font-size:12px;">
 Mvh SmartKlimat N3prenad
 </td></tr>
+${INVOICE_EMAIL_FOOTER_ROW}
 </table></td></tr></table></body></html>`;
 }
 

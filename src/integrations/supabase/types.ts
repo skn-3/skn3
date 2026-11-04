@@ -3055,6 +3055,10 @@ export type Database = {
       auth_is_my_team_case: { Args: { p_case_id: string }; Returns: boolean }
       auth_user_name: { Args: never; Returns: string }
       auth_user_role: { Args: never; Returns: string }
+      case_merge_table_label: {
+        Args: { p_count: number; p_table: string }
+        Returns: string
+      }
       consultant_next_invoice_number: {
         Args: { p_consultant_id: string }
         Returns: number
@@ -3091,6 +3095,15 @@ export type Database = {
           name: string
           role: string
         }[]
+      }
+      merge_cases: {
+        Args: {
+          p_choices?: Json
+          p_drop_id: string
+          p_dry_run?: boolean
+          p_keep_id: string
+        }
+        Returns: Json
       }
       next_team_invoice_number: { Args: { p_team_id: string }; Returns: string }
       next_yearly_number: { Args: { p_series: string }; Returns: string }

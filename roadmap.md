@@ -1,5 +1,10 @@
 # Roadmap
 
+- [x] Slå ihop dubblett: merge_cases (migration 0045, admin/koordinator, dynamiska kopplingar, provläge), panel i ärendet och "Möjliga dubbletter" i pipelinevalideringen; provläge och riktig sammanslagning testade på två tillfälliga testärenden (borttagna), montör nekas; 501 tester gröna.
+- [ ] Slå ihop dubblett: klicka igenom panelen inloggad — preview-session saknas (--self utan konto).
+- [x] F-skatt-sidfot i fakturamejl: send-a-order-invoice och send-montor-debit-invoice ändrade.
+- [ ] Driftsätt send-a-order-invoice och send-montor-debit-invoice — väntar på klartecken.
+
 - [x] N3prenad-AI etapp 2 del 3: säljåtgärder (skapa ärende, ändra orderuppgifter med vitlista, status via samma grind som statusRules, godkända extra timmar), anteckning öppnad för seller/koordinator/admin, skicka till kollega via start_conversation och samma meddelandeinsert, list_my_cases med 50 rader och missing-filter. Ren logik i sellerLogic.ts, executors i executeSeller.ts, skicka till kollega öppet för alla roller inklusive montör; n3-ai driftsatt; 387 tester och automatisk typkontroll gröna, inga paket eller publicering. Telefonflöde med lokala uppgifter i ljust/mörkt: fyra förslagskort (skapa ärende, ändra orderuppgifter, status, meddelande till kollega) bekräftade utan runtimefel, skärmbilder i docs/screens/n3-ai.
 - [ ] N3prenad-AI etapp 2 del 3: verklig säljarkonversation med skapande/ändring/meddelande och databas-readback — kräver inloggat säljarkonto (--self saknar konto, n3-ai svarar 401 utan session).
 
