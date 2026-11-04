@@ -69,7 +69,7 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
     try {
       const file_base64 = await fileToBase64(file);
       const { data, error } = await supabase.functions.invoke('parse-mockfjards-invoice', {
-        body: { file_base64, mime_type: file.type || 'application/pdf' },
+        body: { file_base64, mime_type: file.type || 'application/pdf', file_name: file.name },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
