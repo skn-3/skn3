@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireStaff } from '../_shared/auth.ts';
 import { attachmentPdfName } from '../_shared/pdfFilename.ts';
 import { offerPdfName } from '../_shared/pdfNames.ts';
+import { MAIL_LINK_BASE_URL } from '../_shared/mailLinks.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -93,7 +94,7 @@ Deno.serve(async (req) => {
     const envUrl = Deno.env.get('PUBLIC_APP_URL');
     const base = (isUrl(origin) ? origin : (isUrl(envUrl) ? envUrl! : FALLBACK_APP_URL)).replace(/\/$/, '');
     const logoUrl = `${base}/brand/logo-stamp-vit-n3.png`;
-    const offerUrl = `${base}/offert/${offer.public_token}`;
+    const offerUrl = `${MAIL_LINK_BASE_URL}/offert/${offer.public_token}`;
     const payLabel = rotActive ? 'ATT BETALA EFTER PREL. ROT' : inclVat ? 'ATT BETALA INKL. MOMS' : 'ATT BETALA EXKL. MOMS';
 
     const step = (n: string, title: string, sub: string, done = false) =>

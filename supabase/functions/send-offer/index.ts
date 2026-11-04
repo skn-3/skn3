@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { MAIL_LINK_BASE_URL } from '../_shared/mailLinks.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -157,7 +158,7 @@ Deno.serve(async (req) => {
     const { error: upErr } = await admin.from('offers').update(updates).eq('id', offer_id);
     if (upErr) throw upErr;
 
-    const publicUrl = `${base}/offert/${publicToken}`;
+    const publicUrl = `${MAIL_LINK_BASE_URL}/offert/${publicToken}`;
     const logoUrl = `${base}/brand/logo-stamp-vit-n3.png`;
 
     // Samma räkneregler som offerCalc.ts / PDF:en / kundsidan:

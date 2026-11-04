@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
+import { MAIL_LINK_BASE_URL } from '../_shared/mailLinks.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -102,7 +103,7 @@ function badge(text: string, bg: string, fg = '#ffffff'): string {
 }
 
 function caseUrl(id: string): string {
-  return `${APP_URL}/?case=${id}`;
+  return `${MAIL_LINK_BASE_URL}/?case=${id}`;
 }
 
 // ---------- Email send ----------

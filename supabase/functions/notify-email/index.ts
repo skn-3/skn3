@@ -1,3 +1,4 @@
+import { MAIL_LINK_BASE_URL } from '../_shared/mailLinks.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -10,7 +11,7 @@ const LOGO_URL = `${APP_URL}/logo.png`;
 function buildCtaButton(text: string, color: string): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 <tr><td align="center" style="padding:8px 0 16px 0;">
-<a href="${APP_URL}" target="_blank" style="display:inline-block;padding:12px 32px;background-color:${color};color:#ffffff;font-weight:bold;font-size:14px;text-decoration:none;border-radius:6px;">${text}</a>
+<a href="${MAIL_LINK_BASE_URL}" target="_blank" style="display:inline-block;padding:12px 32px;background-color:${color};color:#ffffff;font-weight:bold;font-size:14px;text-decoration:none;border-radius:6px;">${text}</a>
 </td></tr>
 </table>`;
 }
