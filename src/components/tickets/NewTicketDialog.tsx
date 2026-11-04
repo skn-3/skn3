@@ -14,6 +14,7 @@ import {
   BALLS, PRIORITIES, TICKET_CATEGORIES, TICKET_QUERY_KEYS, createTicket, ticketNo, type Ball, type Priority, type Ticket,
 } from '@/lib/tickets';
 import { useStaff } from './ticketDialogs';
+import { useDuplicateCaseGuard } from '@/components/shared/DuplicateCaseGuard';
 
 interface Props { open: boolean; onOpenChange: (o: boolean) => void; currentUser: string; onCreated: (t: Ticket) => void }
 
@@ -47,6 +48,16 @@ export function NewTicketDialog({ open, onOpenChange, currentUser, onCreated }: 
     setTitle(''); setType('kundtjanst'); setDescription(''); setResponsible(NONE);
     setPriority('medium'); setBall('oss'); setOwner(currentUser); setNextStep(''); setDue('');
   }, [open, currentUser]);
+
+  const dupGuard = useDuplicateCaseGuard({
+    onOpenCase: () => onOpenChange(false),
+    extraAction: { label: 'Koppla till det ärendet', run: (c) => { setMode('case'); setCaseId(c.id); } },
+  });
+
+  const submit = () => {
+    if (mode === 'manual' && address.trim()) { void dupGuard.guard(address, () => { void save(); }); return; }
+    void save();
+  };
 
   const save = async () => {
     if (mode === 'case' && !caseId) return toast.error('Välj ärende');
@@ -165,8 +176,9 @@ export function NewTicketDialog({ open, onOpenChange, currentUser, onCreated }: 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Avbryt</Button>
-          <Button onClick={save} disabled={busy}>Skapa ärende</Button>
+          <Button onClick={submit} disabled={busy || dupGuard.checking}>Skapa ärende</Button>
         </DialogFooter>
+        {dupGuard.dialog}
       </DialogContent>
     </Dialog>
   );

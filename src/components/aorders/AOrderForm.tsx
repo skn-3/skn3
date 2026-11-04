@@ -21,6 +21,9 @@ import { SignedImage } from '@/components/shared/SignedImage';
 import { HOUR_RATE, STATUS_LABELS } from '@/lib/constants';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
 import { CoupleAOrderDialog } from '@/components/aorders/CoupleAOrderDialog';
+import { caseMatchTitle } from '@/components/shared/CaseMatchCandidates';
+import { rankCases } from '@/lib/caseMatching';
+import { coupleAOrderToCase, couplingToast } from '@/lib/aOrderCoupling';
 import { UnhandledCostsBlock } from '@/components/aorders/UnhandledCostsBlock';
 import { MockfjardsInvoiceImportDialog } from '@/components/aorders/MockfjardsInvoiceImportDialog';
 import { PAYER_LABEL, type ServicePayer, type ServiceOrderPrefill } from '@/lib/serviceOrder';
@@ -107,10 +110,16 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   const [resetConfirm, setResetConfirm] = useState(false);
 
 
-  const [kompCaseId, setKompCaseId] = useState<string>(order?.case_id ?? prefill?.case_id ?? '');
+  const initialCaseId: string = order?.case_id ?? prefill?.case_id ?? '';
+  const [kompCaseId, setKompCaseId] = useState<string>(initialCaseId);
+  /** Ärende som kopplats via "Ärende hittat"-raden i detta formulär (kan ångras). */
+  const [linkedHereId, setLinkedHereId] = useState<string | null>(null);
+  const [dismissedMatchIds, setDismissedMatchIds] = useState<string[]>([]);
+  const directCoupledRef = useRef(false);
+  const dialogPendingRef = useRef(false);
 
-  // Effective case_id: existing order.case_id or prefill.case_id (or komp selection)
-  const effectiveCaseId: string | null = (isSlim ? (kompCaseId || null) : null) ?? (order?.case_id ?? prefill?.case_id) ?? null;
+  // Effective case_id: vald/kopplad koppling (förifylld från order.case_id eller prefill.case_id)
+  const effectiveCaseId: string | null = kompCaseId || null;
 
   // Fetch case extra_hours for prefilling (new order with case_id).
   const { data: caseExtra } = useQuery({
@@ -219,15 +228,92 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   });
 
   const { data: kompCases = [] } = useQuery({
-    queryKey: ['cases_for_komp'],
+    queryKey: ['cases_for_aorder_match'],
     queryFn: async () => {
       // Alla ärenden oavsett status (efterarbete sker ofta hos kunder vars montage är klart).
-      const { data, error } = await (supabase as any).from('cases').select('id, address, customer_name, status').order('address').limit(5000);
+      // Hämtas en gång och matchas lokalt med caseMatching.
+      const { data, error } = await (supabase as any)
+        .from('cases')
+        .select('id, address, city, customer_name, customer_email, customer_phone, order_number, seller, status, montage_date')
+        .order('address')
+        .limit(5000);
       if (error) throw error;
       return (data as any[]).map(c => ({ ...c, statusLabel: STATUS_LABELS[c.status] ?? c.status ?? null }));
     },
-    enabled: open && isSlim,
+    enabled: open,
   });
+
+  // "Ärende hittat": matcha adress/kundnamn 400 ms efter senaste ändring.
+  const [matchInput, setMatchInput] = useState({ address: customerAddress, name: customerName });
+  useEffect(() => {
+    const t = setTimeout(() => setMatchInput({ address: customerAddress, name: customerName }), 400);
+    return () => clearTimeout(t);
+  }, [customerAddress, customerName]);
+  const matchTop = useMemo(() => {
+    if (!matchInput.address.trim() && !matchInput.name.trim()) return null;
+    return rankCases(kompCases as any[], {
+      address: matchInput.address,
+      name: matchInput.name,
+      phone: customerPhone,
+      mockfjardsOrderNumber: mockfjardsOrderNumber || null,
+    }, { excludeIds: dismissedMatchIds, limit: 1 })[0] ?? null;
+  }, [kompCases, matchInput, customerPhone, mockfjardsOrderNumber, dismissedMatchIds]);
+
+  // Nivå auto förifylls som valt ärende (bara nya ordrar, kan ångras).
+  useEffect(() => {
+    if (isEdit || kompCaseId || !matchTop || matchTop.level !== 'auto') return;
+    setKompCaseId(matchTop.case.id);
+    setLinkedHereId(matchTop.case.id);
+  }, [matchTop, isEdit, kompCaseId]);
+
+  function linkMatchedCase(id: string) {
+    setKompCaseId(id);
+    setLinkedHereId(id);
+  }
+
+  function undoMatchedCase() {
+    if (!linkedHereId) return;
+    setDismissedMatchIds(prev => [...prev, linkedHereId]);
+    setLinkedHereId(null);
+    setKompCaseId(initialCaseId);
+    // Extra timmar som hämtades från det ångrade ärendet tas bort igen.
+    if (!isEdit && !prefill?.line_items?.length && prefill?.internalExtraHours == null && extraHoursAppliedRef.current) {
+      setLines(prev => prev.filter(l => (l.name || '').trim() !== 'Extra Montagetimme'));
+      setInternalExtraHours(0);
+      setInternalHourRate(0);
+      extraHoursAppliedRef.current = false;
+    }
+  }
+
+  /** Manuellt val i comboboxen: ett ångrat/bortvalt automatiskt ärende föreslås inte igen. */
+  function chooseCase(id: string) {
+    if (linkedHereId && id !== linkedHereId) {
+      setDismissedMatchIds(prev => [...prev, linkedHereId]);
+      setLinkedHereId(null);
+    }
+    setKompCaseId(id);
+  }
+
+  const showMatchHint = !!matchTop && (!kompCaseId || kompCaseId === linkedHereId);
+  const linkedMatchCase = kompCaseId && kompCaseId === linkedHereId
+    ? (kompCases as any[]).find(c => c.id === kompCaseId) ?? null
+    : null;
+  const matchHint = showMatchHint || linkedMatchCase ? (
+    <div className="mt-2 rounded-md border border-warning/60 bg-warning-soft px-3 py-2 flex flex-wrap items-center gap-2 text-sm text-warning-ink">
+      <span className="flex-1 min-w-0">
+        {linkedMatchCase ? (
+          <>Kopplat ärende: <strong>{caseMatchTitle(linkedMatchCase)}</strong></>
+        ) : matchTop ? (
+          <>Ärende hittat: <strong>{caseMatchTitle(matchTop.case)}</strong>{matchTop.label ? <span className="block text-xs">Träff på {matchTop.label}</span> : null}</>
+        ) : null}
+      </span>
+      {linkedMatchCase ? (
+        <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={undoMatchedCase}>Ångra</Button>
+      ) : matchTop ? (
+        <Button type="button" size="sm" className="min-h-11" onClick={() => linkMatchedCase(matchTop.case.id)}>Koppla</Button>
+      ) : null}
+    </div>
+  ) : null;
 
   const productsByCat = useMemo(() => {
     const m = new Map<string, any[]>();
@@ -353,7 +439,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         scheduled_delivery: isSlim ? false : scheduledDelivery,
         delivery_time: !isSlim && scheduledDelivery && deliveryTime ? deliveryTime : null,
         team_id: teamId && teamId !== '__none__' ? teamId : null,
-        case_id: isSlim ? (kompCaseId || null) : (prefill?.case_id ?? order?.case_id ?? null),
+        case_id: kompCaseId || null,
         internal_extra_hours: isService ? 0 : (internalExtraHours || 0),
         internal_hour_rate: isService ? 0 : (internalHourRate || 0),
         internal_extra_amount: isService ? 0 : (internalExtraAmount || 0),
@@ -406,15 +492,42 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       // Trigger koppling-dialog (en gång per A-order)
       // Kopplingsdialogen hör bara till montage-A-ordrar (den flyttar ärendet till Montage bokat).
       // Serviceordrar kopplas via case_id i formuläret och ändrar aldrig ärendets status.
-      if (orderId && !coupledHandled && !isService) {
-        const selTeam = teams.find((t: any) => t.id === teamId);
+      const savedTeamId = teamId && teamId !== '__none__' ? teamId : null;
+      const selTeam = teams.find((t: any) => t.id === teamId);
+      if (orderId && !isSlim && kompCaseId) {
+        // Ärendet är redan valt i formuläret: koppla direkt (montör/status som i dialogen) utan dialog.
+        const caseChanged = kompCaseId !== (order?.case_id ?? '');
+        const teamChanged = !!savedTeamId && savedTeamId !== (order?.team_id ?? null);
+        if (!directCoupledRef.current && (caseChanged || teamChanged)) {
+          try {
+            const linked = (kompCases as any[]).find(c => c.id === kompCaseId);
+            const { warnings } = await coupleAOrderToCase({
+              aOrderId: orderId,
+              caseId: kompCaseId,
+              teamId: savedTeamId,
+              teamName: selTeam?.name ?? null,
+              existingMontageDate: linked?.montage_date ?? null,
+            });
+            directCoupledRef.current = true;
+            toast.success(couplingToast(linked?.address ?? 'ärendet', warnings));
+            queryClient.invalidateQueries({ queryKey: ['cases'] });
+            queryClient.invalidateQueries({ queryKey: ['pipeline'] });
+            queryClient.invalidateQueries({ queryKey: ['a_orders'] });
+          } catch (e: any) {
+            console.error(e);
+            toast.error(`Ordern sparades men kopplingen till ärendet misslyckades: ${e?.message || e}`);
+          }
+        }
+        setCoupledHandled(true);
+      } else if (orderId && !coupledHandled && !isService) {
+        dialogPendingRef.current = true;
         setCouplingFor({
           aOrderId: orderId,
-          teamId: teamId && teamId !== '__none__' ? teamId : null,
+          teamId: savedTeamId,
           teamName: selTeam?.name ?? null,
           customerAddress: customerAddress || '',
           customerName: customerName || '',
-          existingCaseId: (isSlim ? (kompCaseId || null) : (prefill?.case_id ?? order?.case_id ?? null)) ?? null,
+          existingCaseId: kompCaseId || null,
         });
       }
       onSaved?.();
@@ -497,7 +610,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       setConfirmSend(false);
       onSaved?.();
       // Stäng inte sheet om kopplingsdialog ska visas — den stänger via onDone.
-      if (coupledHandled || isService) onOpenChange(false);
+      if (!dialogPendingRef.current || isService) onOpenChange(false);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Kunde inte skicka');
@@ -507,7 +620,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
   }
 
   function selectServiceCase(id: string) {
-    setKompCaseId(id);
+    chooseCase(id);
     const c = kompCases.find((x: any) => x.id === id);
     if (c) {
       if (c.customer_name) setCustomerName(c.customer_name);
@@ -577,6 +690,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               <div>
                 <Label>Adress *</Label>
                 <Input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
+                {matchHint}
               </div>
               <div>
                 <Label>Ersätts av</Label>
@@ -614,6 +728,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
             <div className="col-span-2 md:col-span-3">
               <Label>{isKomp ? 'Mottagare / notering (valfritt)' : 'Adress *'}</Label>
               <Input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} required={!isKomp} />
+              {matchHint}
             </div>
             {!isKomp && (
               <div>
@@ -669,7 +784,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
           {isKomp && (
             <div>
               <Label>Koppla till ärende (valfritt)</Label>
-              <CaseCombobox cases={kompCases} value={kompCaseId} onChange={setKompCaseId} />
+              <CaseCombobox cases={kompCases} value={kompCaseId} onChange={chooseCase} />
             </div>
           )}
 
@@ -948,6 +1063,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
                   setImagePaths([]);
                   setPendingImages([]);
                   setKompCaseId('');
+                  setLinkedHereId(null);
                   setResetConfirm(false);
                 }}>Nollställ</AlertDialogAction>
               </AlertDialogFooter>
@@ -991,9 +1107,12 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               teamName={couplingFor.teamName}
               customerAddress={couplingFor.customerAddress}
               customerName={couplingFor.customerName}
+              customerPhone={customerPhone || null}
+              mockfjardsOrderNumber={mockfjardsOrderNumber || null}
               existingCaseId={couplingFor.existingCaseId}
               onDone={() => {
                 setCoupledHandled(true);
+                dialogPendingRef.current = false;
                 setCouplingFor(null);
                 onOpenChange(false);
               }}

@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { Upload, FileText, Search, Check, Loader2, AlertTriangle, Sparkles, Trash2, Plus, ChevronDown, Layers } from 'lucide-react';
 import { logActivity } from '@/lib/activityLog';
+import { rankCases, parseAddress, matchesSearch, type RankedCase, type MatchTarget } from '@/lib/caseMatching';
 
 interface PayoutUploadViewProps {
   currentUser: string;
@@ -48,163 +49,44 @@ async function fileToBase64(file: File): Promise<string> {
 
 const norm = (s: string | null | undefined) => (s ?? '').trim();
 
-// ---- Namnmatchning ----------------------------------------------------------
-const normalizeName = (s: string | null | undefined) =>
-  (s ?? '')
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '') // strip diacritics
-    .replace(/[^\p{L}\p{N}\s@.\-]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+// ---- Ärendematchning: all logik i src/lib/caseMatching.ts ------------------
+type Candidate = RankedCase<CaseRow>;
 
-const tokens = (s: string) =>
-  normalizeName(s).split(' ').filter(t => t.length >= 2);
+const rankCaseRows = (all: CaseRow[], target: MatchTarget, limit = 5): Candidate[] =>
+  rankCases(all as any[], target, { limit }) as unknown as Candidate[];
 
-const emailLocal = (e: string | null | undefined) =>
-  (e ?? '').split('@')[0]?.toLowerCase() ?? '';
-
-const phoneDigits = (p: string | null | undefined) =>
-  (p ?? '').replace(/\D+/g, '');
-
-type Candidate = { case: CaseRow; score: number; reason: string };
-
-function scoreCaseAgainst(
-  c: CaseRow,
-  payoutName: string | null,
-  payoutPhone?: string | null,
-): Candidate | null {
-  const caseName = (c.customer_name ?? '') as string;
-  const caseEmail = (c as any).customer_email as string | null | undefined;
-  const casePhone = (c as any).customer_phone as string | null | undefined;
-
-  const pTokens = tokens(payoutName ?? '');
-  if (pTokens.length === 0 && !payoutPhone) return null;
-
-  const cTokens = tokens(caseName);
-  const cEmailLocalTokens = tokens(emailLocal(caseEmail));
-  const allCaseTokens = new Set([...cTokens, ...cEmailLocalTokens]);
-
-  let overlap = 0;
-  for (const t of pTokens) if (allCaseTokens.has(t)) overlap++;
-
-  const nNorm = normalizeName(payoutName ?? '');
-  const cNorm = normalizeName(caseName);
-  const exact = nNorm && cNorm && nNorm === cNorm;
-  const reversed = nNorm && cNorm &&
-    nNorm.split(' ').slice().reverse().join(' ') === cNorm;
-  const containsFull = nNorm && cNorm && (nNorm.includes(cNorm) || cNorm.includes(nNorm));
-
-  let score = 0;
-  const reasons: string[] = [];
-  if (exact) { score += 100; reasons.push('exakt namn'); }
-  else if (reversed) { score += 90; reasons.push('omvänd ordning'); }
-  else if (containsFull && cNorm.length >= 3) { score += 70; reasons.push('delsträng'); }
-
-  if (overlap > 0) {
-    score += overlap * 25;
-    reasons.push(`${overlap} ord matchar`);
-  }
-
-  // Phone signal
-  const pPhone = phoneDigits(payoutPhone);
-  const cPhone = phoneDigits(casePhone);
-  if (pPhone && cPhone && (pPhone.endsWith(cPhone.slice(-7)) || cPhone.endsWith(pPhone.slice(-7)))) {
-    score += 50;
-    reasons.push('telefon');
-  }
-
-  if (score <= 0) return null;
-  return { case: c, score, reason: reasons.join(' · ') };
-}
-
-function findNameMatches(
-  allCases: CaseRow[],
-  payoutName: string | null,
-  payoutPhone?: string | null,
-  limit = 5,
-): Candidate[] {
-  if (!payoutName && !payoutPhone) return [];
-  const out: Candidate[] = [];
-  for (const c of allCases) {
-    const cand = scoreCaseAgainst(c, payoutName ?? null, payoutPhone ?? null);
-    if (cand) out.push(cand);
-  }
-  out.sort((a, b) => b.score - a.score);
-  return out.slice(0, limit);
-}
-
-// Namnmatchning mot okopplade A-ordrar (samma normalisering/ordöverlapp)
 type GroupChoice =
   | { kind: 'case'; case: CaseRow }
   | { kind: 'aorder'; aOrder: any }
   | { kind: 'unlinked' };
 
-function findAOrderCandidates(aOrders: any[], name: string | null | undefined, max = 3): { aOrder: any; score: number; reason: string }[] {
-  if (!name || !name.trim()) return [];
-  const scored: { aOrder: any; score: number; reason: string }[] = [];
-  for (const a of aOrders) {
-    if (!a.customer_name) continue;
-    const cand = findNameMatches([{ id: a.id, customer_name: a.customer_name, address: a.customer_address } as any], name, null, 1);
-    if (cand[0] && cand[0].score > 0) scored.push({ aOrder: a, score: cand[0].score, reason: cand[0].reason });
-  }
-  return scored.sort((x, y) => y.score - x.score).slice(0, max);
+type AOrderCandidate = { aOrder: any; score: number; reason: string };
+
+/** Okopplade A-ordrar som liknar målet (adress, namn, telefon, Mockfjärds ordernummer). */
+function rankAOrders(aOrders: any[], target: MatchTarget, max = 3): AOrderCandidate[] {
+  const byId = new Map(aOrders.map(a => [a.id, a]));
+  return rankCases(
+    aOrders.map(a => ({ id: a.id, address: a.customer_address, customer_name: a.customer_name, customer_phone: a.customer_phone, order_number: a.mockfjards_order_number })),
+    target,
+    { limit: max },
+  ).map(r => ({ aOrder: byId.get(r.case.id), score: r.score, reason: r.label }));
 }
+
+/** Fritextsökning i ärendelistan (ordvis, se matchesSearch). */
+function searchCaseList(all: CaseRow[], q: string, limit: number): CaseRow[] {
+  if (!q.trim()) return [];
+  return all
+    .filter(c => matchesSearch([c.address, (c as any).city, c.customer_name, c.offer_number, (c as any).order_number], q))
+    .slice(0, limit);
+}
+
+/** Adressnyckel för en montörsfakturarad (tom => saknar gata + husnummer). */
+const lineAddrKey = (li: LineItem): string => {
+  const p = parseAddress(li.job_address);
+  return p.valid ? p.key : '';
+};
 
 type DocType = 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
-
-// ---- Adressmatchning (för plåtfakturor) -----------------------------------
-const stripDiacritics = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-const addrNorm = (s: any) => stripDiacritics(String(s ?? '').toLowerCase().trim());
-
-type ParsedAddr = { street: string; number: string; city: string };
-function parseAddress(raw: any): ParsedAddr {
-  const s = addrNorm(raw);
-  if (!s) return { street: '', number: '', city: '' };
-  const parts = s.split(',').map(p => p.trim()).filter(Boolean);
-  const head = parts[0] || '';
-  let city = '';
-  if (parts.length > 1) {
-    city = parts.slice(1).join(' ').replace(/\b\d{3}\s?\d{2}\b/g, '').replace(/\s+/g, ' ').trim();
-  } else {
-    const m = s.match(/^(.*?)(\d{3}\s?\d{2})\s+(.+)$/);
-    if (m) city = m[3].trim();
-  }
-  const numMatch = head.match(/(\d+)\s*([a-z])?\b/);
-  const number = numMatch ? (numMatch[1] + (numMatch[2] || '')) : '';
-  const street = (numMatch ? head.slice(0, numMatch.index).trim() : head)
-    .replace(/[^a-z0-9åäö\s]/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return { street, number, city };
-}
-function streetNameMatch(a: string, b: string): boolean {
-  if (!a || !b) return false;
-  if (a === b) return true;
-  if (a.length >= 4 && b.includes(a)) return true;
-  if (b.length >= 4 && a.includes(b)) return true;
-  return false;
-}
-type AddrCandidate = { case: CaseRow; score: number; reason: string };
-function addressCandidates(allCases: CaseRow[], rawAddr: string | null): AddrCandidate[] {
-  const a = parseAddress(rawAddr);
-  if (!a.street || !a.number) return [];
-  const out: AddrCandidate[] = [];
-  for (const c of allCases) {
-    const b = parseAddress(c.address);
-    if (!b.street || !b.number) continue;
-    if (a.number !== b.number) continue;
-    if (!streetNameMatch(a.street, b.street)) continue;
-    const sameCity = !!(a.city && b.city && (a.city === b.city || a.city.includes(b.city) || b.city.includes(a.city)));
-    out.push({
-      case: c,
-      score: 100 + (sameCity ? 10 : 0),
-      reason: sameCity ? 'gata + nr + ort' : 'gata + nr',
-    });
-  }
-  out.sort((x, y) => y.score - x.score);
-  return out.slice(0, 5);
-}
 
 const STATUS_LABELS: Record<string, string> = {
   kontrollmatning: 'Kontrollmätning', km_klar: 'KM klar', vantar_godkannande: 'Väntar godkännande',
@@ -303,7 +185,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('a_orders')
-        .select('id, order_number, customer_name, customer_address, total_amount')
+        .select('id, order_number, customer_name, customer_address, customer_phone, mockfjards_order_number, total_amount')
         .is('case_id', null);
       if (error) throw error;
       return data ?? [];
@@ -331,18 +213,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     : t === 'a_order' ? 'A-order'
     : 'Mockfjärds-utbetalning';
 
-  const searchCasesFor = (q: string) => {
-    const s = q.trim().toLowerCase();
-    if (!s) return [];
-    return (cases as CaseRow[])
-      .filter(c =>
-        (c.customer_name || '').toLowerCase().includes(s) ||
-        (c.address || '').toLowerCase().includes(s) ||
-        (c.offer_number || '').toLowerCase().includes(s) ||
-        ((c as any).order_number || '').toLowerCase().includes(s)
-      )
-      .slice(0, 8);
-  };
+  const searchCasesFor = (q: string) => searchCaseList(cases as CaseRow[], q, 8);
 
   const linkUnlinkedDoc = async (docId: string, c: CaseRow) => {
     const { error } = await (supabase as any).from('case_documents').update({ case_id: c.id }).eq('id', docId);
@@ -365,41 +236,35 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   const isMulti = isMontorInvoice || (!isSheet && distinctOrderNumbers.length > 1);
 
-  // Single-mode auto-match by order_number (not used for sheet metal)
-  const orderMatch = useMemo(() => {
-    if (isSheet) return null;
-    const q = orderNumber.trim();
-    if (!q) return null;
-    return (cases as any[]).find(c => norm(c.order_number) === q) || null;
-  }, [orderNumber, cases, isSheet]);
+  // Single-läge: adress + namn + Mockfjärds ordernummer via caseMatching.
+  const singleRanked = useMemo<Candidate[]>(() => {
+    const target: MatchTarget = {
+      address: jobAddress || null,
+      name: customerName || null,
+      mockfjardsOrderNumber: isSheet ? null : (orderNumber.trim() || null),
+    };
+    if (!target.address && !target.name && !target.mockfjardsOrderNumber) return [];
+    return rankCaseRows(cases as CaseRow[], target, 5);
+  }, [cases, jobAddress, customerName, orderNumber, isSheet]);
+  const singleTop = singleRanked[0] ?? null;
+  // Nivå auto väljs automatiskt; nivå suggest är förvald men måste bekräftas.
+  const autoCase = singleTop?.level === 'auto' ? singleTop.case : null;
 
-  // Namnkandidater (fallback i single-läge)
-  const nameCandidates = useMemo<Candidate[]>(() => {
-    if (isSheet || orderMatch) return [];
-    return findNameMatches(cases as CaseRow[], customerName, null, 5);
-  }, [orderMatch, cases, customerName, isSheet]);
-
-  // Auto-acceptera ENDAST exakta namnträffar
-  const strongNameMatch = nameCandidates[0] && nameCandidates[0].score >= 90 && /exakt namn/i.test(nameCandidates[0].reason) ? nameCandidates[0].case : null;
-
-  // Adress-kandidater (plåtfaktura)
-  const addressMatches = useMemo<AddrCandidate[]>(() => {
-    if (!isSheet) return [];
-    return addressCandidates(cases as CaseRow[], jobAddress || null);
-  }, [isSheet, jobAddress, cases]);
-  const strongAddrMatch = addressMatches[0]?.case || null;
-
-  const effectiveCase = chosenCase || orderMatch || strongNameMatch || strongAddrMatch;
+  const effectiveCase = chosenCase || autoCase;
 
   const singleAOrderMatch = useMemo(
     () => {
-      if (isMulti || effectiveCase) return null;
-      const best = findAOrderCandidates(unlinkedAOrders as any[], customerName, 1)[0];
-      return best && best.score >= 90 ? best : null;
+      if (isMulti || effectiveCase || isSheet) return null;
+      return rankAOrders(unlinkedAOrders as any[], {
+        address: jobAddress || null,
+        name: customerName || null,
+        mockfjardsOrderNumber: orderNumber.trim() || null,
+      }, 1)[0] ?? null;
     },
-    [isMulti, effectiveCase, unlinkedAOrders, customerName],
+    [isMulti, effectiveCase, isSheet, unlinkedAOrders, customerName, jobAddress, orderNumber],
   );
-  const [singleAOrderAccept, setSingleAOrderAccept] = useState(true);
+  // Aldrig förbockad: att skapa ett ärende kräver alltid ett aktivt val.
+  const [singleAOrderAccept, setSingleAOrderAccept] = useState(false);
   const [allowUnlinked, setAllowUnlinked] = useState(false);
 
   // Multi-mode groups
@@ -411,23 +276,28 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     subtotal: number;
     groupCustomerName: string | null;
     groupAddress: string | null; // displayed address (montor_invoice)
-    autoCase: CaseRow | null;
-    nameCandidates: Candidate[];
-    addrCandidates: AddrCandidate[];
+    /** Rangordnade kandidater (nivå auto/suggest) från caseMatching. */
+    candidates: Candidate[];
+    /** Automatiskt vald kandidat (nivå auto). */
+    autoMatch: Candidate | null;
     effectiveCase: CaseRow | null;
-    matchSource: 'order' | 'name' | 'address' | 'manual' | null;
+    matchSource: 'auto' | 'manual' | null;
     choice: GroupChoice | null;
-    aOrderCandidates: { aOrder: any; score: number; reason: string }[];
-  };
-
-  // Helper: address key for a montor_invoice line (empty => unassigned)
-  const lineAddrKey = (li: LineItem): string => {
-    const p = parseAddress(li.job_address);
-    if (!p.street || !p.number) return '';
-    return `${p.street}#${p.number}`;
+    aOrderCandidates: AOrderCandidate[];
   };
 
   const groups: Group[] = useMemo(() => {
+    const resolve = (groupId: string, candidates: Candidate[]) => {
+      const autoMatch = candidates[0]?.level === 'auto' ? candidates[0] : null;
+      const override = groupChoices[groupId] ?? null;
+      const cleared = !!clearedGroups[groupId];
+      const choice: GroupChoice | null =
+        override ?? (cleared ? null : (autoMatch ? { kind: 'case', case: autoMatch.case } : null));
+      const effectiveCase = choice?.kind === 'case' ? choice.case : null;
+      const matchSource: Group['matchSource'] = override ? 'manual' : (choice ? 'auto' : null);
+      return { autoMatch: override || cleared ? null : autoMatch, choice, effectiveCase, matchSource };
+    };
+
     if (isMontorInvoice) {
       // Address-keyed groups
       const keyMap = new Map<string, { addr: string; indices: number[]; lines: LineItem[] }>();
@@ -445,13 +315,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const addrGroups: Group[] = Array.from(keyMap.entries()).map(([key, v]) => {
         const groupId = v.addr || key;
         const subtotal = v.lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
-        const candidates = addressCandidates(cases as CaseRow[], v.addr);
-        const auto = candidates[0]?.case || null;
-        const override = groupChoices[groupId] ?? null;
-        const cleared = !!clearedGroups[groupId];
-        const effective = override?.kind === 'case' ? override.case : (override ? null : (cleared ? null : auto));
-        const matchSource: Group['matchSource'] = override ? 'manual' : cleared ? null : (auto ? 'address' : null);
-        const choice: GroupChoice | null = effective ? { kind: 'case', case: effective } : null;
+        const candidates = rankCaseRows(cases as CaseRow[], { address: v.addr }, 5);
+        const r = resolve(groupId, candidates);
         return {
           order_number: groupId,
           keyKind: 'address',
@@ -460,12 +325,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           subtotal,
           groupCustomerName: null,
           groupAddress: v.addr || null,
-          autoCase: auto,
-          nameCandidates: [],
-          addrCandidates: candidates,
-          effectiveCase: effective,
-          matchSource,
-          choice,
+          candidates,
+          autoMatch: r.autoMatch,
+          effectiveCase: r.effectiveCase,
+          matchSource: r.matchSource,
+          choice: r.choice?.kind === 'case' ? r.choice : null,
           aOrderCandidates: [],
         };
       });
@@ -489,9 +353,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         subtotal: v.lines.reduce((s, l) => s + (Number(l.amount) || 0), 0),
         groupCustomerName: v.case.customer_name || null,
         groupAddress: v.case.address || null,
-        autoCase: v.case,
-        nameCandidates: [],
-        addrCandidates: [],
+        candidates: [],
+        autoMatch: null,
         effectiveCase: v.case,
         matchSource: 'manual',
         choice: { kind: 'case', case: v.case },
@@ -505,19 +368,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const lineIndices = lineItems.map((li, i) => norm(li.order_number) === on ? i : -1).filter(i => i >= 0);
       const subtotal = lines.reduce((s, li) => s + (Number(li.amount) || 0), 0);
       const groupCustomerName = lines.find(l => norm(l.customer_name))?.customer_name ?? null;
-      const orderC = (cases as any[]).find(c => norm(c.order_number) === on) || null;
-      const candidates = orderC ? [] : findNameMatches(cases as CaseRow[], groupCustomerName, null, 5);
-      // Auto-acceptera ENDAST exakta namnträffar — delsträngar och ordöverlapp kräver aktivt val
-      const strong = candidates[0] && candidates[0].score >= 90 && /exakt namn/i.test(candidates[0].reason) ? candidates[0].case : null;
-      const autoCase = orderC || strong;
-      const override = groupChoices[on] ?? null;
-      const cleared = !!clearedGroups[on];
-      const effective = override?.kind === 'case' ? override.case : (override ? null : (cleared ? null : autoCase));
-      const matchSource: Group['matchSource'] =
-        override ? 'manual' : cleared ? null : orderC ? 'order' : strong ? 'name' : null;
-      const choice: GroupChoice | null =
-        override ?? (cleared ? null : (autoCase ? { kind: 'case', case: autoCase } : null));
-      const aOrderCandidates = (matchSource === null || cleared) ? findAOrderCandidates(unlinkedAOrders as any[], groupCustomerName) : [];
+      const groupAddress = lines.find(l => norm(l.job_address))?.job_address ?? null;
+      const target: MatchTarget = { mockfjardsOrderNumber: on, name: groupCustomerName, address: groupAddress };
+      const candidates = rankCaseRows(cases as CaseRow[], target, 5);
+      const r = resolve(on, candidates);
+      const aOrderCandidates = !r.choice ? rankAOrders(unlinkedAOrders as any[], target) : [];
       return {
         order_number: on,
         keyKind: 'order',
@@ -525,18 +380,23 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         lineIndices,
         subtotal,
         groupCustomerName,
-        groupAddress: null,
-        autoCase,
-        nameCandidates: candidates,
-        addrCandidates: [],
-        effectiveCase: effective,
-        matchSource,
-        choice,
+        groupAddress,
+        candidates,
+        autoMatch: r.autoMatch,
+        effectiveCase: r.effectiveCase,
+        matchSource: r.matchSource,
+        choice: r.choice,
         aOrderCandidates,
       };
     });
   }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, clearedGroups, lineCaseChoices, unlinkedAOrders]);
 
+  /** Bekräfta ett förslag (nivå suggest) för en grupp. */
+  const confirmGroupCase = (groupId: string, c: CaseRow) => {
+    setGroupChoices(prev => ({ ...prev, [groupId]: { kind: 'case', case: c } }));
+    setClearedGroups(prev => { const n = { ...prev }; delete n[groupId]; return n; });
+  };
+  const pendingSuggestionGroups = groups.filter(g => !g.choice && g.candidates.length > 0 && !(isMontorInvoice && skippedGroups.has(g.order_number)));
 
   const unassignedLines = useMemo(
     () => {
@@ -560,31 +420,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     [groups],
   );
 
-  const filteredCases = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return [];
-    return (cases as CaseRow[])
-      .filter(c =>
-        (c.customer_name || '').toLowerCase().includes(q) ||
-        (c.address || '').toLowerCase().includes(q) ||
-        (c.offer_number || '').toLowerCase().includes(q) ||
-        ((c as any).order_number || '').toLowerCase().includes(q)
-      )
-      .slice(0, 10);
-  }, [search, cases]);
+  const filteredCases = useMemo(() => searchCaseList(cases as CaseRow[], search, 10), [search, cases]);
 
-  const filteredCasesForGroup = (on: string) => {
-    const q = (groupSearch[on] ?? '').trim().toLowerCase();
-    if (!q) return [];
-    return (cases as CaseRow[])
-      .filter(c =>
-        (c.customer_name || '').toLowerCase().includes(q) ||
-        (c.address || '').toLowerCase().includes(q) ||
-        (c.offer_number || '').toLowerCase().includes(q) ||
-        ((c as any).order_number || '').toLowerCase().includes(q)
-      )
-      .slice(0, 8);
-  };
+  const filteredCasesForGroup = (on: string) => searchCaseList(cases as CaseRow[], groupSearch[on] ?? '', 8);
 
   const lineSum = useMemo(
     () => lineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0),
@@ -595,7 +433,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const multiSumMismatch = isMulti && totalNum > 0 && Math.abs(groupedSubtotalSum - totalNum) > 0.5;
 
   const reset = () => {
-    setSingleAOrderAccept(true);
+    setSingleAOrderAccept(false);
     setAllowUnlinked(false);
     setFile(null);
     setOrderNumber('');
@@ -1196,9 +1034,20 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                 </Alert>
               )}
 
+              {pendingSuggestionGroups.length > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full min-h-12"
+                  onClick={() => pendingSuggestionGroups.forEach(g => confirmGroupCase(g.order_number, g.candidates[0].case))}
+                >
+                  Bekräfta alla {pendingSuggestionGroups.length} förslag
+                </Button>
+              )}
+
               {groups.map(g => {
                 
-                const showSearch = !g.choice || g.matchSource === 'manual';
+                const showSearch = !g.choice;
                 const results = filteredCasesForGroup(g.order_number);
                 const skipped = isMontorInvoice && isSkipped(g.order_number);
                 return (
@@ -1233,40 +1082,27 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                       {!skipped && (g.choice?.kind === 'case' ? (
                         <Alert>
                           <Check className="h-4 w-4" />
-                          <AlertTitle className="flex items-center gap-2">
-                            {g.matchSource === 'manual' && 'Valt ärende'}
-                            {g.matchSource === 'order' && 'Matchat ärende (ordernummer)'}
-                            {g.matchSource === 'name' && 'Föreslaget ärende'}
-                            {g.matchSource === 'address' && 'Matchat ärende (adress)'}
+                          <AlertTitle className="flex items-center gap-2 flex-wrap">
+                            {g.matchSource === 'manual' ? 'Valt ärende' : 'Matchat ärende'}
                             {g.matchSource === 'manual' && <Badge variant="outline">manuellt</Badge>}
-                            {g.matchSource === 'name' && <Badge variant="outline">namn</Badge>}
-                            {g.matchSource === 'address' && <Badge variant="outline">{g.addrCandidates[0]?.reason || 'adress'}</Badge>}
+                            {g.matchSource === 'auto' && g.autoMatch?.label && <Badge variant="outline">{g.autoMatch.label}</Badge>}
                           </AlertTitle>
                           <AlertDescription>
                             <button
                               type="button"
-                              className="text-sm text-left w-full rounded hover:bg-muted/60 -mx-1 px-1 py-0.5 transition-colors"
+                              className="text-sm text-left w-full min-h-11 rounded -mx-1 px-1 py-0.5"
                               onClick={() => setCaseDetailsOpen(prev => ({ ...prev, [g.order_number]: !prev[g.order_number] }))}
-                              title="Klicka för att granska ärendet"
                             >
                               <div className="flex items-center gap-1">
                                 <b>{g.choice.case.address}</b>
                                 <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${caseDetailsOpen[g.order_number] ? 'rotate-180' : ''}`} />
                               </div>
                               <div className="text-muted-foreground">
-                                {g.choice.case.customer_name}
-                                {g.matchSource === 'name' && g.nameCandidates[0]?.reason
-                                  ? ` · ${g.nameCandidates[0].reason}`
-                                  : ''}
+                                {[g.choice.case.customer_name, g.choice.case.seller, caseStatusLabel(g.choice.case.status)].filter(Boolean).join(' · ')}
                               </div>
                             </button>
                             {caseDetailsOpen[g.order_number] && <CaseInlineDetails c={g.choice.case} />}
-                            {g.matchSource === 'name' && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Ordernumret {g.order_number} hittades inte i systemet. Bekräfta att detta är rätt ärende.
-                              </p>
-                            )}
-                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
+                            <Button variant="ghost" size="sm" className="mt-2 min-h-11" onClick={() => clearGroupChoice(g.order_number)}>
                               Ändra val
                             </Button>
                           </AlertDescription>
@@ -1274,7 +1110,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                       ) : g.choice?.kind === 'aorder' ? (
                         <Alert>
                           <Check className="h-4 w-4" />
-                          <AlertTitle>Vald A-order</AlertTitle>
+                          <AlertTitle>Nytt ärende skapas från A-order</AlertTitle>
                           <AlertDescription>
                             <div className="text-sm">
                               A-order <strong>#{g.choice.aOrder.order_number ?? '—'}</strong> · {g.choice.aOrder.customer_name}
@@ -1282,9 +1118,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                               {typeof g.choice.aOrder.total_amount === 'number' ? ` · montörsvärde ${g.choice.aOrder.total_amount.toLocaleString('sv-SE')} kr` : ''}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Kundprofil/ärende skapas automatiskt vid import och kopplas till både A-ordern och utbetalningen.
+                              Kundprofil/ärende skapas vid import och kopplas till både A-ordern och utbetalningen.
                             </p>
-                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
+                            <Button variant="ghost" size="sm" className="mt-2 min-h-11" onClick={() => clearGroupChoice(g.order_number)}>
                               Ändra val
                             </Button>
                           </AlertDescription>
@@ -1297,57 +1133,73 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                             <p className="text-sm text-muted-foreground">
                               Sparas under Okopplade dokument och kopplas när ärendet finns.
                             </p>
-                            <Button variant="ghost" size="sm" className="mt-2" onClick={() => clearGroupChoice(g.order_number)}>
+                            <Button variant="ghost" size="sm" className="mt-2 min-h-11" onClick={() => clearGroupChoice(g.order_number)}>
                               Ändra val
                             </Button>
                           </AlertDescription>
                         </Alert>
-                      ) : isMontorInvoice ? (
-                        <Alert variant="destructive">
-                          <AlertTriangle className="h-4 w-4" />
-                          <AlertTitle>Inget ärende kunde matchas</AlertTitle>
-                          <AlertDescription>
-                            {g.keyKind === 'address'
-                              ? <>Adress "{g.order_number}" matchade inget ärende. Sök manuellt nedan.</>
-                              : <>Varken ordernummer {g.order_number} eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade. Sök manuellt nedan.</>}
-                            <div className="mt-2">
-                              <Button variant="outline" size="sm" onClick={() => toggleSkip(g.order_number, true)}>
-                                Hoppa över denna adress
-                              </Button>
-                            </div>
-                          </AlertDescription>
-                        </Alert>
                       ) : (
-                        <Alert>
-                          <Search className="h-4 w-4" />
-                          <AlertTitle>Välj koppling</AlertTitle>
+                        <Alert variant={g.candidates.length ? 'default' : (isMontorInvoice ? 'destructive' : 'default')}>
+                          {g.candidates.length ? <Search className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                          <AlertTitle>{g.candidates.length ? 'Stämmer detta ärende?' : (isMontorInvoice ? 'Inget ärende kunde matchas' : 'Välj koppling')}</AlertTitle>
                           <AlertDescription>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Ordernumret {g.order_number} hittades inte{g.groupCustomerName ? ` — alternativ för "${g.groupCustomerName}"` : ''}. Klicka för att välja:
-                            </p>
-                            <div className="border rounded-md divide-y">
-                              {g.nameCandidates.map(cand => (
-                                <button key={cand.case.id} type="button"
-                                  onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'case', case: cand.case } }))}
-                                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm">
-                                  <div className="font-medium">{cand.case.address}</div>
-                                  <div className="text-xs text-muted-foreground">Ärende · {cand.case.customer_name} · {cand.reason}</div>
-                                </button>
-                              ))}
-                              {g.aOrderCandidates.map(c => (
-                                <button key={c.aOrder.id} type="button"
-                                  onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'aorder', aOrder: c.aOrder } }))}
-                                  className="w-full text-left px-3 py-2 hover:bg-amber-50 dark:hover:bg-amber-950/60 text-sm">
-                                  <div className="font-medium">A-order #{c.aOrder.order_number ?? '—'} · {c.aOrder.customer_name}</div>
-                                  <div className="text-xs text-muted-foreground">{c.aOrder.customer_address || ''} · {c.reason} · ärende skapas vid import</div>
-                                </button>
-                              ))}
-                              <button type="button"
-                                onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'unlinked' } }))}
-                                className="w-full text-left px-3 py-2 hover:bg-muted text-sm text-muted-foreground">
-                                Importera utan koppling — koppla senare via Okopplade dokument
-                              </button>
-                            </div>
+                            {g.candidates.length === 0 && (
+                              <p className="text-xs text-muted-foreground mb-2">
+                                {g.keyKind === 'address'
+                                  ? <>Adress "{g.order_number}" matchade inget ärende. Sök manuellt nedan.</>
+                                  : <>Varken ordernummer {g.order_number}, adress eller kundnamn{g.groupCustomerName ? ` "${g.groupCustomerName}"` : ''} matchade.</>}
+                              </p>
+                            )}
+                            {g.candidates.length > 0 && (
+                              <>
+                                <Button
+                                  type="button"
+                                  className="w-full min-h-12 h-auto justify-start whitespace-normal text-left"
+                                  onClick={() => confirmGroupCase(g.order_number, g.candidates[0].case)}
+                                >
+                                  Koppla till ärendet {g.candidates[0].case.address}{g.candidates[0].case.customer_name ? ` – ${g.candidates[0].case.customer_name}` : ''}
+                                </Button>
+                                <p className="text-xs text-muted-foreground mt-1">Träff på {g.candidates[0].label}{caseStatusLabel(g.candidates[0].case.status) ? ` · ${caseStatusLabel(g.candidates[0].case.status)}` : ''}</p>
+                              </>
+                            )}
+                            {(g.candidates.length > 1 || g.aOrderCandidates.length > 0 || !isMontorInvoice) && (
+                              <div className="border rounded-md divide-y mt-2">
+                                {g.candidates.slice(1).map(cand => (
+                                  <button key={cand.case.id} type="button"
+                                    onClick={() => confirmGroupCase(g.order_number, cand.case)}
+                                    className="w-full min-h-12 text-left px-3 py-2 text-sm">
+                                    <div className="font-medium">{cand.case.address}</div>
+                                    <div className="text-xs text-muted-foreground">Ärende · {cand.case.customer_name} · {cand.label}</div>
+                                  </button>
+                                ))}
+                                {g.aOrderCandidates.map(c => (
+                                  <button key={c.aOrder.id} type="button"
+                                    onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'aorder', aOrder: c.aOrder } }))}
+                                    className="w-full min-h-12 text-left px-3 py-2 text-sm">
+                                    <div className="font-medium">
+                                      {g.candidates.length > 0 ? 'Skapa nytt ärende trots att ett liknande finns' : 'Skapa ärende och koppla vid import'}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      A-order #{c.aOrder.order_number ?? '—'} · {c.aOrder.customer_name}{c.aOrder.customer_address ? ` · ${c.aOrder.customer_address}` : ''} · {c.reason}
+                                    </div>
+                                  </button>
+                                ))}
+                                {!isMontorInvoice && (
+                                  <button type="button"
+                                    onClick={() => setGroupChoices(prev => ({ ...prev, [g.order_number]: { kind: 'unlinked' } }))}
+                                    className="w-full min-h-12 text-left px-3 py-2 text-sm text-muted-foreground">
+                                    Importera utan koppling — koppla senare via Okopplade dokument
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                            {isMontorInvoice && (
+                              <div className="mt-2">
+                                <Button variant="outline" size="sm" className="min-h-11" onClick={() => toggleSkip(g.order_number, true)}>
+                                  Hoppa över denna adress
+                                </Button>
+                              </div>
+                            )}
                           </AlertDescription>
                         </Alert>
                       ))}
@@ -1433,15 +1285,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                       {unassignedLines.map(li => {
                         const idx = lineItems.indexOf(li);
                         if (isMontorInvoice) {
-                          const q = (lineSearch[idx] ?? '').trim().toLowerCase();
-                          const results = q
-                            ? (cases as CaseRow[]).filter(c =>
-                                (c.customer_name || '').toLowerCase().includes(q) ||
-                                (c.address || '').toLowerCase().includes(q) ||
-                                (c.offer_number || '').toLowerCase().includes(q) ||
-                                ((c as any).order_number || '').toLowerCase().includes(q)
-                              ).slice(0, 8)
-                            : [];
+                          const results = searchCaseList(cases as CaseRow[], lineSearch[idx] ?? '', 8);
                           return (
                             <div key={idx} className="p-2 space-y-2 text-sm">
                               <div className="flex items-start justify-between gap-2">
@@ -1629,24 +1473,58 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             </div>
           )}
 
-          {isSheet && (jobAddress.trim() || extracted) && !chosenCase && (
-            strongAddrMatch ? (
+          {!isMulti && !chosenCase && (jobAddress.trim() || orderNumber.trim() || customerName.trim() || extracted) && (
+            singleTop?.level === 'auto' ? (
               <Alert>
                 <Check className="h-4 w-4" />
-                <AlertTitle className="flex items-center gap-2">
-                  Matchat ärende <Badge variant="outline">adress</Badge>
+                <AlertTitle className="flex items-center gap-2 flex-wrap">
+                  Matchat ärende {singleTop.label && <Badge variant="outline">{singleTop.label}</Badge>}
                 </AlertTitle>
                 <AlertDescription>
                   <div className="text-sm">
-                    <div><b>{strongAddrMatch.address}</b></div>
+                    <div><b>{singleTop.case.address}</b></div>
                     <div className="text-muted-foreground">
-                      {strongAddrMatch.customer_name}
-                      {addressMatches[0]?.reason ? ` · ${addressMatches[0].reason}` : ''}
+                      {[singleTop.case.customer_name, singleTop.case.seller, caseStatusLabel(singleTop.case.status)].filter(Boolean).join(' · ')}
                     </div>
                   </div>
-                  {addressMatches.length > 1 && (
+                  {singleRanked.length > 1 && (
                     <div className="text-xs text-muted-foreground mt-2">
-                      {addressMatches.length - 1} fler adressmatchning(ar) — välj manuellt nedan om fel.
+                      {singleRanked.length - 1} fler möjliga ärenden — välj manuellt nedan om fel.
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            ) : singleRanked.length > 0 ? (
+              <Alert>
+                <Search className="h-4 w-4" />
+                <AlertTitle>Stämmer detta ärende?</AlertTitle>
+                <AlertDescription>
+                  <Button
+                    type="button"
+                    className="w-full min-h-12 h-auto justify-start whitespace-normal text-left mt-1"
+                    onClick={() => setChosenCase(singleRanked[0].case)}
+                  >
+                    Koppla till ärendet {singleRanked[0].case.address}{singleRanked[0].case.customer_name ? ` – ${singleRanked[0].case.customer_name}` : ''}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Träff på {singleRanked[0].label}{caseStatusLabel(singleRanked[0].case.status) ? ` · ${caseStatusLabel(singleRanked[0].case.status)}` : ''}
+                    {singleRanked[0].case.seller ? ` · ${singleRanked[0].case.seller}` : ''}
+                  </p>
+                  {singleRanked.length > 1 && (
+                    <div className="border rounded-md divide-y mt-2">
+                      {singleRanked.slice(1).map(cand => (
+                        <button
+                          key={cand.case.id}
+                          type="button"
+                          onClick={() => setChosenCase(cand.case)}
+                          className="w-full min-h-12 text-left px-3 py-2 text-sm"
+                        >
+                          <div className="font-medium">{cand.case.address}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {cand.case.customer_name} · {cand.label}
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </AlertDescription>
@@ -1654,74 +1532,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             ) : (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Inget ärende med adress "{jobAddress || '—'}"</AlertTitle>
-                <AlertDescription>Sök och välj ärende manuellt nedan.</AlertDescription>
-              </Alert>
-            )
-          )}
-
-          {!isMulti && !isSheet && (orderNumber.trim() || extracted) && !chosenCase && (
-            orderMatch ? (
-              <Alert>
-                <Check className="h-4 w-4" />
-                <AlertTitle>Matchat ärende (ordernummer)</AlertTitle>
-                <AlertDescription>
-                  <div className="text-sm">
-                    <div><b>{orderMatch.address}</b></div>
-                    <div className="text-muted-foreground">{orderMatch.customer_name}</div>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            ) : strongNameMatch ? (
-              <Alert>
-                <Check className="h-4 w-4" />
-                <AlertTitle className="flex items-center gap-2">
-                  Föreslaget ärende <Badge variant="outline">namn</Badge>
-                </AlertTitle>
-                <AlertDescription>
-                  <div className="text-sm">
-                    <div><b>{strongNameMatch.address}</b></div>
-                    <div className="text-muted-foreground">
-                      {strongNameMatch.customer_name}
-                      {nameCandidates[0]?.reason ? ` · ${nameCandidates[0].reason}` : ''}
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Ordernumret {orderNumber} hittades inte. Bekräfta att detta är rätt ärende, eller välj ett annat nedan.
-                  </p>
-                </AlertDescription>
-              </Alert>
-            ) : nameCandidates.length > 0 ? (
-              <Alert>
-                <Search className="h-4 w-4" />
-                <AlertTitle>Förslag baserat på kundnamn</AlertTitle>
-                <AlertDescription>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Ordernumret {orderNumber} hittades inte. Möjliga ärenden för "{customerName || '—'}":
-                  </p>
-                  <div className="border rounded-md divide-y">
-                    {nameCandidates.map(cand => (
-                      <button
-                        key={cand.case.id}
-                        type="button"
-                        onClick={() => setChosenCase(cand.case)}
-                        className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                      >
-                        <div className="font-medium">{cand.case.address}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {cand.case.customer_name} · {cand.reason}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>
-                  {orderNumber.trim()
-                    ? `Inget ärende med ordernummer ${orderNumber}`
+                  {isSheet
+                    ? `Inget ärende med adress "${jobAddress || '—'}"`
+                    : orderNumber.trim()
+                    ? `Inget ärende med ordernummer ${orderNumber}, adress eller kundnamn`
                     : 'Inget ärende kunde matchas automatiskt'}
                 </AlertTitle>
                 <AlertDescription>Sök och välj ärende manuellt nedan.</AlertDescription>
@@ -1730,17 +1545,24 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           )}
 
           {!isMulti && !effectiveCase && singleAOrderMatch && (
-            <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 space-y-1.5">
-              <div className="text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wide">Saknad kundprofil — A-order hittad via namn</div>
+            <div className="rounded-md border border-warning/60 bg-warning-soft p-3 space-y-1.5 text-warning-ink">
+              <div className="text-xs font-semibold uppercase tracking-wide">
+                {singleRanked.length > 0 ? 'A-order hittad — ett liknande ärende finns redan' : 'Saknad kundprofil — A-order hittad'}
+              </div>
               <div className="text-sm">
                 A-order <strong>#{singleAOrderMatch.aOrder.order_number ?? '—'}</strong> · {singleAOrderMatch.aOrder.customer_name}
                 {singleAOrderMatch.aOrder.customer_address ? ` · ${singleAOrderMatch.aOrder.customer_address}` : ''}
                 {typeof singleAOrderMatch.aOrder.total_amount === 'number' ? ` · montörsvärde ${singleAOrderMatch.aOrder.total_amount.toLocaleString('sv-SE')} kr` : ''}
               </div>
-              <div className="text-xs text-muted-foreground">{singleAOrderMatch.reason}. Säljregistrering saknas — vid import skapas ärendet i efterhand och A-order + utbetalning kopplas dit.</div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={singleAOrderAccept} onChange={(e) => setSingleAOrderAccept(e.target.checked)} />
-                Skapa ärende och koppla vid import
+              <div className="text-xs">
+                Träff på {singleAOrderMatch.reason}.
+                {singleRanked.length > 0
+                  ? ' Koppla hellre till det befintliga ärendet ovan. Ett nytt ärende skapas bara om du aktivt väljer det.'
+                  : ' Säljregistrering saknas — om du väljer det skapas ärendet i efterhand och A-order + utbetalning kopplas dit.'}
+              </div>
+              <label className="flex items-center gap-3 text-sm min-h-11 cursor-pointer">
+                <input type="checkbox" className="h-5 w-5" checked={singleAOrderAccept} onChange={(e) => setSingleAOrderAccept(e.target.checked)} />
+                {singleRanked.length > 0 ? 'Skapa nytt ärende trots att ett liknande finns' : 'Skapa ärende och koppla vid import'}
               </label>
             </div>
           )}
@@ -1755,7 +1577,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             </label>
           )}
 
-          {!isMulti && (!orderMatch || chosenCase) && (
+          {!isMulti && (singleTop?.level !== 'auto' || chosenCase) && (
             <div className="space-y-2">
               <Label className="flex items-center gap-1"><Search className="h-3.5 w-3.5" /> Sök ärende manuellt</Label>
               <Input

@@ -15,6 +15,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
+import { CaseMatchCandidates, caseStatusLabel } from '@/components/shared/CaseMatchCandidates';
+import { rankCases, type RankedCase } from '@/lib/caseMatching';
+import { coupleAOrderToCase, couplingToast } from '@/lib/aOrderCoupling';
 
 interface Props {
   aOrderId: string;
@@ -22,11 +25,11 @@ interface Props {
   teamName: string | null;
   customerAddress: string;
   customerName: string;
+  customerPhone?: string | null;
+  mockfjardsOrderNumber?: string | null;
   existingCaseId?: string | null;
   onDone: () => void;
 }
-
-const norm = (s: string | null | undefined) => (s ?? '').toString().toLowerCase().trim();
 
 export function CoupleAOrderDialog({
   aOrderId,
@@ -34,6 +37,8 @@ export function CoupleAOrderDialog({
   teamName,
   customerAddress,
   customerName,
+  customerPhone,
+  mockfjardsOrderNumber,
   existingCaseId,
   onDone,
 }: Props) {
@@ -41,7 +46,7 @@ export function CoupleAOrderDialog({
   const [open, setOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [cases, setCases] = useState<any[]>([]);
-  const [strongMatches, setStrongMatches] = useState<any[]>([]);
+  const [candidates, setCandidates] = useState<RankedCase<any>[]>([]);
   const [selectedCaseId, setSelectedCaseId] = useState<string>('');
   const [montageDate, setMontageDate] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
@@ -53,7 +58,7 @@ export function CoupleAOrderDialog({
       try {
         const { data, error } = await (supabase as any)
           .from('cases')
-          .select('id, address, customer_name, status, team, montage_date')
+          .select('id, address, city, customer_name, customer_email, customer_phone, order_number, seller, status, team, montage_date')
           .neq('status', 'fakturerad')
           .order('address');
         if (error) throw error;
@@ -62,12 +67,17 @@ export function CoupleAOrderDialog({
         setCases(list);
         if (existingCaseId) {
           setSelectedCaseId(existingCaseId);
-          setStrongMatches([]);
+          setCandidates([]);
         } else {
-          const target = norm(customerAddress);
-          const strong = target ? list.filter(c => norm(c.address) === target) : [];
-          setStrongMatches(strong);
-          if (strong.length === 1) setSelectedCaseId(strong[0].id);
+          const ranked = rankCases(list, {
+            address: customerAddress,
+            name: customerName,
+            phone: customerPhone,
+            mockfjardsOrderNumber,
+          }, { limit: 5 });
+          setCandidates(ranked);
+          // Både auto och förslag förväljs; förslag visar "Stämmer detta ärende?".
+          if (ranked[0]) setSelectedCaseId(ranked[0].case.id);
         }
       } catch (e: any) {
         console.error(e);
@@ -84,6 +94,8 @@ export function CoupleAOrderDialog({
     () => cases.find(c => c.id === selectedCaseId) || null,
     [cases, selectedCaseId],
   );
+  const top = candidates[0] ?? null;
+  const topIsSelected = !!top && top.case.id === selectedCaseId;
 
   function finish() {
     setOpen(false);
@@ -94,75 +106,18 @@ export function CoupleAOrderDialog({
     if (!selectedCaseId || !selectedCase) return;
     setSubmitting(true);
     try {
-      const { error: aoErr } = await (supabase as any)
-        .from('a_orders')
-        .update({ case_id: selectedCaseId })
-        .eq('id', aOrderId);
-      if (aoErr) throw aoErr;
-
-      const hasTeam = !!teamId;
-      if (hasTeam) {
-        const caseUpdate: any = {
-          team: teamName,
-          status: 'montage_bokat',
-        };
-        if (montageDate) caseUpdate.montage_date = montageDate;
-        const { error: cErr } = await (supabase as any)
-          .from('cases')
-          .update(caseUpdate)
-          .eq('id', selectedCaseId);
-        if (cErr) throw cErr;
-      }
-
-      // Hämta order_number/invoice_number för loggrad
-      const { data: aoData } = await (supabase as any)
-        .from('a_orders')
-        .select('order_number, invoice_number')
-        .eq('id', aOrderId)
-        .maybeSingle();
-      const ref = aoData?.invoice_number || aoData?.order_number || aOrderId.slice(0, 8);
-      const effectiveMontageDate = montageDate || selectedCase.montage_date || null;
-      const descParts: string[] = [
-        `A-order ${ref} kopplad.`,
-        hasTeam ? `Montör: ${teamName}.` : 'Montör: ej satt.',
-      ];
-      if (hasTeam) {
-        descParts.push(
-          `Status → Montage bokat${effectiveMontageDate ? ', montagedatum ' + effectiveMontageDate : ''}.`,
-        );
-      }
-      try {
-        await (supabase as any).from('case_events').insert({
-          case_id: selectedCaseId,
-          event_type: 'aorder_coupled',
-          description: descParts.join(' '),
-        });
-      } catch (e) {
-        console.error('case_events insert failed', e);
-      }
-
-      // Kolla leveransdatum/vecka för varningar
-      let missingDelivery = false;
-      try {
-        const { data: cd } = await (supabase as any)
-          .from('cases')
-          .select('delivery_date, delivery_week')
-          .eq('id', selectedCaseId)
-          .maybeSingle();
-        missingDelivery = !cd?.delivery_date && !cd?.delivery_week;
-      } catch {}
-
-      const extras: string[] = [];
-      if (hasTeam && !effectiveMontageDate) extras.push('montagedatum saknas – komplettera i ärendet');
-      if (missingDelivery) extras.push('leveransdatum/vecka saknas');
-      const extraMsg = extras.length ? ` OBS: ${extras.join('; ')}.` : '';
-
-      toast.success(`A-order kopplad till ${selectedCase.address}.${extraMsg}`);
-
+      const { warnings } = await coupleAOrderToCase({
+        aOrderId,
+        caseId: selectedCaseId,
+        teamId,
+        teamName,
+        montageDate: montageDate || null,
+        existingMontageDate: selectedCase.montage_date ?? null,
+      });
+      toast.success(couplingToast(selectedCase.address, warnings));
       qc.invalidateQueries({ queryKey: ['cases'] });
       qc.invalidateQueries({ queryKey: ['pipeline'] });
       qc.invalidateQueries({ queryKey: ['a_orders'] });
-
       finish();
     } catch (e: any) {
       console.error(e);
@@ -188,7 +143,7 @@ export function CoupleAOrderDialog({
         {loading ? (
           <div className="py-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Kopplar A-order till ärende…
+            Letar efter matchande ärenden…
           </div>
         ) : (
           <div className="space-y-4">
@@ -198,40 +153,28 @@ export function CoupleAOrderDialog({
                 {selectedCase.customer_name ? ` – ${selectedCase.customer_name}` : ''}
               </div>
             )}
-            {!existingCaseId && strongMatches.length === 1 && selectedCase && (
-              <div className="text-sm text-muted-foreground">
-                Föreslaget ärende: <strong>{selectedCase.address}</strong>
-                {selectedCase.customer_name ? ` – ${selectedCase.customer_name}` : ''}
-              </div>
-            )}
-            {!existingCaseId && strongMatches.length > 1 && (
-              <div className="space-y-1">
-                <Label className="text-xs">Möjliga träffar</Label>
-                <div className="rounded border divide-y text-sm">
-                  {strongMatches.map(m => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      className={`w-full text-left px-3 py-2 hover:bg-muted ${selectedCaseId === m.id ? 'bg-muted' : ''}`}
-                      onClick={() => setSelectedCaseId(m.id)}
-                    >
-                      <div className="font-medium">{m.address}</div>
-                      {m.customer_name && (
-                        <div className="text-xs text-muted-foreground">{m.customer_name}</div>
-                      )}
-                    </button>
-                  ))}
-                </div>
+
+            {!existingCaseId && candidates.length > 0 && (
+              <div className="space-y-1.5">
+                {top?.level === 'suggest' && topIsSelected && (
+                  <p className="text-sm font-medium text-warning-ink">Stämmer detta ärende?</p>
+                )}
+                <Label className="text-xs">
+                  {top?.level === 'auto' ? 'Matchat ärende' : candidates.length > 1 ? 'Möjliga träffar' : 'Möjlig träff'}
+                </Label>
+                <CaseMatchCandidates candidates={candidates} selectedId={selectedCaseId} onSelect={setSelectedCaseId} />
               </div>
             )}
 
             <div>
-              <Label className="text-xs">Ärende</Label>
+              <Label className="text-xs">
+                {candidates.length === 0 && !existingCaseId ? 'Inget matchande ärende hittades – sök ärende' : 'Annat ärende'}
+              </Label>
               <CaseCombobox
-                cases={cases.map(c => ({ id: c.id, address: c.address, customer_name: c.customer_name }))}
+                cases={cases.map(c => ({ id: c.id, address: c.address, city: c.city, customer_name: c.customer_name, statusLabel: caseStatusLabel(c.status) }))}
                 value={selectedCaseId}
                 onChange={setSelectedCaseId}
-                placeholder="Välj ärende…"
+                placeholder="Sök adress, ort eller kund…"
               />
             </div>
 
@@ -243,11 +186,11 @@ export function CoupleAOrderDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={finish} disabled={submitting}>Skippa koppling</Button>
+          <Button variant="outline" className="min-h-11" onClick={finish} disabled={submitting}>Skippa koppling</Button>
           <Button
             onClick={handleCouple}
             disabled={!selectedCaseId || submitting || loading}
-            className="gap-2"
+            className="gap-2 min-h-11"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             Koppla till ärende

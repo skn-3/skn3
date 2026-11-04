@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatAmount } from '@/lib/utils';
 import { AlertTriangle, Search, Link2 } from 'lucide-react';
+import { rankCases, matchesSearch } from '@/lib/caseMatching';
 
 interface LinkOrdersViewProps {
   currentUser: string;
@@ -30,106 +31,15 @@ type Strength = 'high' | 'medium' | 'low' | 'none';
 type Match = { caseRow: CaseLite | null; strength: Strength; reasons: string[]; score: number };
 
 const norm = (s: any) => String(s ?? '').toLowerCase().normalize('NFC').trim();
-const stripDiacritics = (s: string) =>
-  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-const tokens = (s: any) =>
-  stripDiacritics(norm(s))
-    .replace(/[^a-z0-9åäö\s]/gi, ' ')
-    .split(/\s+/)
-    .filter(t => t.length >= 2);
-
-function tokenOverlap(a: string, b: string) {
-  const ta = new Set(tokens(a));
-  const tb = new Set(tokens(b));
-  if (ta.size === 0 || tb.size === 0) return 0;
-  let hit = 0;
-  ta.forEach(t => { if (tb.has(t)) hit++; });
-  return hit / Math.min(ta.size, tb.size);
-}
-
-type ParsedAddr = { street: string; number: string; city: string };
-
-function parseAddress(raw: any): ParsedAddr {
-  const s = stripDiacritics(norm(raw));
-  if (!s) return { street: '', number: '', city: '' };
-  const parts = s.split(',').map(p => p.trim()).filter(Boolean);
-  const head = parts[0] || '';
-  let city = '';
-  if (parts.length > 1) {
-    city = parts.slice(1).join(' ').replace(/\b\d{3}\s?\d{2}\b/g, '').replace(/\s+/g, ' ').trim();
-  } else {
-    const m = s.match(/^(.*?)(\d{3}\s?\d{2})\s+(.+)$/);
-    if (m) city = m[3].trim();
-  }
-  const numMatch = head.match(/(\d+)\s*([a-z])?\b/);
-  const number = numMatch ? (numMatch[1] + (numMatch[2] || '')) : '';
-  const street = (numMatch ? head.slice(0, numMatch.index).trim() : head)
-    .replace(/[^a-z0-9åäö\s]/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return { street, number, city };
-}
-
-function streetNameMatch(a: string, b: string): boolean {
-  if (!a || !b) return false;
-  if (a === b) return true;
-  if (a.length >= 4 && b.includes(a)) return true;
-  if (b.length >= 4 && a.includes(b)) return true;
-  return false;
-}
-
-function addressMatch(orderAddr: any, caseAddr: any): { matched: boolean; sameCity: boolean } {
-  const a = parseAddress(orderAddr);
-  const b = parseAddress(caseAddr);
-  if (!a.street || !b.street || !a.number || !b.number) return { matched: false, sameCity: false };
-  if (a.number !== b.number) return { matched: false, sameCity: false };
-  if (!streetNameMatch(a.street, b.street)) return { matched: false, sameCity: false };
-  const sameCity = !!(a.city && b.city && (a.city === b.city || a.city.includes(b.city) || b.city.includes(a.city)));
-  return { matched: true, sameCity };
-}
-
-function scoreOrderAgainstCase(order: OrderRow, c: CaseLite): Match {
-  const reasons: string[] = [];
-  let score = 0;
-  let strength: Strength = 'none';
-
-  const orderNum = norm(order.order_number);
-  const caseNum = norm(c.order_number);
-  if (orderNum && caseNum && orderNum === caseNum) {
-    score += 100;
-    reasons.push('ordernummer');
-    strength = 'high';
-  }
-
-  const addr = addressMatch(order.customer_address, c.address);
-  if (addr.matched) {
-    score += 60 + (addr.sameCity ? 10 : 0);
-    reasons.push(addr.sameCity ? 'adress (gata, nr, ort)' : 'adress (gata + nr)');
-    strength = 'high';
-  }
-
-  const nameOvl = tokenOverlap(order.customer_name, c.customer_name);
-  if (nameOvl >= 0.5) {
-    score += 30;
-    reasons.push('namn');
-    if (strength === 'none') strength = 'medium';
-  } else if (nameOvl > 0) {
-    score += 10;
-    reasons.push('namn (delvis)');
-    if (strength === 'none') strength = 'medium';
-  }
-
-  return { caseRow: c, strength, reasons, score };
-}
-
+/** Bästa ärende för en order via gemensam caseMatching (auto = hög, förslag = medel). */
 function bestMatch(order: OrderRow, cases: CaseLite[]): Match {
-  let best: Match = { caseRow: null, strength: 'none', reasons: [], score: 0 };
-  for (const c of cases) {
-    const m = scoreOrderAgainstCase(order, c);
-    if (m.score > best.score) best = m;
-  }
-  return best;
+  const top = rankCases(cases, {
+    address: order.customer_address,
+    name: order.customer_name,
+    mockfjardsOrderNumber: order.order_number,
+  }, { limit: 1 })[0];
+  if (!top) return { caseRow: null, strength: 'none', reasons: [], score: 0 };
+  return { caseRow: top.case, strength: top.level === 'auto' ? 'high' : 'medium', reasons: top.reasons.filter(r => r !== 'annan ort'), score: top.score };
 }
 
 const strengthBadge: Record<Strength, { label: string; cls: string }> = {
@@ -358,14 +268,9 @@ function ManualPicker({ cases, onPick }: { cases: CaseLite[]; onPick: (c: CaseLi
   const [q, setQ] = useState('');
 
   const results = useMemo(() => {
-    const nq = norm(q);
-    if (!nq) return cases.slice(0, 30);
+    if (!q.trim()) return cases.slice(0, 30);
     return cases
-      .filter(c =>
-        norm(c.customer_name).includes(nq) ||
-        norm(c.address).includes(nq) ||
-        norm(c.order_number).includes(nq),
-      )
+      .filter(c => matchesSearch([c.customer_name, c.address, c.city, c.order_number], q))
       .slice(0, 50);
   }, [q, cases]);
 

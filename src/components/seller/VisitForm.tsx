@@ -43,6 +43,7 @@ import { cn, formatAmount } from '@/lib/utils';
 import { toast } from 'sonner';
 import { celebrateSignedDeal } from '@/lib/celebrate';
 import { logActivity } from '@/lib/activityLog';
+import { useDuplicateCaseGuard } from '@/components/shared/DuplicateCaseGuard';
 
 type Result = 'signerat' | 'aterkoppla' | 'nej';
 
@@ -426,7 +427,10 @@ export function VisitForm({ sellerName }: VisitFormProps) {
     },
   });
 
+  const dupGuard = useDuplicateCaseGuard();
   const handleSubmit = () => {
+    // Signerat skapar ett ärende: varna först om gata + husnummer redan finns.
+    if (form.result === 'signerat') { void dupGuard.guard(form.address, () => mutation.mutate()); return; }
     mutation.mutate();
   };
 
@@ -785,7 +789,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
 
       <Button
         onClick={handleSubmit}
-        disabled={!canSubmit || mutation.isPending}
+        disabled={!canSubmit || mutation.isPending || dupGuard.checking}
         className="w-full sm:w-auto"
       >
         {mutation.isPending
@@ -795,6 +799,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
             : 'Spara besök'}
       </Button>
 
+      {dupGuard.dialog}
     </div>
   );
 }

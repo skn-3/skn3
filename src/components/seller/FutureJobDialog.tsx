@@ -11,6 +11,8 @@ import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChevronsUpDown, X } from 'lucide-react';
 import type { CaseRow } from '@/lib/supabaseClient';
+import { rankCases, matchesSearch } from '@/lib/caseMatching';
+import { caseMatchTitle } from '@/components/shared/CaseMatchCandidates';
 
 interface Props {
   open: boolean;
@@ -26,6 +28,9 @@ interface CaseOption {
   customer_phone: string | null;
   seller: string | null;
   order_number: string | null;
+  city?: string | null;
+  customer_email?: string | null;
+  status?: string | null;
 }
 
 export function FutureJobDialog({ open, onOpenChange, caseData, currentUser }: Props) {
@@ -56,9 +61,9 @@ export function FutureJobDialog({ open, onOpenChange, caseData, currentUser }: P
     queryFn: async (): Promise<CaseOption[]> => {
       const { data, error } = await supabase
         .from('cases')
-        .select('id, address, customer_name, customer_phone, seller, order_number')
+        .select('id, address, city, customer_name, customer_email, customer_phone, seller, order_number, status')
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(5000);
       if (error) throw error;
       return (data || []) as CaseOption[];
     },
@@ -91,6 +96,18 @@ export function FutureJobDialog({ open, onOpenChange, caseData, currentUser }: P
       seller: currentUser,
     };
   }, [caseData, pickedCase, customerName, address, phone, currentUser]);
+
+  // "Ärende hittat" för kund utan ärende: samma matchning som i resten av appen.
+  const [matchInput, setMatchInput] = useState({ name: '', address: '', phone: '' });
+  useEffect(() => {
+    const t = setTimeout(() => setMatchInput({ name: customerName, address, phone }), 400);
+    return () => clearTimeout(t);
+  }, [customerName, address, phone]);
+  const caseMatch = useMemo(() => {
+    if (locked || pickedCase || !cases?.length) return null;
+    if (!matchInput.name.trim() && !matchInput.address.trim() && !matchInput.phone.trim()) return null;
+    return rankCases(cases, { name: matchInput.name, address: matchInput.address, phone: matchInput.phone }, { limit: 1 })[0] ?? null;
+  }, [cases, matchInput, locked, pickedCase]);
 
   const canSave = description.trim() !== '' && contactDate !== '' && target.customer_name !== '';
 
@@ -155,11 +172,9 @@ export function FutureJobDialog({ open, onOpenChange, caseData, currentUser }: P
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                       <Command
                         filter={(value, search) => {
-                          const term = search.toLowerCase();
                           const c = (cases || []).find(x => x.id === value);
                           if (!c) return 0;
-                          const hay = [c.address, c.customer_name || '', c.order_number || ''].join(' ').toLowerCase();
-                          return hay.includes(term) ? 1 : 0;
+                          return matchesSearch([c.address, c.city, c.customer_name, c.order_number], search) ? 1 : 0;
                         }}
                       >
                         <CommandInput placeholder="Sök adress, kund eller ordernr..." autoFocus />
@@ -206,6 +221,15 @@ export function FutureJobDialog({ open, onOpenChange, caseData, currentUser }: P
                       <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
                     </div>
                   </div>
+                  {caseMatch && (
+                    <div className="rounded-md border border-warning/60 bg-warning-soft px-3 py-2 flex flex-wrap items-center gap-2 text-sm text-warning-ink">
+                      <span className="flex-1 min-w-0">
+                        Ärende hittat: <strong>{caseMatchTitle(caseMatch.case)}</strong>
+                        {caseMatch.label && <span className="block text-xs">Träff på {caseMatch.label}</span>}
+                      </span>
+                      <Button type="button" size="sm" className="min-h-11" onClick={() => setPickedCase(caseMatch.case)}>Koppla</Button>
+                    </div>
+                  )}
                 </div>
               )}
             </>
