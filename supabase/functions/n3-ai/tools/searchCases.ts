@@ -22,7 +22,7 @@ export const searchCases: ReadTool = {
  schema:{type:'object',properties:{query:{type:'string'},status:{type:'string'}},required:['query'],additionalProperties:false},
  async handler(args,ctx){
   const query=text(args.query); const status=text(args.status);
-  let q=ownScope(cases(ctx).select(CASE_FIELDS),ctx); q=searchWords(q,query,['address','customer_name','city','order_number','offer_number']); if(status)q=q.eq('status',status);
+  let q=ownScope(cases(ctx).select(CASE_FIELDS),ctx); q=searchWords(q,query.replace(/,/g,' '),['address','customer_name','city','order_number','offer_number']); if(status)q=q.eq('status',status);
   const exact=await rows(q.order('address'),ctx);
   let matched: any[]=[];
   try { matched=(await matchCandidates(query,ctx)).filter(c=>!status||c.status===status); } catch { matched=[]; }
