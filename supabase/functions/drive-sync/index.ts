@@ -202,7 +202,7 @@ Deno.serve(async req => {
           result.released = ids.length;
           if (ids.length) {
             // Ny generation: drive_sync_finish väcker synken direkt när kontrollen är klar.
-            await admin.from('drive_sync_runtime').update({generation:generation+1}).eq('id',1).eq('lease_owner',owner);
+            await admin.from('drive_sync_runtime').update({generation:Number(generation)+1}).eq('id',1).eq('lease_owner',owner);
             collected = await collectCandidates(admin,settings);
           }
         } catch (e) { result.errors++; result.notes.push(`Årsmappar: ${message(e)}`); }
