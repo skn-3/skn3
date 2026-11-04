@@ -21,6 +21,9 @@ import { SignedImage } from '@/components/shared/SignedImage';
 import { HOUR_RATE, STATUS_LABELS } from '@/lib/constants';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
 import { CoupleAOrderDialog } from '@/components/aorders/CoupleAOrderDialog';
+import { caseMatchTitle } from '@/components/shared/CaseMatchCandidates';
+import { rankCases } from '@/lib/caseMatching';
+import { coupleAOrderToCase, couplingToast } from '@/lib/aOrderCoupling';
 import { UnhandledCostsBlock } from '@/components/aorders/UnhandledCostsBlock';
 import { MockfjardsInvoiceImportDialog } from '@/components/aorders/MockfjardsInvoiceImportDialog';
 import { PAYER_LABEL, type ServicePayer, type ServiceOrderPrefill } from '@/lib/serviceOrder';
@@ -436,7 +439,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
         scheduled_delivery: isSlim ? false : scheduledDelivery,
         delivery_time: !isSlim && scheduledDelivery && deliveryTime ? deliveryTime : null,
         team_id: teamId && teamId !== '__none__' ? teamId : null,
-        case_id: isSlim ? (kompCaseId || null) : (prefill?.case_id ?? order?.case_id ?? null),
+        case_id: kompCaseId || null,
         internal_extra_hours: isService ? 0 : (internalExtraHours || 0),
         internal_hour_rate: isService ? 0 : (internalHourRate || 0),
         internal_extra_amount: isService ? 0 : (internalExtraAmount || 0),
@@ -607,7 +610,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       setConfirmSend(false);
       onSaved?.();
       // Stäng inte sheet om kopplingsdialog ska visas — den stänger via onDone.
-      if (coupledHandled || isService) onOpenChange(false);
+      if (!dialogPendingRef.current || isService) onOpenChange(false);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Kunde inte skicka');
@@ -687,6 +690,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               <div>
                 <Label>Adress *</Label>
                 <Input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
+                {matchHint}
               </div>
               <div>
                 <Label>Ersätts av</Label>
@@ -724,6 +728,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
             <div className="col-span-2 md:col-span-3">
               <Label>{isKomp ? 'Mottagare / notering (valfritt)' : 'Adress *'}</Label>
               <Input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} required={!isKomp} />
+              {matchHint}
             </div>
             {!isKomp && (
               <div>
@@ -779,7 +784,7 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
           {isKomp && (
             <div>
               <Label>Koppla till ärende (valfritt)</Label>
-              <CaseCombobox cases={kompCases} value={kompCaseId} onChange={setKompCaseId} />
+              <CaseCombobox cases={kompCases} value={kompCaseId} onChange={chooseCase} />
             </div>
           )}
 
@@ -1101,9 +1106,12 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
               teamName={couplingFor.teamName}
               customerAddress={couplingFor.customerAddress}
               customerName={couplingFor.customerName}
+              customerPhone={customerPhone || null}
+              mockfjardsOrderNumber={mockfjardsOrderNumber || null}
               existingCaseId={couplingFor.existingCaseId}
               onDone={() => {
                 setCoupledHandled(true);
+                dialogPendingRef.current = false;
                 setCouplingFor(null);
                 onOpenChange(false);
               }}
