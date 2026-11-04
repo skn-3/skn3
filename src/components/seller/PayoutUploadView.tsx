@@ -1473,24 +1473,58 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             </div>
           )}
 
-          {isSheet && (jobAddress.trim() || extracted) && !chosenCase && (
-            strongAddrMatch ? (
+          {!isMulti && !chosenCase && (jobAddress.trim() || orderNumber.trim() || customerName.trim() || extracted) && (
+            singleTop?.level === 'auto' ? (
               <Alert>
                 <Check className="h-4 w-4" />
-                <AlertTitle className="flex items-center gap-2">
-                  Matchat ärende <Badge variant="outline">adress</Badge>
+                <AlertTitle className="flex items-center gap-2 flex-wrap">
+                  Matchat ärende {singleTop.label && <Badge variant="outline">{singleTop.label}</Badge>}
                 </AlertTitle>
                 <AlertDescription>
                   <div className="text-sm">
-                    <div><b>{strongAddrMatch.address}</b></div>
+                    <div><b>{singleTop.case.address}</b></div>
                     <div className="text-muted-foreground">
-                      {strongAddrMatch.customer_name}
-                      {addressMatches[0]?.reason ? ` · ${addressMatches[0].reason}` : ''}
+                      {[singleTop.case.customer_name, singleTop.case.seller, caseStatusLabel(singleTop.case.status)].filter(Boolean).join(' · ')}
                     </div>
                   </div>
-                  {addressMatches.length > 1 && (
+                  {singleRanked.length > 1 && (
                     <div className="text-xs text-muted-foreground mt-2">
-                      {addressMatches.length - 1} fler adressmatchning(ar) — välj manuellt nedan om fel.
+                      {singleRanked.length - 1} fler möjliga ärenden — välj manuellt nedan om fel.
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            ) : singleRanked.length > 0 ? (
+              <Alert>
+                <Search className="h-4 w-4" />
+                <AlertTitle>Stämmer detta ärende?</AlertTitle>
+                <AlertDescription>
+                  <Button
+                    type="button"
+                    className="w-full min-h-12 h-auto justify-start whitespace-normal text-left mt-1"
+                    onClick={() => setChosenCase(singleRanked[0].case)}
+                  >
+                    Koppla till ärendet {singleRanked[0].case.address}{singleRanked[0].case.customer_name ? ` – ${singleRanked[0].case.customer_name}` : ''}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Träff på {singleRanked[0].label}{caseStatusLabel(singleRanked[0].case.status) ? ` · ${caseStatusLabel(singleRanked[0].case.status)}` : ''}
+                    {singleRanked[0].case.seller ? ` · ${singleRanked[0].case.seller}` : ''}
+                  </p>
+                  {singleRanked.length > 1 && (
+                    <div className="border rounded-md divide-y mt-2">
+                      {singleRanked.slice(1).map(cand => (
+                        <button
+                          key={cand.case.id}
+                          type="button"
+                          onClick={() => setChosenCase(cand.case)}
+                          className="w-full min-h-12 text-left px-3 py-2 text-sm"
+                        >
+                          <div className="font-medium">{cand.case.address}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {cand.case.customer_name} · {cand.label}
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </AlertDescription>
@@ -1498,74 +1532,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             ) : (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Inget ärende med adress "{jobAddress || '—'}"</AlertTitle>
-                <AlertDescription>Sök och välj ärende manuellt nedan.</AlertDescription>
-              </Alert>
-            )
-          )}
-
-          {!isMulti && !isSheet && (orderNumber.trim() || extracted) && !chosenCase && (
-            orderMatch ? (
-              <Alert>
-                <Check className="h-4 w-4" />
-                <AlertTitle>Matchat ärende (ordernummer)</AlertTitle>
-                <AlertDescription>
-                  <div className="text-sm">
-                    <div><b>{orderMatch.address}</b></div>
-                    <div className="text-muted-foreground">{orderMatch.customer_name}</div>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            ) : strongNameMatch ? (
-              <Alert>
-                <Check className="h-4 w-4" />
-                <AlertTitle className="flex items-center gap-2">
-                  Föreslaget ärende <Badge variant="outline">namn</Badge>
-                </AlertTitle>
-                <AlertDescription>
-                  <div className="text-sm">
-                    <div><b>{strongNameMatch.address}</b></div>
-                    <div className="text-muted-foreground">
-                      {strongNameMatch.customer_name}
-                      {nameCandidates[0]?.reason ? ` · ${nameCandidates[0].reason}` : ''}
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Ordernumret {orderNumber} hittades inte. Bekräfta att detta är rätt ärende, eller välj ett annat nedan.
-                  </p>
-                </AlertDescription>
-              </Alert>
-            ) : nameCandidates.length > 0 ? (
-              <Alert>
-                <Search className="h-4 w-4" />
-                <AlertTitle>Förslag baserat på kundnamn</AlertTitle>
-                <AlertDescription>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Ordernumret {orderNumber} hittades inte. Möjliga ärenden för "{customerName || '—'}":
-                  </p>
-                  <div className="border rounded-md divide-y">
-                    {nameCandidates.map(cand => (
-                      <button
-                        key={cand.case.id}
-                        type="button"
-                        onClick={() => setChosenCase(cand.case)}
-                        className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                      >
-                        <div className="font-medium">{cand.case.address}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {cand.case.customer_name} · {cand.reason}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>
-                  {orderNumber.trim()
-                    ? `Inget ärende med ordernummer ${orderNumber}`
+                  {isSheet
+                    ? `Inget ärende med adress "${jobAddress || '—'}"`
+                    : orderNumber.trim()
+                    ? `Inget ärende med ordernummer ${orderNumber}, adress eller kundnamn`
                     : 'Inget ärende kunde matchas automatiskt'}
                 </AlertTitle>
                 <AlertDescription>Sök och välj ärende manuellt nedan.</AlertDescription>
@@ -1574,17 +1545,24 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           )}
 
           {!isMulti && !effectiveCase && singleAOrderMatch && (
-            <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 space-y-1.5">
-              <div className="text-xs font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wide">Saknad kundprofil — A-order hittad via namn</div>
+            <div className="rounded-md border border-warning/60 bg-warning-soft p-3 space-y-1.5 text-warning-ink">
+              <div className="text-xs font-semibold uppercase tracking-wide">
+                {singleRanked.length > 0 ? 'A-order hittad — ett liknande ärende finns redan' : 'Saknad kundprofil — A-order hittad'}
+              </div>
               <div className="text-sm">
                 A-order <strong>#{singleAOrderMatch.aOrder.order_number ?? '—'}</strong> · {singleAOrderMatch.aOrder.customer_name}
                 {singleAOrderMatch.aOrder.customer_address ? ` · ${singleAOrderMatch.aOrder.customer_address}` : ''}
                 {typeof singleAOrderMatch.aOrder.total_amount === 'number' ? ` · montörsvärde ${singleAOrderMatch.aOrder.total_amount.toLocaleString('sv-SE')} kr` : ''}
               </div>
-              <div className="text-xs text-muted-foreground">{singleAOrderMatch.reason}. Säljregistrering saknas — vid import skapas ärendet i efterhand och A-order + utbetalning kopplas dit.</div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={singleAOrderAccept} onChange={(e) => setSingleAOrderAccept(e.target.checked)} />
-                Skapa ärende och koppla vid import
+              <div className="text-xs">
+                Träff på {singleAOrderMatch.reason}.
+                {singleRanked.length > 0
+                  ? ' Koppla hellre till det befintliga ärendet ovan. Ett nytt ärende skapas bara om du aktivt väljer det.'
+                  : ' Säljregistrering saknas — om du väljer det skapas ärendet i efterhand och A-order + utbetalning kopplas dit.'}
+              </div>
+              <label className="flex items-center gap-3 text-sm min-h-11 cursor-pointer">
+                <input type="checkbox" className="h-5 w-5" checked={singleAOrderAccept} onChange={(e) => setSingleAOrderAccept(e.target.checked)} />
+                {singleRanked.length > 0 ? 'Skapa nytt ärende trots att ett liknande finns' : 'Skapa ärende och koppla vid import'}
               </label>
             </div>
           )}
@@ -1599,7 +1577,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             </label>
           )}
 
-          {!isMulti && (!orderMatch || chosenCase) && (
+          {!isMulti && (singleTop?.level !== 'auto' || chosenCase) && (
             <div className="space-y-2">
               <Label className="flex items-center gap-1"><Search className="h-3.5 w-3.5" /> Sök ärende manuellt</Label>
               <Input
