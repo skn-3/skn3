@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
     ].filter(Boolean)));
 
     const payload: Record<string, unknown> = {
-      from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
+      from: 'SmartKlimat N3prenad <n3prenad@smartklimat.org>',
       to: [body.to],
       subject: `Beställning L-Profil/Underbleck — ${body.delivery_address}`,
       html,

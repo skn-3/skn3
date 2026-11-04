@@ -66,7 +66,7 @@ const GLOBAL_CC = 'mf@malke.se';
 
 async function sendEmail(lovableKey: string, resendKey: string, to: string, subject: string, html: string) {
   const payload = {
-    from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
+    from: 'SmartKlimat N3prenad <n3prenad@smartklimat.org>',
     to: [to],
     subject,
     html,

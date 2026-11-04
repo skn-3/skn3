@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
     const ccList = Array.from(new Set([...existingCc, GLOBAL_CC].filter(Boolean)));
 
     const emailPayload: Record<string, unknown> = {
-      from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
+      from: 'SmartKlimat N3prenad <n3prenad@smartklimat.org>',
       to: Array.isArray(to) ? to : [to],
       subject,
       html,

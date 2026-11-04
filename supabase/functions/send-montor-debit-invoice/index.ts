@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
       : `FAKTURA ${number} — ${team.company_name || team.name || ''}`.trim();
 
     const payload: Record<string, unknown> = {
-      from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
+      from: 'SmartKlimat N3prenad <n3prenad@smartklimat.org>',
       reply_to: 'n3prenad@smartklimat.org',
       to: [recipient],
       cc: COPY_TO,

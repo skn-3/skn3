@@ -111,7 +111,7 @@ function caseUrl(id: string): string {
 async function sendEmail(lovableKey: string, resendKey: string, subject: string, html: string) {
   const ccList = Array.from(new Set([CC_EMAIL, GLOBAL_CC].filter(Boolean)));
   const payload = {
-    from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
+    from: 'SmartKlimat N3prenad <n3prenad@smartklimat.org>',
     to: [TO_EMAIL],
     cc: ccList,
     subject,
