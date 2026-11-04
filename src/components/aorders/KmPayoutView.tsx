@@ -13,6 +13,7 @@ import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { createAndSendDebitInvoice } from '@/lib/debitInvoice';
 import { logActivity } from '@/lib/activityLog';
 import { HOUR_RATE } from '@/lib/constants';
+import { rankCases, matchesSearch, type MatchTarget } from '@/lib/caseMatching';
 import { Checkbox } from '@/components/ui/checkbox';
 import { groupPayoutLines, payoutRowTotal as rowTotal, payoutRowWithHour as rowTotalWithHour, selectedPayoutRows, planPayoutInvoices, type PayoutLineItem } from '@/lib/payoutGroups';
 
@@ -32,52 +33,11 @@ async function fileToBase64(file: File): Promise<string> {
   return btoa(binary);
 }
 
-// ---- Namnmatchning (samma modell som utbetalningsimporten) -----------------
-const normalizeName = (s: string | null | undefined) =>
-  (s ?? '')
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\p{L}\p{N}\s@.\-]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-const tokens = (s: string) => normalizeName(s).split(' ').filter(t => t.length >= 2);
+// ---- Ärendematchning: gemensam modul (src/lib/caseMatching.ts) -------------
+type Candidate = { case: CaseRow; score: number; reason: string; level: string };
 
-type Candidate = { case: CaseRow; score: number; reason: string };
-
-function scoreCaseAgainst(c: CaseRow, payoutName: string | null): Candidate | null {
-  const caseName = (c.customer_name ?? '') as string;
-  const pTokens = tokens(payoutName ?? '');
-  if (pTokens.length === 0) return null;
-  const cTokens = new Set(tokens(caseName));
-  let overlap = 0;
-  for (const t of pTokens) if (cTokens.has(t)) overlap++;
-
-  const nNorm = normalizeName(payoutName ?? '');
-  const cNorm = normalizeName(caseName);
-  const exact = nNorm && cNorm && nNorm === cNorm;
-  const reversed = nNorm && cNorm && nNorm.split(' ').slice().reverse().join(' ') === cNorm;
-  const containsFull = nNorm && cNorm && (nNorm.includes(cNorm) || cNorm.includes(nNorm));
-
-  let score = 0;
-  const reasons: string[] = [];
-  if (exact) { score += 100; reasons.push('exakt namn'); }
-  else if (reversed) { score += 90; reasons.push('omvänd ordning'); }
-  else if (containsFull && cNorm.length >= 3) { score += 70; reasons.push('delsträng'); }
-  if (overlap > 0) { score += overlap * 25; reasons.push(`${overlap} ord matchar`); }
-  if (score <= 0) return null;
-  return { case: c, score, reason: reasons.join(' · ') };
-}
-
-function findNameMatches(allCases: CaseRow[], name: string | null, limit = 5): Candidate[] {
-  if (!name) return [];
-  const out: Candidate[] = [];
-  for (const c of allCases) {
-    const cand = scoreCaseAgainst(c, name);
-    if (cand) out.push(cand);
-  }
-  out.sort((a, b) => b.score - a.score);
-  return out.slice(0, limit);
+function rankForPayout(allCases: CaseRow[], target: MatchTarget, limit = 5): Candidate[] {
+  return rankCases(allCases as any[], target, { limit }).map(r => ({ case: r.case as unknown as CaseRow, score: r.score, reason: r.label, level: r.level }));
 }
 
 type LineItem = PayoutLineItem;
@@ -199,8 +159,10 @@ export function KmPayoutView({ currentUser }: Props) {
           const customer_name = group.find(l => l.customer_name)?.customer_name ?? data.customer_name ?? '';
 
           const kmQty = bil?.qty != null ? Number(bil.qty) : (restid?.qty != null ? Number(restid.qty) : null);
-          const auto = findNameMatches(cases as CaseRow[], customer_name || null, 5);
-          const strong = auto[0] && auto[0].score >= 90 && /exakt namn/i.test(auto[0].reason) ? auto[0].case : null;
+          const jobAddress = group.find(l => (l as any).job_address)?.job_address ?? null;
+          const auto = rankForPayout(cases as CaseRow[], { name: customer_name || null, mockfjardsOrderNumber: on, address: jobAddress }, 5);
+          // Endast nivå auto väljs automatiskt; förslag visas och kräver ett tryck.
+          const strong = auto[0]?.level === 'auto' ? auto[0].case : null;
 
           collected.push({
             key: `${path}|${kind}|${on}`,
@@ -416,13 +378,10 @@ export function KmPayoutView({ currentUser }: Props) {
       <section key={kind} className="space-y-3">
         <h2 className="text-lg font-semibold">{kind === 'km' ? 'Kontrollmätningar' : 'Extra jobb'}</h2>
         {rows.filter(r => r.kind === kind).map(r => {
-          const candidates = r.caseChoice ? [] : findNameMatches(cases as CaseRow[], r.customer_name || null, 5);
-          const q = (search[r.key] ?? '').trim().toLowerCase();
+          const candidates = r.caseChoice ? [] : rankForPayout(cases as CaseRow[], { name: r.customer_name || null, mockfjardsOrderNumber: r.order_number }, 5);
+          const q = (search[r.key] ?? '').trim();
           const searchHits = q
-            ? (cases as CaseRow[]).filter(c =>
-                (c.customer_name || '').toLowerCase().includes(q) ||
-                (c.address || '').toLowerCase().includes(q)
-              ).slice(0, 6)
+            ? (cases as CaseRow[]).filter(c => matchesSearch([c.customer_name, c.address, (c as any).city], q)).slice(0, 6)
             : [];
           const chosenCase = r.caseChoice?.kind === 'case' ? r.caseChoice.case : null;
           const kmTeamHint = (chosenCase as any)?.km_team as string | undefined;
