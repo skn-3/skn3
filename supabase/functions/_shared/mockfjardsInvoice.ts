@@ -215,3 +215,29 @@ export function validateMockfjards(input: MockfjardsCheckInput): string[] {
 
 export const sumLines = (lines: { amount: number | null | undefined }[]) =>
   Math.round(lines.reduce((s, l) => s + (Number(l.amount) || 0), 0) * 100) / 100;
+
+export interface MockfjardsReading {
+  /** PDF:en har ett läsbart textlager. */
+  text_layer: boolean;
+  /** Textlagret ser ut som en Mockfjärds-självfaktura (fakturanummer + Datum + radtabell/Total). */
+  is_mockfjards: boolean;
+  header: MockfjardsHeader;
+  lines: MockfjardsLine[];
+  line_sum: number;
+  warnings: string[];
+}
+/** Hela den deterministiska tolkningen: huvud, rader och validering. Ingen AI. */
+export function interpretMockfjards(items: PdfTextItem[], fileName: string | null | undefined, today: string): MockfjardsReading {
+  const text = itemsToText(items);
+  const text_layer = text.replace(/\s/g, '').length >= 40;
+  const header = parseMockfjardsHeader(text);
+  const is_mockfjards = text_layer && !!header.invoice_number && /Fakturanummer/i.test(text) && (/Fsg\.?\s*order/i.test(text) || /Mockfj/i.test(text));
+  const lines = is_mockfjards ? parseMockfjardsLines(items) : [];
+  const line_sum = sumLines(lines);
+  const warnings = is_mockfjards ? validateMockfjards({
+    fileName, invoiceNumber: header.invoice_number, invoiceDate: header.invoice_date, dueDate: header.due_date,
+    total: header.total_amount, lineSum: line_sum, hasLines: true, today,
+  }) : [];
+  if (is_mockfjards && !lines.length) warnings.push('Inga radposter kunde läsas ur PDF:en.');
+  return { text_layer, is_mockfjards, header, lines, line_sum, warnings };
+}
