@@ -276,23 +276,28 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     subtotal: number;
     groupCustomerName: string | null;
     groupAddress: string | null; // displayed address (montor_invoice)
-    autoCase: CaseRow | null;
-    nameCandidates: Candidate[];
-    addrCandidates: AddrCandidate[];
+    /** Rangordnade kandidater (nivå auto/suggest) från caseMatching. */
+    candidates: Candidate[];
+    /** Automatiskt vald kandidat (nivå auto). */
+    autoMatch: Candidate | null;
     effectiveCase: CaseRow | null;
-    matchSource: 'order' | 'name' | 'address' | 'manual' | null;
+    matchSource: 'auto' | 'manual' | null;
     choice: GroupChoice | null;
-    aOrderCandidates: { aOrder: any; score: number; reason: string }[];
-  };
-
-  // Helper: address key for a montor_invoice line (empty => unassigned)
-  const lineAddrKey = (li: LineItem): string => {
-    const p = parseAddress(li.job_address);
-    if (!p.street || !p.number) return '';
-    return `${p.street}#${p.number}`;
+    aOrderCandidates: AOrderCandidate[];
   };
 
   const groups: Group[] = useMemo(() => {
+    const resolve = (groupId: string, candidates: Candidate[]) => {
+      const autoMatch = candidates[0]?.level === 'auto' ? candidates[0] : null;
+      const override = groupChoices[groupId] ?? null;
+      const cleared = !!clearedGroups[groupId];
+      const choice: GroupChoice | null =
+        override ?? (cleared ? null : (autoMatch ? { kind: 'case', case: autoMatch.case } : null));
+      const effectiveCase = choice?.kind === 'case' ? choice.case : null;
+      const matchSource: Group['matchSource'] = override ? 'manual' : (choice ? 'auto' : null);
+      return { autoMatch: cleared || override ? (override ? null : null) : autoMatch, choice, effectiveCase, matchSource };
+    };
+
     if (isMontorInvoice) {
       // Address-keyed groups
       const keyMap = new Map<string, { addr: string; indices: number[]; lines: LineItem[] }>();
@@ -310,13 +315,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const addrGroups: Group[] = Array.from(keyMap.entries()).map(([key, v]) => {
         const groupId = v.addr || key;
         const subtotal = v.lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
-        const candidates = addressCandidates(cases as CaseRow[], v.addr);
-        const auto = candidates[0]?.case || null;
-        const override = groupChoices[groupId] ?? null;
-        const cleared = !!clearedGroups[groupId];
-        const effective = override?.kind === 'case' ? override.case : (override ? null : (cleared ? null : auto));
-        const matchSource: Group['matchSource'] = override ? 'manual' : cleared ? null : (auto ? 'address' : null);
-        const choice: GroupChoice | null = effective ? { kind: 'case', case: effective } : null;
+        const candidates = rankCaseRows(cases as CaseRow[], { address: v.addr }, 5);
+        const r = resolve(groupId, candidates);
         return {
           order_number: groupId,
           keyKind: 'address',
@@ -325,12 +325,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           subtotal,
           groupCustomerName: null,
           groupAddress: v.addr || null,
-          autoCase: auto,
-          nameCandidates: [],
-          addrCandidates: candidates,
-          effectiveCase: effective,
-          matchSource,
-          choice,
+          candidates,
+          autoMatch: r.autoMatch,
+          effectiveCase: r.effectiveCase,
+          matchSource: r.matchSource,
+          choice: r.choice?.kind === 'case' ? r.choice : null,
           aOrderCandidates: [],
         };
       });
@@ -354,9 +353,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         subtotal: v.lines.reduce((s, l) => s + (Number(l.amount) || 0), 0),
         groupCustomerName: v.case.customer_name || null,
         groupAddress: v.case.address || null,
-        autoCase: v.case,
-        nameCandidates: [],
-        addrCandidates: [],
+        candidates: [],
+        autoMatch: null,
         effectiveCase: v.case,
         matchSource: 'manual',
         choice: { kind: 'case', case: v.case },
@@ -370,19 +368,11 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const lineIndices = lineItems.map((li, i) => norm(li.order_number) === on ? i : -1).filter(i => i >= 0);
       const subtotal = lines.reduce((s, li) => s + (Number(li.amount) || 0), 0);
       const groupCustomerName = lines.find(l => norm(l.customer_name))?.customer_name ?? null;
-      const orderC = (cases as any[]).find(c => norm(c.order_number) === on) || null;
-      const candidates = orderC ? [] : findNameMatches(cases as CaseRow[], groupCustomerName, null, 5);
-      // Auto-acceptera ENDAST exakta namnträffar — delsträngar och ordöverlapp kräver aktivt val
-      const strong = candidates[0] && candidates[0].score >= 90 && /exakt namn/i.test(candidates[0].reason) ? candidates[0].case : null;
-      const autoCase = orderC || strong;
-      const override = groupChoices[on] ?? null;
-      const cleared = !!clearedGroups[on];
-      const effective = override?.kind === 'case' ? override.case : (override ? null : (cleared ? null : autoCase));
-      const matchSource: Group['matchSource'] =
-        override ? 'manual' : cleared ? null : orderC ? 'order' : strong ? 'name' : null;
-      const choice: GroupChoice | null =
-        override ?? (cleared ? null : (autoCase ? { kind: 'case', case: autoCase } : null));
-      const aOrderCandidates = (matchSource === null || cleared) ? findAOrderCandidates(unlinkedAOrders as any[], groupCustomerName) : [];
+      const groupAddress = lines.find(l => norm(l.job_address))?.job_address ?? null;
+      const target: MatchTarget = { mockfjardsOrderNumber: on, name: groupCustomerName, address: groupAddress };
+      const candidates = rankCaseRows(cases as CaseRow[], target, 5);
+      const r = resolve(on, candidates);
+      const aOrderCandidates = !r.choice ? rankAOrders(unlinkedAOrders as any[], target) : [];
       return {
         order_number: on,
         keyKind: 'order',
@@ -390,18 +380,23 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         lineIndices,
         subtotal,
         groupCustomerName,
-        groupAddress: null,
-        autoCase,
-        nameCandidates: candidates,
-        addrCandidates: [],
-        effectiveCase: effective,
-        matchSource,
-        choice,
+        groupAddress,
+        candidates,
+        autoMatch: r.autoMatch,
+        effectiveCase: r.effectiveCase,
+        matchSource: r.matchSource,
+        choice: r.choice,
         aOrderCandidates,
       };
     });
   }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, clearedGroups, lineCaseChoices, unlinkedAOrders]);
 
+  /** Bekräfta ett förslag (nivå suggest) för en grupp. */
+  const confirmGroupCase = (groupId: string, c: CaseRow) => {
+    setGroupChoices(prev => ({ ...prev, [groupId]: { kind: 'case', case: c } }));
+    setClearedGroups(prev => { const n = { ...prev }; delete n[groupId]; return n; });
+  };
+  const pendingSuggestionGroups = groups.filter(g => !g.choice && g.candidates.length > 0 && !(isMontorInvoice && skippedGroups.has(g.order_number)));
 
   const unassignedLines = useMemo(
     () => {
