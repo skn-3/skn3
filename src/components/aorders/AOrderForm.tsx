@@ -489,15 +489,42 @@ export function AOrderForm({ open, onOpenChange, order, prefill, currentUser, on
       // Trigger koppling-dialog (en gång per A-order)
       // Kopplingsdialogen hör bara till montage-A-ordrar (den flyttar ärendet till Montage bokat).
       // Serviceordrar kopplas via case_id i formuläret och ändrar aldrig ärendets status.
-      if (orderId && !coupledHandled && !isService) {
-        const selTeam = teams.find((t: any) => t.id === teamId);
+      const savedTeamId = teamId && teamId !== '__none__' ? teamId : null;
+      const selTeam = teams.find((t: any) => t.id === teamId);
+      if (orderId && !isSlim && kompCaseId) {
+        // Ärendet är redan valt i formuläret: koppla direkt (montör/status som i dialogen) utan dialog.
+        const caseChanged = kompCaseId !== (order?.case_id ?? '');
+        const teamChanged = !!savedTeamId && savedTeamId !== (order?.team_id ?? null);
+        if (!directCoupledRef.current && (caseChanged || teamChanged)) {
+          try {
+            const linked = (kompCases as any[]).find(c => c.id === kompCaseId);
+            const { warnings } = await coupleAOrderToCase({
+              aOrderId: orderId,
+              caseId: kompCaseId,
+              teamId: savedTeamId,
+              teamName: selTeam?.name ?? null,
+              existingMontageDate: linked?.montage_date ?? null,
+            });
+            directCoupledRef.current = true;
+            toast.success(couplingToast(linked?.address ?? 'ärendet', warnings));
+            queryClient.invalidateQueries({ queryKey: ['cases'] });
+            queryClient.invalidateQueries({ queryKey: ['pipeline'] });
+            queryClient.invalidateQueries({ queryKey: ['a_orders'] });
+          } catch (e: any) {
+            console.error(e);
+            toast.error(`Ordern sparades men kopplingen till ärendet misslyckades: ${e?.message || e}`);
+          }
+        }
+        setCoupledHandled(true);
+      } else if (orderId && !coupledHandled && !isService) {
+        dialogPendingRef.current = true;
         setCouplingFor({
           aOrderId: orderId,
-          teamId: teamId && teamId !== '__none__' ? teamId : null,
+          teamId: savedTeamId,
           teamName: selTeam?.name ?? null,
           customerAddress: customerAddress || '',
           customerName: customerName || '',
-          existingCaseId: (isSlim ? (kompCaseId || null) : (prefill?.case_id ?? order?.case_id ?? null)) ?? null,
+          existingCaseId: kompCaseId || null,
         });
       }
       onSaved?.();
