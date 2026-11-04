@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { Upload, FileText, Search, Check, Loader2, AlertTriangle, Sparkles, Trash2, Plus, ChevronDown, Layers } from 'lucide-react';
 import { logActivity } from '@/lib/activityLog';
 import { rankCases, parseAddress, matchesSearch, type RankedCase, type MatchTarget } from '@/lib/caseMatching';
+import { validateMockfjards, sumLines } from '@/lib/mockfjardsInvoice';
 
 interface PayoutUploadViewProps {
   currentUser: string;
@@ -125,6 +126,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const [customerName, setCustomerName] = useState('');
   const [jobAddress, setJobAddress] = useState('');
   const [invoiceDate, setInvoiceDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [parseSource, setParseSource] = useState<'text' | 'ai' | null>(null);
+  const [saveAnyway, setSaveAnyway] = useState(false);
   const [totalAmount, setTotalAmount] = useState('');
   const [totalAmountIncl, setTotalAmountIncl] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
@@ -167,6 +171,16 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const isSheet = docType === 'sheet_metal_invoice';
   const isMontorInvoice = docType === 'montor_invoice';
   const isCost = docType === 'a_order' || isSheet || isMontorInvoice;
+  // Kontroller för Mockfjärds-utbetalningar innan något sparas (fakturanr, datum, total).
+  const mockfjardsWarnings = useMemo(() => {
+    if (docType !== 'mockfjards_payout' || !file) return [] as string[];
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const total = totalAmount.trim() && !isNaN(Number(totalAmount)) ? Number(totalAmount) : null;
+    const warnings = validateMockfjards({ fileName: file.name, invoiceNumber, invoiceDate, dueDate, total, lineSum: sumLines(lineItems), hasLines: lineItems.length > 0, today });
+    if (parseSource === 'ai') warnings.unshift('PDF:en saknar textlager – uppgifterna är tolkade av AI och måste kontrolleras.');
+    return warnings;
+  }, [docType, file, invoiceNumber, invoiceDate, dueDate, totalAmount, lineItems, parseSource]);
+  const reviewReason = mockfjardsWarnings.length ? mockfjardsWarnings.join(' ') : null;
   const typeLabel =
     isMontorInvoice ? 'Montörsfaktura (utgift, extra)'
     : docType === 'sheet_metal_invoice' ? 'Plåtfaktura (utgift)'
@@ -441,6 +455,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     setCustomerName('');
     setJobAddress('');
     setInvoiceDate('');
+    setDueDate('');
+    setParseSource(null);
+    setSaveAnyway(false);
     setTotalAmount('');
     setTotalAmountIncl('');
     setLineItems([]);
@@ -483,11 +500,13 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       setCustomerName(prev => prev || (data.customer_name ?? ''));
       setJobAddress(prev => prev || (data.job_address ?? ''));
       setInvoiceDate(prev => prev || (data.invoice_date ?? ''));
+      setDueDate(prev => prev || (data.due_date ?? ''));
+      setParseSource(data.source === 'text' ? 'text' : 'ai');
       setTotalAmount(prev => prev || (preferred != null ? String(preferred) : ''));
       setTotalAmountIncl(prev => prev || (incl != null ? String(incl) : ''));
       setLineItems(items);
       setExtracted(true);
-      toast.success('AI förfyllde fälten — granska och bekräfta');
+      toast.success(data.source === 'text' ? 'Fälten lästes direkt ur PDF:en — granska och bekräfta' : 'AI förfyllde fälten — granska och bekräfta');
     } catch (e: any) {
       console.error(e);
       const msg = e?.message ?? 'Okänt fel';
@@ -500,6 +519,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   const onFileChange = (f: File | null) => {
     setFile(f);
+    setSaveAnyway(false);
+    setParseSource(null);
     setExtracted(false);
     setExtractError(null);
     if (f) runExtract(f);
@@ -568,6 +589,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         invoice_number: invoiceNumber.trim(),
         customer_name: customerName.trim() || null,
         invoice_date: invoiceDate || null,
+        due_date: dueDate || null,
+        drive_review_reason: reviewReason,
         total_amount: amountNum,
         currency: 'SEK',
         line_items: lineItems.length > 0 ? lineItems : sheetLine,
@@ -768,6 +791,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               invoice_number: inv,
               customer_name: g.groupCustomerName || null,
               invoice_date: invoiceDate || null,
+              due_date: dueDate || null,
+              drive_review_reason: reviewReason,
               total_amount: g.subtotal,
               currency: 'SEK',
               line_items: g.lines,
@@ -786,6 +811,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               invoice_number: inv,
               customer_name: g.groupCustomerName || null,
               invoice_date: invoiceDate || null,
+              due_date: dueDate || null,
+              drive_review_reason: reviewReason,
               total_amount: g.subtotal,
               currency: 'SEK',
               line_items: g.lines,
@@ -812,6 +839,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
           invoice_number: inv,
           customer_name: isMontorInvoice ? null : (customerName.trim() || null),
           invoice_date: invoiceDate || null,
+          due_date: dueDate || null,
+          drive_review_reason: reviewReason,
           total_amount: g.subtotal,
           currency: 'SEK',
           line_items: g.lines,
@@ -894,6 +923,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   const submitDisabled =
     submitting ||
+    (mockfjardsWarnings.length > 0 && !saveAnyway) ||
     !file ||
     extracting ||
     (isMulti
@@ -951,12 +981,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             )}
             {extracting && (
               <div className="text-sm text-muted-foreground mt-2 inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> AI läser PDF:en…
+                <Loader2 className="h-4 w-4 animate-spin" /> Läser PDF:en…
               </div>
             )}
             {extracted && !extracting && (
               <div className="text-sm text-primary mt-2 inline-flex items-center gap-1">
-                <Sparkles className="h-4 w-4" /> AI har förfyllt fälten — granska innan du bekräftar
+                <Sparkles className="h-4 w-4" /> {parseSource === 'text' ? 'Fälten är lästa direkt ur PDF:en' : 'AI har förfyllt fälten'} — granska innan du bekräftar
               </div>
             )}
             {extractError && (
@@ -1001,6 +1031,12 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
               <Label>Fakturadatum</Label>
               <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
             </div>
+            {docType === 'mockfjards_payout' && (
+              <div>
+                <Label>Förfallodatum</Label>
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              </div>
+            )}
             <div>
               <Label>{isSheet ? 'Belopp ex moms (kostnad) *' : isMontorInvoice ? 'Totalbelopp ex moms (referens)' : `Totalbelopp (SEK) ${isMulti ? '' : '*'}`}</Label>
               <Input type="number" inputMode="decimal" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} />
