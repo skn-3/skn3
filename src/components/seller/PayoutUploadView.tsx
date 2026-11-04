@@ -1681,6 +1681,29 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
             ) : null;
           })()}
 
+          {mockfjardsWarnings.length > 0 && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Kontrollera fakturan innan du sparar</AlertTitle>
+              <AlertDescription>
+                <ul className="list-disc pl-5 space-y-1 mt-1">
+                  {mockfjardsWarnings.map(w => <li key={w}>{w}</li>)}
+                </ul>
+                <p className="mt-2 text-xs">Sparar du ändå hålls dokumentet kvar för granskning och arkiveras inte i Drive förrän någon har kontrollerat det.</p>
+                <Button
+                  type="button"
+                  variant={saveAnyway ? 'default' : 'outline'}
+                  className="mt-2 min-h-12"
+                  aria-pressed={saveAnyway}
+                  onClick={() => setSaveAnyway(v => !v)}
+                >
+                  {saveAnyway ? <Check className="h-4 w-4 mr-2" /> : null}
+                  Spara ändå
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={reset} disabled={submitting}>Rensa</Button>
             <Button onClick={handleSubmit} disabled={submitDisabled}>
