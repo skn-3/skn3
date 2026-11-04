@@ -578,20 +578,28 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkSearch, setLinkSearch] = useState('');
 
-  // Lokala okopplade a_orders (case_id IS NULL). Filtreras vidare klient-sidan i popovern.
-  const { data: unlinkedOrders = [] } = useQuery({
-    queryKey: ['unlinked-orders'],
+  // Alla A-ordrar (även de som sitter på ett annat ärende, t.ex. ett dubblettärende).
+  // Sorteras med caseMatching mot det öppna ärendet; bästa träff överst.
+  const { data: allOrders = [] } = useQuery({
+    queryKey: ['unlinked-orders', 'all-for-link'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('a_orders')
-        .select('id, order_number, invoice_number, customer_name, customer_address, total_amount, status, date, created_at')
-        .is('case_id', null)
-        .order('created_at', { ascending: false });
+        .select('id, order_number, invoice_number, customer_name, customer_address, customer_phone, mockfjards_order_number, total_amount, status, date, created_at, case_id')
+        .order('created_at', { ascending: false })
+        .limit(5000);
       if (error) {
-        console.error('[unlinkedOrders] local query error:', error);
+        console.error('[linkOrders] query error:', error);
         return [];
       }
-      return data || [];
+      const orders = (data || []) as any[];
+      const caseIds = Array.from(new Set(orders.map(o => o.case_id).filter(Boolean))) as string[];
+      const caseById = new Map<string, { id: string; address: string; customer_name: string | null }>();
+      for (let i = 0; i < caseIds.length; i += 200) {
+        const { data: cs } = await (supabase as any).from('cases').select('id, address, customer_name').in('id', caseIds.slice(i, i + 200));
+        for (const c of cs || []) caseById.set(c.id, c);
+      }
+      return orders.map(o => ({ ...o, current_case: o.case_id ? caseById.get(o.case_id) ?? null : null }));
     },
     enabled: linkOpen,           // hämta först när "Koppla"-popovern öppnas
     staleTime: 30_000,           // cacha 30s
@@ -611,33 +619,36 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const [pendingLink, setPendingLink] = useState<any | null>(null);
   const [pendingUnlink, setPendingUnlink] = useState<any | null>(null);
 
-  const norm = (s: any) => String(s ?? '').toLowerCase().trim();
-  const caseAddr = norm(caseData.address);
-  const caseName = norm(caseData.customer_name);
-  const isLikely = (o: any) => {
-    const a = norm(o.customer_address);
-    const n = norm(o.customer_name);
-    if (!a && !n) return false;
-    if (a && caseAddr && (a.includes(caseAddr) || caseAddr.includes(a))) return true;
-    if (n && caseName && (n.includes(caseName) || caseName.includes(n))) return true;
-    return false;
-  };
+  const [pendingMove, setPendingMove] = useState<any | null>(null);
 
-  const filteredUnlinked = (() => {
-    const q = norm(linkSearch);
+  const rankedOrders = useMemo(() => {
+    const others = (allOrders as any[]).filter(o => o.case_id !== caseData.id);
+    const asCandidates = others.map(o => ({
+      id: o.id,
+      address: o.customer_address,
+      customer_name: o.customer_name,
+      customer_phone: o.customer_phone,
+      order_number: o.mockfjards_order_number,
+    }));
+    const byId = new Map(others.map(o => [o.id, o]));
+    return rankCases(asCandidates, {
+      address: caseData.address,
+      city: (caseData as any).city,
+      name: caseData.customer_name,
+      email: (caseData as any).customer_email,
+      phone: (caseData as any).customer_phone,
+      mockfjardsOrderNumber: (caseData as any).order_number,
+    }, { includeAll: true }).map(r => ({ order: byId.get(r.case.id), level: r.level, label: r.label, score: r.score }));
+  }, [allOrders, caseData]);
+
+  const filteredLinkOrders = useMemo(() => {
+    const q = linkSearch.trim();
     const list = q
-      ? unlinkedOrders.filter((o: any) =>
-          norm(o.order_number).includes(q) ||
-          norm(o.invoice_number).includes(q) ||
-          norm(o.customer_address).includes(q) ||
-          norm(o.customer_name).includes(q)
-        )
-      : unlinkedOrders.slice();
-    if (linkOpen) {
-      console.log('[unlinkedOrders] total:', unlinkedOrders.length, 'filtered:', list.length, 'query:', q);
-    }
-    return list.sort((a: any, b: any) => Number(isLikely(b)) - Number(isLikely(a)));
-  })();
+      ? rankedOrders.filter(r => matchesSearch([r.order.order_number, r.order.invoice_number, r.order.customer_address, r.order.customer_name], q))
+      // Utan sökning: träffar mot ärendet samt okopplade A-ordrar.
+      : rankedOrders.filter(r => r.score > 0 || !r.order.case_id);
+    return list.slice(0, 50);
+  }, [rankedOrders, linkSearch]);
 
   const linkOrderMutation = useMutation({
     mutationFn: async (order: any) => {
@@ -701,6 +712,59 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
   });
 
+
+  const moveOrderMutation = useMutation({
+    mutationFn: async (order: any) => {
+      const fromCase = order.current_case ?? { id: order.case_id, address: null };
+      const { error } = await (supabase as any).from('a_orders').update({ case_id: caseData.id }).eq('id', order.id);
+      if (error) throw error;
+      const warnings: string[] = [];
+      // Flytta rader som skapats av A-ordern (om sådana finns). Fel här får inte ångra flytten.
+      try {
+        const { data: evs } = await (supabase as any).from('case_events').select('id, event_type, description').eq('case_id', fromCase.id);
+        const evIds = ((evs || []) as any[]).filter(ev => isAOrderEvent(ev, order)).map(ev => ev.id);
+        if (evIds.length) {
+          const { error: e2 } = await (supabase as any).from('case_events').update({ case_id: caseData.id }).in('id', evIds);
+          if (e2) warnings.push('historikrader');
+        }
+      } catch { warnings.push('historikrader'); }
+      try {
+        const { data: docs } = await (supabase as any).from('case_documents').select('id, doc_type, invoice_number').eq('case_id', fromCase.id);
+        const docIds = ((docs || []) as any[]).filter(d => isAOrderDocument(d, order)).map(d => d.id);
+        if (docIds.length) {
+          const { error: e3 } = await (supabase as any).from('case_documents').update({ case_id: caseData.id }).in('id', docIds);
+          if (e3) warnings.push('dokument');
+        }
+      } catch { warnings.push('dokument'); }
+      const texts = moveEventTexts(order, fromCase, { id: caseData.id, address: caseData.address });
+      await createCaseEvent({ case_id: caseData.id, event_type: 'order_link', description: texts.target, created_by: currentUser });
+      try {
+        await createCaseEvent({ case_id: fromCase.id, event_type: 'order_link', description: texts.source, created_by: currentUser });
+      } catch { warnings.push('historik på det andra ärendet'); }
+      logActivity({
+        category: 'system',
+        action: 'order_moved',
+        description: `${texts.target} (${caseData.address})`,
+        case_id: caseData.id,
+        metadata: { order_id: order.id, from_case_id: fromCase.id, to_case_id: caseData.id },
+      });
+      return { warnings, fromCaseId: fromCase.id };
+    },
+    onSuccess: ({ warnings, fromCaseId }) => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ['case', fromCaseId] });
+      queryClient.invalidateQueries({ queryKey: ['case_events', fromCaseId] });
+      queryClient.invalidateQueries({ queryKey: ['linked-orders', fromCaseId] });
+      toast.success(warnings.length ? `A-order flyttad hit. Kunde inte flytta: ${warnings.join(', ')}.` : 'A-order flyttad hit');
+      setPendingMove(null);
+      setLinkOpen(false);
+      setLinkSearch('');
+    },
+    onError: (e: any) => {
+      console.warn('move order failed', e);
+      toast.error('Kunde inte flytta A-ordern');
+    },
+  });
 
   const assignmentMutation = useMutation({
     mutationFn: async ({ field, value, label }: { field: 'team' | 'seller' | 'km_team'; value: string; label: string }) => {
