@@ -3,6 +3,7 @@ import type { ActionContext } from './proposeAddCost.ts';
 import { sellerTitles, sellerRoleError, validateCreateCaseArgs, validateCaseChanges, describeCaseChanges, statusGateError, SELLER_STATUS_LABELS, validateExtraHoursArgs, validateChatMessageArgs, matchRecipient } from './sellerLogic.ts';
 import { approvedHoursWarning } from './extraHours.ts';
 import { saveProposal } from './proposal.ts';
+import { parseAddress, findSameAddress } from '../../_shared/caseMatching.ts';
 const SELLER_CASE_FIELDS='id,address,city,customer_name,status,team,seller,montage_date,delivery_date,delivery_time,delivery_week,delivery_year,order_number,offer_number,units,customer_phone,customer_email,notes,carry_help_needed,media_consent,is_gotland,scheduled_delivery,extra_hours_requested,extra_hours_approved:extra_hours_approved_amount,extra_hours_sold';
 export async function sellerCase(id:string,ctx:ActionContext){
  const {data,error}=await ownScope(cases(ctx).select(SELLER_CASE_FIELDS),ctx).eq('id',id).maybeSingle();
@@ -25,8 +26,10 @@ export const proposeCreateCase=tool('propose_create_case','Föreslå ett nytt ä
  ['address','city','customer_name'],
  async(args,ctx)=>{
   const input=validateCreateCaseArgs(args);
-  const {data:dups,error}=await ctx.userClient.from('cases').select('id,address,status').ilike('address',input.address.replace(/[%_\\]/g,m=>'\\'+m)).limit(3);
-  if(error)throw new Error(error.message);
+  // Dubblettvarning via gemensam caseMatching: samma gata + husnummer (aldrig enbart husnummer).
+  const parsedAddress=parseAddress(input.address);
+  let dups:any[]=[];
+  if(parsedAddress.valid){const {data,error}=await ctx.userClient.from('cases').select('id,address,status').ilike('address',`%${parsedAddress.number}%`).limit(2000);if(error)throw new Error(error.message);dups=findSameAddress(data??[],input.address);}
   const rows=[{label:'Adress',value:[input.address,input.city].join(', ')},{label:'Kund',value:input.customer_name}];
   if(input.customer_phone)rows.push({label:'Telefon',value:input.customer_phone});
   if(input.customer_email)rows.push({label:'E-post',value:input.customer_email});
