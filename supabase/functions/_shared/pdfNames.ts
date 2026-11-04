@@ -132,3 +132,53 @@ export function consultantSpecPdfName(c: ConsultantNameSource, invoiceNumber: st
 export function pdfTitleFromName(fileName: string): string {
   return fileName.replace(/\.pdf$/i, '');
 }
+
+// ---------------------------------------------------------------------------
+// Arkivnamn för uppladdade underlag (Drive-bokföringen). Uppladdade filer har
+// inget eget genererat namn, men arkivnamnet byggs här så att all namnlogik
+// ligger på ett ställe.
+
+/** Filändelse ur ett lagringsnamn ("pdf", "jpg", "png"). Okänt -> "pdf". */
+export function fileExtensionOf(path: string | null | undefined): string {
+  const m = /\.([A-Za-z0-9]{2,5})(?:\?.*)?$/.exec(String(path ?? ''));
+  const ext = m ? m[1].toLowerCase() : 'pdf';
+  return ext === 'jpeg' ? 'jpg' : ext;
+}
+
+const amountPart = (amount: unknown) => {
+  const n = Math.round(Number(amount ?? 0) * 100) / 100;
+  return Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', '-');
+};
+
+export interface ReceiptNameSource { date?: string | null; address?: string | null; amount?: number | string | null; storage_path?: string | null; a_order_number?: number | string | null }
+/** Kvitto-2026-10-12-Bergsvagen-48-1250kr.jpg, eller Bilaga-1234-Kvitto-… när kostnaden hör till en A-order. */
+export function receiptArchiveName(r: ReceiptNameSource): string {
+  const base = ['Kvitto', datePart(r.date), r.address].map(p => slugPart(p)).filter(Boolean).join('-') + `-${amountPart(r.amount)}kr`;
+  const prefix = r.a_order_number != null && String(r.a_order_number).trim() ? `Bilaga-${slugPart(r.a_order_number)}-` : '';
+  return `${prefix}${base}.${fileExtensionOf(r.storage_path)}`;
+}
+
+const GENERIC_NAME = /^(scan|skanning|document|dokument|faktura|invoice|img|image|file|fil|pdf|download|nedladdning)?[-_ ]?\d*$/i;
+/** Ett uppladdat filnamn är "logiskt" om det innehåller fakturanumret och inte är ett generiskt skannernamn. */
+export function isLogicalUploadName(fileName: string | null | undefined, invoiceNumber: string | null | undefined): boolean {
+  const base = String(fileName ?? '').replace(/\.[A-Za-z0-9]{2,5}$/, '').trim();
+  if (!base || GENERIC_NAME.test(base)) return false;
+  const nr = String(invoiceNumber ?? '').trim();
+  if (!nr) return false;
+  const escaped = nr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^0-9a-z])${escaped}($|[^0-9])`, 'i').test(base);
+}
+
+export interface UploadedInvoiceNameSource { file_name?: string | null; invoice_number?: string | null; supplier?: string | null; date?: string | null; storage_path?: string | null }
+/** Plåtfaktura: behåll logiskt uppladdat namn, annars Platfaktura-<nr>-<leverantör>-<datum>.<ext>. */
+export function sheetMetalArchiveName(s: UploadedInvoiceNameSource): string {
+  const ext = fileExtensionOf(s.file_name || s.storage_path);
+  if (isLogicalUploadName(s.file_name, s.invoice_number)) return String(s.file_name).trim();
+  return ['Platfaktura', s.invoice_number, s.supplier, datePart(s.date)].map(p => slugPart(p)).filter(Boolean).join('-') + `.${ext}`;
+}
+/** Övriga uppladdade fakturor: behåll uppladdat namn, annars <Typ>-<nr>-<datum>.<ext>. */
+export function uploadedInvoiceArchiveName(type: string, s: UploadedInvoiceNameSource): string {
+  const name = String(s.file_name ?? '').trim();
+  if (name && !GENERIC_NAME.test(name.replace(/\.[A-Za-z0-9]{2,5}$/, ''))) return name;
+  return [type, s.invoice_number, datePart(s.date)].map(p => slugPart(p)).filter(Boolean).join('-') + `.${fileExtensionOf(s.file_name || s.storage_path)}`;
+}

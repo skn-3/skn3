@@ -614,6 +614,8 @@ export type Database = {
           currency: string | null
           customer_name: string | null
           doc_type: string
+          drive_review_reason: string | null
+          due_date: string | null
           file_name: string | null
           file_path: string
           id: string
@@ -632,6 +634,8 @@ export type Database = {
           currency?: string | null
           customer_name?: string | null
           doc_type: string
+          drive_review_reason?: string | null
+          due_date?: string | null
           file_name?: string | null
           file_path: string
           id?: string
@@ -650,6 +654,8 @@ export type Database = {
           currency?: string | null
           customer_name?: string | null
           doc_type?: string
+          drive_review_reason?: string | null
+          due_date?: string | null
           file_name?: string | null
           file_path?: string
           id?: string
@@ -1682,6 +1688,50 @@ export type Database = {
           },
         ]
       }
+      drive_misfiled: {
+        Row: {
+          detected_at: string
+          drive_file_id: string
+          drive_folder_path: string | null
+          drive_sync_id: string | null
+          file_name: string
+          id: string
+          reason: string
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          detected_at?: string
+          drive_file_id: string
+          drive_folder_path?: string | null
+          drive_sync_id?: string | null
+          file_name: string
+          id?: string
+          reason: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          detected_at?: string
+          drive_file_id?: string
+          drive_folder_path?: string | null
+          drive_sync_id?: string | null
+          file_name?: string
+          id?: string
+          reason?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drive_misfiled_drive_sync_id_fkey"
+            columns: ["drive_sync_id"]
+            isOneToOne: false
+            referencedRelation: "drive_sync"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       drive_sync: {
         Row: {
           attempts: number
@@ -1694,6 +1744,9 @@ export type Database = {
           error: string | null
           file_name: string
           id: string
+          review_code: string | null
+          review_override: boolean
+          review_reason: string | null
           source_id: string
           source_table: string
           status: string
@@ -1712,6 +1765,9 @@ export type Database = {
           error?: string | null
           file_name: string
           id?: string
+          review_code?: string | null
+          review_override?: boolean
+          review_reason?: string | null
           source_id: string
           source_table: string
           status?: string
@@ -1730,6 +1786,9 @@ export type Database = {
           error?: string | null
           file_name?: string
           id?: string
+          review_code?: string | null
+          review_override?: boolean
+          review_reason?: string | null
           source_id?: string
           source_table?: string
           status?: string
@@ -1768,27 +1827,36 @@ export type Database = {
       }
       drive_sync_settings: {
         Row: {
+          earliest_open_date: string
           enabled: boolean
           id: number
           kunder_folder_id: string
+          last_audit_at: string | null
+          last_audit_result: Json | null
           last_error: string | null
           last_run_at: string | null
           root_folder_id: string
           updated_at: string
         }
         Insert: {
+          earliest_open_date?: string
           enabled?: boolean
           id?: number
           kunder_folder_id?: string
+          last_audit_at?: string | null
+          last_audit_result?: Json | null
           last_error?: string | null
           last_run_at?: string | null
           root_folder_id?: string
           updated_at?: string
         }
         Update: {
+          earliest_open_date?: string
           enabled?: boolean
           id?: number
           kunder_folder_id?: string
+          last_audit_at?: string | null
+          last_audit_result?: Json | null
           last_error?: string | null
           last_run_at?: string | null
           root_folder_id?: string
@@ -3063,6 +3131,7 @@ export type Database = {
         Args: { p_consultant_id: string }
         Returns: number
       }
+      drive_sync_audit_wake: { Args: never; Returns: undefined }
       drive_sync_claim: { Args: { p_owner: string }; Returns: number }
       drive_sync_finish: {
         Args: { p_generation: number; p_owner: string; p_remaining: boolean }

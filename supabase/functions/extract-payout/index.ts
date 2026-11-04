@@ -90,6 +90,7 @@ interface ExtractRequest {
 }
 
 import { requireStaff } from '../_shared/auth.ts';
+import { readMockfjardsPdf } from '../_shared/pdfText.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -109,6 +110,27 @@ Deno.serve(async (req) => {
       return json({ error: 'file_base64 is required' }, 400);
     }
     const mime = body.mime_type || 'application/pdf';
+    // Mockfjärds-självfakturor läses deterministiskt ur textlagret – ingen AI, ingen gissning.
+    const reading = mime === 'application/pdf' ? await readMockfjardsPdf(body.file_base64, body.file_name) : null;
+    if (reading?.is_mockfjards) {
+      const lines = reading.lines;
+      return json({
+        invoice_number: reading.header.invoice_number,
+        invoice_date: reading.header.invoice_date,
+        due_date: reading.header.due_date,
+        customer_name: lines.find(l => l.customer_name)?.customer_name ?? null,
+        job_address: null,
+        currency: 'SEK',
+        total_amount: reading.header.total_amount,
+        total_amount_excl_vat: reading.header.total_amount,
+        total_amount_incl_vat: reading.header.total_amount,
+        line_items: lines,
+        order_numbers: Array.from(new Set(lines.map(l => l.order_number).filter(Boolean))),
+        source: 'text',
+        is_mockfjards: true,
+        warnings: reading.warnings,
+      }, 200);
+    }
     const dataUrl = `data:${mime};base64,${body.file_base64}`;
 
     const aiRes = await fetch(GATEWAY_URL, {
@@ -208,6 +230,12 @@ Deno.serve(async (req) => {
       total_amount_incl_vat: totalIncl,
       line_items: normalizedLines,
       order_numbers,
+      due_date: null,
+      // AI-tolkat: textlagret saknas helt eller dokumentet är inte en Mockfjärds-självfaktura.
+      source: 'ai',
+      text_layer: reading?.text_layer ?? false,
+      is_mockfjards: false,
+      warnings: [],
     }, 200);
   } catch (e) {
     console.error('extract-payout error', e);

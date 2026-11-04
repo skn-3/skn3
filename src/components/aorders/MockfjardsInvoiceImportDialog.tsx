@@ -13,6 +13,9 @@ import { rankCases } from '@/lib/caseMatching';
 import { serviceOrderPrefillFromInvoice } from '@/lib/serviceOrder';
 
 interface Parsed {
+  due_date?: string | null;
+  source?: 'text' | 'ai';
+  warnings?: string[];
   invoice_number: string | null;
   invoice_date: string | null;
   sales_order_number: string | null;
@@ -69,7 +72,7 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
     try {
       const file_base64 = await fileToBase64(file);
       const { data, error } = await supabase.functions.invoke('parse-mockfjards-invoice', {
-        body: { file_base64, mime_type: file.type || 'application/pdf' },
+        body: { file_base64, mime_type: file.type || 'application/pdf', file_name: file.name },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -186,6 +189,13 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
                 <div><span className="text-muted-foreground">Fsg. order:</span> {parsed.sales_order_number || '—'}</div>
                 <div><span className="text-muted-foreground">Summa:</span> {fmt(parsed.total_amount)}</div>
                 <div><span className="text-muted-foreground">Rader:</span> {parsed.line_items?.length ?? 0}</div>
+                {parsed.due_date && <div><span className="text-muted-foreground">Förfallodatum:</span> {parsed.due_date}</div>}
+                <div className="text-xs text-muted-foreground">{parsed.source === 'text' ? 'Läst direkt ur PDF:en' : 'Tolkad av AI – kontrollera uppgifterna'}</div>
+                {!!parsed.warnings?.length && (
+                  <ul className="mt-2 list-disc pl-5 text-destructive space-y-1">
+                    {parsed.warnings.map(w => <li key={w}>{w}</li>)}
+                  </ul>
+                )}
               </div>
             )}
           </div>

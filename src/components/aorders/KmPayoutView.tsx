@@ -15,6 +15,7 @@ import { logActivity } from '@/lib/activityLog';
 import { HOUR_RATE } from '@/lib/constants';
 import { rankCases, matchesSearch, type MatchTarget } from '@/lib/caseMatching';
 import { Checkbox } from '@/components/ui/checkbox';
+import { validateMockfjards, sumLines } from '@/lib/mockfjardsInvoice';
 import { groupPayoutLines, payoutRowTotal as rowTotal, payoutRowWithHour as rowTotalWithHour, selectedPayoutRows, planPayoutInvoices, type PayoutLineItem } from '@/lib/payoutGroups';
 
 interface Props { currentUser: string }
@@ -50,6 +51,9 @@ type KmRow = {
   key: string;
   invoice_number: string;
   invoice_date: string | null;
+  due_date: string | null;
+  /** Avvikelser i fakturan (fakturanr, datum, total). Sparas som granskningsflagga för Drive-synken. */
+  warnings: string[];
   file_path: string;
   file_name: string;
   order_number: string;
@@ -83,6 +87,7 @@ export function KmPayoutView({ currentUser }: Props) {
   const [rows, setRows] = useState<KmRow[]>([]);
   const [search, setSearch] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [saveAnyway, setSaveAnyway] = useState(false);
   const [result, setResult] = useState<null | {
     booked: number; unlinked: number;
     invoices: { team: string; invoice_number: string; total: number }[];
@@ -92,7 +97,7 @@ export function KmPayoutView({ currentUser }: Props) {
 
   const reset = () => {
     setStage('upload'); setRows([]); setProgress(null); setResult(null); setSearch({});
-    setDistCalc({});
+    setDistCalc({}); setSaveAnyway(false);
   };
 
   const runDistance = async (row: KmRow) => {
@@ -149,6 +154,9 @@ export function KmPayoutView({ currentUser }: Props) {
         if (data?.error) throw new Error(data.error);
 
         const items: LineItem[] = Array.isArray(data.line_items) ? data.line_items : [];
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        const fileWarnings = validateMockfjards({ fileName: f.name, invoiceNumber: data.invoice_number, invoiceDate: data.invoice_date, dueDate: data.due_date, total: data.total_amount ?? null, lineSum: sumLines(items), hasLines: items.length > 0, today });
+        if (data.source !== 'text') fileWarnings.unshift('PDF:en saknar textlager – uppgifterna är tolkade av AI och måste kontrolleras.');
         for (const { kind, included, order_number: on, lines: group } of groupPayoutLines(items)) {
           const bil = group.find(isBil) ?? null;
           const restid = group.find(isRestid) ?? null;
@@ -170,6 +178,8 @@ export function KmPayoutView({ currentUser }: Props) {
             included,
             invoice_number: data.invoice_number ?? '',
             invoice_date: data.invoice_date ?? null,
+            due_date: data.due_date ?? null,
+            warnings: fileWarnings,
             file_path: path,
             file_name: f.name,
             order_number: on,
@@ -209,10 +219,16 @@ export function KmPayoutView({ currentUser }: Props) {
   const selectedRows = useMemo(() => selectedPayoutRows(rows), [rows]);
   const skipped = rows.filter(r => r.kind === 'extra' && !r.included).reduce((sum, r) => sum + r.lines.length, 0);
   const missing = selectedRows.filter(r => !r.caseChoice || !r.teamId).length;
+  const warningFiles = useMemo(() => {
+    const byFile = new Map<string, { file_name: string; warnings: string[] }>();
+    for (const r of selectedRows) if (r.warnings.length) byFile.set(r.file_path, { file_name: r.file_name, warnings: r.warnings });
+    return [...byFile.values()];
+  }, [selectedRows]);
+  const blockedByWarnings = warningFiles.length > 0 && !saveAnyway;
   const grandTotal = useMemo(() => selectedRows.reduce((sum, r) => sum + rowTotalWithHour(r), 0), [selectedRows]);
 
   async function book() {
-    if (busy || missing > 0 || selectedRows.length === 0) return;
+    if (busy || missing > 0 || selectedRows.length === 0 || blockedByWarnings) return;
     setBusy(true);
     try {
       let unlinked = 0;
@@ -238,6 +254,8 @@ export function KmPayoutView({ currentUser }: Props) {
           invoice_number: r.invoice_number,
           customer_name: r.customer_name || null,
           invoice_date: r.invoice_date,
+          due_date: r.due_date,
+          drive_review_reason: r.warnings.length ? r.warnings.join(' ') : null,
           total_amount: rowTotal(r),
           currency: 'SEK',
           line_items: adjusted,
@@ -358,6 +376,22 @@ export function KmPayoutView({ currentUser }: Props) {
         </Alert>
       )}
 
+      {warningFiles.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <div className="font-medium">Kontrollera fakturorna innan du bokför</div>
+            <ul className="list-disc pl-5 space-y-1 mt-1 text-sm">
+              {warningFiles.map(f => <li key={f.file_name}><span className="font-medium">{f.file_name}:</span> {f.warnings.join(' ')}</li>)}
+            </ul>
+            <p className="mt-2 text-xs">Bokför du ändå hålls dokumenten kvar för granskning och arkiveras inte i Drive förrän någon har kontrollerat dem.</p>
+            <Button type="button" variant={saveAnyway ? 'default' : 'outline'} className="mt-2 min-h-12" aria-pressed={saveAnyway} onClick={() => setSaveAnyway(v => !v)}>
+              {saveAnyway && <Check className="h-4 w-4 mr-2" />}Spara ändå
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="text-sm text-muted-foreground">
           {selectedRows.length} valda kundgrupper · totalt <span className="font-medium text-foreground">{fmt(grandTotal)}</span>
@@ -367,7 +401,7 @@ export function KmPayoutView({ currentUser }: Props) {
             <span className="text-xs text-amber-600 dark:text-amber-400">{missing} kundrader saknar ärendeval eller montör.</span>
           )}
           <Button variant="ghost" onClick={reset} disabled={busy}>Avbryt</Button>
-          <Button onClick={book} disabled={busy || missing > 0 || selectedRows.length === 0} className="gap-2">
+          <Button onClick={book} disabled={busy || missing > 0 || selectedRows.length === 0 || blockedByWarnings} className="gap-2">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             Bokför &amp; skapa montörsfakturor
           </Button>

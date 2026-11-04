@@ -105,3 +105,7 @@
 - [x] Ärendematchning: FutureJobDialog, KmPayoutView, LinkOrdersView, ImportInvoicesView och N3prenad-AI.
 - [x] Ärendematchning: provkörd mot 150 kopplade A-ordrar (137 rätt topp, alla felaktiga auto-träffar är kända dubbletter/felkopplingar); 488 tester gröna; n3-ai deployad.
 - [ ] Ärendematchning: inloggad kontroll i förhandsvisningen (dialog, formulärrad, utbetalning, Flytta hit) — blockerad av att ditt konto saknas i appens inloggningsregister.
+
+- [x] Drive-bokföring v2: nya utgiftstyper och kvitton, granskningskö (review/out_of_range), earliest_open_date, aldrig skapa årsmapp, ordgränsdubbletter, drive_misfiled + daglig audit (cron 03:15 UTC), händelsestyrd väckning för alla uppladdningar och kvitton, deterministisk Mockfjärds-tolkning med varningar och Spara ändå, adminflik (månadsöversikt, Att granska, felplacerade). Migration 0046; tre MIKH-datum rättade och loggade. 546 tester, typkontroll och Deno-kontroll gröna.
+- [ ] Drive-bokföring v2: driftsätt drive-sync, extract-payout och parse-mockfjards-invoice — väntar på ditt klartecken. Därefter kör audit (knapp eller nattjobb) för att lägga MIKH0334/0343/0349 i okt 2026.
+- [ ] Drive-bokföring v2: inloggad kontroll i adminfliken och uppladdningsvyn samt test mot en riktig Mockfjärds-PDF — kräver driftsättning och testsession.
