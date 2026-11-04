@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { formatAmount } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
+import { useDuplicateCaseGuard } from '@/components/shared/DuplicateCaseGuard';
 
 interface SignedCaseDialogProps {
   visit: VisitRow | null;
@@ -77,12 +78,16 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [klimatClaim, setKlimatClaim] = useState<{ url: string; trees: number | null } | null>(null);
 
+  const dupGuard = useDuplicateCaseGuard({ onOpenCase: onClose });
   const handleSubmit = () => {
-    if (ovNum > 500_000) {
-      setConfirmOpen(true);
-      return;
-    }
-    mutation.mutate();
+    // Varna innan sparandet om gata + husnummer redan finns på ett ärende.
+    void dupGuard.guard(form.address, () => {
+      if (ovNum > 500_000) {
+        setConfirmOpen(true);
+        return;
+      }
+      mutation.mutate();
+    });
   };
 
 
@@ -381,6 +386,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           </AlertDialogContent>
         </AlertDialog>
       </SheetContent>
+      {dupGuard.dialog}
     </Sheet>
   );
 }

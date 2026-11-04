@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Loader2, AlertTriangle, Check, CalendarPlus, FileWarning, Boxes } from 'lucide-react';
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/activityLog';
+import { useDuplicateCaseGuard } from '@/components/shared/DuplicateCaseGuard';
 import { formatAmount } from '@/lib/utils';
 import { listOrdersByCaseIds } from '@/integrations/orderGateway';
 
@@ -117,6 +118,7 @@ export function ValidatePipelineView({ currentUser }: Props) {
   const [followUpInputs, setFollowUpInputs] = useState<Record<string, string>>({});
   const [deleteVisitId, setDeleteVisitId] = useState<string | null>(null);
 
+  const dupGuard = useDuplicateCaseGuard();
   const orphanCreateCase = async (v: any) => {
     setOrphanBusyId(v.id);
     try {
@@ -390,7 +392,7 @@ export function ValidatePipelineView({ currentUser }: Props) {
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
-                    onClick={() => orphanCreateCase(v)}
+                    onClick={() => void dupGuard.guard(v.address || '', () => orphanCreateCase(v))}
                     disabled={orphanBusyId === v.id}
                   >
                     {orphanBusyId === v.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
@@ -488,6 +490,7 @@ export function ValidatePipelineView({ currentUser }: Props) {
           ))}
         </div>
       )}
+      {dupGuard.dialog}
     </div>
   );
 }
