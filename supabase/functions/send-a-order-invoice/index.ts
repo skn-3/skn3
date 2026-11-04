@@ -42,6 +42,7 @@ function buildHtml(opts: { kind: 'invoice' | 'credit'; number: string; address: 
 <tr><td style="padding:0 28px 24px;color:#6b7280;font-size:12px;">
 Mvh SmartKlimat N3prenad
 </td></tr>
+${INVOICE_EMAIL_FOOTER_ROW}
 </table></td></tr></table></body></html>`;
 }
 
