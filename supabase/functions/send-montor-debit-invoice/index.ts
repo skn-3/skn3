@@ -35,7 +35,6 @@ function buildCreditHtml(opts: { number: string; original: string; customer: str
 <p style="margin:8px 0;">Krediten kvittas i första hand mot kommande utbetalningar mellan parterna. Är originalfakturan redan reglerad sker återbetalning till SmartKlimat N3prenad, bankgiro 5032-4573.</p>
 </td></tr>
 <tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/></td></tr>
-<tr><td style="padding:0 0 8px;"></td></tr>
 ${INVOICE_EMAIL_FOOTER_ROW}
 </table></td></tr></table></body></html>`;
 }
@@ -59,7 +58,6 @@ function buildHtml(opts: { number: string; customer: string; total: string; vatM
 <p style="margin:8px 0;color:#6b7280;font-size:12px;">St\u00e4mmer n\u00e5got inte? Svara p\u00e5 detta mejl s\u00e5 r\u00e4ttar vi avr\u00e4kningen.</p>
 </td></tr>
 <tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/></td></tr>
-<tr><td style="padding:0 0 8px;"></td></tr>
 ${INVOICE_EMAIL_FOOTER_ROW}
 </table></td></tr></table></body></html>`;
   }
