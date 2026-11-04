@@ -157,7 +157,7 @@ export function CoupleAOrderDialog({
             {!existingCaseId && candidates.length > 0 && (
               <div className="space-y-1.5">
                 {top?.level === 'suggest' && topIsSelected && (
-                  <p className="text-sm font-medium text-warning">Stämmer detta ärende?</p>
+                  <p className="text-sm font-medium text-warning-ink">Stämmer detta ärende?</p>
                 )}
                 <Label className="text-xs">
                   {top?.level === 'auto' ? 'Matchat ärende' : candidates.length > 1 ? 'Möjliga träffar' : 'Möjlig träff'}
