@@ -90,3 +90,11 @@
 
 - [x] Timrättning: begärda-spärr borttagen i orderinfo och AI-proposal/executor; gemensam 0–500-kontroll och mjuk varning, oförändrad resultatberäkning. Migration 0043–0044 för additivt decimalstöd (gamla heltalsfältet kompatibelt), 436 tester och automatisk typkontroll gröna. Orderinfo sparar 23 i fallet 53/0/23 och visar varning för 54 med simulerad post, utan runtimefel.
 - [ ] Timrättning verklig inloggad sparning/readback: --self saknar appkonto; verifierat UI-anrop men inte verklig kundpost. Inga paket eller publicering.
+
+- [x] Ärendematchning: gemensam modul caseMatching (edge-delad) med 27 tester.
+- [ ] Ärendematchning: CoupleAOrderDialog + CaseCombobox (tokensök).
+- [ ] Ärendematchning: AOrderForm "Ärende hittat" med Koppla/Ångra.
+- [ ] Ärendematchning: PayoutUploadView alla vägar, avbockad skapa-ruta.
+- [ ] Ärendematchning: CaseDetailPanel alla A-ordrar + Flytta hit.
+- [ ] Ärendematchning: dubblettvarning i SignedCaseDialog/NewTicketDialog/övriga skapanden.
+- [ ] Ärendematchning: FutureJobDialog, KmPayoutView, LinkOrdersView, ImportInvoicesView och N3prenad-AI.
