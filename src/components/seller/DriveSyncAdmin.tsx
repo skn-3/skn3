@@ -61,7 +61,11 @@ export function DriveSyncAdmin() {
   const mounted = useRef(true);
   const refresh = useCallback(async () => {
     try {
-      const data = await invoke<Status>({action:'status'});
+      const raw = await invoke<Status>({action:'status'});
+      // Tålig mot en äldre driftsatt funktion som saknar de nya fälten.
+      const data: Status = {...raw,review:raw.review ?? [],misfiled:raw.misfiled ?? [],overview:raw.overview ?? [],out_of_range:raw.out_of_range ?? 0,
+        counts:(raw.counts ?? []).map(c => ({...c,review:c.review ?? 0,out_of_range:c.out_of_range ?? 0})),
+        settings:{...raw.settings,earliest_open_date:raw.settings.earliest_open_date ?? '2026-08-01',last_audit_at:raw.settings.last_audit_at ?? null,last_audit_result:raw.settings.last_audit_result ?? null}};
       if (!mounted.current) return;
       setStatus(data); setError('');
       setFolders({root_folder_id:data.settings.root_folder_id,kunder_folder_id:data.settings.kunder_folder_id});
