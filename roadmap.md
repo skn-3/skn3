@@ -92,9 +92,11 @@
 - [ ] Timrättning verklig inloggad sparning/readback: --self saknar appkonto; verifierat UI-anrop men inte verklig kundpost. Inga paket eller publicering.
 
 - [x] Ärendematchning: gemensam modul caseMatching (edge-delad) med 27 tester.
-- [ ] Ärendematchning: CoupleAOrderDialog + CaseCombobox (tokensök).
-- [ ] Ärendematchning: AOrderForm "Ärende hittat" med Koppla/Ångra.
-- [ ] Ärendematchning: PayoutUploadView alla vägar, avbockad skapa-ruta.
-- [ ] Ärendematchning: CaseDetailPanel alla A-ordrar + Flytta hit.
-- [ ] Ärendematchning: dubblettvarning i SignedCaseDialog/NewTicketDialog/övriga skapanden.
-- [ ] Ärendematchning: FutureJobDialog, KmPayoutView, LinkOrdersView, ImportInvoicesView och N3prenad-AI.
+- [x] Ärendematchning: CoupleAOrderDialog + CaseCombobox (tokensök).
+- [x] Ärendematchning: AOrderForm "Ärende hittat" med Koppla/Ångra.
+- [x] Ärendematchning: PayoutUploadView alla vägar, avbockad skapa-ruta.
+- [x] Ärendematchning: CaseDetailPanel alla A-ordrar + Flytta hit.
+- [x] Ärendematchning: dubblettvarning i SignedCaseDialog/NewTicketDialog/övriga skapanden.
+- [x] Ärendematchning: FutureJobDialog, KmPayoutView, LinkOrdersView, ImportInvoicesView och N3prenad-AI.
+- [x] Ärendematchning: provkörd mot 150 kopplade A-ordrar (137 rätt topp, alla felaktiga auto-träffar är kända dubbletter/felkopplingar); 488 tester gröna; n3-ai deployad.
+- [ ] Ärendematchning: inloggad kontroll i förhandsvisningen (dialog, formulärrad, utbetalning, Flytta hit) — blockerad av att ditt konto saknas i appens inloggningsregister.
