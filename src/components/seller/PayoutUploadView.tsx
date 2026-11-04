@@ -295,7 +295,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         override ?? (cleared ? null : (autoMatch ? { kind: 'case', case: autoMatch.case } : null));
       const effectiveCase = choice?.kind === 'case' ? choice.case : null;
       const matchSource: Group['matchSource'] = override ? 'manual' : (choice ? 'auto' : null);
-      return { autoMatch: cleared || override ? (override ? null : null) : autoMatch, choice, effectiveCase, matchSource };
+      return { autoMatch: override || cleared ? null : autoMatch, choice, effectiveCase, matchSource };
     };
 
     if (isMontorInvoice) {
@@ -420,31 +420,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     [groups],
   );
 
-  const filteredCases = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return [];
-    return (cases as CaseRow[])
-      .filter(c =>
-        (c.customer_name || '').toLowerCase().includes(q) ||
-        (c.address || '').toLowerCase().includes(q) ||
-        (c.offer_number || '').toLowerCase().includes(q) ||
-        ((c as any).order_number || '').toLowerCase().includes(q)
-      )
-      .slice(0, 10);
-  }, [search, cases]);
+  const filteredCases = useMemo(() => searchCaseList(cases as CaseRow[], search, 10), [search, cases]);
 
-  const filteredCasesForGroup = (on: string) => {
-    const q = (groupSearch[on] ?? '').trim().toLowerCase();
-    if (!q) return [];
-    return (cases as CaseRow[])
-      .filter(c =>
-        (c.customer_name || '').toLowerCase().includes(q) ||
-        (c.address || '').toLowerCase().includes(q) ||
-        (c.offer_number || '').toLowerCase().includes(q) ||
-        ((c as any).order_number || '').toLowerCase().includes(q)
-      )
-      .slice(0, 8);
-  };
+  const filteredCasesForGroup = (on: string) => searchCaseList(cases as CaseRow[], groupSearch[on] ?? '', 8);
 
   const lineSum = useMemo(
     () => lineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0),
@@ -1293,15 +1271,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
                       {unassignedLines.map(li => {
                         const idx = lineItems.indexOf(li);
                         if (isMontorInvoice) {
-                          const q = (lineSearch[idx] ?? '').trim().toLowerCase();
-                          const results = q
-                            ? (cases as CaseRow[]).filter(c =>
-                                (c.customer_name || '').toLowerCase().includes(q) ||
-                                (c.address || '').toLowerCase().includes(q) ||
-                                (c.offer_number || '').toLowerCase().includes(q) ||
-                                ((c as any).order_number || '').toLowerCase().includes(q)
-                              ).slice(0, 8)
-                            : [];
+                          const results = searchCaseList(cases as CaseRow[], lineSearch[idx] ?? '', 8);
                           return (
                             <div key={idx} className="p-2 space-y-2 text-sm">
                               <div className="flex items-start justify-between gap-2">
