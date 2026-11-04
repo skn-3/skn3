@@ -73,15 +73,15 @@ export class GoogleDrive {
   }
   async duplicate(parent: string, name: string, number: string | null) { return existingDocument(await this.list(parent,false),name,number); }
   async upload(parent: string, name: string, file: Blob): Promise<DriveFile> {
-    const contentType = mimeTypeFor(name);
+    const contentType = ['application/pdf','image/jpeg','image/png'].includes(file.type) ? file.type : mimeTypeFor(name);
     const boundary = `drive_${crypto.randomUUID()}`;
     const body = new Blob([
       `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({name,parents:[parent]})}\r\n`,
       `--${boundary}\r\nContent-Type: ${contentType}\r\n\r\n`, file, `\r\n--${boundary}--\r\n`,
     ]);
-    const file = await this.request('files?uploadType=multipart&supportsAllDrives=true&fields=id,webViewLink',{method:'POST',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body},true);
-    if (!file.id) throw new Error('Google returnerade inget fil-id');
-    const result = {...file,name};
+    const created = await this.request('files?uploadType=multipart&supportsAllDrives=true&fields=id,webViewLink',{method:'POST',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body},true);
+    if (!created.id) throw new Error('Google returnerade inget fil-id');
+    const result = {...created,name};
     this.lists.get(`${parent}:false`)?.push(result);
     return result;
   }
