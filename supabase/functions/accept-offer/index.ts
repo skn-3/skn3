@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { offerPdfName } from '../_shared/pdfNames.ts';
+import { MAIL_LINK_BASE_URL } from '../_shared/mailLinks.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -124,7 +125,7 @@ Deno.serve(async (req) => {
       const acceptedFmt = new Date(acceptedAt).toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       const envUrl = Deno.env.get('PUBLIC_APP_URL');
       const base = (isUrl(origin) ? origin : (isUrl(envUrl) ? envUrl! : FALLBACK_APP_URL)).replace(/\/$/, '');
-      const offerUrl = `${base}/offert/${offer.public_token}`;
+      const offerUrl = `${MAIL_LINK_BASE_URL}/offert/${offer.public_token}`;
       const logoUrl = `${base}/brand/logo-stamp-vit-n3.png`;
       const sellerName = (offer.created_by as string | null) || null;
       const firstName = acceptName.split(/\s+/)[0] || acceptName;

@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { requireAdmin } from '../_shared/auth.ts';
+import { MAIL_LINK_BASE_URL } from '../_shared/mailLinks.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,7 +25,7 @@ const EMAIL_MAP: Record<string, string> = {
 function ctaButton(text: string): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 <tr><td align="center" style="padding:8px 0 16px 0;">
-<a href="${APP_URL}" target="_blank" style="display:inline-block;padding:12px 32px;background-color:#22C55E;color:#ffffff;font-weight:bold;font-size:14px;text-decoration:none;border-radius:6px;">${text}</a>
+<a href="${MAIL_LINK_BASE_URL}" target="_blank" style="display:inline-block;padding:12px 32px;background-color:#22C55E;color:#ffffff;font-weight:bold;font-size:14px;text-decoration:none;border-radius:6px;">${text}</a>
 </td></tr></table>`;
 }
 
