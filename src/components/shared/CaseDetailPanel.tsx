@@ -60,6 +60,8 @@ import { needsCompletion, consumeCompletionRequest } from '@/lib/caseCompletion'
 import { Share2 } from 'lucide-react';
 import { shareCaseInChat } from '@/lib/chat';
 import { MontagePartialBlock } from '@/components/shared/MontagePartialBlock';
+import { rankCases, matchesSearch } from '@/lib/caseMatching';
+import { aOrderRef, isAOrderEvent, isAOrderDocument, moveEventTexts } from '@/lib/aOrderMove';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -2569,27 +2571,23 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                   <CommandList className="max-h-[320px]">
                     <CommandEmpty>Inga okopplade A-ordrar hittades.</CommandEmpty>
                     <CommandGroup>
-                      {filteredUnlinked.map((o: any) => {
+                      {filteredLinkOrders.map(({ order: o, level, label: why }) => {
                         const label = o.order_number || o.invoice_number || o.id.slice(0, 8);
                         const dateStr = o.date || (o.created_at ? String(o.created_at).slice(0, 10) : '');
-                        const likely = isLikely(o);
+                        const likely = level !== 'none';
+                        const elsewhere = o.case_id && o.case_id !== caseData.id;
                         return (
                           <CommandItem
                             key={o.id}
                             value={o.id}
-                            onSelect={() => setPendingLink(o)}
-                            className="flex-col items-start gap-0.5"
+                            onSelect={() => (elsewhere ? setPendingMove(o) : setPendingLink(o))}
+                            className="flex-col items-start gap-0.5 min-h-12"
                           >
                             <div className="flex items-center gap-2 w-full flex-wrap">
                               <span className="font-medium">#{label}</span>
                               {likely && (
-                                <Badge className="bg-green-600 hover:bg-green-600/90 text-white text-[10px] px-1.5 py-0">
+                                <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0">
                                   Trolig match
-                                </Badge>
-                              )}
-                              {o._orphan && (
-                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                  Felkopplad — pekar på borttaget ärende
                                 </Badge>
                               )}
                               {o.total_amount != null && (
@@ -2602,13 +2600,27 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                             {o.customer_address && (
                               <span className="text-xs text-muted-foreground">{o.customer_address}</span>
                             )}
+                            {likely && why && (
+                              <span className="text-[10px] text-muted-foreground">Träff på {why}</span>
+                            )}
                             {dateStr && (
                               <span className="text-[10px] text-muted-foreground">{dateStr}</span>
+                            )}
+                            {elsewhere && (
+                              <div className="flex items-center gap-2 w-full flex-wrap pt-1">
+                                <span className="text-xs text-warning-ink">
+                                  Sitter på: {o.current_case ? `${o.current_case.address}${o.current_case.customer_name ? ` – ${o.current_case.customer_name}` : ''}` : 'annat ärende'}
+                                </span>
+                                <span className="ml-auto inline-flex min-h-9 items-center rounded-md border px-3 text-xs font-medium">Flytta hit</span>
+                              </div>
                             )}
                           </CommandItem>
                         );
                       })}
                     </CommandGroup>
+                    {filteredLinkOrders.length > 0 && (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">Inga fler träffar</div>
+                    )}
                   </CommandList>
                 </Command>
               </PopoverContent>
@@ -2628,6 +2640,30 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
                 <AlertDialogCancel>Avbryt</AlertDialogCancel>
                 <AlertDialogAction onClick={() => pendingLink && linkOrderMutation.mutate(pendingLink)}>
                   Koppla
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={!!pendingMove} onOpenChange={(o) => !o && !moveOrderMutation.isPending && setPendingMove(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Flytta A-order hit?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  A-order {pendingMove ? aOrderRef(pendingMove) : ''} sitter på{' '}
+                  <strong>{pendingMove?.current_case?.address || 'ett annat ärende'}</strong>
+                  {pendingMove?.current_case?.customer_name ? ` – ${pendingMove.current_case.customer_name}` : ''}.
+                  {' '}Den flyttas till {caseData.address} tillsammans med historikrader och dokument som A-ordern skapat.
+                  Fakturor, fakturanummer, PDF:er och betalstatus ändras inte. Flytten loggas på båda ärendena.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={moveOrderMutation.isPending}>Avbryt</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={moveOrderMutation.isPending}
+                  onClick={(e) => { e.preventDefault(); if (pendingMove) moveOrderMutation.mutate(pendingMove); }}
+                >
+                  {moveOrderMutation.isPending ? 'Flyttar…' : 'Flytta hit'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
