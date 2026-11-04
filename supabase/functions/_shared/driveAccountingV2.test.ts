@@ -4,7 +4,7 @@ import {
   inExpectedFolder, monthKeyFromFolder, fiscalYearMonths, mimeTypeFor, eligibleSync, assertArchivableSource, type FolderIO,
 } from './driveFolders';
 import { receiptArchiveName, sheetMetalArchiveName, isLogicalUploadName } from './pdfNames';
-import { holdFor, storagePathOf, type Candidate } from '../drive-sync/candidates';
+import { holdFor, storagePathOf, costReceiptCandidate, releasableYearMissing, UNLINKED_COST_REASON, type Candidate, type CostReceiptSource } from '../drive-sync/candidates';
 
 describe('routing per dokumenttyp', () => {
   it.each([
@@ -150,5 +150,62 @@ describe('filnamn och filtyper', () => {
   it('lagringssökväg ur äldre publik URL', () => {
     expect(storagePathOf('https://x.supabase.co/storage/v1/object/public/case-images/c1/kvitto_1.jpg', 'case-images')).toBe('c1/kvitto_1.jpg');
     expect(storagePathOf('c1/kvitto_1.jpg', 'case-images')).toBe('c1/kvitto_1.jpg');
+  });
+});
+
+describe('kostnadskvitton som bilagor till självfakturor', () => {
+  const settings = { earliest_open_date: '2026-08-01' };
+  const cost = (p: Partial<CostReceiptSource>): CostReceiptSource => ({ id: 'c1', created_at: '2026-10-27T09:00:00Z', amount: 1876, receipt_path: null,
+    receipt_url: 'case1/kvitto_1.jpg', a_order_id: null, a_orders: null, cases: { address: 'Cervins väg 14' }, ...p });
+  it('kopplad + fakturerad: arkiveras med A-orderns fakturadatum och fakturanumret i namnet', () => {
+    const c = costReceiptCandidate(cost({ a_order_id: 'a1', a_orders: { status: 'invoiced', invoice_number: 'ALEX-090', invoice_sent_at: '2026-11-02T10:15:00Z', date: '2026-10-30' } }))!;
+    expect(c.date).toBe('2026-11-02');
+    expect(c.destination).toBe('outgoing');
+    expect(c.file_name).toBe('Bilaga-ALEX-090-Kvitto-2026-11-02-Cervins-vag-14-1876kr.jpg');
+    expect(holdFor(c, settings, '2026-11-04')).toBeNull();
+  });
+  it('kopplad + krediterad utan skickdatum använder A-orderns datum', () => {
+    const c = costReceiptCandidate(cost({ a_order_id: 'a1', a_orders: { status: 'credited', invoice_number: 'ALEX-091', invoice_sent_at: null, date: '2026-10-30' } }))!;
+    expect(c.date).toBe('2026-10-30');
+    expect(c.file_name.startsWith('Bilaga-ALEX-091-Kvitto-2026-10-30-')).toBe(true);
+  });
+  it('kopplad men ofakturerad: ingen kandidat', () => {
+    expect(costReceiptCandidate(cost({ a_order_id: 'a1', a_orders: { status: 'draft', invoice_number: null, invoice_sent_at: null, date: '2026-10-30' } }))).toBeNull();
+    expect(costReceiptCandidate(cost({ a_order_id: 'a1', a_orders: { status: 'invoiced', invoice_number: null, invoice_sent_at: null, date: '2026-10-30' } }))).toBeNull();
+  });
+  it('okopplad: granskas med tydlig orsak och kan arkiveras ändå', () => {
+    const c = costReceiptCandidate(cost({}))!;
+    expect(c.file_name).toBe('Kvitto-2026-10-27-Cervins-vag-14-1876kr.jpg');
+    const hold = holdFor(c, settings, '2026-11-04');
+    expect(hold).toEqual({ status: 'review', reason: UNLINKED_COST_REASON, code: 'unlinked_cost' });
+    expect(holdFor(c, settings, '2026-11-04', true)).toBeNull();
+  });
+  it('okopplad före earliest_open_date: out_of_range', () => {
+    const c = costReceiptCandidate(cost({ created_at: '2026-07-15T09:00:00Z' }))!;
+    expect(holdFor(c, settings, '2026-11-04')?.status).toBe('out_of_range');
+  });
+});
+
+describe('odaterade uppladdade dokument', () => {
+  const base = { earliestOpen: '2026-08-01', today: '2026-11-04' };
+  it('uppladdat före earliest_open_date (Stockholmstid): out_of_range', () => {
+    expect(checkDocumentDate({ ...base, date: null, uploadedAt: '2026-07-20T10:00:00Z' }).state).toBe('out_of_range');
+    // 2026-07-31 22:30 UTC = 2026-08-01 00:30 i Stockholm -> öppet år.
+    expect(checkDocumentDate({ ...base, date: null, uploadedAt: '2026-07-31T22:30:00Z' }).state).toBe('review');
+  });
+  it('uppladdat inom öppet år: granskas', () => {
+    expect(checkDocumentDate({ ...base, date: null, uploadedAt: '2026-10-01T10:00:00Z' }).state).toBe('review');
+  });
+});
+
+describe('saknad årsmapp släpps när den finns', () => {
+  const c: Candidate = { source_table: 'case_documents', source_id: 'd1', doc_kind: 'mockfjards_payout', bucket: 'case-documents', storage_path: 'p.pdf', file_name: 'f.pdf', number: 'MIKH0400', date: '2026-10-16', destination: 'incoming' };
+  const row = { id: 'r1', status: 'review', review_code: 'year_missing', source_table: 'case_documents', source_id: 'd1', doc_kind: 'mockfjards_payout' };
+  it('släpps när årsmappen finns', () => {
+    expect(releasableYearMissing([row], [c], ['Intäkter SKN3 2025/2026', 'Intäkter SKN3 2026/2027'])).toEqual(['r1']);
+  });
+  it('stannar kvar när årsmappen saknas, och andra granskningar rörs inte', () => {
+    expect(releasableYearMissing([row], [c], ['Intäkter SKN3 2025/2026'])).toEqual([]);
+    expect(releasableYearMissing([{ ...row, review_code: 'date' }], [c], ['Intäkter SKN3 2026/2027'])).toEqual([]);
   });
 });
