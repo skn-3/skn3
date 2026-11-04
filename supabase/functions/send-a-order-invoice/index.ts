@@ -4,6 +4,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireCoordinator } from '../_shared/auth.ts';
 import { attachmentPdfName } from '../_shared/pdfFilename.ts';
+import { INVOICE_EMAIL_FOOTER_ROW } from '../_shared/invoiceEmailFooter.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
