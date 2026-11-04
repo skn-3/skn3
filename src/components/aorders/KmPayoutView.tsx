@@ -97,7 +97,7 @@ export function KmPayoutView({ currentUser }: Props) {
 
   const reset = () => {
     setStage('upload'); setRows([]); setProgress(null); setResult(null); setSearch({});
-    setDistCalc({});
+    setDistCalc({}); setSaveAnyway(false);
   };
 
   const runDistance = async (row: KmRow) => {
