@@ -22,10 +22,10 @@ const labels: Record<string,string> = {
   cost_receipt:'Kvitton på kostnader', other_document:'Övriga uppladdade dokument',
 };
 const statusLabels: Record<string,string> = {pending:'Väntar',synced:'Synkad',skipped:'Fanns redan',error:'Fel',review:'Att granska',out_of_range:'Före öppet år'};
-interface ReviewRow { id:string; doc_kind:string; file_name:string; amount:number|null; date:string|null; reason:string|null; code:string|null; source_table:string; can_fix_date:boolean; can_force:boolean }
+interface ReviewRow { id:string; doc_kind:string; file_name:string; amount:number|null; date:string|null; reason:string|null; code:string|null; source_table:string; can_fix_date:boolean; can_force:boolean; can_retry?:boolean }
 interface MisfiledRow { id:string; drive_file_id:string; drive_folder_path:string|null; file_name:string; reason:string; detected_at:string }
 interface MonthRow { key:string; fiscalMonth:string; monthName:string; year:number; outgoing:number; incoming:number; customers:number; outgoing_folder:string|null; incoming_folder:string|null }
-interface AuditResult { checked:number; misplaced:number; copied:number; repointed:number; errors:number; notes:string[] }
+interface AuditResult { checked:number; misplaced:number; copied:number; repointed:number; released?:number; errors:number; notes:string[] }
 interface SyncRow { id:string; updated_at:string; doc_kind:string; file_name:string; drive_web_link:string|null; drive_folder_path:string|null; status:string; error:string|null }
 interface Status {
   client_email:string|null; credential_error:string|null; automatic_ready:boolean;
@@ -107,7 +107,12 @@ export function DriveSyncAdmin() {
   }
   async function retry(id:string) {
     setBusy(true);
-    try {await invoke({action:'retry',id}); await refresh(); toast.success('Dokumentet har behandlats igen');}
+    try {
+      const r = await invoke<{review?:number;errors?:number}>({action:'retry',id}); await refresh();
+      if (r.review) toast.error('Årsmappen finns fortfarande inte – skapa den i Drive och försök igen.');
+      else if (r.errors) toast.error('Försöket misslyckades. Se felet i listan.');
+      else toast.success('Dokumentet har behandlats igen');
+    }
     catch (e) {toast.error(e instanceof Error ? e.message : String(e));}
     finally {setBusy(false);}
   }
@@ -140,7 +145,7 @@ export function DriveSyncAdmin() {
       const r = await invoke<AuditResult & {disabled?:boolean}>({action:'audit'});
       await refresh();
       if (r.disabled) toast.message('Synken är avstängd.');
-      else toast.success(`Kontroll klar: ${r.checked} filer kontrollerade, ${r.misplaced} i fel mapp${r.errors ? `, ${r.errors} fel` : ''}.`);
+      else toast.success(`Kontroll klar: ${r.checked} filer kontrollerade, ${r.misplaced} i fel mapp${r.released ? `, ${r.released} släppta när årsmappen fanns` : ''}${r.errors ? `, ${r.errors} fel` : ''}.`);
     } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
     finally { setAuditing(false); }
   }
@@ -209,6 +214,7 @@ export function DriveSyncAdmin() {
                   <Button className="min-h-12" disabled={busy || !fixing[row.id]} onClick={() => void fixDate(row)}>Spara datum</Button>
                   <Button variant="ghost" className="min-h-12" disabled={busy} onClick={() => setFixing(f => { const n = {...f}; delete n[row.id]; return n; })}>Avbryt</Button>
                 </div>)}
+            {row.can_retry && <Button variant="outline" className="min-h-12" disabled={busy} onClick={() => void retry(row.id)}><RefreshCw className="mr-2 h-4 w-4"/>Försök igen</Button>}
             {row.can_force && <Button variant="outline" className="min-h-12" disabled={busy} onClick={() => setForceRow(row)}><ShieldCheck className="mr-2 h-4 w-4"/>Arkivera ändå</Button>}
           </div>
         </li>)}</ul>
