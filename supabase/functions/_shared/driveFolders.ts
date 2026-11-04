@@ -147,10 +147,13 @@ export async function resolveAccountingTarget(io: FolderIO, rootId: string, dest
 
 /** Ligger en sparad mappsökväg i rätt års- och månadsmapp för datumet? */
 export function inExpectedFolder(folderPath: string | null | undefined, destination: 'outgoing' | 'incoming', date: string): boolean {
-  const parts = String(folderPath ?? '').split('/');
-  if (parts.length < 3) return false;
+  // Årsmappen för intäkter innehåller själv ett snedstreck ("Intäkter SKN3 2026/2027").
+  const path = String(folderPath ?? '');
+  const cut = path.lastIndexOf('/');
+  if (cut < 0) return false;
   const names = accountingFolders(date, destination);
-  return sameYearFolder(parts[parts.length - 2], names.yearFolder) && names.monthPattern.test(parts[parts.length - 1]);
+  const norm = (v: string) => v.replace(/\s/g, '').toLocaleLowerCase('sv');
+  return names.monthPattern.test(path.slice(cut + 1)) && norm(path.slice(0, cut)).endsWith('/' + norm(names.yearFolder));
 }
 
 /** "…/Intäkter SKN3 03 okt 2026" -> "2026-10". */
