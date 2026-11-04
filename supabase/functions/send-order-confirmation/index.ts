@@ -167,7 +167,7 @@ ${stepsHtml}
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'X-Connection-Api-Key': RESEND_API_KEY },
       body: JSON.stringify({
-        from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
+        from: 'SmartKlimat N3prenad <n3prenad@smartklimat.org>',
         to: [offer.customer_email],
         reply_to: 'n3prenad@smartklimat.org',
         bcc: ['n3prenad@smartklimat.org'],

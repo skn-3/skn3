@@ -325,7 +325,7 @@ Deno.serve(async (req) => {
         const r = await fetch(`${GATEWAY_URL}/emails`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'X-Connection-Api-Key': RESEND_API_KEY },
-          body: JSON.stringify({ from: 'Daniel Malke AB via CaseFlow <noreply@smartklimat.org>', to, ...(cc ? { cc } : {}), ...(reply_to ? { reply_to } : {}), subject, html, attachments }),
+          body: JSON.stringify({ from: 'Daniel Malke AB via SmartKlimat N3prenad <n3prenad@smartklimat.org>', to, ...(cc ? { cc } : {}), ...(reply_to ? { reply_to } : {}), subject, html, attachments }),
         });
         if (!r.ok) {
           const t = await r.text();

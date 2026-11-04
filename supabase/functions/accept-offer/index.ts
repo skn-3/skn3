@@ -221,7 +221,7 @@ ${handpenningPct > 0 ? `<tr><td style="color:#5E6B64;">Handpenning</td><td>${esc
               'X-Connection-Api-Key': RESEND_API_KEY,
             },
             body: JSON.stringify({
-              from: 'SmartKlimat N3prenad <noreply@smartklimat.org>',
+              from: 'SmartKlimat N3prenad <n3prenad@smartklimat.org>',
               reply_to: 'n3prenad@smartklimat.org',
               to: Array.isArray(to) ? to : [to],
               ...(cc && cc.length ? { cc } : {}),
