@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { Upload, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logActivity } from '@/lib/activityLog';
+import { sameStreetKey } from '@/lib/caseMatching';
 
 interface ImportCaseFormProps {
   sellerName: string;
@@ -72,7 +73,6 @@ export function findPotentialDuplicates(
   const fPhone = normPhone(form.customer_phone);
   const fAddr = normText(form.address);
   const fOffer = normOffer(form.offer_number);
-  const addrTokens = fAddr.split(/[\s,]+/).filter((t) => t.length >= 3);
 
   const matches = new Map<string, DuplicateMatch>();
   const add = (c: CaseRow, reason: string, strong: boolean) => {
@@ -93,13 +93,9 @@ export function findPotentialDuplicates(
 
     if (fOffer && cOffer && fOffer === cOffer) add(c, 'Samma offertnummer', true);
     if (fPhone && cPhone && fPhone === cPhone) add(c, 'Samma telefonnummer', true);
-    if (fAddr && cAddr && fAddr === cAddr) add(c, 'Samma adress', false);
-    if (fName && cName && fName === cName && addrTokens.length > 0) {
-      const cAddrTokens = cAddr.split(/[\s,]+/);
-      if (addrTokens.some((t) => cAddrTokens.includes(t))) {
-        add(c, 'Samma kund + del av adress', false);
-      }
-    }
+    // Gata + husnummer via gemensam caseMatching (enbart husnummer räknas aldrig).
+    if (sameStreetKey(form.address, c.address)) add(c, 'Samma gata och husnummer', true);
+    else if (fName && cName && fName === cName && fAddr && cAddr) add(c, 'Samma kundnamn', false);
   }
 
   return Array.from(matches.values()).sort((a, b) =>
