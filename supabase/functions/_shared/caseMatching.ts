@@ -98,6 +98,8 @@ export function cityKeyOf(city: string | null | undefined): string {
     .replace(/[^a-z]/g, '');
 }
 
+const NOT_STREETS = new Set(['lgh', 'lagenhet', 'van', 'vaning', 'box', 'faktura', 'order', 'ordernr', 'offert', 'nr', 'aorder', 'tel', 'telefon']);
+
 const ADDRESS_RE = /^(\p{L}[\p{L}.'\- ]*?)\s*(\d{1,4})(?!\d)(?:\s?([a-z])(?![\p{L}\p{N}]))?(.*)$/u;
 
 function tryParse(segment: string): ParsedAddress | null {
@@ -119,7 +121,7 @@ function tryParse(segment: string): ParsedAddress | null {
   if (!/[\p{L}.]$/u.test(rawStreet)) return null;
   const letter = m[3] ?? '';
   const streetKey = streetKeyOf(rawStreet);
-  if (streetKey.length < 2) return null;
+  if (streetKey.length < 2 || NOT_STREETS.has(streetKey)) return null;
   let cityPart = rest.replace(/^[\s,]+/, '');
   if (cityPart.includes(',')) {
     const parts = cityPart.split(',').map(p => p.trim()).filter(Boolean);
@@ -129,7 +131,7 @@ function tryParse(segment: string): ParsedAddress | null {
     .replace(/\b(?:lgh|lägenhet|vån|våning|uppg|nb|bv)\.?\s*\d*\b/gu, ' ')
     .replace(/\d{3}\s?\d{2}(?!\d)/g, ' ')
     .replace(/\d+/g, ' ')
-    .replace(/[^\p{L}\s-]/gu, ' ')
+    .replace(/[^\p{L}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   return {
@@ -178,10 +180,13 @@ export function damerauLevenshtein(a: string, b: string): number {
   return d[n][m];
 }
 
-/** Avstånd mellan två adressers gatunycklar (Infinity om någon saknar gata). */
+/** Avstånd mellan två adressers gatunycklar (Damerau-Levenshtein). */
 export function streetDistance(a: unknown, b: unknown): number {
-  const ka = typeof a === 'string' && !/\d/.test(a) && !a.includes(' ') && a === a.toLowerCase() ? a : parseAddress(a).streetKey;
-  const kb = typeof b === 'string' && !/\d/.test(b) && !b.includes(' ') && b === b.toLowerCase() ? b : parseAddress(b).streetKey;
+  const keyOf = (v: unknown) => {
+    const p = parseAddress(v);
+    return p.valid ? p.streetKey : streetKeyOf(basicNormalize(v));
+  };
+  const ka = keyOf(a), kb = keyOf(b);
   if (!ka || !kb) return Infinity;
   return damerauLevenshtein(ka, kb);
 }
@@ -294,7 +299,7 @@ export function scoreCase(candidate: CaseLike, target: MatchTarget): CaseScore {
   if (n.score > 0 && n.reason) { score += n.score; reasons.push(n.reason); }
 
   const tp = digitsOnly(target.phone);
-  const cp = digitsOnly(candidate.phone ?? (candidate as CaseLike).customer_phone);
+  const cp = digitsOnly(candidate.customer_phone);
   if (tp.length >= 7 && cp.length >= 7 && tp.slice(-7) === cp.slice(-7)) { score += 40; reasons.push('telefon'); }
 
   return { score, reasons, addressScore };
