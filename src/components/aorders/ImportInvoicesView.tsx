@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
+import { rankCases } from '@/lib/caseMatching';
 
 type ParsedLine = { name: string; unit_price: number | null; quantity: number | null; sum: number | null };
 type Parsed = {
@@ -38,9 +39,6 @@ type FileState = {
 function newId() { return 'f_' + Math.random().toString(36).slice(2, 9); }
 function fmt(n: number | null | undefined) { return Math.round(Number(n) || 0).toLocaleString('sv-SE') + ' kr'; }
 
-function streetOf(addr: string): string {
-  return (addr || '').toLowerCase().replace(/\s+/g, ' ').trim().split(',')[0].replace(/\d+.*$/, '').trim();
-}
 
 export function ImportInvoicesView() {
   const qc = useQueryClient();
@@ -59,7 +57,7 @@ export function ImportInvoicesView() {
   const { data: cases = [] } = useQuery({
     queryKey: ['cases_for_invoice_match'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from('cases').select('id, address, customer_name').order('address');
+      const { data, error } = await (supabase as any).from('cases').select('id, address, city, customer_name, status').order('address');
       if (error) throw error;
       return data as any[];
     },
@@ -109,16 +107,9 @@ export function ImportInvoicesView() {
         let case_id: string | undefined;
         let caseMatchKind: 'exact' | 'street' | 'none' = 'none';
         if (parsed?.customer_address) {
-          const addrLower = parsed.customer_address.toLowerCase().trim();
-          const exact = cases.find((c: any) => (c.address || '').toLowerCase().trim() === addrLower);
-          if (exact) { case_id = exact.id; caseMatchKind = 'exact'; }
-          else {
-            const street = streetOf(parsed.customer_address);
-            if (street.length > 2) {
-              const candidate = cases.find((c: any) => streetOf(c.address || '') === street);
-              if (candidate) { case_id = candidate.id; caseMatchKind = 'street'; }
-            }
-          }
+          // Gemensam matchning: gata + husnummer (+ ort/namn), aldrig enbart gatunamn eller husnummer.
+          const top = rankCases(cases as any[], { address: parsed.customer_address, name: (parsed as any).customer_name ?? null }, { limit: 1 })[0];
+          if (top) { case_id = top.case.id; caseMatchKind = top.level === 'auto' ? 'exact' : 'street'; }
         }
         setFiles(prev => prev.map(x => x.id === id ? {
           ...x,
@@ -249,7 +240,7 @@ export function ImportInvoicesView() {
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-xs">Ärende ({f.caseMatchKind === 'exact' ? <span className="text-green-700 dark:text-green-300">exakt</span> : f.caseMatchKind === 'street' ? <span className="text-yellow-700 dark:text-yellow-300">gatunamn</span> : <span className="text-muted-foreground">manuell</span>})</Label>
+                    <Label className="text-xs">Ärende ({f.caseMatchKind === 'exact' ? <span className="text-primary">säker träff</span> : f.caseMatchKind === 'street' ? <span className="text-warning-ink">förslag – kontrollera</span> : <span className="text-muted-foreground">manuell</span>})</Label>
                     <CaseCombobox
                       cases={cases as any[]}
                       value={f.case_id || ''}
