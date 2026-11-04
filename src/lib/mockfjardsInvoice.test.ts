@@ -68,8 +68,9 @@ describe('validering innan sparande', () => {
     expect(validateMockfjards({ ...ok, lineSum: 408 }).some(w => w.includes('Radernas summa'))).toBe(true);
   });
   it('förfallodatum 5–35 dagar efter fakturadatum', () => {
-    expect(validateMockfjards({ ...ok, dueDate: '2026-10-05' })).toEqual([]);
-    expect(validateMockfjards({ ...ok, dueDate: '2026-10-04' }).length).toBe(1);
+    expect(validateMockfjards({ ...ok, dueDate: '2026-10-06' })).toEqual([]);
+    expect(validateMockfjards({ ...ok, dueDate: '2026-11-05' })).toEqual([]);
+    expect(validateMockfjards({ ...ok, dueDate: '2026-10-05' }).length).toBe(1);
     expect(validateMockfjards({ ...ok, dueDate: '2026-11-06' }).length).toBe(1);
   });
 });
