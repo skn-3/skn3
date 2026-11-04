@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { z } from 'npm:zod@3.25.76';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { requireCoordinator } from '../_shared/auth.ts';
-import { DRIVE_KINDS, YearFolderMissingError, inExpectedFolder, monthKeyFromFolder, fiscalYearMonths, isIsoDate, stockholmDate } from '../_shared/driveFolders.ts';
+import { DRIVE_KINDS, YearFolderMissingError, inExpectedFolder, monthKeyFromFolder, fiscalYearMonths, isIsoDate } from '../_shared/driveFolders.ts';
 import { collectCandidates, persistHolds, candidateKey, holdFor, type Candidate, type Settings } from './candidates.ts';
 import { GoogleDrive, serviceAccount } from './google.ts';
 
@@ -305,4 +305,3 @@ Deno.serve(async req => {
   }
 });
 
-export { stockholmDate };
