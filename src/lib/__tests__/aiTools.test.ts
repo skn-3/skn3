@@ -2,6 +2,7 @@ import { it, expect } from 'vitest';
 import { cases, ownScope, searchWords, safeExecute, type ToolContext } from '../../../supabase/functions/n3-ai/tools/context';
 import { getCase } from '../../../supabase/functions/n3-ai/tools/getCase';
 import { searchEvents } from '../../../supabase/functions/n3-ai/tools/searchEvents';
+import { searchCases } from '../../../supabase/functions/n3-ai/tools/searchCases';
 import { summarizeAiUsage } from '../aiUsage';
 const ctx=(role:string):ToolContext=>({role,name:'Alex NBD',isAdmin:false,now:new Date(),seenCaseIds:new Set(),userClient:{from:(table:string)=>table} as never});
 it('montörverktyg använder endast cases_montor',()=>{expect(cases(ctx('montor'))).toBe('cases_montor');expect(cases(ctx('seller'))).toBe('cases');});
@@ -26,3 +27,12 @@ it('search_events utelämnar händelser när ärendet inte är synligt vid uppsl
  expect(await searchEvents.handler({},context)).toEqual({events:[],limit:20});expect(context.seenCaseIds.size).toBe(0);
 });
 it('AI-usage skiljer dagstak från skickade användarfrågor',()=>{const row={user_id:'u',prompt_tokens:10,completion_tokens:5,total_tokens:15,created_at:'2026-10-26T01:00:00Z'};const totals=summarizeAiUsage([{...row,status:'ok'},{...row,status:'limit',total_tokens:0}], '2026-10-25T23:00:00Z');expect(totals.today).toEqual({messages:1,tokens:15});expect(totals.limits).toBe(1);});
+it('search_cases hittar adress med stavfel och ort via gemensam ärendematchning',async()=>{
+ const all=[{id:'c1',address:'Förridargränd 10',city:'Hässelby',customer_name:'Eva',status:'montage_bokat'},{id:'c2',address:'Klövervägen 10',city:'Hässelby',customer_name:'Bo',status:'km_bokad'}];
+ const context=ctx('seller');context.isAdmin=true;
+ context.userClient={from:()=>{let candidateQuery=false;const query:any={select:()=>query,or:()=>query,eq:()=>query,order:()=>query,ilike:()=>{candidateQuery=true;return query;},limit:async()=>({data:candidateQuery?all:[],error:null})};return query;}};
+ const result=await searchCases.handler({query:'Förriddargränd 10, Hässelby'},context) as {cases:{id:string;match?:string}[]};
+ expect(result.cases.map(c=>c.id)).toEqual(['c1']);
+ expect(result.cases[0].match).toBe('adress (liknande stavning) + ort');
+ expect(context.seenCaseIds.has('c1')).toBe(true);
+});
