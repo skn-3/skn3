@@ -1,5 +1,5 @@
 import { googleToken, serviceAccount } from '../_shared/googleAuth.ts';
-import { assertAllowedDriveRequest, accountingFolders, sameYearFolder, sameCustomerFolder, existingDocument, type Destination } from '../_shared/driveFolders.ts';
+import { assertAllowedDriveRequest, resolveAccountingTarget, sameCustomerFolder, existingDocument, mimeTypeFor, type Destination } from '../_shared/driveFolders.ts';
 
 type DriveFile = { id: string; name: string; webViewLink?: string };
 export { serviceAccount };
@@ -59,17 +59,25 @@ export class GoogleDrive {
       const folder = await this.folder(settings.kunder_folder_id,address.trim(),n => sameCustomerFolder(n,address));
       return {id:folder.id,path:`Kunder/${folder.name}`};
     }
-    const names = accountingFolders(date,destination);
-    const year = await this.folder(settings.root_folder_id,names.yearFolder,n => sameYearFolder(n,names.yearFolder));
-    const month = await this.folder(year.id,names.monthFolder,n => names.monthPattern.test(n));
-    return {id:month.id,path:`Smartklimat N3Prenad/${year.name}/${month.name}`};
+    // Årsmappar skapas aldrig av synken; saknas den kastas YearFolderMissingError.
+    return resolveAccountingTarget({
+      listFolders: async parent => await this.list(parent,true),
+      createFolder: async (parent,name) => await this.createFolder(parent,name),
+    },settings.root_folder_id,destination,date);
+  }
+  private async createFolder(parent: string, name: string): Promise<DriveFile> {
+    const created = await this.request('files?supportsAllDrives=true&fields=id,name,webViewLink', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,mimeType:'application/vnd.google-apps.folder',parents:[parent]})});
+    if (!created?.id) throw new Error('Google returnerade inget mapp-id');
+    (await this.list(parent,true)).push(created);
+    return created;
   }
   async duplicate(parent: string, name: string, number: string | null) { return existingDocument(await this.list(parent,false),name,number); }
-  async upload(parent: string, name: string, pdf: Blob): Promise<DriveFile> {
+  async upload(parent: string, name: string, file: Blob): Promise<DriveFile> {
+    const contentType = mimeTypeFor(name);
     const boundary = `drive_${crypto.randomUUID()}`;
     const body = new Blob([
       `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify({name,parents:[parent]})}\r\n`,
-      `--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`, pdf, `\r\n--${boundary}--\r\n`,
+      `--${boundary}\r\nContent-Type: ${contentType}\r\n\r\n`, file, `\r\n--${boundary}--\r\n`,
     ]);
     const file = await this.request('files?uploadType=multipart&supportsAllDrives=true&fields=id,webViewLink',{method:'POST',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body},true);
     if (!file.id) throw new Error('Google returnerade inget fil-id');
