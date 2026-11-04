@@ -3,7 +3,7 @@ import { z } from 'npm:zod@3.25.76';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { requireCoordinator } from '../_shared/auth.ts';
 import { DRIVE_KINDS, YearFolderMissingError, inExpectedFolder, monthKeyFromFolder, fiscalYearMonths, isIsoDate } from '../_shared/driveFolders.ts';
-import { collectCandidates, persistHolds, candidateKey, holdFor, type Candidate, type Settings } from './candidates.ts';
+import { collectCandidates, persistHolds, candidateKey, holdFor, releasableYearMissing, type Candidate, type Settings } from './candidates.ts';
 import { GoogleDrive, serviceAccount } from './google.ts';
 
 const Body = z.discriminatedUnion('action',[
@@ -99,7 +99,9 @@ Deno.serve(async req => {
         const row = collected.logs.get(candidateKey(c));
         if (row?.status !== 'review') return [];
         return [{id:row.id,doc_kind:c.doc_kind,file_name:c.file_name,amount:c.amount ?? null,date:c.date,reason:row.review_reason,code:row.review_code,
-          source_table:c.source_table,can_fix_date:Boolean(c.can_fix_date),can_force:row.review_code !== 'unknown_type' && Boolean(c.destination)}];
+          source_table:c.source_table,can_fix_date:Boolean(c.can_fix_date) && row.review_code !== 'year_missing',
+          can_force:row.review_code !== 'unknown_type' && row.review_code !== 'year_missing' && Boolean(c.destination),
+          can_retry:row.review_code === 'year_missing'}];
       });
       const outOfRange = collected.candidates.filter(c => statusOf(c) === 'out_of_range').length;
       const {data:misfiled,error:misfiledError} = await admin.from('drive_misfiled').select('*').is('resolved_at',null).order('detected_at',{ascending:false});
@@ -186,7 +188,25 @@ Deno.serve(async req => {
 
     if (body.action === 'audit') {
       // Kontroll: ligger arkiverade filer i den mapp som källans nuvarande datum anger?
-      const result = {checked:0,misplaced:0,copied:0,repointed:0,errors:0,notes:[] as string[]};
+      const result = {checked:0,misplaced:0,copied:0,repointed:0,released:0,errors:0,notes:[] as string[]};
+      // Släpp year_missing-rader när årsmappen har skapats (bara läsning; inget skapas här).
+      if (collected.syncRows.some(r => r.status === 'review' && r.review_code === 'year_missing')) {
+        try {
+          const rootNames = (await drive.list(settings.root_folder_id,true)).map(f => f.name);
+          const ids = releasableYearMissing(collected.syncRows,collected.candidates,rootNames);
+          for (let i = 0; i < ids.length; i += 200) {
+            const rel = await admin.from('drive_sync').update({status:'pending',attempts:0,error:null,review_reason:null,review_code:null})
+              .in('id',ids.slice(i,i+200)).eq('status','review').eq('review_code','year_missing');
+            if (rel.error) throw new Error(rel.error.message);
+          }
+          result.released = ids.length;
+          if (ids.length) {
+            // Ny generation: drive_sync_finish väcker synken direkt när kontrollen är klar.
+            await admin.from('drive_sync_runtime').update({generation:generation+1}).eq('id',1).eq('lease_owner',owner);
+            collected = await collectCandidates(admin,settings);
+          }
+        } catch (e) { result.errors++; result.notes.push(`Årsmappar: ${message(e)}`); }
+      }
       for (const row of collected.syncRows) {
         if (row.status !== 'synced') continue;
         const c = collected.candidates.find(x => candidateKey(x) === candidateKey(row));

@@ -9,7 +9,7 @@ export interface Candidate {
   /** Uppladdningstidpunkt för uppladdade dokument (rimlighetsfönster ±150/7 dagar). */
   uploaded_at?: string | null;
   /** Orsak att alltid hålla dokumentet för granskning (okänd typ, flaggat vid uppladdning). */
-  hold_reason?: string | null; hold_code?: 'unknown_type' | 'flagged' | null;
+  hold_reason?: string | null; hold_code?: 'unknown_type' | 'flagged' | 'unlinked_cost' | null;
   amount?: number | null; can_fix_date?: boolean;
 }
 export interface Hold { status: 'review' | 'out_of_range'; reason: string; code: string }
