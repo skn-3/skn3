@@ -28,6 +28,7 @@ const SYSTEM_PROMPT = `Du läser en svensk självfaktura där Smart Klimat N3pre
 Ignorera adressblocken (säljaren=oss i Segeltorp, kunden=Mockfjärds i Borlänge) — de är INTE jobbadressen. Plocka belopp med svensk decimalkomma korrekt (469,20 = 469.20).`;
 
 import { requireStaff } from '../_shared/auth.ts';
+import { readMockfjardsPdf } from '../_shared/pdfText.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -41,8 +42,26 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!apiKey) return json({ error: 'LOVABLE_API_KEY not configured' }, 500);
 
-    const body = await req.json() as { file_base64?: string; mime_type?: string };
+    const body = await req.json() as { file_base64?: string; mime_type?: string; file_name?: string };
     if (!body?.file_base64) return json({ error: 'file_base64 is required' }, 400);
+    const reading = (body.mime_type || 'application/pdf') === 'application/pdf' ? await readMockfjardsPdf(body.file_base64, body.file_name) : null;
+    if (reading?.text_layer) {
+      // Textlagret finns: allt läses deterministiskt, AI används inte.
+      const lines = reading.lines;
+      const invoiceNumber = reading.header.invoice_number;
+      return json({
+        invoice_number: invoiceNumber,
+        invoice_date: reading.header.invoice_date,
+        due_date: reading.header.due_date,
+        sales_order_number: lines.find(l => l.order_number)?.order_number ?? null,
+        customer_name: lines.find(l => l.customer_name)?.customer_name ?? null,
+        team_prefix: invoiceNumber ? (/^([A-Za-z]+)/.exec(invoiceNumber)?.[1] ?? null) : null,
+        total_amount: reading.header.total_amount,
+        line_items: lines.map(l => ({ name: l.name ?? '', unit_price: l.unit_price ?? 0, qty: l.qty ?? 1, amount: l.amount ?? 0 })),
+        source: 'text',
+        warnings: reading.is_mockfjards ? reading.warnings : ['PDF:en ser inte ut som en Mockfjärds-självfaktura.', ...reading.warnings],
+      });
+    }
     const dataUrl = `data:${body.mime_type || 'application/pdf'};base64,${body.file_base64}`;
 
     const aiRes = await fetch(GATEWAY_URL, {
@@ -102,6 +121,9 @@ Deno.serve(async (req) => {
       team_prefix: teamPrefix,
       total_amount: parsed.total_amount != null ? Number(parsed.total_amount) : null,
       line_items: normalizedLines,
+      due_date: null,
+      source: 'ai',
+      warnings: ['PDF:en saknar textlager – uppgifterna är tolkade av AI och måste kontrolleras.'],
     });
   } catch (e) {
     console.error('parse-mockfjards-invoice error', e);
