@@ -87,7 +87,12 @@ export type DateCheck = { state: 'ok' } | { state: 'out_of_range'; reason: strin
  */
 export function checkDocumentDate(input: { date: string | null | undefined; earliestOpen: string; today: string; uploadedAt?: string | null }): DateCheck {
   const date = input.date?.slice(0, 10);
-  if (!date || !isIsoDate(date)) return { state: 'review', reason: 'Dokumentet saknar giltigt datum' };
+  if (!date || !isIsoDate(date)) {
+    // Odaterat dokument uppladdat i ett stängt år: utanför intervallet, inte granskning.
+    const uploaded = input.uploadedAt ? (input.uploadedAt.length > 10 ? stockholmDate(input.uploadedAt) : input.uploadedAt) : null;
+    if (uploaded && uploaded < input.earliestOpen) return { state: 'out_of_range', reason: `Saknar datum, uppladdat ${uploaded} – före ${input.earliestOpen}` };
+    return { state: 'review', reason: 'Dokumentet saknar giltigt datum' };
+  }
   if (input.uploadedAt) {
     const uploaded = input.uploadedAt.length > 10 ? stockholmDate(input.uploadedAt) : input.uploadedAt;
     if (date < addDays(uploaded, -150)) return { state: 'review', reason: `Datumet ${date} ligger mer än 150 dagar före uppladdningen (${uploaded})` };

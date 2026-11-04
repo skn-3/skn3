@@ -330,6 +330,13 @@
       "when": 1793802189893,
       "tag": "0046_drive_accounting_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1793803488162,
+      "tag": "0047_drive_sync_cost_link_wake",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,5 @@
 import { invoicePdfName, creditPdfName, montorInvoicePdfName, offerPdfName, uppdragInvoicePdfName, orderConfirmationPdfName, receiptArchiveName, sheetMetalArchiveName, uploadedInvoiceArchiveName } from '../_shared/pdfNames.ts';
-import { eligibleSync, routeCaseDocument, assertArchivableSource, checkDocumentDate, stockholmDate, type DateCheck, type Destination, type DriveKind } from '../_shared/driveFolders.ts';
+import { eligibleSync, routeCaseDocument, assertArchivableSource, checkDocumentDate, stockholmDate, accountingFolders, sameYearFolder, type DateCheck, type Destination, type DriveKind } from '../_shared/driveFolders.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 export type Bucket = 'case-documents' | 'case-images' | 'ai-receipts';
@@ -9,7 +9,7 @@ export interface Candidate {
   /** Uppladdningstidpunkt för uppladdade dokument (rimlighetsfönster ±150/7 dagar). */
   uploaded_at?: string | null;
   /** Orsak att alltid hålla dokumentet för granskning (okänd typ, flaggat vid uppladdning). */
-  hold_reason?: string | null; hold_code?: 'unknown_type' | 'flagged' | null;
+  hold_reason?: string | null; hold_code?: 'unknown_type' | 'flagged' | 'unlinked_cost' | null;
   amount?: number | null; can_fix_date?: boolean;
 }
 export interface Hold { status: 'review' | 'out_of_range'; reason: string; code: string }
@@ -35,6 +35,37 @@ export function storagePathOf(stored: string, bucket: string): string {
   return stored;
 }
 
+export const UNLINKED_COST_REASON = 'Kostnaden är inte kopplad till någon A-order – avgör om kvittot är bolagets egen utgift (Arkivera ändå) eller hör till en kommande självfaktura';
+
+export interface CostReceiptSource {
+  id: string; created_at: string; amount: number | null; receipt_path: string | null; receipt_url: string | null; a_order_id: string | null;
+  a_orders?: { status: string | null; invoice_number: string | null; invoice_sent_at: string | null; date: string | null } | null;
+  cases?: { address: string | null } | null;
+}
+/**
+ * Kostnadskvitton är oftast underlag för en självfaktura. Kopplad + fakturerad
+ * A-order: bilaga med fakturans datum och nummer. Kopplad men ofakturerad:
+ * ingen kandidat (väntar tyst). Okopplad: granskas.
+ */
+export function costReceiptCandidate(c: CostReceiptSource): Candidate | null {
+  const raw = c.receipt_path || c.receipt_url;
+  if (!raw) return null;
+  const bucket: Bucket = c.receipt_path ? 'ai-receipts' : 'case-images';
+  const storage_path = storagePathOf(raw, bucket);
+  const base = { source_table:'case_costs', source_id:c.id, doc_kind:'cost_receipt' as const, bucket, storage_path, number:null, destination:'outgoing' as const, amount:c.amount };
+  if (c.a_order_id) {
+    const o = c.a_orders;
+    const invoiced = o && (o.status === 'invoiced' || o.status === 'credited') && o.invoice_number;
+    if (!invoiced) return null;
+    // Samma datum som självfakturan (invoice_sent_at, annars date) så att bilagan hamnar i samma månadsmapp.
+    const date = (o.invoice_sent_at || o.date)?.slice(0, 10) ?? null;
+    return { ...base, date, file_name: receiptArchiveName({ date, address:c.cases?.address, amount:c.amount, storage_path, a_order_number:o.invoice_number }) };
+  }
+  const date = stockholmDate(c.created_at);
+  return { ...base, date, file_name: receiptArchiveName({ date, address:c.cases?.address, amount:c.amount, storage_path }),
+    hold_code:'unlinked_cost', hold_reason:UNLINKED_COST_REASON };
+}
+
 /** Granskning/utanför intervall för en kandidat, eller null om den får arkiveras. */
 export function holdFor(c: Candidate, settings: Pick<Settings, 'earliest_open_date'>, today: string, override = false): Hold | null {
   if (c.hold_code === 'unknown_type' || !c.destination) return { status: 'review', reason: c.hold_reason || 'Okänd dokumenttyp', code: 'unknown_type' };
@@ -42,8 +73,31 @@ export function holdFor(c: Candidate, settings: Pick<Settings, 'earliest_open_da
   if (c.hold_code === 'flagged') return { status: 'review', reason: c.hold_reason || 'Flaggad vid uppladdning', code: 'flagged' };
   if (c.destination === 'customers') return null; // Kundmappar är inte periodindelade.
   const check: DateCheck = checkDocumentDate({ date: c.date, earliestOpen: settings.earliest_open_date, today, uploadedAt: c.uploaded_at ?? null });
+  if (c.hold_code === 'unlinked_cost') {
+    if (check.state === 'out_of_range') return { status: 'out_of_range', reason: check.reason, code: 'out_of_range' };
+    return { status: 'review', reason: c.hold_reason || UNLINKED_COST_REASON, code: 'unlinked_cost' };
+  }
   if (check.state === 'ok') return null;
   return { status: check.state, reason: check.reason, code: check.state === 'out_of_range' ? 'out_of_range' : 'date' };
+}
+
+/**
+ * year_missing-rader som kan släppas till vanlig synk eftersom årsmappen nu
+ * finns bland rotmappens undermappar. Skapar aldrig något själv.
+ */
+export function releasableYearMissing(
+  syncRows: { id: string; status: string; review_code?: string | null; source_table: string; source_id: string; doc_kind: string }[],
+  candidates: Candidate[], rootFolderNames: string[],
+): string[] {
+  const byKey = new Map(candidates.map(c => [candidateKey(c), c]));
+  return syncRows.flatMap(r => {
+    if (r.status !== 'review' || r.review_code !== 'year_missing') return [];
+    const c = byKey.get(candidateKey(r));
+    if (!c?.date || (c.destination !== 'outgoing' && c.destination !== 'incoming')) return [];
+    let yearFolder: string;
+    try { yearFolder = accountingFolders(c.date, c.destination).yearFolder; } catch { return []; }
+    return rootFolderNames.some(n => sameYearFolder(n, yearFolder)) ? [r.id] : [];
+  });
 }
 
 export async function collectCandidates(admin: SupabaseClient, settings: Pick<Settings, 'earliest_open_date'>, today = stockholmDate(new Date())) {
@@ -51,7 +105,7 @@ export async function collectCandidates(admin: SupabaseClient, settings: Pick<Se
     allRows((a,b) => admin.from('a_orders').select('id,status,invoice_number,pdf_path,invoice_sent_at,date,credited_from_order_id,customer_address,total_amount,montor_teams(name)').in('status',['invoiced','credited']).not('invoice_number','is',null).not('pdf_path','is',null).order('id').range(a,b)),
     allRows((a,b) => admin.from('montor_debit_invoices').select('id,kind,invoice_number,pdf_path,date,title,total,credited_from_invoice_id,montor_teams(name)').order('id').range(a,b)),
     allRows((a,b) => admin.from('case_documents').select('id,doc_type,file_path,file_name,invoice_number,invoice_date,total_amount,created_at,drive_review_reason').not('file_path','is',null).order('id').range(a,b)),
-    allRows((a,b) => admin.from('case_costs').select('id,created_at,amount,receipt_path,receipt_url,a_order_id,a_orders(order_number),cases(address)').or('receipt_path.not.is.null,receipt_url.not.is.null').order('id').range(a,b)),
+    allRows((a,b) => admin.from('case_costs').select('id,created_at,amount,receipt_path,receipt_url,a_order_id,a_orders(status,invoice_number,invoice_sent_at,date),cases(address)').or('receipt_path.not.is.null,receipt_url.not.is.null').order('id').range(a,b)),
     allRows((a,b) => admin.from('uppdrag').select('id,customer_name,customer_address,title,handpenning_pdf_path,handpenning_invoice_no,handpenning_sent_at,slutfaktura_pdf_path,slutfaktura_invoice_no,slutfaktura_sent_at,created_at').or('handpenning_pdf_path.not.is.null,slutfaktura_pdf_path.not.is.null').order('id').range(a,b)),
     allRows((a,b) => admin.from('offers').select('id,signed_pdf_path,confirmation_pdf_path,confirmation_sent_at,offer_number,customer_name,customer_address,title,accepted_at,created_at').or('signed_pdf_path.not.is.null,confirmation_pdf_path.not.is.null').order('id').range(a,b)),
     allRows((a,b) => admin.from('drive_sync').select('*').order('id').range(a,b)),
@@ -87,13 +141,8 @@ export async function collectCandidates(admin: SupabaseClient, settings: Pick<Se
   }
 
   for (const c of costs) {
-    const raw = c.receipt_path || c.receipt_url;
-    const bucket: Bucket = c.receipt_path ? 'ai-receipts' : 'case-images';
-    const storage_path = storagePathOf(raw, bucket);
-    const date = stockholmDate(c.created_at);
-    candidates.push({ source_table:'case_costs', source_id:c.id, doc_kind:'cost_receipt', bucket, storage_path,
-      file_name: receiptArchiveName({ date, address:c.cases?.address, amount:c.amount, storage_path, a_order_number:c.a_order_id ? (c.a_orders?.order_number ?? 'okand') : null }),
-      number:null, date, destination:'outgoing', amount:c.amount });
+    const candidate = costReceiptCandidate(c);
+    if (candidate) candidates.push(candidate);
   }
   for (const o of uppdrag) for (const kind of ['handpenning','slutfaktura'] as const) {
     const path = o[`${kind}_pdf_path`];
