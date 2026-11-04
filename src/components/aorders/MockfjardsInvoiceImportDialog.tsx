@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { HOUR_RATE } from '@/lib/constants';
+import { rankCases } from '@/lib/caseMatching';
 import { serviceOrderPrefillFromInvoice } from '@/lib/serviceOrder';
 
 interface Parsed {
@@ -104,18 +105,17 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
       return;
     }
 
-    // Case match by order_number
+    // Ärendematchning via gemensam caseMatching (ordernummer + kundnamn). Endast nivå auto
+    // förkopplas; förslag visas sedan som "Ärende hittat" i A-orderformuläret.
     let matchedCase: any = null;
-    if (p.sales_order_number) {
+    if (p.sales_order_number || p.customer_name) {
       const { data: casesList } = await (supabase as any)
         .from('cases')
-        .select('id, order_number, address, customer_name, extra_hours_sold, extra_hours_approved:extra_hours_approved_amount')
-        .not('order_number', 'is', null);
-
+        .select('id, order_number, address, city, customer_name, customer_email, status, extra_hours_sold, extra_hours_approved:extra_hours_approved_amount')
+        .limit(5000);
       if (casesList) {
-        const targetNorm = norm(p.sales_order_number);
-        const match = casesList.find((c: any) => norm(c.order_number) === targetNorm);
-        if (match) matchedCase = match;
+        const top = rankCases(casesList, { mockfjardsOrderNumber: p.sales_order_number ?? null, name: p.customer_name ?? null }, { limit: 1 })[0];
+        if (top?.level === 'auto') matchedCase = top.case;
       }
     }
 
