@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { Upload, FileText, Search, Check, Loader2, AlertTriangle, Sparkles, Trash2, Plus, ChevronDown, Layers } from 'lucide-react';
 import { logActivity } from '@/lib/activityLog';
+import { rankCases, parseAddress, matchesSearch, type RankedCase, type MatchTarget } from '@/lib/caseMatching';
 
 interface PayoutUploadViewProps {
   currentUser: string;
@@ -48,163 +49,44 @@ async function fileToBase64(file: File): Promise<string> {
 
 const norm = (s: string | null | undefined) => (s ?? '').trim();
 
-// ---- Namnmatchning ----------------------------------------------------------
-const normalizeName = (s: string | null | undefined) =>
-  (s ?? '')
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '') // strip diacritics
-    .replace(/[^\p{L}\p{N}\s@.\-]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+// ---- Ärendematchning: all logik i src/lib/caseMatching.ts ------------------
+type Candidate = RankedCase<CaseRow>;
 
-const tokens = (s: string) =>
-  normalizeName(s).split(' ').filter(t => t.length >= 2);
+const rankCaseRows = (all: CaseRow[], target: MatchTarget, limit = 5): Candidate[] =>
+  rankCases(all as any[], target, { limit }) as unknown as Candidate[];
 
-const emailLocal = (e: string | null | undefined) =>
-  (e ?? '').split('@')[0]?.toLowerCase() ?? '';
-
-const phoneDigits = (p: string | null | undefined) =>
-  (p ?? '').replace(/\D+/g, '');
-
-type Candidate = { case: CaseRow; score: number; reason: string };
-
-function scoreCaseAgainst(
-  c: CaseRow,
-  payoutName: string | null,
-  payoutPhone?: string | null,
-): Candidate | null {
-  const caseName = (c.customer_name ?? '') as string;
-  const caseEmail = (c as any).customer_email as string | null | undefined;
-  const casePhone = (c as any).customer_phone as string | null | undefined;
-
-  const pTokens = tokens(payoutName ?? '');
-  if (pTokens.length === 0 && !payoutPhone) return null;
-
-  const cTokens = tokens(caseName);
-  const cEmailLocalTokens = tokens(emailLocal(caseEmail));
-  const allCaseTokens = new Set([...cTokens, ...cEmailLocalTokens]);
-
-  let overlap = 0;
-  for (const t of pTokens) if (allCaseTokens.has(t)) overlap++;
-
-  const nNorm = normalizeName(payoutName ?? '');
-  const cNorm = normalizeName(caseName);
-  const exact = nNorm && cNorm && nNorm === cNorm;
-  const reversed = nNorm && cNorm &&
-    nNorm.split(' ').slice().reverse().join(' ') === cNorm;
-  const containsFull = nNorm && cNorm && (nNorm.includes(cNorm) || cNorm.includes(nNorm));
-
-  let score = 0;
-  const reasons: string[] = [];
-  if (exact) { score += 100; reasons.push('exakt namn'); }
-  else if (reversed) { score += 90; reasons.push('omvänd ordning'); }
-  else if (containsFull && cNorm.length >= 3) { score += 70; reasons.push('delsträng'); }
-
-  if (overlap > 0) {
-    score += overlap * 25;
-    reasons.push(`${overlap} ord matchar`);
-  }
-
-  // Phone signal
-  const pPhone = phoneDigits(payoutPhone);
-  const cPhone = phoneDigits(casePhone);
-  if (pPhone && cPhone && (pPhone.endsWith(cPhone.slice(-7)) || cPhone.endsWith(pPhone.slice(-7)))) {
-    score += 50;
-    reasons.push('telefon');
-  }
-
-  if (score <= 0) return null;
-  return { case: c, score, reason: reasons.join(' · ') };
-}
-
-function findNameMatches(
-  allCases: CaseRow[],
-  payoutName: string | null,
-  payoutPhone?: string | null,
-  limit = 5,
-): Candidate[] {
-  if (!payoutName && !payoutPhone) return [];
-  const out: Candidate[] = [];
-  for (const c of allCases) {
-    const cand = scoreCaseAgainst(c, payoutName ?? null, payoutPhone ?? null);
-    if (cand) out.push(cand);
-  }
-  out.sort((a, b) => b.score - a.score);
-  return out.slice(0, limit);
-}
-
-// Namnmatchning mot okopplade A-ordrar (samma normalisering/ordöverlapp)
 type GroupChoice =
   | { kind: 'case'; case: CaseRow }
   | { kind: 'aorder'; aOrder: any }
   | { kind: 'unlinked' };
 
-function findAOrderCandidates(aOrders: any[], name: string | null | undefined, max = 3): { aOrder: any; score: number; reason: string }[] {
-  if (!name || !name.trim()) return [];
-  const scored: { aOrder: any; score: number; reason: string }[] = [];
-  for (const a of aOrders) {
-    if (!a.customer_name) continue;
-    const cand = findNameMatches([{ id: a.id, customer_name: a.customer_name, address: a.customer_address } as any], name, null, 1);
-    if (cand[0] && cand[0].score > 0) scored.push({ aOrder: a, score: cand[0].score, reason: cand[0].reason });
-  }
-  return scored.sort((x, y) => y.score - x.score).slice(0, max);
+type AOrderCandidate = { aOrder: any; score: number; reason: string };
+
+/** Okopplade A-ordrar som liknar målet (adress, namn, telefon, Mockfjärds ordernummer). */
+function rankAOrders(aOrders: any[], target: MatchTarget, max = 3): AOrderCandidate[] {
+  const byId = new Map(aOrders.map(a => [a.id, a]));
+  return rankCases(
+    aOrders.map(a => ({ id: a.id, address: a.customer_address, customer_name: a.customer_name, customer_phone: a.customer_phone, order_number: a.mockfjards_order_number })),
+    target,
+    { limit: max },
+  ).map(r => ({ aOrder: byId.get(r.case.id), score: r.score, reason: r.label }));
 }
+
+/** Fritextsökning i ärendelistan (ordvis, se matchesSearch). */
+function searchCaseList(all: CaseRow[], q: string, limit: number): CaseRow[] {
+  if (!q.trim()) return [];
+  return all
+    .filter(c => matchesSearch([c.address, (c as any).city, c.customer_name, c.offer_number, (c as any).order_number], q))
+    .slice(0, limit);
+}
+
+/** Adressnyckel för en montörsfakturarad (tom => saknar gata + husnummer). */
+const lineAddrKey = (li: LineItem): string => {
+  const p = parseAddress(li.job_address);
+  return p.valid ? p.key : '';
+};
 
 type DocType = 'mockfjards_payout' | 'a_order' | 'sheet_metal_invoice' | 'montor_invoice';
-
-// ---- Adressmatchning (för plåtfakturor) -----------------------------------
-const stripDiacritics = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-const addrNorm = (s: any) => stripDiacritics(String(s ?? '').toLowerCase().trim());
-
-type ParsedAddr = { street: string; number: string; city: string };
-function parseAddress(raw: any): ParsedAddr {
-  const s = addrNorm(raw);
-  if (!s) return { street: '', number: '', city: '' };
-  const parts = s.split(',').map(p => p.trim()).filter(Boolean);
-  const head = parts[0] || '';
-  let city = '';
-  if (parts.length > 1) {
-    city = parts.slice(1).join(' ').replace(/\b\d{3}\s?\d{2}\b/g, '').replace(/\s+/g, ' ').trim();
-  } else {
-    const m = s.match(/^(.*?)(\d{3}\s?\d{2})\s+(.+)$/);
-    if (m) city = m[3].trim();
-  }
-  const numMatch = head.match(/(\d+)\s*([a-z])?\b/);
-  const number = numMatch ? (numMatch[1] + (numMatch[2] || '')) : '';
-  const street = (numMatch ? head.slice(0, numMatch.index).trim() : head)
-    .replace(/[^a-z0-9åäö\s]/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return { street, number, city };
-}
-function streetNameMatch(a: string, b: string): boolean {
-  if (!a || !b) return false;
-  if (a === b) return true;
-  if (a.length >= 4 && b.includes(a)) return true;
-  if (b.length >= 4 && a.includes(b)) return true;
-  return false;
-}
-type AddrCandidate = { case: CaseRow; score: number; reason: string };
-function addressCandidates(allCases: CaseRow[], rawAddr: string | null): AddrCandidate[] {
-  const a = parseAddress(rawAddr);
-  if (!a.street || !a.number) return [];
-  const out: AddrCandidate[] = [];
-  for (const c of allCases) {
-    const b = parseAddress(c.address);
-    if (!b.street || !b.number) continue;
-    if (a.number !== b.number) continue;
-    if (!streetNameMatch(a.street, b.street)) continue;
-    const sameCity = !!(a.city && b.city && (a.city === b.city || a.city.includes(b.city) || b.city.includes(a.city)));
-    out.push({
-      case: c,
-      score: 100 + (sameCity ? 10 : 0),
-      reason: sameCity ? 'gata + nr + ort' : 'gata + nr',
-    });
-  }
-  out.sort((x, y) => y.score - x.score);
-  return out.slice(0, 5);
-}
 
 const STATUS_LABELS: Record<string, string> = {
   kontrollmatning: 'Kontrollmätning', km_klar: 'KM klar', vantar_godkannande: 'Väntar godkännande',
