@@ -185,7 +185,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('a_orders')
-        .select('id, order_number, customer_name, customer_address, total_amount')
+        .select('id, order_number, customer_name, customer_address, customer_phone, mockfjards_order_number, total_amount')
         .is('case_id', null);
       if (error) throw error;
       return data ?? [];
@@ -213,18 +213,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
     : t === 'a_order' ? 'A-order'
     : 'Mockfjärds-utbetalning';
 
-  const searchCasesFor = (q: string) => {
-    const s = q.trim().toLowerCase();
-    if (!s) return [];
-    return (cases as CaseRow[])
-      .filter(c =>
-        (c.customer_name || '').toLowerCase().includes(s) ||
-        (c.address || '').toLowerCase().includes(s) ||
-        (c.offer_number || '').toLowerCase().includes(s) ||
-        ((c as any).order_number || '').toLowerCase().includes(s)
-      )
-      .slice(0, 8);
-  };
+  const searchCasesFor = (q: string) => searchCaseList(cases as CaseRow[], q, 8);
 
   const linkUnlinkedDoc = async (docId: string, c: CaseRow) => {
     const { error } = await (supabase as any).from('case_documents').update({ case_id: c.id }).eq('id', docId);
@@ -247,41 +236,35 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
 
   const isMulti = isMontorInvoice || (!isSheet && distinctOrderNumbers.length > 1);
 
-  // Single-mode auto-match by order_number (not used for sheet metal)
-  const orderMatch = useMemo(() => {
-    if (isSheet) return null;
-    const q = orderNumber.trim();
-    if (!q) return null;
-    return (cases as any[]).find(c => norm(c.order_number) === q) || null;
-  }, [orderNumber, cases, isSheet]);
+  // Single-läge: adress + namn + Mockfjärds ordernummer via caseMatching.
+  const singleRanked = useMemo<Candidate[]>(() => {
+    const target: MatchTarget = {
+      address: jobAddress || null,
+      name: customerName || null,
+      mockfjardsOrderNumber: isSheet ? null : (orderNumber.trim() || null),
+    };
+    if (!target.address && !target.name && !target.mockfjardsOrderNumber) return [];
+    return rankCaseRows(cases as CaseRow[], target, 5);
+  }, [cases, jobAddress, customerName, orderNumber, isSheet]);
+  const singleTop = singleRanked[0] ?? null;
+  // Nivå auto väljs automatiskt; nivå suggest är förvald men måste bekräftas.
+  const autoCase = singleTop?.level === 'auto' ? singleTop.case : null;
 
-  // Namnkandidater (fallback i single-läge)
-  const nameCandidates = useMemo<Candidate[]>(() => {
-    if (isSheet || orderMatch) return [];
-    return findNameMatches(cases as CaseRow[], customerName, null, 5);
-  }, [orderMatch, cases, customerName, isSheet]);
-
-  // Auto-acceptera ENDAST exakta namnträffar
-  const strongNameMatch = nameCandidates[0] && nameCandidates[0].score >= 90 && /exakt namn/i.test(nameCandidates[0].reason) ? nameCandidates[0].case : null;
-
-  // Adress-kandidater (plåtfaktura)
-  const addressMatches = useMemo<AddrCandidate[]>(() => {
-    if (!isSheet) return [];
-    return addressCandidates(cases as CaseRow[], jobAddress || null);
-  }, [isSheet, jobAddress, cases]);
-  const strongAddrMatch = addressMatches[0]?.case || null;
-
-  const effectiveCase = chosenCase || orderMatch || strongNameMatch || strongAddrMatch;
+  const effectiveCase = chosenCase || autoCase;
 
   const singleAOrderMatch = useMemo(
     () => {
-      if (isMulti || effectiveCase) return null;
-      const best = findAOrderCandidates(unlinkedAOrders as any[], customerName, 1)[0];
-      return best && best.score >= 90 ? best : null;
+      if (isMulti || effectiveCase || isSheet) return null;
+      return rankAOrders(unlinkedAOrders as any[], {
+        address: jobAddress || null,
+        name: customerName || null,
+        mockfjardsOrderNumber: orderNumber.trim() || null,
+      }, 1)[0] ?? null;
     },
-    [isMulti, effectiveCase, unlinkedAOrders, customerName],
+    [isMulti, effectiveCase, isSheet, unlinkedAOrders, customerName, jobAddress, orderNumber],
   );
-  const [singleAOrderAccept, setSingleAOrderAccept] = useState(true);
+  // Aldrig förbockad: att skapa ett ärende kräver alltid ett aktivt val.
+  const [singleAOrderAccept, setSingleAOrderAccept] = useState(false);
   const [allowUnlinked, setAllowUnlinked] = useState(false);
 
   // Multi-mode groups
@@ -477,7 +460,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
   const multiSumMismatch = isMulti && totalNum > 0 && Math.abs(groupedSubtotalSum - totalNum) > 0.5;
 
   const reset = () => {
-    setSingleAOrderAccept(true);
+    setSingleAOrderAccept(false);
     setAllowUnlinked(false);
     setFile(null);
     setOrderNumber('');
