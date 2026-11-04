@@ -22,3 +22,17 @@ export function base64ToBytes(base64: string): Uint8Array {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
 }
+
+/** Deterministisk Mockfjärds-tolkning av en PDF (base64). null om PDF:en inte kan läsas alls. */
+export async function readMockfjardsPdf(base64: string, fileName?: string | null) {
+  const { interpretMockfjards } = await import('./mockfjardsInvoice.ts');
+  try {
+    const items = await pdfTextItems(base64ToBytes(base64));
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    return interpretMockfjards(items, fileName, today);
+  } catch (e) {
+    console.error('PDF text layer read failed', e);
+    return null;
+  }
+}
+export const stockholmToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
