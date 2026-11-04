@@ -62,6 +62,8 @@ import { shareCaseInChat } from '@/lib/chat';
 import { MontagePartialBlock } from '@/components/shared/MontagePartialBlock';
 import { rankCases, matchesSearch } from '@/lib/caseMatching';
 import { aOrderRef, isAOrderEvent, isAOrderDocument, moveEventTexts } from '@/lib/aOrderMove';
+import { MergeCasesDialog } from '@/components/shared/MergeCasesDialog';
+import { Combine } from 'lucide-react';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -1222,6 +1224,7 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const isAdmin = isCurrentUserAdmin(currentUser);
   const canAct = canActOnDeviations(currentUser, isCoordinator ? 'coordinator' : isSeller ? 'seller' : 'montor');
   const [actionDev, setActionDev] = useState<DeviationRow | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
 
   const [blockedStatus, setBlockedStatus] = useState<{ status: string; reason: string; description: string } | null>(null);
 
@@ -3007,6 +3010,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
             </div>
           </section>
 
+          {(isAdmin || isCoordinator) && (
+            <section className="p-4 border-t">
+              <Button variant="outline" className="min-h-12 w-full justify-start" onClick={() => setMergeOpen(true)}>
+                <Combine className="h-4 w-4 mr-2" /> Slå ihop dubblett
+              </Button>
+            </section>
+          )}
+
           {/* Delete case - seller only */}
           {isSeller && !isCoordinator && (
             <section className="p-4">
@@ -3039,6 +3050,17 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           )}
         </div>
       </div>
+      {(isAdmin || isCoordinator) && (
+        <MergeCasesDialog
+          open={mergeOpen}
+          onOpenChange={setMergeOpen}
+          fromCase={caseData as any}
+          onMerged={(keepId) => {
+            queryClient.invalidateQueries({ queryKey: ['cases'] });
+            if (keepId !== caseData.id) { onClose(); navigate(`/?case=${encodeURIComponent(keepId)}`); }
+          }}
+        />
+      )}
       {/* Fullscreen image dialog */}
       <Dialog open={!!fullscreenImg} onOpenChange={() => setFullscreenImg(null)}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-2">
