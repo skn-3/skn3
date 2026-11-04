@@ -13,6 +13,10 @@ import { logActivity } from '@/lib/activityLog';
 import { useDuplicateCaseGuard } from '@/components/shared/DuplicateCaseGuard';
 import { formatAmount } from '@/lib/utils';
 import { listOrdersByCaseIds } from '@/integrations/orderGateway';
+import { useNavigate } from 'react-router-dom';
+import { Copy } from 'lucide-react';
+import { findDuplicatePairs } from '@/lib/caseMerge';
+import { MergeCasesDialog } from '@/components/shared/MergeCasesDialog';
 
 interface Props {
   currentUser: string;
@@ -31,6 +35,10 @@ export function ValidatePipelineView({ currentUser }: Props) {
   });
 
   const issues = useMemo<PipelineIssue[]>(() => findPipelineIssues(allCases || []), [allCases]);
+  const navigate = useNavigate();
+  // Möjliga dubbletter: samma gata + husnummer. Listan visar bara; sammanslagning kräver aktivt val.
+  const duplicatePairs = useMemo(() => findDuplicatePairs((allCases || []) as any[]), [allCases]);
+  const [mergePair, setMergePair] = useState<{ a: any; b: any } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [busyAll, setBusyAll] = useState(false);
 
@@ -358,6 +366,50 @@ export function ValidatePipelineView({ currentUser }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* === Möjliga dubbletter === */}
+      <div className="rounded-lg border p-4 bg-card space-y-3">
+        <div className="flex items-start gap-3">
+          <Copy className="h-5 w-5 text-primary mt-0.5" />
+          <div className="flex-1">
+            <div className="font-medium">Möjliga dubbletter</div>
+            <p className="text-sm text-muted-foreground">
+              {duplicatePairs.length === 0
+                ? 'Inga ärenden delar gata och husnummer.'
+                : `${duplicatePairs.length} par av ärenden har samma gata och husnummer. Det kan vara dubbletter eller två riktiga ordrar på samma adress — kontrollera innan du slår ihop.`}
+            </p>
+          </div>
+        </div>
+        {duplicatePairs.length > 0 && (
+          <div className="space-y-2">
+            {duplicatePairs.map(({ keep, drop }) => (
+              <div key={keep.id + drop.id} className="rounded-md border p-3 bg-background space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[keep, drop].map((c: any) => (
+                    <div key={c.id} className="min-w-0">
+                      <div className="font-medium break-words">{c.address}</div>
+                      <div className="text-xs text-muted-foreground break-words">
+                        {c.customer_name || '—'} · {c.seller || '—'} · {STATUS_LABELS[c.status] || c.status} · skapad {c.created_at ? new Date(c.created_at).toLocaleDateString('sv-SE') : '—'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Button variant="outline" className="min-h-11" onClick={() => setMergePair({ a: keep, b: drop })}>Slå ihop</Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <MergeCasesDialog
+        open={!!mergePair}
+        onOpenChange={(o) => { if (!o) setMergePair(null); }}
+        pair={mergePair}
+        onMerged={(keepId) => {
+          qc.invalidateQueries({ queryKey: ['cases_all_validate'] });
+          navigate(`/?case=${encodeURIComponent(keepId)}`);
+        }}
+      />
 
       {/* === Orphan signed visits === */}
       <div className="rounded-lg border p-4 bg-card space-y-3">
