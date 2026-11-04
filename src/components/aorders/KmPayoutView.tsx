@@ -159,7 +159,7 @@ export function KmPayoutView({ currentUser }: Props) {
           const customer_name = group.find(l => l.customer_name)?.customer_name ?? data.customer_name ?? '';
 
           const kmQty = bil?.qty != null ? Number(bil.qty) : (restid?.qty != null ? Number(restid.qty) : null);
-          const jobAddress = group.find(l => (l as any).job_address)?.job_address ?? null;
+          const jobAddress = (group.find(l => (l as any).job_address) as any)?.job_address ?? null;
           const auto = rankForPayout(cases as CaseRow[], { name: customer_name || null, mockfjardsOrderNumber: on, address: jobAddress }, 5);
           // Endast nivå auto väljs automatiskt; förslag visas och kräver ett tryck.
           const strong = auto[0]?.level === 'auto' ? auto[0].case : null;
