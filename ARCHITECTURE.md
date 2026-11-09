@@ -103,7 +103,7 @@ Statusövergångar valideras i `src/lib/statusRules.ts` (`canEnterStatus`) — t
 
 **Kundavstämning efter montage:** när ärendet står i `montage_klart` (eller `fakturerad`) och `customer_followup_done_at` är null ligger det överst i koordinatorns inkorg ("Att stämma av med kund") och får chippen "Kundavstämning kvar" i pipelinen. Koordinatorn bockar i Kund kontaktad + Kund har signerat och klarmarkerar (case_event `customer_followup_done`; Ångra loggar `customer_followup_reopened`). Avstämningen är en checklista bredvid pipelinen och ändrar aldrig status. Urval och spar-logik: `src/lib/customerFollowup.ts` + `src/hooks/useCustomerFollowup.ts`.
 
-**Skräphämtning (Ragn-Sells):** montören trycker "Boka Ragn-Sells" (montage_bokat–fakturerad) → begäransfälten sätts, case_event `waste_pickup_requested` ger notis till personal via `notify_montor_case_event`, och `notify-email` (mallen `waste_pickup_requested`, enda läget som montörer får anropa) mejlar koordinatorn från ärendet anroparen själv får läsa. Ärendet ligger i inkorgen ("Skräp att boka hämtning för") och får chippen "Skräp att hämta" tills kontoret markerar bokad (`waste_pickup_booked` → notis till montörsteamet). Ändrar aldrig status. Logik: `src/lib/wastePickup.ts` + `src/hooks/useWastePickup.ts`.
+**Skräphämtning (Ragn-Sells):** montören trycker "Boka Ragn-Sells" (montage_bokat–fakturerad) → begäransfälten sätts, case_event `waste_pickup_requested` ger notis till personal via `notify_montor_case_event`, och `notify-email` (fasta mallen `waste_pickup_requested`) mejlar koordinatorn från ärendet anroparen själv får läsa. Ärendet ligger i inkorgen ("Skräp att boka hämtning för") och får chippen "Skräp att hämta" tills kontoret markerar bokad (`waste_pickup_booked` → notis till montörsteamet). Ändrar aldrig status. Logik: `src/lib/wastePickup.ts` + `src/hooks/useWastePickup.ts`.
 
 ### Två parallella arbetsspår
 1. **Mockfjärds-ärenden** (`cases`) — fönsterjobb från Mockfjärds. KM/utbetalning/team-statistik. Mockfjärds betalar *oss* (intäkt), montören utför (A-orderkostnad).
@@ -149,7 +149,12 @@ Systemet har tre olika fakturatyper som går i olika riktningar i pengaflödet. 
 Samtliga ligger i `supabase/functions/`. Auth-modell anges per grupp.
 
 ### E-postutskick (kräver inloggad personal-JWT)
-- `notify-email` — interna mejl (koordinator/admin). Undantag: `{ template: 'waste_pickup_requested', case_id }` får anropas av alla inloggade; mottagare (koordinatorn) och innehåll byggs i funktionen (`wastePickupEmail.ts`) och kräver en begäran från de senaste 15 minuterna.
+- `notify-email` — interna mejl. Fritt innehåll (`to`/`subject`/`body`/`rows`) kräver koordinator/admin (`requireCoordinator`).
+  Fasta mallar får anropas av alla inloggade (även montörer) med bara `{ template, case_id[, deviation_id, images_only] }`:
+  `montage_klart`, `montage_delrapport`, `kontrollmatning_inskickad`, `km_klar`, `avvikelse_rapporterad`, `km_bokad`, `montage_bokat` (`montorEmails.ts`) och `waste_pickup_requested` (`wastePickupEmail.ts`).
+  Ärendet läses med anroparens JWT mot `cases_montor` (RLS avgör), mallen kräver en case_event av rätt typ skapad av anroparen de senaste 15 minuterna (annars 409; skräphämtning kräver en färsk begäran), och mottagare, ämne och innehåll byggs i funktionen – aldrig ekonomi, bara adress, kund, team, händelsen, montörens text och länken `/?case={id}`.
+  Mottagare: koordinatorn (`COORDINATOR_TO` i `_shared/mailRecipients.ts`) för rapporter till kontoret, ärendets säljare för `km_klar`, teamets egen adress för `km_bokad`/`montage_bokat` (okänd adress = hoppas över); kopia alltid till `MAIL_CC`.
+  Klienten anropar via `src/lib/montorEmail.ts`; huvudåtgärden sparas alltid först, misslyckat mejl ger en diskret toast-varning, och lyckat utskick loggas i `activity_log` (category `email`, action = mallen).
 - `send-offer` — skickar offert till kund (publik länk + ev. PDF).
 - `send-invoice` — offert-/uppdragsfaktura (handpenning/slutfaktura).
 - `send-a-order` — skickar A-order till montör (PDF + bildbilagor).
