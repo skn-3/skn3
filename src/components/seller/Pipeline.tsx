@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command';
 import { sellerStepsFor } from '@/lib/sellerSteps';
 import { needsCustomerFollowup } from '@/lib/customerFollowup';
+import { needsWasteBooking } from '@/lib/wastePickup';
 
 // Statusfärger kommer från src/lib/statusTheme.ts (samma i hela appen).
 
@@ -423,6 +424,7 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
                     warnings={getWarnings(c, ordersByCaseId ?? null)}
                     hideFinancials={isCoordinator}
                     followupPending={needsCustomerFollowup(c)}
+                    wastePending={needsWasteBooking(c)}
                   />
                 ))}
               </div>

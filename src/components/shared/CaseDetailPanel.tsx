@@ -65,6 +65,8 @@ import { aOrderRef, isAOrderEvent, isAOrderDocument, moveEventTexts } from '@/li
 import { MergeCasesDialog } from '@/components/shared/MergeCasesDialog';
 import { Combine } from 'lucide-react';
 import { CustomerFollowupBlock } from '@/components/shared/CustomerFollowupBlock';
+import { WastePickupBlock } from '@/components/shared/WastePickupBlock';
+import { canRequestWastePickup, wastePickupState } from '@/lib/wastePickup';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -2824,6 +2826,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
 
           {(isSeller || isCoordinator) && (
             <CustomerFollowupBlock caseData={caseData} currentUser={currentUser} />
+          )}
+
+          {(isSeller || isCoordinator) && (canRequestWastePickup(caseData) || wastePickupState(caseData) !== 'none') && (
+            <WastePickupBlock caseData={caseData} currentUser={currentUser} />
           )}
 
           <SheetMetalOrdersSection caseId={caseData.id} />
