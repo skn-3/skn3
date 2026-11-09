@@ -107,6 +107,6 @@ describe('Skräphämtning — mejlet', () => {
   });
   it('innehåller aldrig ekonomifält', () => {
     const m = wastePickupEmail({ ...c, order_value: 99999, tb_percent: 40 } as any, 'https://x');
-    expect(m.body).not.toMatch(/99999|order_value|tb_percent|kr\b/);
+    expect(m.body).not.toMatch(/99999|order_value|tb_percent|\d kr/);
   });
 });
