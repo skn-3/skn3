@@ -22,7 +22,8 @@ export type ActivityCategory =
   | 'deviation'
   | 'order'
   | 'system'
-  | 'data';
+  | 'data'
+  | 'email';
 
 export interface LogActivityParams {
   action: string;
