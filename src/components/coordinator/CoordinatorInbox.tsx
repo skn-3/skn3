@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, Phone, MapPin, CalendarPlus, Hammer, Check, Wrench, FolderOpen, Users, CalendarCheck } from 'lucide-react';
+import { Loader2, Phone, MapPin, CalendarPlus, Hammer, Check, Wrench, FolderOpen, Users, CalendarCheck, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DeviationActionSheet,
@@ -34,6 +34,10 @@ import { logActivity } from '@/lib/activityLog';
 import { selectOpenFollowups, followupAgeDays, isFollowupOverdue, followupAgeLabel } from '@/lib/customerFollowup';
 import { useCustomerFollowup } from '@/hooks/useCustomerFollowup';
 import { CustomerFollowupControls } from '@/components/shared/CustomerFollowupControls';
+import { selectOpenWastePickups, wasteAgeDays, isWasteOverdue, wasteAgeLabel, pendingSummary } from '@/lib/wastePickup';
+import { useWastePickup } from '@/hooks/useWastePickup';
+import { WasteBookForm } from '@/components/shared/WastePickupForms';
+import { formatDaySv } from '@/lib/dateSv';
 
 interface Props {
   coordinatorName: string;
@@ -66,6 +70,8 @@ export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
   const [bookingCase, setBookingCase] = useState<CaseRow | null>(null);
   const [openDev, setOpenDev] = useState<DeviationRow | null>(null);
   const [newDevOpen, setNewDevOpen] = useState(false);
+  const [wasteCase, setWasteCase] = useState<CaseRow | null>(null);
+  const waste = useWastePickup(coordinatorName);
 
   const { data: cases, isLoading: casesLoading } = useQuery({
     queryKey: ['coordinator-cases'],
@@ -93,6 +99,9 @@ export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
 
   // SECTION 0 — Att stämma av med kund: klart montage som inte är avstämt
   const toFollowUp = useMemo(() => selectOpenFollowups(cases || []), [cases]);
+  // SECTION 0b — Skräp att boka hämtning för
+  const toPickUp = useMemo(() => selectOpenWastePickups(cases || []), [cases]);
+  const summary = pendingSummary(toFollowUp.length, toPickUp.length);
 
   // SECTION 1 — Att boka in: status godkand/i_produktion AND (no montage_date OR no team)
   const toBook = useMemo(() => {
@@ -191,10 +200,8 @@ export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
       <div className="space-y-1 pt-2">
         <h1 className="text-2xl md:text-3xl font-bold">Min inkorg</h1>
         <p className="text-muted-foreground">Här är det som väntar på dig idag.</p>
-        {toFollowUp.length > 0 && (
-          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-            {toFollowUp.length} kundavstämning{toFollowUp.length === 1 ? '' : 'ar'} väntar
-          </p>
+        {summary && (
+          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{summary}</p>
         )}
       </div>
 
@@ -252,6 +259,58 @@ export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
                       </div>
                     </div>
                     <CustomerFollowupControls c={c} followup={followup} />
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+
+          {/* Section 0b — Skräp att boka hämtning för */}
+          <Section
+            title="Skräp att boka hämtning för"
+            count={toPickUp.length}
+            emptyText="✓ Inga hämtningar väntar"
+            tone="blue"
+          >
+            <div className="space-y-2">
+              {toPickUp.map(c => {
+                const days = wasteAgeDays(c);
+                const overdue = isWasteOverdue(days);
+                return (
+                  <div key={c.id} className="rounded-xl border bg-card p-4 shadow-sm flex flex-col gap-3 md:flex-row md:items-start md:justify-between" data-testid="waste-card">
+                    <div className="space-y-1 min-w-0">
+                      <div className="font-semibold text-base md:text-lg flex items-center gap-2">
+                        <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        {c.address}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {c.customer_name}{(c.team || c.waste_pickup_requested_by) ? ` · ${c.team || c.waste_pickup_requested_by}` : ''}
+                      </div>
+                      {c.waste_pickup_note && <p className="text-sm whitespace-pre-wrap">{c.waste_pickup_note}</p>}
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        {c.waste_pickup_earliest && (
+                          <span className="text-xs text-muted-foreground">Tidigast {formatDaySv(c.waste_pickup_earliest)}</span>
+                        )}
+                        {days != null && (
+                          <span className={cn(
+                            'text-xs font-semibold rounded-full px-2.5 py-1',
+                            overdue ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300' : 'bg-muted text-muted-foreground'
+                          )}>
+                            {wasteAgeLabel(days)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      {onSelectCase && (
+                        <Button variant="outline" size="lg" className="gap-1.5" onClick={() => onSelectCase(c)}>
+                          <FolderOpen className="h-4 w-4" /> Öppna ärende
+                        </Button>
+                      )}
+                      <Button size="lg" className="gap-2" onClick={() => setWasteCase(c)}>
+                        <Truck className="h-5 w-5" /> Markera bokad
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
@@ -424,6 +483,25 @@ export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
           qc.invalidateQueries({ queryKey: ['coordinator-cases'] });
         }}
       />
+
+      <Sheet open={!!wasteCase} onOpenChange={(open) => !open && setWasteCase(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Ragn-Sells bokad – {wasteCase?.address}</SheetTitle>
+          </SheetHeader>
+          {wasteCase && (
+            <div className="py-4">
+              <WasteBookForm
+                key={wasteCase.id}
+                idPrefix={`inbox-book-${wasteCase.id}`}
+                pending={waste.book.isPending}
+                onCancel={() => setWasteCase(null)}
+                onSave={(date, note) => waste.book.mutate({ c: wasteCase, date, note }, { onSuccess: () => setWasteCase(null) })}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       <DeviationActionSheet
         deviation={openDev}
