@@ -207,6 +207,27 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     queryClient.invalidateQueries({ queryKey: ['case_costs', caseData.id] });
   };
 
+  /**
+   * Skickar en fast montörsmall via notify-email (mottagare och innehåll byggs på servern)
+   * och lägger en händelserad när mejlet gått iväg. Kastar aldrig – huvudåtgärden är sparad.
+   */
+  const sendAndRecord = async (template: MontorEmailTemplate, label: string, prefix = 'Mail skickat till'): Promise<boolean> => {
+    const mail = await sendMontorEmail(template, caseData.id);
+    if (mail.ok && !mail.skipped) {
+      try {
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'notification',
+          description: prefix === 'Mail skickat till' ? `${prefix} ${mail.to.join(', ')} (${label})` : `${prefix} (${mail.to.join(', ')})`,
+          created_by: currentUser,
+        });
+      } catch (e) {
+        console.error(`[${template}] händelserad för mejl misslyckades:`, e);
+      }
+    }
+    return mail.ok;
+  };
+
   // Kvittobildens förhandsvisnings-URL skapas en gång per fil och frigörs vid byte.
   const costFileUrl = useMemo(() => (costFile ? URL.createObjectURL(costFile) : null), [costFile]);
   useEffect(() => {
@@ -307,7 +328,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           currentUser,
           caseAddress: caseData.address,
           customerName: caseData.customer_name,
-        });
+        }));
       }
       const hrs = Number(extraHoursReq);
       const newStatus = hrs > 0 ? 'vantar_godkannande' : 'km_klar';
@@ -361,17 +382,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         case_id: caseData.id,
         metadata: { montage_date: montageDate, montage_time: montageTime || null, case_id: caseData.id },
       });
-      await sendMontorAssignmentEmail(
-        { ...caseData, team, montage_date: montageDate, montage_time: montageTime || null },
-        'montage',
-        currentUser,
-        { montage_date: montageDate, montage_time: montageTime || null },
-      );
+      return { emailOk: await sendAndRecord('montage_bokat', 'tilldelningsmail', 'Tilldelningsmail skickat till montör') };
     },
-    onSuccess: () => {
+    onSuccess: ({ emailOk }) => {
       invalidate();
       queryClient.invalidateQueries({ queryKey: ['calendar'] });
-      toast.success(`Montage bokat ${formatDaySv(montageDate)}`);
+      toast.success(`Montage bokat ${formatDaySv(montageDate)}`, emailOk ? undefined : { description: MAIL_WARNING });
       setMontageDate('');
       setMontageTime('');
     },
