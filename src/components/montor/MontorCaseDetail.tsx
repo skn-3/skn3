@@ -3,10 +3,11 @@ import { formatDaySv, formatDayTimeSv, dayTagSv } from '@/lib/dateSv';
 import { Chip, StatusChip } from '@/components/ui/chip';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCaseEvents, fetchDeviations, fetchCaseByIdForMontor, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation, sendNotificationEmail, sendMontorAssignmentEmail } from '@/lib/supabaseClient';
+import { fetchCaseEvents, fetchDeviations, fetchCaseByIdForMontor, fetchCaseCosts, createCaseCost, uploadReceiptImage, updateCase, createCaseEvent, updateDeviation } from '@/lib/supabaseClient';
+import { sendMontorEmail, MAIL_WARNING, type MontorEmailTemplate } from '@/lib/montorEmail';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
-import { DEVIATION_TYPES, DEVIATION_RESPONSIBLE, COORDINATOR_EMAIL, EMAIL_MAP } from '@/lib/constants';
+import { DEVIATION_TYPES, DEVIATION_RESPONSIBLE, EMAIL_MAP } from '@/lib/constants';
 import { canEnterStatus } from '@/lib/statusRules';
 import { logActivity } from '@/lib/activityLog';
 import { Button } from '@/components/ui/button';
@@ -206,6 +207,27 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     queryClient.invalidateQueries({ queryKey: ['case_costs', caseData.id] });
   };
 
+  /**
+   * Skickar en fast montörsmall via notify-email (mottagare och innehåll byggs på servern)
+   * och lägger en händelserad när mejlet gått iväg. Kastar aldrig – huvudåtgärden är sparad.
+   */
+  const sendAndRecord = async (template: MontorEmailTemplate, label: string, prefix = 'Mail skickat till'): Promise<boolean> => {
+    const mail = await sendMontorEmail(template, caseData.id);
+    if (mail.ok && !mail.skipped) {
+      try {
+        await createCaseEvent({
+          case_id: caseData.id,
+          event_type: 'notification',
+          description: prefix === 'Mail skickat till' ? `${prefix} ${mail.to.join(', ')} (${label})` : `${prefix} (${mail.to.join(', ')})`,
+          created_by: currentUser,
+        });
+      } catch (e) {
+        console.error(`[${template}] händelserad för mejl misslyckades:`, e);
+      }
+    }
+    return mail.ok;
+  };
+
   // Kvittobildens förhandsvisnings-URL skapas en gång per fil och frigörs vid byte.
   const costFileUrl = useMemo(() => (costFile ? URL.createObjectURL(costFile) : null), [costFile]);
   useEffect(() => {
@@ -232,41 +254,20 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         case_id: caseData.id,
         metadata: { comment: klarComment || null },
       });
-      try {
-        await sendNotificationEmail({
-          to: COORDINATOR_EMAIL,
-          subject: `MONTAGE KLART — ${caseData.address}`,
-          body: `
-            <h2>Montage klart</h2>
-            <table style="border-collapse:collapse;width:100%">
-              <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseData.address}</td></tr>
-              <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${caseData.customer_name}</td></tr>
-              <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${currentUser}</td></tr>
-              ${klarComment ? `<tr><td style="padding:4px 8px;font-weight:bold">Kommentar:</td><td style="padding:4px 8px">${klarComment}</td></tr>` : ''}
-            </table>
-          `,
-        });
-        await createCaseEvent({
-          case_id: caseData.id,
-          event_type: 'notification',
-          description: `Mail skickat till ${COORDINATOR_EMAIL} (montage klart)`,
-          created_by: currentUser,
-        });
-      } catch (emailErr) {
-        console.error('Email notification failed:', emailErr);
-      }
+      return { emailOk: await sendAndRecord('montage_klart', 'montage klart') };
     },
-    onSuccess: () => {
+    onSuccess: ({ emailOk }) => {
       setShowKlar(false);
       invalidate();
       celebrateMontageDone();
+      if (!emailOk) toast.success('Montage klart', { description: MAIL_WARNING });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const partialMutation = useMutation({
     mutationFn: () => submitMontagePartial(caseData, currentUser, partialNote),
-    onSuccess: () => { setShowPartial(false); setPartialNote(''); invalidate(); toast.success('Delrapport skickad'); },
+    onSuccess: ({ emailOk }) => { setShowPartial(false); setPartialNote(''); invalidate(); toast.success('Delrapport skickad', emailOk ? undefined : { description: MAIL_WARNING }); },
     onError: (e: Error) => { invalidate(); toast.error(e.message); },
   });
 
@@ -310,23 +311,24 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         case_id: caseData.id,
         metadata: { km_date: kmDate },
       });
-      await sendMontorAssignmentEmail(caseData, 'km', currentUser, { km_date: kmDate });
+      return { emailOk: await sendAndRecord('km_bokad', 'tilldelningsmail', 'Tilldelningsmail skickat till montör') };
     },
-    onSuccess: () => { invalidate(); toast.success('KM bokad'); },
+    onSuccess: ({ emailOk }) => { invalidate(); toast.success('KM bokad', emailOk ? undefined : { description: MAIL_WARNING }); },
     onError: (e: Error) => toast.error(`KM kunde inte bokas: ${e.message || 'okänt fel'}`),
   });
 
   const kmReportMutation = useMutation({
     mutationFn: async () => {
       // Ett enda KM-klar-flöde: ej inskickade littera skickas in samtidigt.
+      let kmEmailOk = true;
       if (pendingLittera.length > 0) {
-        await submitKontrollmatning({
+        ({ emailOk: kmEmailOk } = await submitKontrollmatning({
           caseId: caseData.id,
           rows: litteraRows ?? [],
           currentUser,
           caseAddress: caseData.address,
           customerName: caseData.customer_name,
-        });
+        }));
       }
       const hrs = Number(extraHoursReq);
       const newStatus = hrs > 0 ? 'vantar_godkannande' : 'km_klar';
@@ -334,7 +336,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
       await createCaseEvent({
         case_id: caseData.id,
         event_type: hrs > 0 ? 'hours_request' : 'km_report',
-        description: hrs > 0 ? `KM klar. Extra timmar begärda: ${hrs}` : `KM klar. Inga extra timmar.${kmNote ? ' ' + kmNote : ''}`,
+        description: hrs > 0 ? `KM klar. Extra timmar begärda: ${hrs}${kmNote ? '. ' + kmNote : ''}` : `KM klar. Inga extra timmar.${kmNote ? ' ' + kmNote : ''}`,
         created_by: currentUser,
       });
       logActivity({
@@ -344,35 +346,11 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         case_id: caseData.id,
         metadata: { extra_hours_requested: hrs, note: kmNote || null },
       });
-      try {
-        const sellerEmail = EMAIL_MAP[caseData.seller];
-        if (sellerEmail) {
-          await sendNotificationEmail({
-            to: sellerEmail,
-            subject: `KM KLAR — ${caseData.address}`,
-            body: `
-              <h2>Kontrollmätning klar</h2>
-              <table style="border-collapse:collapse;width:100%">
-                <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseData.address}</td></tr>
-                <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${caseData.customer_name}</td></tr>
-                <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${currentUser}</td></tr>
-                ${hrs > 0 ? `<tr><td style="padding:4px 8px;font-weight:bold;color:red">Extra timmar begärda:</td><td style="padding:4px 8px;color:red;font-weight:bold">${hrs} st</td></tr>` : ''}
-                ${kmNote ? `<tr><td style="padding:4px 8px;font-weight:bold">Anteckning:</td><td style="padding:4px 8px">${kmNote}</td></tr>` : ''}
-              </table>
-            `,
-          });
-          await createCaseEvent({
-            case_id: caseData.id,
-            event_type: 'notification',
-            description: `Mail skickat till ${sellerEmail} (KM klar)`,
-            created_by: currentUser,
-          });
-        }
-      } catch (emailErr) {
-        console.error('Email notification failed:', emailErr);
-      }
+      // KM-klar-mejlet går till ärendets säljare (adressen slås upp på servern).
+      const emailOk = EMAIL_MAP[caseData.seller] ? await sendAndRecord('km_klar', 'KM klar') : true;
+      return { emailOk: emailOk && kmEmailOk };
     },
-    onSuccess: () => { invalidate(); toast.success('KM rapporterad'); },
+    onSuccess: ({ emailOk }) => { invalidate(); toast.success('KM rapporterad', emailOk ? undefined : { description: MAIL_WARNING }); },
     onError: (e: Error) => toast.error(`KM kunde inte rapporteras: ${e.message || 'okänt fel'}`),
   });
 
@@ -404,17 +382,12 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
         case_id: caseData.id,
         metadata: { montage_date: montageDate, montage_time: montageTime || null, case_id: caseData.id },
       });
-      await sendMontorAssignmentEmail(
-        { ...caseData, team, montage_date: montageDate, montage_time: montageTime || null },
-        'montage',
-        currentUser,
-        { montage_date: montageDate, montage_time: montageTime || null },
-      );
+      return { emailOk: await sendAndRecord('montage_bokat', 'tilldelningsmail', 'Tilldelningsmail skickat till montör') };
     },
-    onSuccess: () => {
+    onSuccess: ({ emailOk }) => {
       invalidate();
       queryClient.invalidateQueries({ queryKey: ['calendar'] });
-      toast.success(`Montage bokat ${formatDaySv(montageDate)}`);
+      toast.success(`Montage bokat ${formatDaySv(montageDate)}`, emailOk ? undefined : { description: MAIL_WARNING });
       setMontageDate('');
       setMontageTime('');
     },

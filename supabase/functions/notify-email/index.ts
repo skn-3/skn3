@@ -123,7 +123,13 @@ function getCtaForHeading(heading: string): string | null {
 
 import { requireCoordinator, requireAuth } from '../_shared/auth.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { wastePickupEmail, WASTE_PICKUP_TO, type WastePickupCase } from './wastePickupEmail.ts';
+import { wastePickupEmail, type WastePickupCase } from './wastePickupEmail.ts';
+import { COORDINATOR_TO, MAIL_CC } from '../_shared/mailRecipients.ts';
+import {
+  isMontorTemplate, findFreshEvent, recipientsFor, buildMontorEmail, FRESH_EVENT_MS,
+  MAIL_CASE_FIELDS, MAIL_EVENT_FIELDS, MAIL_DEVIATION_FIELDS,
+  type MontorTemplate, type MailCase, type MailEvent, type MailDeviation,
+} from './montorEmails.ts';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const WASTE_FIELDS = 'id,address,customer_name,team,waste_pickup_requested_by,waste_pickup_note,waste_pickup_earliest,waste_pickup_requested_at';
@@ -155,10 +161,57 @@ async function handleWastePickup(req: Request, payload: Record<string, unknown>)
 
   const mail = wastePickupEmail(c, MAIL_LINK_BASE_URL);
   return await sendEmail({
-    to: [WASTE_PICKUP_TO],
+    to: [COORDINATOR_TO],
     subject: mail.subject,
     html: wrapInTemplate(mail.heading, mail.body),
   });
+}
+
+/**
+ * Fasta mallar för flöden som montörer utlöser (montage klart, delrapport, KM, avvikelse,
+ * egen bokning). Alla inloggade får anropa, men ärendet läses med anroparens JWT (RLS),
+ * en färsk händelse av rätt typ skapad av anroparen krävs, och mottagare och innehåll
+ * byggs här. Klienten kan inte påverka adress eller text.
+ */
+async function handleMontorTemplate(req: Request, template: MontorTemplate, payload: Record<string, unknown>): Promise<Response> {
+  const auth = await requireAuth(req, corsHeaders);
+  if (auth.response) return auth.response;
+  const caseId = typeof payload.case_id === 'string' ? payload.case_id : '';
+  if (!UUID_RE.test(caseId)) return json(400, { error: 'Ogiltigt ärende' });
+  const deviationId = typeof payload.deviation_id === 'string' ? payload.deviation_id : null;
+  if (template === 'avvikelse_rapporterad' && !(deviationId && UUID_RE.test(deviationId))) return json(400, { error: 'Ogiltig avvikelse' });
+
+  const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+    global: { headers: { Authorization: req.headers.get('Authorization')! } },
+  });
+  const { data: profile } = await userClient.from('profiles').select('name').eq('id', auth.userId).maybeSingle();
+  const callerName = (profile?.name as string | undefined) ?? '';
+  if (!callerName) return json(403, { error: 'Profil saknas' });
+
+  const { data: c, error: caseErr } = await userClient.from('cases_montor').select(MAIL_CASE_FIELDS).eq('id', caseId).maybeSingle();
+  if (caseErr) return json(500, { error: 'Ärendet kunde inte läsas' });
+  if (!c) return json(404, { error: 'Ärendet finns inte' });
+
+  const since = new Date(Date.now() - FRESH_EVENT_MS).toISOString();
+  const { data: evs, error: evErr } = await userClient.from('case_events').select(MAIL_EVENT_FIELDS)
+    .eq('case_id', caseId).eq('created_by', callerName).gte('created_at', since)
+    .order('created_at', { ascending: false }).limit(50);
+  if (evErr) return json(500, { error: 'Händelser kunde inte läsas' });
+  const events = (evs ?? []) as MailEvent[];
+  const event = findFreshEvent(template, events, callerName, Date.now(), deviationId, payload.images_only === true);
+  if (!event) return json(409, { error: 'Ingen aktuell händelse för mejlet' });
+
+  let deviation: MailDeviation | null = null;
+  if (template === 'avvikelse_rapporterad') {
+    const { data: d } = await userClient.from('deviations').select(MAIL_DEVIATION_FIELDS).eq('id', deviationId!).eq('case_id', caseId).maybeSingle();
+    if (!d) return json(404, { error: 'Avvikelsen finns inte' });
+    deviation = d as MailDeviation;
+  }
+
+  const to = recipientsFor(template, c as MailCase);
+  if (!to) return json(200, { success: true, skipped: true, reason: 'Ingen känd mottagare' });
+  const mail = buildMontorEmail({ template, c: c as MailCase, event, events, deviation, baseUrl: MAIL_LINK_BASE_URL });
+  return await sendEmail({ to, cc: [MAIL_CC], subject: mail.subject, html: wrapInTemplate(mail.heading, mail.body) });
 }
 
 async function sendEmail(input: { to: string[]; cc?: string[]; subject: string; html: string }): Promise<Response> {
@@ -167,7 +220,7 @@ async function sendEmail(input: { to: string[]; cc?: string[]; subject: string; 
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
   if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
 
-  const GLOBAL_CC = 'mf@malke.se';
+  const GLOBAL_CC = MAIL_CC;
   const ccList = Array.from(new Set([...(input.cc ?? []), GLOBAL_CC].filter(Boolean)));
   const emailPayload: Record<string, unknown> = {
     from: 'SmartKlimat N3prenad <n3prenad@smartklimat.org>',
@@ -191,7 +244,7 @@ async function sendEmail(input: { to: string[]; cc?: string[]; subject: string; 
     console.error('Resend API error:', JSON.stringify(data));
     return json(response.status, { error: `Email send failed [${response.status}]`, details: data });
   }
-  return json(200, { success: true, data });
+  return json(200, { success: true, to: input.to, data });
 }
 
 Deno.serve(async (req) => {
@@ -203,6 +256,8 @@ Deno.serve(async (req) => {
     const payload = await req.json().catch(() => null);
     if (!payload || typeof payload !== 'object') return json(400, { error: 'Invalid JSON body' });
     if (payload.template === 'waste_pickup_requested') return await handleWastePickup(req, payload);
+    if (isMontorTemplate(payload.template)) return await handleMontorTemplate(req, payload.template, payload);
+    if (payload.template !== undefined) return json(400, { error: 'Okänd mall' });
 
     const auth = await requireCoordinator(req, corsHeaders);
     if (auth.response) return auth.response;

@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
-import { createCaseEvent, sendNotificationEmail } from '@/lib/supabaseClient';
+import { createCaseEvent } from '@/lib/supabaseClient';
+import { sendMontorEmail } from '@/lib/montorEmail';
 import { logActivity } from '@/lib/activityLog';
-import { COORDINATOR_EMAIL } from '@/lib/constants';
 import { changedFields } from '@/lib/litteraDiff';
 
 export interface KontrollmatningRow {
@@ -28,8 +28,7 @@ export async function submitKontrollmatning({
   rows,
   currentUser,
   caseAddress,
-  customerName,
-}: SubmitKontrollmatningParams): Promise<{ sent: number }> {
+}: SubmitKontrollmatningParams): Promise<{ sent: number; emailOk: boolean }> {
   const toSend = rows.filter((r) => r.cm_status === 'ej_paborjad' || r.cm_status === 'justerad');
   if (toSend.length === 0) throw new Error('Inget att skicka in');
   const ids = toSend.map((r) => r.id);
@@ -50,32 +49,20 @@ export async function submitKontrollmatning({
     case_id: caseId,
     metadata: { littera_count: toSend.length, changed_count: changedCount },
   });
-  try {
-    await sendNotificationEmail({
-      to: COORDINATOR_EMAIL,
-      subject: `KONTROLLMÄTNING INSKICKAD — ${caseAddress}`,
-      body: `
-        <h2>Kontrollmätning inskickad</h2>
-        <table style="border-collapse:collapse;width:100%">
-          <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${caseAddress}</td></tr>
-          <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${customerName}</td></tr>
-          <tr><td style="padding:4px 8px;font-weight:bold">Montör:</td><td style="padding:4px 8px">${currentUser}</td></tr>
-          <tr><td style="padding:4px 8px;font-weight:bold">Littera inskickade:</td><td style="padding:4px 8px">${toSend.length}</td></tr>
-          <tr><td style="padding:4px 8px;font-weight:bold">Varav ändrade:</td><td style="padding:4px 8px">${changedCount}</td></tr>
-        </table>
-        <p style="margin-top:12px">Logga in i N3prenad för att granska ändringarna och uppdatera Mockfjärds kundportal.</p>
-      `,
-    });
-    await createCaseEvent({
-      case_id: caseId,
-      event_type: 'notification',
-      description: `Mail skickat till ${COORDINATOR_EMAIL} (kontrollmätning inskickad)`,
-      created_by: currentUser,
-    });
-  } catch (e) {
-    console.error('Email notification failed:', e);
+  const mail = await sendMontorEmail('kontrollmatning_inskickad', caseId);
+  if (mail.ok && !mail.skipped) {
+    try {
+      await createCaseEvent({
+        case_id: caseId,
+        event_type: 'notification',
+        description: `Mail skickat till ${mail.to.join(', ')} (kontrollmätning inskickad)`,
+        created_by: currentUser,
+      });
+    } catch (e) {
+      console.error('[kontrollmatning_inskickad] händelserad för mejl misslyckades:', e);
+    }
   }
-  return { sent: toSend.length };
+  return { sent: toSend.length, emailOk: mail.ok };
 }
 
 /** Hämtar ärendets littera (för att avgöra om KM-klar ska skicka in mätningen samtidigt). */

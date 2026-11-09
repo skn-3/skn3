@@ -1,6 +1,6 @@
 // Ren mejlmall för "Skräp redo att hämtas". Bara adress, kund, team, montörens
 // notering, tidigast datum och länk – aldrig ekonomi eller interna fält.
-export const WASTE_PICKUP_TO = 'mirna.malke@mockfjards.se';
+export { COORDINATOR_TO } from '../_shared/mailRecipients.ts';
 
 export interface WastePickupCase {
   id: string;

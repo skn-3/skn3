@@ -1,0 +1,1 @@
+- Installer-triggered mail goes only through notify-email's fixed templates (montorEmails, wastePickupEmail) with recipients from _shared/mailRecipients and a fresh caller-created case_event; free-form notify-email stays coordinator-only so clients can never choose recipients or content.

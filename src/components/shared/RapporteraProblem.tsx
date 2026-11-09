@@ -9,16 +9,14 @@ import {
   uploadDeviationImages,
   createCaseEvent,
   updateCase,
-  sendNotificationEmail,
   fetchRecentOwnDeviations,
 } from '@/lib/supabaseClient';
 import { findDuplicateDeviation, DEVIATION_DEDUP_WINDOW_MS } from '@/lib/deviationDedup';
 import {
   DEVIATION_TYPES,
   DEVIATION_RESPONSIBLE,
-  COORDINATOR_EMAIL,
-  COORDINATOR_CC,
 } from '@/lib/constants';
+import { sendMontorEmail, MAIL_WARNING } from '@/lib/montorEmail';
 import { useRole } from '@/hooks/useRole';
 import { logActivity } from '@/lib/activityLog';
 import { Button } from '@/components/ui/button';
@@ -82,26 +80,6 @@ export default function RapporteraProblem() {
 
   const removeFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const buildRows = (typLabel: string, isReklam: boolean) => {
-    const badgeMap: Record<string, { color: string; bg: string }> = {
-      hog: { color: '#991B1B', bg: '#FEE2E2' },
-      medium: { color: '#92400E', bg: '#FEF3C7' },
-      lag: { color: '#374151', bg: '#F3F4F6' },
-    };
-    const rows: Array<{ label: string; value: string; badge?: { color: string; bg: string } }> = [
-      { label: 'Adress', value: caseData!.address },
-      { label: 'Kund', value: caseData!.customer_name },
-      { label: 'Rapporterad av', value: currentUser },
-      { label: 'Typ', value: typLabel },
-    ];
-    if (isReklam) {
-      const pLabel = priority === 'hog' ? 'Hög' : priority === 'medium' ? 'Medium' : 'Låg';
-      rows.push({ label: 'Prioritet', value: pLabel, badge: badgeMap[priority] });
-    }
-    rows.push({ label: 'Beskrivning', value: description });
-    return rows;
   };
 
   const saveMutation = useMutation({
@@ -226,47 +204,39 @@ export default function RapporteraProblem() {
       }
 
       // 5) Mail till kontoret (nytt ärende, eller bildfel på återanvänt ärende)
+      // Mottagare och innehåll byggs i notify-email från avvikelsen och dess händelserader.
+      let emailOk = true;
       if (!reused || imagesFailed) {
-        try {
-          const rows = buildRows(typLabel, isReklam);
-          if (imagesFailed) {
-            rows.push({ label: 'Bilder', value: `${files.length} bild(er) kunde INTE laddas upp — be montören skicka dem på annat sätt`, badge: { color: '#991B1B', bg: '#FEE2E2' } });
-          } else if (imagePaths.length > 0) {
-            rows.push({ label: 'Bilder', value: `${imagePaths.length} bild(er) bifogade` });
+        const mail = await sendMontorEmail('avvikelse_rapporterad', caseData.id, { deviation_id: deviationId, images_only: reused });
+        emailOk = mail.ok;
+        if (mail.ok && !mail.skipped) {
+          try {
+            await createCaseEvent({
+              case_id: caseData.id,
+              event_type: 'notification',
+              description: `Mail skickat till ${mail.to.join(', ')} (${isReklam ? 'reklamation' : 'avvikelse'})`,
+              created_by: currentUser,
+            });
+          } catch (e) {
+            console.error('[avvikelse_rapporterad] händelserad för mejl misslyckades:', e);
           }
-          await sendNotificationEmail({
-            to: COORDINATOR_EMAIL,
-            cc: COORDINATOR_CC,
-            subject: `${reused ? 'BILDFEL' : isReklam ? 'NY REKLAMATION' : 'NY AVVIKELSE'} — ${caseData.address}`,
-            heading: reused ? 'Bilder kunde inte laddas upp' : isReklam ? 'Ny reklamation' : 'Ny avvikelse',
-            rows,
-            callToAction: 'Vänligen granska ärendet.',
-          });
-          await createCaseEvent({
-            case_id: caseData.id,
-            event_type: 'notification',
-            description: `Mail skickat till ${COORDINATOR_EMAIL} (${isReklam ? 'reklamation' : 'avvikelse'})`,
-            created_by: currentUser,
-          });
-        } catch (emailErr) {
-          console.error('Email notification failed:', emailErr);
         }
       }
 
-      return { reused, imagesFailed, uploaded: imagePaths.length };
+      return { reused, imagesFailed, uploaded: imagePaths.length, emailOk };
     },
-    onSuccess: ({ reused, imagesFailed, uploaded }) => {
+    onSuccess: ({ reused, imagesFailed, uploaded, emailOk }) => {
       queryClient.invalidateQueries({ queryKey: ['case', caseId] });
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['deviations', caseId] });
       queryClient.invalidateQueries({ queryKey: ['deviations_bulk'] });
       queryClient.invalidateQueries({ queryKey: ['case_events', caseId] });
       if (imagesFailed) {
-        toast.warning('Problemet är rapporterat men bilderna kunde inte laddas upp — kontoret är informerat', { duration: 8000 });
+        toast.warning(emailOk ? 'Problemet är rapporterat men bilderna kunde inte laddas upp — kontoret är informerat' : 'Problemet är rapporterat men bilderna kunde inte laddas upp — skicka dem till kontoret på annat sätt', { duration: 8000 });
       } else if (reused) {
         toast.success(uploaded > 0 ? 'Problemet var redan rapporterat — bilderna är tillagda' : 'Problemet var redan rapporterat');
       } else {
-        toast.success('Problem rapporterat');
+        toast.success('Problem rapporterat', emailOk ? undefined : { description: MAIL_WARNING });
       }
       navigate(`/?case=${caseId}`);
     },

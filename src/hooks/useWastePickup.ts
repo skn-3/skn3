@@ -46,9 +46,10 @@ export function useWastePickup(actorName: string) {
       });
       try {
         await sendWastePickupEmail(c.id);
+        logActivity({ category: 'email', action: 'waste_pickup_requested', description: `Mejl skickat (waste_pickup_requested) för ${c.address}`, case_id: c.id, metadata: { template: 'waste_pickup_requested' } });
         return { emailOk: true };
       } catch (e) {
-        console.error('Mejl om skräphämtning misslyckades', e);
+        console.error('[waste_pickup_requested] mejlet via notify-email misslyckades:', e);
         return { emailOk: false };
       }
     },

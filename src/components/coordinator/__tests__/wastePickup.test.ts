@@ -11,7 +11,7 @@ import {
   requestDescription,
   pendingSummary,
 } from '@/lib/wastePickup';
-import { wastePickupEmail, WASTE_PICKUP_TO } from '../../../../supabase/functions/notify-email/wastePickupEmail';
+import { wastePickupEmail, COORDINATOR_TO } from '../../../../supabase/functions/notify-email/wastePickupEmail';
 
 const base = { status: 'montage_klart' };
 
@@ -98,7 +98,7 @@ describe('Skräphämtning — mejlet', () => {
   };
   it('går till koordinatorn med ärendelänk och escapat innehåll', () => {
     const m = wastePickupEmail(c, 'https://n3prenad.smartklimat.org');
-    expect(WASTE_PICKUP_TO).toBe('mirna.malke@mockfjards.se');
+    expect(COORDINATOR_TO).toBe('mirna.malke@mockfjards.se');
     expect(m.subject).toBe('Skräp redo att hämtas: Storgatan 1 <b>');
     expect(m.body).toContain('https://n3prenad.smartklimat.org/?case=abc-123');
     expect(m.body).toContain('Storgatan 1 &lt;b&gt;');

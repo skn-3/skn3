@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CaseRow } from '@/lib/supabaseClient';
 import { hasMontagePartial, submitMontagePartial } from '../montagePartial';
 const mocks = vi.hoisted(() => ({ update: vi.fn(), event: vi.fn(), email: vi.fn(), log: vi.fn() }));
-vi.mock('@/lib/supabaseClient', () => ({ updateCase: mocks.update, createCaseEvent: mocks.event, sendNotificationEmail: mocks.email }));
+vi.mock('@/lib/supabaseClient', () => ({ updateCase: mocks.update, createCaseEvent: mocks.event }));
+vi.mock('@/lib/montorEmail', () => ({ sendMontorEmail: mocks.email }));
 vi.mock('@/lib/activityLog', () => ({ logActivity: mocks.log }));
 const c = { id: 'case', address: 'Testvägen 1', customer_name: 'Anna', status: 'montage_bokat', team: 'Alex NBD', montage_date: '2026-10-26', delivery_date: '2026-10-25' } as CaseRow;
 describe('montage partial', () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.update.mockResolvedValue({}); mocks.event.mockResolvedValue({}); mocks.email.mockResolvedValue({}); });
+  beforeEach(() => { vi.clearAllMocks(); mocks.update.mockResolvedValue({}); mocks.event.mockResolvedValue({}); mocks.email.mockResolvedValue({ ok: true, to: ['mirna.malke@mockfjards.se'] }); });
   it('requires a note before changing anything', async () => {
     await expect(submitMontagePartial(c, 'Alex NBD', '   ')).rejects.toThrow('Beskriv vad som återstår.');
     expect(mocks.update).not.toHaveBeenCalled();
@@ -18,6 +19,12 @@ describe('montage partial', () => {
     expect(mocks.event.mock.calls[0][0]).toMatchObject({ event_type: 'montage_delrapport', description: 'Montage delrapporterat. Allt är klart utom: Lister saknas', created_by: 'Alex NBD' });
     expect(mocks.update.mock.invocationCallOrder[1]).toBeLessThan(mocks.event.mock.invocationCallOrder[0]);
     expect(mocks.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'montage_partial_reported', metadata: { note: 'Lister saknas' } }));
+  });
+  it('sends only the fixed template id and case id, and keeps the report when mail fails', async () => {
+    mocks.email.mockResolvedValueOnce({ ok: false, to: [] });
+    await expect(submitMontagePartial({ ...c, status: 'montage_pagar' }, 'Alex NBD', 'Bleck')).resolves.toEqual({ emailOk: false });
+    expect(mocks.email).toHaveBeenCalledWith('montage_delrapport', 'case');
+    expect(mocks.update).toHaveBeenCalledWith('case', expect.objectContaining({ montage_partial_note: 'Bleck' }));
   });
   it('uses the start montage guard for booked cases', async () => {
     await expect(submitMontagePartial({ ...c, delivery_date: null }, 'Alex NBD', 'Lister')).rejects.toThrow('Välj leveransdatum');

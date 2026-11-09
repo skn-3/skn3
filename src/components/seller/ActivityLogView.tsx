@@ -51,7 +51,7 @@ async function triggerBackup(): Promise<void> {
   }
 }
 
-type Category = 'auth' | 'case' | 'deviation' | 'order' | 'system' | 'data';
+type Category = 'auth' | 'case' | 'deviation' | 'order' | 'system' | 'data' | 'email';
 
 interface ActivityRow {
   id: string;
@@ -75,6 +75,7 @@ const CATEGORIES: { value: Category; label: string }[] = [
   { value: 'order', label: 'Order' },
   { value: 'system', label: 'System' },
   { value: 'data', label: 'Data' },
+  { value: 'email', label: 'E-post' },
 ];
 
 const PAGE_SIZE = 50;
