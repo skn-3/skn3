@@ -788,6 +788,13 @@ export type Database = {
           units: number | null
           updated_at: string
           visit_id: string | null
+          waste_pickup_booked_at: string | null
+          waste_pickup_booked_by: string | null
+          waste_pickup_date: string | null
+          waste_pickup_earliest: string | null
+          waste_pickup_note: string | null
+          waste_pickup_requested_at: string | null
+          waste_pickup_requested_by: string | null
         }
         Insert: {
           address: string
@@ -839,6 +846,13 @@ export type Database = {
           units?: number | null
           updated_at?: string
           visit_id?: string | null
+          waste_pickup_booked_at?: string | null
+          waste_pickup_booked_by?: string | null
+          waste_pickup_date?: string | null
+          waste_pickup_earliest?: string | null
+          waste_pickup_note?: string | null
+          waste_pickup_requested_at?: string | null
+          waste_pickup_requested_by?: string | null
         }
         Update: {
           address?: string
@@ -890,6 +904,13 @@ export type Database = {
           units?: number | null
           updated_at?: string
           visit_id?: string | null
+          waste_pickup_booked_at?: string | null
+          waste_pickup_booked_by?: string | null
+          waste_pickup_date?: string | null
+          waste_pickup_earliest?: string | null
+          waste_pickup_note?: string | null
+          waste_pickup_requested_at?: string | null
+          waste_pickup_requested_by?: string | null
         }
         Relationships: [
           {
@@ -3001,6 +3022,13 @@ export type Database = {
           units: number | null
           updated_at: string | null
           visit_id: string | null
+          waste_pickup_booked_at: string | null
+          waste_pickup_booked_by: string | null
+          waste_pickup_date: string | null
+          waste_pickup_earliest: string | null
+          waste_pickup_note: string | null
+          waste_pickup_requested_at: string | null
+          waste_pickup_requested_by: string | null
         }
         Insert: {
           address?: string | null
@@ -3042,6 +3070,13 @@ export type Database = {
           units?: number | null
           updated_at?: string | null
           visit_id?: string | null
+          waste_pickup_booked_at?: string | null
+          waste_pickup_booked_by?: string | null
+          waste_pickup_date?: string | null
+          waste_pickup_earliest?: string | null
+          waste_pickup_note?: string | null
+          waste_pickup_requested_at?: string | null
+          waste_pickup_requested_by?: string | null
         }
         Update: {
           address?: string | null
@@ -3083,6 +3118,13 @@ export type Database = {
           units?: number | null
           updated_at?: string | null
           visit_id?: string | null
+          waste_pickup_booked_at?: string | null
+          waste_pickup_booked_by?: string | null
+          waste_pickup_date?: string | null
+          waste_pickup_earliest?: string | null
+          waste_pickup_note?: string | null
+          waste_pickup_requested_at?: string | null
+          waste_pickup_requested_by?: string | null
         }
         Relationships: [
           {
