@@ -316,6 +316,15 @@ export async function sendNotificationEmail(params: {
   return data;
 }
 
+/** Fast mejl "Skräp redo att hämtas" till koordinatorn; mottagare och innehåll byggs i notify-email. */
+export async function sendWastePickupEmail(caseId: string) {
+  const { data, error } = await supabase.functions.invoke('notify-email', {
+    body: { template: 'waste_pickup_requested', case_id: caseId },
+  });
+  if (error) throw error;
+  return data;
+}
+
 /**
  * Skicka tilldelningsmail till montör (KM eller montage).
  * Skickas alltid om team finns och EMAIL_MAP har en mappning – även om montören
