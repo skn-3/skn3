@@ -42,3 +42,4 @@ Some subdirectories have their own AGENTS.md; read it before editing files there
 - Keep seller actions in sellerLogic/proposeSeller/executeSeller with panel gates; chat uses start_conversation. Normalize decimal approved hours at case boundaries via extra_hours_approved_amount; shared extraHours validation keeps UI and AI consistent.
 - Route all case matching (address/name/phone/order number, case search, duplicate warnings) through the edge-shared caseMatching module (frontend re-export), never component-local logic; coupling side effects live in aOrderCoupling, moves in aOrderMove.
 - Merge cases only via merge_cases (FKs found dynamically, dry_run = rolled-back real run); keep/field rules in caseMerge. Invoice emails use _shared/invoiceEmailFooter.
+- Keep customer follow-up selection and column patches in customerFollowup and saving in useCustomerFollowup; inbox and case panel share one tested rule set and the follow-up never changes case status.

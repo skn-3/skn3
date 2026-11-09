@@ -20,8 +20,22 @@ function makeDeliveryCase() {
   };
 }
 
+function makeFollowupCase(id: string, extra: Record<string, unknown> = {}) {
+  return {
+    id, address: `Avstämningsgatan ${id}`, customer_name: 'Kund Avstäm', customer_phone: '070 123 45 67',
+    status: 'montage_klart', created_at: '2026-10-01T08:00:00Z', status_changed_at: '2026-10-20T08:00:00Z',
+    team: 'Team A', montage_date: '2026-10-20', customer_followup_done_at: null,
+    customer_followup_contacted_at: null, customer_followup_signed_at: null, ...extra,
+  };
+}
+
 vi.mock('@/lib/supabaseClient', () => ({
-  fetchAllCases: vi.fn().mockImplementation(() => Promise.resolve([makeDeliveryCase()])),
+  fetchAllCases: vi.fn().mockImplementation(() => Promise.resolve([
+    makeDeliveryCase(),
+    makeFollowupCase('1'),
+    makeFollowupCase('2', { status: 'fakturerad', customer_followup_done_at: '2026-10-25T08:00:00Z' }),
+    makeFollowupCase('3', { customer_followup_contacted_at: '2026-10-21T08:00:00Z', customer_followup_signed_at: '2026-10-21T09:00:00Z' }),
+  ])),
   fetchAllDeviations: vi.fn().mockResolvedValue([]),
   updateCase: vi.fn(),
   updateDeviation: vi.fn(),
@@ -81,5 +95,25 @@ describe('CoordinatorInbox — Veckans leveranser', () => {
     fireEvent.click(link, { ctrlKey: true });
     fireEvent.click(link, { metaKey: true });
     expect(onSelectCase).not.toHaveBeenCalled();
+  });
+});
+
+describe('CoordinatorInbox — Att stämma av med kund', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('visar bara öppna avstämningar och räknar dem i sammanfattningen', async () => {
+    renderInbox();
+    expect(await screen.findByText('2 kundavstämningar väntar')).toBeInTheDocument();
+    const cards = screen.getAllByTestId('followup-card');
+    expect(cards).toHaveLength(2);
+    expect(screen.queryByText('Avstämningsgatan 2')).not.toBeInTheDocument();
+  });
+
+  it('Klarmarkera är spärrad tills båda kryssen är ibockade', async () => {
+    renderInbox();
+    const cards = await screen.findAllByTestId('followup-card');
+    const btn = (i: number) => cards[i].querySelector('button[class*="min-h-12"]') as HTMLButtonElement;
+    expect(btn(0)).toBeDisabled();
+    expect(btn(1)).not.toBeDisabled();
   });
 });
