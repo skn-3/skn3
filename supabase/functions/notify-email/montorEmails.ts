@@ -85,6 +85,8 @@ export function findFreshEvent(
     .filter((e) => { const t = new Date(e.created_at).getTime(); return t && now - t <= FRESH_EVENT_MS && t <= now + 60_000; })
     .filter((e) => matchesEvent(template, e, deviationId))
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  // En ny avvikelse går före en senare bildfelsrad på samma avvikelse.
+  if (template === 'avvikelse_rapporterad') return fresh.find((e) => e.event_type === 'deviation') ?? fresh[0] ?? null;
   return fresh[0] ?? null;
 }
 
