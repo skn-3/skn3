@@ -121,7 +121,78 @@ function getCtaForHeading(heading: string): string | null {
   return null;
 }
 
-import { requireCoordinator } from '../_shared/auth.ts';
+import { requireCoordinator, requireAuth } from '../_shared/auth.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import { wastePickupEmail, WASTE_PICKUP_TO, type WastePickupCase } from './wastePickupEmail.ts';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const WASTE_FIELDS = 'id,address,customer_name,team,waste_pickup_requested_by,waste_pickup_note,waste_pickup_earliest,waste_pickup_requested_at';
+
+function json(status: number, data: unknown): Response {
+  return new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+}
+
+/**
+ * Fast mall för "Skräp redo att hämtas". Får anropas av alla inloggade (även montörer),
+ * men mottagare och innehåll byggs här från ärendet som anroparen själv får läsa (RLS),
+ * och bara när en färsk begäran finns. Övriga anrop kräver koordinator/admin som tidigare.
+ */
+async function handleWastePickup(req: Request, payload: Record<string, unknown>): Promise<Response> {
+  const auth = await requireAuth(req, corsHeaders);
+  if (auth.response) return auth.response;
+  const caseId = typeof payload.case_id === 'string' ? payload.case_id : '';
+  if (!UUID_RE.test(caseId)) return json(400, { error: 'Ogiltigt ärende' });
+
+  const userClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+    global: { headers: { Authorization: req.headers.get('Authorization')! } },
+  });
+  const { data, error } = await userClient.from('cases_montor').select(WASTE_FIELDS).eq('id', caseId).maybeSingle();
+  if (error) return json(500, { error: 'Ärendet kunde inte läsas' });
+  if (!data) return json(404, { error: 'Ärendet finns inte' });
+  const c = data as WastePickupCase;
+  const requestedAt = c.waste_pickup_requested_at ? new Date(c.waste_pickup_requested_at).getTime() : 0;
+  if (!requestedAt || Date.now() - requestedAt > 15 * 60 * 1000) return json(409, { error: 'Ingen aktuell begäran om hämtning' });
+
+  const mail = wastePickupEmail(c, MAIL_LINK_BASE_URL);
+  return await sendEmail({
+    to: [WASTE_PICKUP_TO],
+    subject: mail.subject,
+    html: wrapInTemplate(mail.heading, mail.body),
+  });
+}
+
+async function sendEmail(input: { to: string[]; cc?: string[]; subject: string; html: string }): Promise<Response> {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
+  const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+  if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
+
+  const GLOBAL_CC = 'mf@malke.se';
+  const ccList = Array.from(new Set([...(input.cc ?? []), GLOBAL_CC].filter(Boolean)));
+  const emailPayload: Record<string, unknown> = {
+    from: 'SmartKlimat N3prenad <n3prenad@smartklimat.org>',
+    to: input.to,
+    subject: input.subject,
+    html: input.html,
+    cc: ccList,
+  };
+
+  const response = await fetch(`${GATEWAY_URL}/emails`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+      'X-Connection-Api-Key': RESEND_API_KEY,
+    },
+    body: JSON.stringify(emailPayload),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    console.error('Resend API error:', JSON.stringify(data));
+    return json(response.status, { error: `Email send failed [${response.status}]`, details: data });
+  }
+  return json(200, { success: true, data });
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -129,15 +200,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const payload = await req.json().catch(() => null);
+    if (!payload || typeof payload !== 'object') return json(400, { error: 'Invalid JSON body' });
+    if (payload.template === 'waste_pickup_requested') return await handleWastePickup(req, payload);
+
     const auth = await requireCoordinator(req, corsHeaders);
     if (auth.response) return auth.response;
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
-
-    const { to, cc, subject, body, heading, rows, callToAction } = await req.json();
+    const { to, cc, subject, body, heading, rows, callToAction } = payload;
 
     if (!to || !subject) {
       return new Response(JSON.stringify({ error: 'Missing required fields: to, subject' }), {
@@ -162,42 +232,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const GLOBAL_CC = 'mf@malke.se';
     const existingCc = cc ? (Array.isArray(cc) ? cc : [cc]) : [];
-    const ccList = Array.from(new Set([...existingCc, GLOBAL_CC].filter(Boolean)));
-
-    const emailPayload: Record<string, unknown> = {
-      from: 'SmartKlimat N3prenad <n3prenad@smartklimat.org>',
-      to: Array.isArray(to) ? to : [to],
-      subject,
-      html,
-      cc: ccList,
-    };
-
-    const response = await fetch(`${GATEWAY_URL}/emails`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'X-Connection-Api-Key': RESEND_API_KEY,
-      },
-      body: JSON.stringify(emailPayload),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('Resend API error:', JSON.stringify(data));
-      return new Response(JSON.stringify({ error: `Email send failed [${response.status}]`, details: data }), {
-        status: response.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(JSON.stringify({ success: true, data }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return await sendEmail({ to: Array.isArray(to) ? to : [to], cc: existingCc, subject, html });
   } catch (error) {
     console.error('notify-email error:', error);
     const msg = error instanceof Error ? error.message : 'Unknown error';
