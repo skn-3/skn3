@@ -9,7 +9,7 @@ import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBad
 import { Chip } from '@/components/ui/chip';
 import type { Tone } from '@/lib/statusTheme';
 import { hasMontagePartial } from '@/lib/montagePartial';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, PhoneCall } from 'lucide-react';
 
 const DELIVERY_RELEVANT_STATUSES = new Set([
   'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat',
@@ -77,6 +77,8 @@ interface CaseCardProps {
   warnings?: string[];
   kmInbox?: boolean;
   hideFinancials?: boolean;
+  /** Kundavstämning efter montage är inte klarmarkerad. */
+  followupPending?: boolean;
 }
 
 function getScheduledDeliveryBadge(c: any): { label: string; urgent: boolean } | null {
@@ -130,7 +132,7 @@ function getDwellBadge(c: any): { label: string; tone: 'amber' | 'red' } | null 
 type CardChip = { key: string; tone: Tone; icon?: ReactNode; label: string };
 const MAX_CHIPS = 3;
 
-export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hideFinancials }: CaseCardProps) {
+export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hideFinancials, followupPending }: CaseCardProps) {
   const tidsBadge = getScheduledDeliveryBadge(caseData as any);
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
   const dwellBadge = getDwellBadge(caseData as any);
@@ -217,6 +219,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
       )}
 
       <KlimatKompenseradBadge caseId={caseData.id} compact />
+      {followupPending && <div><Chip tone="warning" className="bg-warning-soft text-warning-ink" icon={<PhoneCall />}>Kundavstämning kvar</Chip></div>}
       {hasMontagePartial(caseData) && <div><Chip tone="warning" className="bg-warning-soft text-warning-ink" icon={<ListChecks />}>Delrapport</Chip></div>}
     </button>
     {mustComplete && (

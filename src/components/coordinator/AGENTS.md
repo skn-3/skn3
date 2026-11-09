@@ -1,0 +1,1 @@
+- Keep customer follow-up selection and column patches in src/lib/customerFollowup and saving in src/hooks/useCustomerFollowup; inbox and case panel share one tested rule set and the follow-up never changes case status.

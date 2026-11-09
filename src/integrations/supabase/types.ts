@@ -745,6 +745,10 @@ export type Database = {
           congard_hours: number
           created_at: string
           customer_email: string | null
+          customer_followup_contacted_at: string | null
+          customer_followup_done_at: string | null
+          customer_followup_done_by: string | null
+          customer_followup_signed_at: string | null
           customer_name: string
           customer_phone: string
           delivery_date: string | null
@@ -792,6 +796,10 @@ export type Database = {
           congard_hours?: number
           created_at?: string
           customer_email?: string | null
+          customer_followup_contacted_at?: string | null
+          customer_followup_done_at?: string | null
+          customer_followup_done_by?: string | null
+          customer_followup_signed_at?: string | null
           customer_name: string
           customer_phone: string
           delivery_date?: string | null
@@ -839,6 +847,10 @@ export type Database = {
           congard_hours?: number
           created_at?: string
           customer_email?: string | null
+          customer_followup_contacted_at?: string | null
+          customer_followup_done_at?: string | null
+          customer_followup_done_by?: string | null
+          customer_followup_signed_at?: string | null
           customer_name?: string
           customer_phone?: string
           delivery_date?: string | null

@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, Phone, MapPin, CalendarPlus, Hammer, Check, Wrench } from 'lucide-react';
+import { Loader2, Phone, MapPin, CalendarPlus, Hammer, Check, Wrench, FolderOpen, Users, CalendarCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DeviationActionSheet,
@@ -31,6 +31,9 @@ import {
   type DeviationStatus,
 } from '@/components/deviations/DeviationActionPanel';
 import { logActivity } from '@/lib/activityLog';
+import { selectOpenFollowups, followupAgeDays, isFollowupOverdue, followupAgeLabel } from '@/lib/customerFollowup';
+import { useCustomerFollowup } from '@/hooks/useCustomerFollowup';
+import { CustomerFollowupControls } from '@/components/shared/CustomerFollowupControls';
 
 interface Props {
   coordinatorName: string;
@@ -85,6 +88,11 @@ export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
       return new Set((data || []).map((o: any) => o.case_id));
     },
   });
+
+  const followup = useCustomerFollowup(coordinatorName);
+
+  // SECTION 0 — Att stämma av med kund: klart montage som inte är avstämt
+  const toFollowUp = useMemo(() => selectOpenFollowups(cases || []), [cases]);
 
   // SECTION 1 — Att boka in: status godkand/i_produktion AND (no montage_date OR no team)
   const toBook = useMemo(() => {
@@ -183,10 +191,73 @@ export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
       <div className="space-y-1 pt-2">
         <h1 className="text-2xl md:text-3xl font-bold">Min inkorg</h1>
         <p className="text-muted-foreground">Här är det som väntar på dig idag.</p>
+        {toFollowUp.length > 0 && (
+          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+            {toFollowUp.length} kundavstämning{toFollowUp.length === 1 ? '' : 'ar'} väntar
+          </p>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-6">
         <div className="space-y-6">
+          {/* Section 0 — Att stämma av med kund */}
+          <Section
+            title="Att stämma av med kund"
+            subtitle="Montaget är klart. Ring kunden och se till att signeringen är gjord innan du klarmarkerar."
+            count={toFollowUp.length}
+            emptyText="✓ Alla klara montage är avstämda med kund"
+            tone="emerald"
+          >
+            <div className="space-y-2">
+              {toFollowUp.map(c => {
+                const days = followupAgeDays(c);
+                const overdue = isFollowupOverdue(days);
+                return (
+                  <div key={c.id} className="rounded-xl border bg-card p-4 shadow-sm space-y-3" data-testid="followup-card">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div className="space-y-1 min-w-0">
+                        <div className="font-semibold text-base md:text-lg flex items-center gap-2">
+                          <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          {c.address}
+                        </div>
+                        <div className="text-sm text-muted-foreground">{c.customer_name}</div>
+                        <PhoneLink phone={c.customer_phone} />
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          {c.team && (
+                            <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" />{c.team}</span>
+                          )}
+                          {c.montage_date && (
+                            <span className="inline-flex items-center gap-1"><CalendarCheck className="h-3.5 w-3.5" />Montage {c.montage_date}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                        {days != null && (
+                          <span
+                            className={cn(
+                              'text-xs font-semibold rounded-full px-2.5 py-1',
+                              overdue
+                                ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300'
+                                : 'bg-muted text-muted-foreground'
+                            )}
+                          >
+                            {followupAgeLabel(days)}
+                          </span>
+                        )}
+                        {onSelectCase && (
+                          <Button variant="outline" size="sm" className="min-h-11 gap-1.5" onClick={() => onSelectCase(c)}>
+                            <FolderOpen className="h-4 w-4" /> Öppna ärende
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <CustomerFollowupControls c={c} followup={followup} />
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+
           {/* Section 1 — Att boka in */}
           <Section
             title="Att boka in"
@@ -366,9 +437,10 @@ export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
 }
 
 function Section({
-  title, count, emptyText, tone, children,
-}: { title: string; count: number; emptyText: string; tone: 'amber' | 'blue' | 'red'; children: React.ReactNode }) {
+  title, subtitle, count, emptyText, tone, children,
+}: { title: string; subtitle?: string; count: number; emptyText: string; tone: 'amber' | 'blue' | 'red' | 'emerald'; children: React.ReactNode }) {
   const toneClass =
+    tone === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300' :
     tone === 'amber' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' :
     tone === 'blue' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300' :
     'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300';
@@ -380,6 +452,7 @@ function Section({
           {count}
         </span>
       </div>
+      {subtitle && <p className="-mt-1 text-sm text-muted-foreground">{subtitle}</p>}
       {count === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-emerald-200 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/40 p-6 text-center text-emerald-700 dark:text-emerald-300">
           <Check className="h-6 w-6 inline-block mr-1.5" />

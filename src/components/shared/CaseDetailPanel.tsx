@@ -64,6 +64,7 @@ import { rankCases, matchesSearch } from '@/lib/caseMatching';
 import { aOrderRef, isAOrderEvent, isAOrderDocument, moveEventTexts } from '@/lib/aOrderMove';
 import { MergeCasesDialog } from '@/components/shared/MergeCasesDialog';
 import { Combine } from 'lucide-react';
+import { CustomerFollowupBlock } from '@/components/shared/CustomerFollowupBlock';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -2820,6 +2821,10 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
               <AlertTriangle className="h-4 w-4 mr-1" /> Rapportera problem
             </Button>
           </section>
+
+          {(isSeller || isCoordinator) && (
+            <CustomerFollowupBlock caseData={caseData} currentUser={currentUser} />
+          )}
 
           <SheetMetalOrdersSection caseId={caseData.id} />
 

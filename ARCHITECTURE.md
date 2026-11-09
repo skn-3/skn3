@@ -64,7 +64,7 @@ Inloggning sker med namn + PIN (4–6 siffror). PIN lagras som Supabase Auth-lö
 Tabeller (Postgres, samtliga med RLS aktiverat):
 
 ### Ärende-/pipeline-domän
-- **`cases`** — kärnan. Mockfjärds-jobb: kund, adress, `order_number` (Mockfjärds försäljningsorder), team, km_team, status, ekonomifält (`order_value`, `extra_hours_sold`, `extra_hours_approved`), montage-/leveransdatum, `status_changed_at` (sätts av trigger vid statusbyte; driver liggetids-chippen i pipelinen), `public_token` (kundstatussidans token).
+- **`cases`** — kärnan. Mockfjärds-jobb: kund, adress, `order_number` (Mockfjärds försäljningsorder), team, km_team, status, ekonomifält (`order_value`, `extra_hours_sold`, `extra_hours_approved`), montage-/leveransdatum, `status_changed_at` (sätts av trigger vid statusbyte; driver liggetids-chippen i pipelinen), `public_token` (kundstatussidans token). Kundavstämning: `customer_followup_contacted_at`, `customer_followup_signed_at`, `customer_followup_done_at`, `customer_followup_done_by` (nullbara; skrivs bara av personal — triggern `cases_protect_followup_fields` stoppar montörer; fakturerade ärenden före funktionen backfylldes som klara med `done_by = 'Före funktionen'`).
 - **`case_events`** — händelselogg per ärende.
 - **`case_costs`** — kostnader per ärende. `category`: `ovrigt` | `reklamation`; `responsible`: fabrik/saljare/montor/okant (styr om kostnaden belastar teamet i statistiken).
 - **`case_documents`** — metadata för uppladdade filer (kopplade till privata bucketen).
@@ -100,6 +100,8 @@ ny → vantar_km → km_bokad → km_klar → vantar_godkannande → godkand
 ```
 
 Statusövergångar valideras i `src/lib/statusRules.ts` (`canEnterStatus`) — t.ex. kräver `montage_bokat` ett satt montagedatum, och `fakturerad` att ärendet är `montage_klart`. Leveransstatus kan härledas från leveransdatum/-vecka (`deriveDeliveryStatus`).
+
+**Kundavstämning efter montage:** när ärendet står i `montage_klart` (eller `fakturerad`) och `customer_followup_done_at` är null ligger det överst i koordinatorns inkorg ("Att stämma av med kund") och får chippen "Kundavstämning kvar" i pipelinen. Koordinatorn bockar i Kund kontaktad + Kund har signerat och klarmarkerar (case_event `customer_followup_done`; Ångra loggar `customer_followup_reopened`). Avstämningen är en checklista bredvid pipelinen och ändrar aldrig status. Urval och spar-logik: `src/lib/customerFollowup.ts` + `src/hooks/useCustomerFollowup.ts`.
 
 ### Två parallella arbetsspår
 1. **Mockfjärds-ärenden** (`cases`) — fönsterjobb från Mockfjärds. KM/utbetalning/team-statistik. Mockfjärds betalar *oss* (intäkt), montören utför (A-orderkostnad).
