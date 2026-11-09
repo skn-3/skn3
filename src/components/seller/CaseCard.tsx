@@ -9,7 +9,7 @@ import { KlimatKompenseradBadge } from '@/components/shared/KlimatKompenseradBad
 import { Chip } from '@/components/ui/chip';
 import type { Tone } from '@/lib/statusTheme';
 import { hasMontagePartial } from '@/lib/montagePartial';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, PhoneCall } from 'lucide-react';
 
 const DELIVERY_RELEVANT_STATUSES = new Set([
   'godkand', 'i_produktion', 'leverans_klar', 'montage_bokat',
