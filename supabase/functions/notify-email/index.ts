@@ -198,7 +198,7 @@ async function handleMontorTemplate(req: Request, template: MontorTemplate, payl
     .order('created_at', { ascending: false }).limit(50);
   if (evErr) return json(500, { error: 'Händelser kunde inte läsas' });
   const events = (evs ?? []) as MailEvent[];
-  const event = findFreshEvent(template, events, callerName, Date.now(), deviationId);
+  const event = findFreshEvent(template, events, callerName, Date.now(), deviationId, payload.images_only === true);
   if (!event) return json(409, { error: 'Ingen aktuell händelse för mejlet' });
 
   let deviation: MailDeviation | null = null;

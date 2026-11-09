@@ -207,7 +207,7 @@ export default function RapporteraProblem() {
       // Mottagare och innehåll byggs i notify-email från avvikelsen och dess händelserader.
       let emailOk = true;
       if (!reused || imagesFailed) {
-        const mail = await sendMontorEmail('avvikelse_rapporterad', caseData.id, { deviation_id: deviationId });
+        const mail = await sendMontorEmail('avvikelse_rapporterad', caseData.id, { deviation_id: deviationId, images_only: reused });
         emailOk = mail.ok;
         if (mail.ok && !mail.skipped) {
           try {
@@ -232,7 +232,7 @@ export default function RapporteraProblem() {
       queryClient.invalidateQueries({ queryKey: ['deviations_bulk'] });
       queryClient.invalidateQueries({ queryKey: ['case_events', caseId] });
       if (imagesFailed) {
-        toast.warning('Problemet är rapporterat men bilderna kunde inte laddas upp — kontoret är informerat', { duration: 8000 });
+        toast.warning(emailOk ? 'Problemet är rapporterat men bilderna kunde inte laddas upp — kontoret är informerat' : 'Problemet är rapporterat men bilderna kunde inte laddas upp — skicka dem till kontoret på annat sätt', { duration: 8000 });
       } else if (reused) {
         toast.success(uploaded > 0 ? 'Problemet var redan rapporterat — bilderna är tillagda' : 'Problemet var redan rapporterat');
       } else {

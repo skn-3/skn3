@@ -78,15 +78,16 @@ export function matchesEvent(template: MontorTemplate, e: MailEvent, deviationId
 
 /** Senaste matchande händelse som anroparen själv skapat inom 15 minuter. */
 export function findFreshEvent(
-  template: MontorTemplate, events: MailEvent[], callerName: string, now: number, deviationId?: string | null,
+  template: MontorTemplate, events: MailEvent[], callerName: string, now: number, deviationId?: string | null, imagesOnly = false,
 ): MailEvent | null {
   const fresh = events
     .filter((e) => e.created_by === callerName)
     .filter((e) => { const t = new Date(e.created_at).getTime(); return t && now - t <= FRESH_EVENT_MS && t <= now + 60_000; })
     .filter((e) => matchesEvent(template, e, deviationId))
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  // En ny avvikelse går före en senare bildfelsrad på samma avvikelse.
-  if (template === 'avvikelse_rapporterad') return fresh.find((e) => e.event_type === 'deviation') ?? fresh[0] ?? null;
+  // Avvikelse: ny rapport kräver händelsen 'deviation'; bildfel på en redan rapporterad
+  // avvikelse (imagesOnly) kräver den färska bildfelsraden.
+  if (template === 'avvikelse_rapporterad') return fresh.find((e) => e.event_type === (imagesOnly ? 'note' : 'deviation')) ?? null;
   return fresh[0] ?? null;
 }
 

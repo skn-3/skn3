@@ -26,7 +26,7 @@ export interface MontorEmailResult {
 export async function sendMontorEmail(
   template: MontorEmailTemplate,
   caseId: string,
-  extra: { deviation_id?: string } = {},
+  extra: { deviation_id?: string; images_only?: boolean } = {},
 ): Promise<MontorEmailResult> {
   try {
     const { data, error } = await supabase.functions.invoke('notify-email', {
