@@ -28,7 +28,6 @@ export async function submitKontrollmatning({
   rows,
   currentUser,
   caseAddress,
-  customerName,
 }: SubmitKontrollmatningParams): Promise<{ sent: number; emailOk: boolean }> {
   const toSend = rows.filter((r) => r.cm_status === 'ej_paborjad' || r.cm_status === 'justerad');
   if (toSend.length === 0) throw new Error('Inget att skicka in');
