@@ -32,6 +32,10 @@ import { ListChecks, Share2 } from 'lucide-react';
 import { submitMontagePartial } from '@/lib/montagePartial';
 import { MontagePartialBlock } from '@/components/shared/MontagePartialBlock';
 import { shareCaseInChat } from '@/lib/chat';
+import { Truck } from 'lucide-react';
+import { canRequestWastePickup, wastePickupState } from '@/lib/wastePickup';
+import { useWastePickup } from '@/hooks/useWastePickup';
+import { WasteRequestFields } from '@/components/shared/WastePickupForms';
 
 const HEADING = 'text-[10px] font-semibold uppercase tracking-[1.3px] text-muted-foreground';
 
@@ -90,6 +94,10 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const [showKlar, setShowKlar] = useState(false);
   const [showPartial, setShowPartial] = useState(false);
   const [partialNote, setPartialNote] = useState('');
+  const [showWaste, setShowWaste] = useState(false);
+  const [wasteNote, setWasteNote] = useState('');
+  const [wasteEarliest, setWasteEarliest] = useState('');
+  const waste = useWastePickup(currentUser);
   const [showCost, setShowCost] = useState(false);
   const [klarComment, setKlarComment] = useState('');
   const [kmDate, setKmDate] = useState('');
@@ -664,6 +672,29 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     </Button>
   );
 
+  const wasteState = wastePickupState(caseData);
+  const wasteBlock = wasteState === 'booked' ? (
+    <div className="flex min-h-[48px] items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-3 text-sm font-medium text-emerald-800 dark:text-emerald-200">
+      <Truck className="h-4 w-4 shrink-0" /> Ragn-Sells bokad {formatDaySv(caseData.waste_pickup_date)}
+    </div>
+  ) : wasteState === 'requested' ? (
+    <div className="flex min-h-[48px] items-center justify-between gap-2 rounded-lg border bg-card px-3 text-sm">
+      <span className="inline-flex items-center gap-2 font-medium text-ink"><Truck className="h-4 w-4 shrink-0" /> Hämtning begärd {formatDaySv(caseData.waste_pickup_requested_at)}</span>
+      <button
+        type="button"
+        className="min-h-[44px] px-2 text-xs font-medium text-muted-foreground underline underline-offset-2"
+        disabled={waste.cancel.isPending}
+        onClick={() => waste.cancel.mutate(caseData)}
+      >
+        Ångra
+      </button>
+    </div>
+  ) : canRequestWastePickup(caseData) ? (
+    <Button variant="outline" className="w-full min-h-[48px] text-ink border-border bg-card" onClick={() => setShowWaste(true)}>
+      <Truck className="h-4 w-4 mr-1" /> Boka Ragn-Sells
+    </Button>
+  ) : null;
+
   const customerCard = (
     <Card title="Kund">
       <div className="font-display text-[17px] font-semibold text-card-foreground">{caseData.customer_name}</div>
@@ -994,6 +1025,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <div className="space-y-4 min-w-0">
             {nextStepCard}
             {reportButton}
+            {wasteBlock}
             <Button variant="outline" className="w-full min-h-[48px]" onClick={() => shareCaseInChat({ id: caseData.id, address: caseData.address })}><Share2 className="h-4 w-4 mr-2" />Dela i chatt</Button>
             <MontagePartialBlock caseData={caseData} />
             {customerCard}
@@ -1099,6 +1131,34 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
           <DrawerHeader><DrawerTitle>Delrapportera montage</DrawerTitle></DrawerHeader>
           <div className="px-4 pb-2 space-y-2"><Label htmlFor="partial-note">Allt är klart utom:</Label><Textarea id="partial-note" required value={partialNote} onChange={e => setPartialNote(e.target.value)} rows={3} placeholder="T.ex. fönsterbleck på baksidan saknas, lister i köket" /></div>
           <DrawerFooter><Button className="min-h-[48px]" disabled={!partialNote.trim() || partialMutation.isPending} onClick={() => partialMutation.mutate()}>{partialMutation.isPending ? 'Skickar…' : 'Skicka delrapport'}</Button><DrawerClose asChild><Button variant="outline" className="min-h-[48px]">Avbryt</Button></DrawerClose></DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Bottom sheet: Boka Ragn-Sells */}
+      <Drawer open={showWaste} onOpenChange={setShowWaste}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Skräp redo att hämtas</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-2 space-y-3">
+            <p className="text-sm text-muted-foreground">Kontoret bokar Ragn-Sells och återkommer med datum.</p>
+            <WasteRequestFields idPrefix="montor-waste" note={wasteNote} setNote={setWasteNote} earliest={wasteEarliest} setEarliest={setWasteEarliest} />
+          </div>
+          <DrawerFooter>
+            <Button
+              className="min-h-[48px]"
+              disabled={waste.request.isPending}
+              onClick={() => waste.request.mutate(
+                { c: caseData, note: wasteNote, earliest: wasteEarliest },
+                { onSuccess: () => { setShowWaste(false); setWasteNote(''); setWasteEarliest(''); } },
+              )}
+            >
+              {waste.request.isPending ? 'Skickar...' : <><Truck className="h-5 w-5 mr-2" /> Skicka till kontoret</>}
+            </Button>
+            <DrawerClose asChild>
+              <Button variant="outline" className="min-h-[48px]">Avbryt</Button>
+            </DrawerClose>
+          </DrawerFooter>
         </DrawerContent>
       </Drawer>
 

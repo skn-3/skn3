@@ -35,6 +35,8 @@ vi.mock('@/lib/supabaseClient', () => ({
     makeFollowupCase('1'),
     makeFollowupCase('2', { status: 'fakturerad', customer_followup_done_at: '2026-10-25T08:00:00Z' }),
     makeFollowupCase('3', { customer_followup_contacted_at: '2026-10-21T08:00:00Z', customer_followup_signed_at: '2026-10-21T09:00:00Z' }),
+    makeFollowupCase('4', { status: 'fakturerad', customer_followup_done_at: '2026-10-25T08:00:00Z', waste_pickup_requested_at: '2026-11-01T08:00:00Z', waste_pickup_note: 'Emballage vid garaget' }),
+    makeFollowupCase('5', { status: 'fakturerad', customer_followup_done_at: '2026-10-25T08:00:00Z', waste_pickup_requested_at: '2026-11-01T08:00:00Z', waste_pickup_booked_at: '2026-11-02T08:00:00Z' }),
   ])),
   fetchAllDeviations: vi.fn().mockResolvedValue([]),
   updateCase: vi.fn(),
@@ -42,6 +44,7 @@ vi.mock('@/lib/supabaseClient', () => ({
   createCaseEvent: vi.fn(),
   createCaseCost: vi.fn(),
   sendMontorAssignmentEmail: vi.fn(),
+  sendWastePickupEmail: vi.fn(),
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -103,7 +106,7 @@ describe('CoordinatorInbox — Att stämma av med kund', () => {
 
   it('visar bara öppna avstämningar och räknar dem i sammanfattningen', async () => {
     renderInbox();
-    expect(await screen.findByText('2 kundavstämningar väntar')).toBeInTheDocument();
+    expect(await screen.findByText('2 kundavstämningar och 1 skräphämtning väntar')).toBeInTheDocument();
     const cards = screen.getAllByTestId('followup-card');
     expect(cards).toHaveLength(2);
     expect(screen.queryByText('Avstämningsgatan 2')).not.toBeInTheDocument();
@@ -115,5 +118,15 @@ describe('CoordinatorInbox — Att stämma av med kund', () => {
     const btn = (i: number) => cards[i].querySelector('button[class*="min-h-12"]') as HTMLButtonElement;
     expect(btn(0)).toBeDisabled();
     expect(btn(1)).not.toBeDisabled();
+  });
+});
+
+describe('CoordinatorInbox — Skräp att boka hämtning för', () => {
+  it('visar bara begärda och obokade hämtningar', async () => {
+    renderInbox();
+    const cards = await screen.findAllByTestId('waste-card');
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveTextContent('Avstämningsgatan 4');
+    expect(cards[0]).toHaveTextContent('Emballage vid garaget');
   });
 });

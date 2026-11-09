@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AlertTriangle, Calendar, FileText, Hammer, MessageSquare, Ruler, Wrench } from 'lucide-react';
+import { AlertTriangle, Calendar, FileText, Hammer, MessageSquare, Ruler, Wrench, Truck } from 'lucide-react';
 import { notificationIcon } from '../notificationKinds';
 
 describe('notificationIcon', () => {
@@ -11,6 +11,7 @@ describe('notificationIcon', () => {
     ['note', MessageSquare], ['montor_event', MessageSquare],
     ['montage_delrapport', Wrench],
     ['montage_pagar', Wrench], ['montage_klart', Wrench], ['montage_booked', Wrench], ['montage_booked_by_montor', Wrench], ['montage_rescheduled', Wrench],
+    ['waste_pickup', Truck], ['waste_pickup_booked', Truck],
     ['case_assigned', Calendar], ['km_assigned', Calendar], ['vantar_godkannande', Calendar], ['unknown', Calendar],
   ])('%s uses the expected icon', (kind, icon) => {
     expect(notificationIcon(kind as string)).toBe(icon);

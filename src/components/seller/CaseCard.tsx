@@ -79,6 +79,8 @@ interface CaseCardProps {
   hideFinancials?: boolean;
   /** Kundavstämning efter montage är inte klarmarkerad. */
   followupPending?: boolean;
+  /** Skräphämtning begärd men inte bokad. */
+  wastePending?: boolean;
 }
 
 function getScheduledDeliveryBadge(c: any): { label: string; urgent: boolean } | null {
@@ -132,7 +134,7 @@ function getDwellBadge(c: any): { label: string; tone: 'amber' | 'red' } | null 
 type CardChip = { key: string; tone: Tone; icon?: ReactNode; label: string };
 const MAX_CHIPS = 3;
 
-export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hideFinancials, followupPending }: CaseCardProps) {
+export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hideFinancials, followupPending, wastePending }: CaseCardProps) {
   const tidsBadge = getScheduledDeliveryBadge(caseData as any);
   const deliveryBadge = getDeliveryCountdownBadge(caseData as any);
   const dwellBadge = getDwellBadge(caseData as any);
@@ -220,6 +222,7 @@ export function CaseCard({ caseData, onClick, showSeller, warnings, kmInbox, hid
 
       <KlimatKompenseradBadge caseId={caseData.id} compact />
       {followupPending && <div><Chip tone="warning" className="bg-warning-soft text-warning-ink" icon={<PhoneCall />}>Kundavstämning kvar</Chip></div>}
+      {wastePending && <div><Chip tone="info" icon={<Truck />}>Skräp att hämta</Chip></div>}
       {hasMontagePartial(caseData) && <div><Chip tone="warning" className="bg-warning-soft text-warning-ink" icon={<ListChecks />}>Delrapport</Chip></div>}
     </button>
     {mustComplete && (

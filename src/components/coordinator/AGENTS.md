@@ -1,1 +1,2 @@
 - Keep customer follow-up selection and column patches in src/lib/customerFollowup and saving in src/hooks/useCustomerFollowup; inbox and case panel share one tested rule set and the follow-up never changes case status.
+- Keep waste-pickup selection, column patches and summary text in src/lib/wastePickup and saving in src/hooks/useWastePickup; installers may only trigger notify-email's fixed waste template, whose recipient and content are built server-side.
