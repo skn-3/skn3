@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { submitKontrollmatning } from '@/lib/kontrollmatning';
+import { MAIL_WARNING } from '@/lib/montorEmail';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -221,18 +222,18 @@ export function MontorLitteraSection({
   });
 
   const submitMutation = useMutation({
-    mutationFn: async () => {
-      await submitKontrollmatning({
+    mutationFn: () =>
+      submitKontrollmatning({
         caseId,
         rows: rows ?? [],
         currentUser,
         caseAddress,
         customerName,
-      });
-    },
-    onSuccess: () => {
+      }),
+    onSuccess: ({ emailOk }) => {
       qc.invalidateQueries({ queryKey: ['litteror', caseId] });
-      toast.success('Kontrollmätning inskickad');
+      if (emailOk) toast.success('Kontrollmätning inskickad');
+      else toast.success('Kontrollmätning inskickad', { description: MAIL_WARNING });
     },
     onError: (e: Error) => toast.error(e.message),
   });
