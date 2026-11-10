@@ -18,7 +18,6 @@ import {
   isEmailInvalid,
   isValidUnits,
   signedCaseFieldsValid,
-  type SignedCaseFieldValues,
 } from '@/lib/signedCase';
 import { SignedCaseFields } from '@/components/seller/SignedCaseFields';
 import { Button } from '@/components/ui/button';
