@@ -5,41 +5,30 @@ import {
   updateVisit,
   createCase,
   createCaseEvent,
-  sendNotificationEmail,
 } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { sendKlimatEvent } from '@/lib/klimat';
 import { KlimatQrInline } from '@/components/shared/KlimatQrDialog';
 import { searchOrders } from '@/integrations/orderGateway';
-import { HOUR_RATE, STATUS_LABELS, detectGotland } from '@/lib/constants';
-import { GotlandBadge, GOTLAND_LOCK_HINT, CONGARD_TEAM } from '@/components/shared/GotlandBadge';
-import { useMontorTeams } from '@/hooks/useMontorTeams';
+import { STATUS_LABELS, detectGotland } from '@/lib/constants';
+import { GotlandBadge } from '@/components/shared/GotlandBadge';
+import {
+  buildSignedCaseRecord,
+  emptySignedCaseFields,
+  isEmailInvalid,
+  isValidUnits,
+  signedCaseFieldsValid,
+  type SignedCaseFieldValues,
+} from '@/lib/signedCase';
+import { SignedCaseFields } from '@/components/seller/SignedCaseFields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle2, RefreshCcw, XCircle, AlertTriangle } from 'lucide-react';
-import { cn, formatAmount } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { celebrateSignedDeal } from '@/lib/celebrate';
 import { logActivity } from '@/lib/activityLog';
@@ -74,27 +63,12 @@ const emptyForm = () => ({
   // Lager 3 — återkoppla / nej
   follow_up_date: '',
   notes: '',
-  // Lager 3 — signerat (ärende)
+  // Lager 3 — signerat (ärende); fälten delas med SignedCaseDialog
   customer_email: '',
-  city: '',
-  offer_number: '',
-  order_value: '',
-  tb_percent: '',
-  extra_hours_sold: '0',
-  units: '',
-  team: '',
-  km_team: '',
-  google_drive_link: '',
-  media_consent: false,
-  carry_help_needed: false,
-  scheduled_delivery: false,
-  future_job: false,
-  future_job_description: '',
-  future_job_date: '',
+  ...emptySignedCaseFields(),
 });
 
 export function VisitForm({ sellerName }: VisitFormProps) {
-  const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const queryClient = useQueryClient();
   const [form, setForm] = useState(emptyForm());
   // Affärsförslagsnumret är obligatoriskt vid Signerat; felet visas först när fältet rörts.
@@ -190,8 +164,6 @@ export function VisitForm({ sellerName }: VisitFormProps) {
 
   // ===== Gotland-detektion (live på ort + adress) =====
   const isGotland = detectGotland(form.city, form.address);
-  const effectiveTeam = isGotland ? CONGARD_TEAM : null;
-  const effectiveKmTeam = isGotland ? CONGARD_TEAM : null;
 
   // Tidig trädclaim: besöks-id genereras i förväg så att claimen (event_ref = besöks-id)
   // återanvänds när besöket sparas — servern deduplicerar och drar av besöksträdet vid signering.
@@ -201,7 +173,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
   const claimInFlight = useRef<string | null>(null);
 
   const unitsNum = form.units === '' ? NaN : Number(form.units);
-  const unitsValid = Number.isFinite(unitsNum) && unitsNum >= 1 && Number.isInteger(unitsNum);
+  const unitsValid = isValidUnits(form.units);
 
   const wantsClaim =
     form.result === 'aterkoppla' || (form.result === 'signerat' && unitsValid);
@@ -225,20 +197,13 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       })
       .finally(() => setKlimatLoading(false));
   }, [wantsClaim, preVisitId, earlyClaim, sellerName]);
-  const emailTrim = form.customer_email.trim();
-  const emailInvalid = emailTrim !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
+  const emailInvalid = isEmailInvalid(form.customer_email);
   const baseValid = !!form.date && !!form.customer_name.trim() && !!form.address.trim() && !emailInvalid;
-  const offerNumberMissing =
-    form.result === 'signerat' && offerNumberTouched && !form.offer_number.trim();
   const canSubmit =
     baseValid &&
     !!form.result &&
     (form.result !== 'aterkoppla' || !!form.follow_up_date) &&
-    (form.result !== 'signerat' ||
-      (!!form.city.trim() &&
-        !!form.offer_number.trim() &&
-        unitsValid &&
-        (!form.future_job || (!!form.future_job_description.trim() && !!form.future_job_date))));
+    (form.result !== 'signerat' || signedCaseFieldsValid(form));
 
   // ===== Spara =====
   const mutation = useMutation({
@@ -274,31 +239,10 @@ export function VisitForm({ sellerName }: VisitFormProps) {
 
       // === SIGNERAT: case-first med rollback. Antingen båda eller ingen. ===
       // 1) Skapa ÄRENDET först
+      const caseRecord = buildSignedCaseRecord(form, sellerName);
       let newCase: any;
       try {
-        newCase = await createCase({
-          customer_name: form.customer_name,
-          // Telefon kompletteras efter KM; behåller ev. förifyllt nummer från befintlig order (kolumnen är NOT NULL).
-          customer_phone: form.customer_phone || '',
-          customer_email: form.customer_email.trim() || null,
-          address: form.address,
-          city: form.city,
-          offer_number: form.offer_number.trim() || null,
-          order_value: form.order_value !== '' ? Number(form.order_value) : null,
-          tb_percent: null,
-          extra_hours_sold: 0,
-          units: form.units !== '' ? Math.max(0, Math.floor(Number(form.units))) : null,
-          team: effectiveTeam,
-          km_team: effectiveKmTeam,
-          is_gotland: isGotland,
-          google_drive_link: null,
-          notes: null,
-          seller: sellerName,
-          status: 'vantar_km',
-          media_consent: form.media_consent,
-          carry_help_needed: form.carry_help_needed,
-          scheduled_delivery: form.scheduled_delivery,
-        } as any);
+        newCase = await createCase(caseRecord as any);
       } catch (caseErr: any) {
         logActivity({
           action: 'visit_signed_case_failed',
@@ -345,7 +289,7 @@ export function VisitForm({ sellerName }: VisitFormProps) {
       await createCaseEvent({
         case_id: newCase.id,
         event_type: 'status_change',
-        description: `Ärende skapat, tilldelad montör: ${effectiveTeam || 'Ej tilldelad'}`,
+        description: `Ärende skapat, tilldelad montör: ${caseRecord.team || 'Ej tilldelad'}`,
         created_by: sellerName,
       });
 
@@ -660,128 +604,22 @@ export function VisitForm({ sellerName }: VisitFormProps) {
                 Ärenderegistrering upplåst
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label>Antal enheter *</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    step={1}
-                    placeholder="Minst 1"
-                    value={form.units}
-                    onChange={(e) => update('units', e.target.value)}
-                  />
-                  {form.units !== '' && !unitsValid && (
-                    <p className="text-xs text-destructive">Antal enheter måste vara minst 1.</p>
-                  )}
-                </div>
-              </div>
-
-              {unitsValid && earlyClaim?.url && (
-                <KlimatQrInline claimUrl={earlyClaim.url} treeTotal={unitsNum} />
-              )}
-              {unitsValid && !earlyClaim?.url && klimatLoading && (
-                <p className="text-xs text-muted-foreground">Planterar träd…</p>
-              )}
-
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-1.5">
-                  <Label>Ort *</Label>
-                  <Input value={form.city} onChange={(e) => update('city', e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Affärsförslagsnummer (Mockfjärds) *</Label>
-                  <Input
-                    value={form.offer_number}
-                    onChange={(e) => {
-                      setOfferNumberTouched(true);
-                      update('offer_number', e.target.value);
-                    }}
-                    onBlur={() => setOfferNumberTouched(true)}
-                    aria-invalid={offerNumberMissing}
-                  />
-                  {offerNumberMissing && (
-                    <p className="text-xs text-destructive">Affärsförslagsnumret måste fyllas i.</p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>
-                    Ordervärde (kr){' '}
-                    <span className="text-muted-foreground text-xs ml-1">ex moms</span>
-                  </Label>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    value={form.order_value}
-                    onChange={(e) => update('order_value', e.target.value)}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Telefon, TB, montörer m.m. kompletteras efter kontrollmätningen.
-              </p>
-
-              <div className="space-y-2 rounded-lg border bg-card/60 p-3">
-                <h3 className="text-sm font-semibold text-foreground">Att tänka på vid montage</h3>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={form.media_consent}
-                    onCheckedChange={(c) => update('media_consent', c === true)}
-                  />
-                  Foto/film överenskommet med kund
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={form.carry_help_needed}
-                    onCheckedChange={(c) => update('carry_help_needed', c === true)}
-                  />
-                  Behövs bärhjälp?
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="flex items-center gap-2">
-                    <Checkbox
-                      checked={form.scheduled_delivery}
-                      onCheckedChange={(c) => update('scheduled_delivery', c === true)}
-                    />
-                    Tidsstyrd leverans (tidslossning)
-                  </span>
-                  {form.scheduled_delivery && (
-                    <span className="text-xs text-muted-foreground pl-6">
-                      Tiden anges senare, veckan innan leverans
-                    </span>
-                  )}
-                </label>
-              </div>
-
-              <div className="space-y-2 rounded-lg border p-3">
-                <label className="flex items-center gap-2 text-sm font-medium">
-                  <Checkbox
-                    checked={form.future_job}
-                    onCheckedChange={(c) => update('future_job', c === true)}
-                  />
-                  Kund vill utföra ett annat jobb
-                </label>
-                {form.future_job && (
-                  <div className="space-y-2 pl-6">
-                    <div className="space-y-1.5">
-                      <Label>Vad vill kunden utföra? *</Label>
-                      <Textarea
-                        rows={2}
-                        value={form.future_job_description}
-                        onChange={(e) => update('future_job_description', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>När ska kunden kontaktas? *</Label>
-                      <Input
-                        type="date"
-                        value={form.future_job_date}
-                        onChange={(e) => update('future_job_date', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+              <SignedCaseFields
+                values={form}
+                onChange={(key, value) => update(key, value)}
+                offerNumberTouched={offerNumberTouched}
+                onOfferNumberTouched={() => setOfferNumberTouched(true)}
+                afterUnits={
+                  <>
+                    {unitsValid && earlyClaim?.url && (
+                      <KlimatQrInline claimUrl={earlyClaim.url} treeTotal={unitsNum} />
+                    )}
+                    {unitsValid && !earlyClaim?.url && klimatLoading && (
+                      <p className="text-xs text-muted-foreground">Planterar träd…</p>
+                    )}
+                  </>
+                }
+              />
             </div>
           )}
         </div>
