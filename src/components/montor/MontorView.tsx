@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { ListSearchToggle, ListSearchField } from './ListSearch';
 import { KM_STATUSES, MONTAGE_STATUSES, compareMontorCases } from '@/lib/montorLists';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { hasShortcutModifier, isTypingTarget } from '@/lib/keyboard';
 
 
 interface MontorViewProps {
@@ -107,8 +108,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
   // Keyboard shortcut "/" + Escape to clear
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const target = e.target;
-      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA'].includes(target.tagName))) return;
+      if (hasShortcutModifier(e) || isTypingTarget(e.target)) return;
       if (e.key === '/' && document.activeElement !== inputRef.current) {
         e.preventDefault();
         setSearchOpen(true);
