@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,6 +19,7 @@ interface SignedCaseFieldsProps {
  * så att formulären inte glider isär.
  */
 export function SignedCaseFields({ values, onChange, offerNumberTouched, onOfferNumberTouched, afterUnits }: SignedCaseFieldsProps) {
+  const uid = useId();
   const unitsValid = isValidUnits(values.units);
   const offerNumberMissing = offerNumberTouched && !values.offer_number.trim();
 
@@ -26,9 +27,9 @@ export function SignedCaseFields({ values, onChange, offerNumberTouched, onOffer
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="signed-units">Antal enheter *</Label>
+          <Label htmlFor={`${uid}-units`}>Antal enheter *</Label>
           <Input
-            id="signed-units"
+            id={`${uid}-units`}
             type="number"
             min={1}
             step={1}
@@ -46,13 +47,13 @@ export function SignedCaseFields({ values, onChange, offerNumberTouched, onOffer
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label htmlFor="signed-city">Ort *</Label>
-          <Input id="signed-city" value={values.city} onChange={(e) => onChange('city', e.target.value)} />
+          <Label htmlFor={`${uid}-city`}>Ort *</Label>
+          <Input id={`${uid}-city`} value={values.city} onChange={(e) => onChange('city', e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="signed-offer-number">Affärsförslagsnummer (Mockfjärds) *</Label>
+          <Label htmlFor={`${uid}-offer-number`}>Affärsförslagsnummer (Mockfjärds) *</Label>
           <Input
-            id="signed-offer-number"
+            id={`${uid}-offer-number`}
             value={values.offer_number}
             onChange={(e) => {
               onOfferNumberTouched();
@@ -66,12 +67,12 @@ export function SignedCaseFields({ values, onChange, offerNumberTouched, onOffer
           )}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="signed-order-value">
+          <Label htmlFor={`${uid}-order-value`}>
             Ordervärde (kr){' '}
             <span className="text-muted-foreground text-xs ml-1">ex moms</span>
           </Label>
           <Input
-            id="signed-order-value"
+            id={`${uid}-order-value`}
             type="number"
             inputMode="decimal"
             value={values.order_value}
