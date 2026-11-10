@@ -63,12 +63,10 @@ beforeEach(() => {
 describe('SignedCaseDialog', () => {
   it('har inte de gamla fälten (TB, extra timmar, telefon, Drive-länk, montörer)', () => {
     renderDialog();
-    expect(screen.queryByText(/TB \(%\)/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Extra timmar/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/^Telefon/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Google Drive/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/KM-montör/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Montage-montör/)).not.toBeInTheDocument();
+    for (const label of [/^TB/, /^Extra timmar/, /^Telefon/, /Google Drive/, /^KM-montör/, /^Montage-montör/]) {
+      expect(screen.queryByLabelText(label)).not.toBeInTheDocument();
+      expect(screen.queryAllByText(label, { selector: 'label' })).toHaveLength(0);
+    }
     expect(screen.getByText('Telefon, TB, montörer m.m. kompletteras efter kontrollmätningen.')).toBeInTheDocument();
     expect(screen.getByLabelText('Ordervärde (kr) ex moms')).toHaveValue(120000);
   });
