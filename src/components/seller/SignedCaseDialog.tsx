@@ -1,19 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createCase, createCaseEvent, sendNotificationEmail, updateVisit, type VisitRow } from '@/lib/supabaseClient';
+import { createCase, createCaseEvent, updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { sendKlimatEvent } from '@/lib/klimat';
-import { KlimatQrDialog } from '@/components/shared/KlimatQrDialog';
-import { HOUR_RATE } from '@/lib/constants';
-import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { detectGotland } from '@/lib/constants';
-import { GotlandBadge, GOTLAND_LOCK_HINT, CONGARD_TEAM } from '@/components/shared/GotlandBadge';
+import { GotlandBadge } from '@/components/shared/GotlandBadge';
+import {
+  buildSignedCaseRecord,
+  emptySignedCaseFields,
+  isEmailInvalid,
+  signedCaseFieldsValid,
+  type SignedCaseFieldValues,
+} from '@/lib/signedCase';
+import { SignedCaseFields } from '@/components/seller/SignedCaseFields';
+import { logActivity } from '@/lib/activityLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatAmount } from '@/lib/utils';
@@ -27,56 +30,31 @@ interface SignedCaseDialogProps {
   onClose: () => void;
 }
 
+/**
+ * "Signerat avtal" från uppföljningslistan. Samma fält och ärendepost som Signerat i VisitForm
+ * (SignedCaseFields + buildSignedCaseRecord). Kunden fick sin QR-kod redan vid besöket, så ingen
+ * ny QR visas här; finns den kvar att hämta syns den i ärendets klimatruta.
+ */
 export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialogProps) {
-  const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [form, setForm] = useState({
     customer_name: visit?.customer_name || '',
-    customer_phone: '',
     customer_email: '',
     address: visit?.address || '',
-    city: '',
-    offer_number: '',
+    ...emptySignedCaseFields(),
     order_value: visit?.order_value ? String(visit.order_value) : '',
-    tb_percent: '',
-    extra_hours_sold: '0',
-    team: '',
-    km_team: '',
-    google_drive_link: '',
-    notes: '',
-    units: '',
-    media_consent: false,
-    carry_help_needed: false,
-    scheduled_delivery: false,
-    future_job: false,
-    future_job_description: '',
-    future_job_date: '',
   });
+  const [offerNumberTouched, setOfferNumberTouched] = useState(false);
 
-  const update = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value } as any));
+  const update = (key: keyof typeof form, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
 
   const isGotland = detectGotland(form.city, form.address);
-  useEffect(() => {
-    setForm((f) => {
-      if (isGotland) {
-        if (f.team === CONGARD_TEAM && f.km_team === CONGARD_TEAM) return f;
-        return { ...f, team: CONGARD_TEAM, km_team: CONGARD_TEAM } as any;
-      }
-      if (f.team === CONGARD_TEAM || f.km_team === CONGARD_TEAM) {
-        return { ...f, team: '', km_team: '' } as any;
-      }
-      return f;
-    });
-  }, [isGotland]);
-
-  const tbNum = form.tb_percent === '' ? null : Number(form.tb_percent);
-  const tbInvalid = tbNum != null && (isNaN(tbNum) || tbNum < 0 || tbNum > 100);
+  const emailInvalid = isEmailInvalid(form.customer_email);
+  const canSubmit =
+    !!form.customer_name.trim() && !!form.address.trim() && !emailInvalid && signedCaseFieldsValid(form);
   const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
-  const unitsNum = form.units === '' ? NaN : Number(form.units);
-  const unitsValid = Number.isFinite(unitsNum) && unitsNum >= 1 && Number.isInteger(unitsNum);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [klimatClaim, setKlimatClaim] = useState<{ url: string; trees: number | null } | null>(null);
 
   const dupGuard = useDuplicateCaseGuard({ onOpenCase: onClose });
   const handleSubmit = () => {
@@ -90,32 +68,10 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
     });
   };
 
-
   const mutation = useMutation({
     mutationFn: async () => {
       if (!visit) throw new Error('Inget besök valt');
-      const newCase = await createCase({
-        customer_name: form.customer_name,
-        customer_phone: form.customer_phone,
-        customer_email: form.customer_email || null,
-        address: form.address,
-        city: form.city,
-        offer_number: form.offer_number || null,
-        order_value: form.order_value ? Number(form.order_value) : null,
-        tb_percent: form.tb_percent ? Number(form.tb_percent) : null,
-        extra_hours_sold: Number(form.extra_hours_sold) || 0,
-        units: Math.max(1, Math.floor(Number(form.units))),
-        team: form.team || null,
-        km_team: form.km_team || null,
-        is_gotland: isGotland,
-        google_drive_link: form.google_drive_link || null,
-        notes: form.notes || null,
-        seller: sellerName,
-        status: 'vantar_km',
-        media_consent: form.media_consent,
-        carry_help_needed: form.carry_help_needed,
-        scheduled_delivery: form.scheduled_delivery,
-      } as any);
+      const newCase = await createCase(buildSignedCaseRecord(form, sellerName) as any);
 
       await updateVisit(visit.id, { result: 'signerat', case_id: newCase.id } as any);
 
@@ -124,7 +80,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           case_id: newCase.id,
           customer_name: form.customer_name,
           address: form.address || null,
-          phone: form.customer_phone || null,
+          phone: null,
           seller: sellerName,
           description: form.future_job_description.trim(),
           contact_date: form.future_job_date,
@@ -139,41 +95,13 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         description: 'Ärende skapat från uppföljning',
         created_by: sellerName,
       });
+      // Montörmailet skickas när montage-montör tilldelas i "Komplettera ärendet" (efter KM).
 
-      if (form.team && montorEmailOf(form.team)) {
-        try {
-          await sendNotificationEmail({
-            to: montorEmailOf(form.team),
-            subject: `NYTT ÄRENDE — ${form.address}`,
-            body: `
-              <h2>Nytt ärende tilldelat</h2>
-              <table style="border-collapse:collapse;width:100%">
-                <tr><td style="padding:4px 8px;font-weight:bold">Adress:</td><td style="padding:4px 8px">${form.address}</td></tr>
-                <tr><td style="padding:4px 8px;font-weight:bold">Kund:</td><td style="padding:4px 8px">${form.customer_name}</td></tr>
-                <tr><td style="padding:4px 8px;font-weight:bold">Telefon:</td><td style="padding:4px 8px">${form.customer_phone}</td></tr>
-                <tr><td style="padding:4px 8px;font-weight:bold">Säljare:</td><td style="padding:4px 8px">${sellerName}</td></tr>
-                ${form.notes ? `<tr><td style="padding:4px 8px;font-weight:bold">Anteckning:</td><td style="padding:4px 8px">${form.notes}</td></tr>` : ''}
-              </table>
-              <p style="margin-top:16px"><strong>Vänligen boka kontrollmätning.</strong></p>
-            `,
-          });
-          await createCaseEvent({
-            case_id: newCase.id,
-            event_type: 'notification',
-            description: `Mail skickat till ${montorEmailOf(form.team)} (nytt ärende)`,
-            created_by: sellerName,
-          });
-        } catch (emailErr) {
-          console.error('Email notification failed:', emailErr);
-          toast.warning('Ärendet skapades men mailet kunde inte skickas');
-        }
-      }
-
-      // Anonym trädhändelse (signering) — ingen kunddata skickas
+      // Anonym trädhändelse (signering) — ingen kunddata skickas. Servern räknar in besöksträdet.
       const klimat = await sendKlimatEvent({
         eventType: 'signing',
         caseId: newCase.id,
-        visitId: visit.id, // servern skickar på besökets nyckel och drar av besöksträdet
+        visitId: visit.id,
         treeCount: Math.max(1, Math.floor(Number(form.units) || 1)),
         seller: sellerName,
         eventRef: `signing-${newCase.id}`,
@@ -181,16 +109,20 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
 
       return { newCase, klimat };
     },
-    onSuccess: ({ klimat }) => {
+    onSuccess: ({ newCase, klimat }) => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['visits'] });
       queryClient.invalidateQueries({ queryKey: ['climate_events'] });
-      toast.success('Ärende skapat!');
-      if (klimat?.claim_url) {
-        setKlimatClaim({ url: klimat.claim_url, trees: klimat.total_trees ?? null });
-      } else {
-        onClose();
-      }
+      logActivity({
+        action: 'followup_signed_case_created',
+        category: 'case',
+        description: `Signerat avtal från uppföljning + ärende skapat — ${form.address}`,
+        case_id: newCase.id,
+        metadata: { visit_id: visit?.id },
+      });
+      const trees = klimat?.total_trees;
+      toast.success(trees ? `Ärende skapat – ${trees} träd registrerade på kunden` : 'Ärende skapat');
+      onClose();
     },
     onError: (err: Error) => {
       toast.error('Kunde inte skapa ärende: ' + err.message);
@@ -207,167 +139,58 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
           <SheetTitle>Skapa ärende från signerat avtal</SheetTitle>
         </SheetHeader>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Kundnamn *</Label>
-            <Input value={form.customer_name} onChange={(e) => update('customer_name', e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Telefon *</Label>
-            <Input value={form.customer_phone} onChange={(e) => update('customer_phone', e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>E-post</Label>
-            <Input value={form.customer_email} onChange={(e) => update('customer_email', e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Adress *</Label>
-            <Input
-              value={form.address}
-              onChange={(e) => {
-                const newAddr = e.target.value;
-                setForm((f) => {
-                  let nextCity = f.city;
-                  if (!nextCity.trim()) {
-                    const idx = newAddr.lastIndexOf(',');
-                    if (idx !== -1) nextCity = newAddr.substring(idx + 1).trim();
-                  }
-                  return { ...f, address: newAddr, city: nextCity } as any;
-                });
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Ort *</Label>
-            <Input value={form.city} onChange={(e) => update('city', e.target.value)} />
-            {isGotland && <div><GotlandBadge /></div>}
-          </div>
-          <div className="space-y-1.5">
-            <Label>Offertnummer</Label>
-            <Input value={form.offer_number} onChange={(e) => update('offer_number', e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Ordervärde (kr) <span className="text-muted-foreground text-xs ml-1">ex moms</span></Label>
-            <Input type="number" value={form.order_value} onChange={(e) => update('order_value', e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>TB (%)</Label>
-            <Input type="number" min={0} max={100} value={form.tb_percent} onChange={(e) => update('tb_percent', e.target.value)} />
-            {tbInvalid && (
-              <p className="text-xs text-destructive">TB% måste vara mellan 0 och 100. Skrev du 160 istället för 16?</p>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label>Extra timmar sålda (á {HOUR_RATE} kr/st)</Label>
-            <Input type="number" value={form.extra_hours_sold} onChange={(e) => update('extra_hours_sold', e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Antal enheter *</Label>
-            <Input
-              type="number"
-              min={1}
-              step={1}
-              placeholder="Minst 1"
-              value={form.units}
-              onChange={(e) => update('units', e.target.value)}
-            />
-            {form.units !== '' && !unitsValid && (
-              <p className="text-xs text-destructive">Antal enheter måste vara minst 1.</p>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label>KM-montör (valfritt)</Label>
-            <Select disabled={isGotland} value={form.km_team || '__none__'} onValueChange={(v) => update('km_team', v === '__none__' ? '' : v)}>
-              <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— Ingen vald —</SelectItem>
-                {MONTORS.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {isGotland && <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label>Montage-montör (valfritt)</Label>
-            <Select disabled={isGotland} value={form.team || '__none__'} onValueChange={(v) => update('team', v === '__none__' ? '' : v)}>
-              <SelectTrigger><SelectValue placeholder="Ingen vald" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— Ingen vald —</SelectItem>
-                {MONTORS.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {isGotland && <p className="text-xs text-muted-foreground">{GOTLAND_LOCK_HINT}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label>Google Drive-länk</Label>
-            <Input value={form.google_drive_link} onChange={(e) => update('google_drive_link', e.target.value)} />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Anteckning</Label>
-          <Textarea value={form.notes} onChange={(e) => update('notes', e.target.value)} rows={3} />
-        </div>
-
-        <div className="space-y-2 rounded-lg border p-3 bg-muted/30">
-          <h3 className="text-sm font-semibold text-foreground">Att tänka på vid montage</h3>
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={form.media_consent} onCheckedChange={(c) => update('media_consent', c === true)} />
-            Foto/film överenskommet med kund
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={form.carry_help_needed} onCheckedChange={(c) => update('carry_help_needed', c === true)} />
-            Behövs bärhjälp?
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="flex items-center gap-2">
-              <Checkbox checked={form.scheduled_delivery} onCheckedChange={(c) => update('scheduled_delivery', c === true)} />
-              Tidsstyrd leverans (tidslossning)
-            </span>
-            {form.scheduled_delivery && (
-              <span className="text-xs text-muted-foreground pl-6">Tiden anges senare, veckan innan leverans</span>
-            )}
-          </label>
-        </div>
-
-        <div className="space-y-2 rounded-lg border p-3">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <Checkbox checked={form.future_job} onCheckedChange={(c) => update('future_job', c === true)} />
-            Kund vill utföra ett annat jobb
-          </label>
-          {form.future_job && (
-            <div className="space-y-2 pl-6">
-              <div className="space-y-1.5">
-                <Label>Vad vill kunden utföra? *</Label>
-                <Textarea rows={2} value={form.future_job_description} onChange={(e) => update('future_job_description', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>När ska kunden kontaktas? *</Label>
-                <Input type="date" value={form.future_job_date} onChange={(e) => update('future_job_date', e.target.value)} />
-              </div>
+        <div className="space-y-5 pt-2">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="signed-dialog-name">Kundnamn *</Label>
+              <Input id="signed-dialog-name" value={form.customer_name} onChange={(e) => update('customer_name', e.target.value)} />
             </div>
-          )}
-        </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="signed-dialog-email">E-post</Label>
+              <Input
+                id="signed-dialog-email"
+                type="email"
+                value={form.customer_email}
+                onChange={(e) => update('customer_email', e.target.value)}
+                aria-invalid={emailInvalid}
+              />
+              {emailInvalid && <p className="text-xs text-destructive">Ange en giltig e-postadress.</p>}
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="signed-dialog-address">Adress *</Label>
+              <Input
+                id="signed-dialog-address"
+                value={form.address}
+                onChange={(e) => {
+                  const newAddr = e.target.value;
+                  setForm((f) => {
+                    let nextCity = f.city;
+                    if (!nextCity.trim()) {
+                      const idx = newAddr.lastIndexOf(',');
+                      if (idx !== -1) nextCity = newAddr.substring(idx + 1).trim();
+                    }
+                    return { ...f, address: newAddr, city: nextCity };
+                  });
+                }}
+              />
+              {isGotland && <div className="mt-2"><GotlandBadge /></div>}
+            </div>
+          </div>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Avbryt</Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!form.customer_name || !form.customer_phone || !form.address || !form.city || tbInvalid || !unitsValid || (form.future_job && (!form.future_job_description.trim() || !form.future_job_date)) || mutation.isPending}
-          >
-            {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}
-          </Button>
-        </div>
+          <SignedCaseFields
+            values={form}
+            onChange={(key: keyof SignedCaseFieldValues, value) => update(key, value)}
+            offerNumberTouched={offerNumberTouched}
+            onOfferNumberTouched={() => setOfferNumberTouched(true)}
+          />
 
-        <KlimatQrDialog
-          open={!!klimatClaim}
-          onOpenChange={(o) => { if (!o) { setKlimatClaim(null); onClose(); } }}
-          claimUrl={klimatClaim?.url}
-          treeTotal={klimatClaim?.trees ?? null}
-        />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Avbryt</Button>
+            <Button onClick={handleSubmit} disabled={!canSubmit || mutation.isPending || dupGuard.checking}>
+              {mutation.isPending ? 'Sparar...' : 'Skapa ärende'}
+            </Button>
+          </div>
+        </div>
 
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogContent>
