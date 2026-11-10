@@ -3,12 +3,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
 import { sendKlimatEvent } from '@/lib/klimat';
+import { KlimatQrDialog } from '@/components/shared/KlimatQrDialog';
 import { detectGotland } from '@/lib/constants';
 import { GotlandBadge } from '@/components/shared/GotlandBadge';
 import {
   buildSignedCaseRecord,
   emptySignedCaseFields,
   isEmailInvalid,
+  shouldShowSigningQr,
   signedCaseFieldsValid,
   type SignedCaseFieldValues,
 } from '@/lib/signedCase';
@@ -40,10 +42,26 @@ interface SignedCaseDialogProps {
   onClose: () => void;
 }
 
+/** true/false om besöket har ett besöksträd; null om uppslaget inte gick att göra. */
+async function visitHasTree(visitId: string): Promise<boolean | null> {
+  try {
+    const { data, error } = await supabase
+      .from('climate_events')
+      .select('id')
+      .eq('event_type', 'visit')
+      .or(`visit_id.eq.${visitId},upstream_key.eq.${visitId}`)
+      .limit(1);
+    if (error) return null;
+    return (data?.length ?? 0) > 0;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * "Signerat avtal" från uppföljningslistan. Samma fält och ärendepost som Signerat i VisitForm
- * (SignedCaseFields + buildSignedCaseRecord). Kunden fick sin QR-kod redan vid besöket, så ingen
- * ny QR visas här; finns den kvar att hämta syns den i ärendets klimatruta.
+ * (SignedCaseFields + buildSignedCaseRecord). QR visas bara om kunden inte fick den vid besöket
+ * (inget besöksträd, eller uppslaget misslyckades) — se shouldShowSigningQr.
  */
 export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialogProps) {
   const queryClient = useQueryClient();
@@ -64,6 +82,7 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
     !!form.customer_name.trim() && !!form.address.trim() && !emailInvalid && signedCaseFieldsValid(form);
   const ovNum = form.order_value === '' ? 0 : Number(form.order_value);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [klimatClaim, setKlimatClaim] = useState<{ url: string; trees: number | null } | null>(null);
 
   const dupGuard = useDuplicateCaseGuard({ onOpenCase: onClose });
   const handleSubmit = () => {
@@ -106,6 +125,9 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
       });
       // Montörmailet skickas när montage-montör tilldelas i "Komplettera ärendet" (efter KM).
 
+      // Fick kunden redan sin QR vid besöket? Slås upp innan signeringshändelsen skickas.
+      const hadVisitTree = await visitHasTree(visit.id);
+
       // Anonym trädhändelse (signering) — ingen kunddata skickas. Servern räknar in besöksträdet.
       const klimat = await sendKlimatEvent({
         eventType: 'signing',
@@ -116,9 +138,9 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         eventRef: `signing-${newCase.id}`,
       });
 
-      return { newCase, klimat };
+      return { newCase, klimat, hadVisitTree };
     },
-    onSuccess: ({ newCase, klimat }) => {
+    onSuccess: ({ newCase, klimat, hadVisitTree }) => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['visits'] });
       queryClient.invalidateQueries({ queryKey: ['climate_events'] });
@@ -131,6 +153,11 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
       });
       const trees = klimat?.total_trees;
       toast.success(trees ? `Ärende skapat – ${trees} träd registrerade på kunden` : 'Ärende skapat');
+      if (klimat?.claim_url && shouldShowSigningQr(hadVisitTree, klimat.claim_url)) {
+        // Formuläret stängs när QR-dialogen stängs.
+        setKlimatClaim({ url: klimat.claim_url, trees: klimat.total_trees ?? null });
+        return;
+      }
       onClose();
     },
     onError: (err: Error) => {
@@ -219,6 +246,12 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
         </AlertDialog>
       </SheetContent>
       {dupGuard.dialog}
+      <KlimatQrDialog
+        open={!!klimatClaim}
+        onOpenChange={(o) => { if (!o) { setKlimatClaim(null); onClose(); } }}
+        claimUrl={klimatClaim?.url}
+        treeTotal={klimatClaim?.trees ?? null}
+      />
     </Sheet>
   );
 }

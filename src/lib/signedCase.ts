@@ -93,3 +93,13 @@ export function buildSignedCaseRecord(input: SignedCaseInput, sellerName: string
     scheduled_delivery: input.scheduled_delivery,
   };
 }
+
+/**
+ * Ska QR-koden visas efter "Signerat avtal" från uppföljningen?
+ * hadVisitTree: true = besöket har redan ett besöksträd (kunden fick QR:n vid besöket),
+ * false = inget besöksträd, null = uppslaget misslyckades (visa hellre en gång för mycket).
+ * Utan claim_url finns ingen QR att visa.
+ */
+export function shouldShowSigningQr(hadVisitTree: boolean | null, claimUrl: string | null | undefined): boolean {
+  return !!claimUrl && hadVisitTree !== true;
+}
