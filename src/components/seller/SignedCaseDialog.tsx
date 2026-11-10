@@ -146,17 +146,6 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
               <Input id="signed-dialog-name" value={form.customer_name} onChange={(e) => update('customer_name', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="signed-dialog-email">E-post</Label>
-              <Input
-                id="signed-dialog-email"
-                type="email"
-                value={form.customer_email}
-                onChange={(e) => update('customer_email', e.target.value)}
-                aria-invalid={emailInvalid}
-              />
-              {emailInvalid && <p className="text-xs text-destructive">Ange en giltig e-postadress.</p>}
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="signed-dialog-address">Adress *</Label>
               <Input
                 id="signed-dialog-address"
@@ -174,6 +163,17 @@ export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialo
                 }}
               />
               {isGotland && <div className="mt-2"><GotlandBadge /></div>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="signed-dialog-email">E-post</Label>
+              <Input
+                id="signed-dialog-email"
+                type="email"
+                value={form.customer_email}
+                onChange={(e) => update('customer_email', e.target.value)}
+                aria-invalid={emailInvalid}
+              />
+              {emailInvalid && <p className="text-xs text-destructive">Ange en giltig e-postadress.</p>}
             </div>
           </div>
 
