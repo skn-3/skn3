@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCase, createCaseEvent, updateVisit, type VisitRow } from '@/lib/supabaseClient';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +24,16 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 import { useDuplicateCaseGuard } from '@/components/shared/DuplicateCaseGuard';
 
+function formFromVisit(visit: VisitRow | null) {
+  return {
+    customer_name: visit?.customer_name || '',
+    customer_email: '',
+    address: visit?.address || '',
+    ...emptySignedCaseFields(),
+    order_value: visit?.order_value ? String(visit.order_value) : '',
+  };
+}
+
 interface SignedCaseDialogProps {
   visit: VisitRow | null;
   sellerName: string;
@@ -38,14 +48,13 @@ interface SignedCaseDialogProps {
 export function SignedCaseDialog({ visit, sellerName, onClose }: SignedCaseDialogProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const [form, setForm] = useState({
-    customer_name: visit?.customer_name || '',
-    customer_email: '',
-    address: visit?.address || '',
-    ...emptySignedCaseFields(),
-    order_value: visit?.order_value ? String(visit.order_value) : '',
-  });
+  const [form, setForm] = useState(() => formFromVisit(visit));
   const [offerNumberTouched, setOfferNumberTouched] = useState(false);
+  // Dialogen är monterad även när den är stängd: fyll i på nytt från varje besök som öppnas.
+  useEffect(() => {
+    setForm(formFromVisit(visit));
+    setOfferNumberTouched(false);
+  }, [visit?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = (key: keyof typeof form, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
 

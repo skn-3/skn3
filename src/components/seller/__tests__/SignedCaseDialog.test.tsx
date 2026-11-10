@@ -71,6 +71,17 @@ describe('SignedCaseDialog', () => {
     expect(screen.getByLabelText('Ordervärde (kr) ex moms')).toHaveValue(120000);
   });
 
+  it('fyller i kundnamn, adress och ordervärde när ett besök öppnas i en redan monterad dialog', () => {
+    const qc = new QueryClient();
+    const { rerender } = render(
+      <QueryClientProvider client={qc}><SignedCaseDialog visit={null} sellerName="S" onClose={vi.fn()} /></QueryClientProvider>,
+    );
+    rerender(<QueryClientProvider client={qc}><SignedCaseDialog visit={visit} sellerName="S" onClose={vi.fn()} /></QueryClientProvider>);
+    expect(screen.getByLabelText('Kundnamn *')).toHaveValue('Kund Testsson');
+    expect(screen.getByLabelText('Adress *')).toHaveValue('Storgatan 1');
+    expect(screen.getByLabelText('Ordervärde (kr) ex moms')).toHaveValue(120000);
+  });
+
   it('kräver affärsförslagsnummer', () => {
     renderDialog();
     fireEvent.change(screen.getByLabelText('Antal enheter *'), { target: { value: '3' } });
