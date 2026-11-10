@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   sendKlimatEvent: vi.fn(),
   toastSuccess: vi.fn(),
   logActivity: vi.fn(),
+  visitTreeLookup: vi.fn(),
+  orFilter: vi.fn(),
 }));
 
 vi.mock('@/lib/supabaseClient', () => ({
@@ -19,7 +21,18 @@ vi.mock('@/lib/supabaseClient', () => ({
   sendNotificationEmail: mocks.sendNotificationEmail,
 }));
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: { from: () => ({ insert: () => Promise.resolve({ error: null }) }) },
+  supabase: {
+    from: (table: string) => {
+      if (table !== 'climate_events') return { insert: () => Promise.resolve({ error: null }) };
+      const chain: any = {
+        select: () => chain,
+        eq: () => chain,
+        or: (f: string) => { mocks.orFilter(f); return chain; },
+        limit: () => mocks.visitTreeLookup(),
+      };
+      return chain;
+    },
+  },
 }));
 vi.mock('@/lib/klimat', () => ({ sendKlimatEvent: mocks.sendKlimatEvent }));
 vi.mock('@/lib/activityLog', () => ({ logActivity: mocks.logActivity }));
@@ -29,7 +42,12 @@ vi.mock('@/components/shared/DuplicateCaseGuard', () => ({
   useDuplicateCaseGuard: () => ({ guard: async (_a: string, proceed: () => void) => proceed(), dialog: null, checking: false }),
 }));
 vi.mock('@/components/shared/KlimatQrDialog', () => ({
-  KlimatQrDialog: ({ open }: { open: boolean }) => (open ? <div data-testid="klimat-qr-dialog" /> : null),
+  KlimatQrDialog: ({ open, onOpenChange, claimUrl }: { open: boolean; onOpenChange: (o: boolean) => void; claimUrl?: string }) =>
+    open ? (
+      <div data-testid="klimat-qr-dialog" data-url={claimUrl}>
+        <button onClick={() => onOpenChange(false)}>Stäng QR</button>
+      </div>
+    ) : null,
   KlimatQrInline: () => null,
 }));
 
@@ -58,7 +76,15 @@ beforeEach(() => {
   mocks.updateVisit.mockResolvedValue({});
   mocks.createCaseEvent.mockResolvedValue({});
   mocks.sendKlimatEvent.mockResolvedValue({ ok: true, claim_url: 'https://smartklimat.org/c/x', total_trees: 3 });
+  mocks.visitTreeLookup.mockResolvedValue({ data: [{ id: 'tree-1' }], error: null });
 });
+
+function fillAndSubmit() {
+  fireEvent.change(screen.getByLabelText('Antal enheter *'), { target: { value: '3' } });
+  fireEvent.change(screen.getByLabelText('Ort *'), { target: { value: 'Uppsala' } });
+  fireEvent.change(screen.getByLabelText('Affärsförslagsnummer (Mockfjärds) *'), { target: { value: 'AF-1' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Skapa ärende' }));
+}
 
 describe('SignedCaseDialog', () => {
   it('har inte de gamla fälten (TB, extra timmar, telefon, Drive-länk, montörer)', () => {
@@ -94,12 +120,9 @@ describe('SignedCaseDialog', () => {
     expect(screen.getByRole('button', { name: 'Skapa ärende' })).toBeEnabled();
   });
 
-  it('skapar bantat ärende, skickar signeringsträd och öppnar ingen QR-dialog', async () => {
+  it('besöket har ett besöksträd: skapar bantat ärende, skickar signeringsträd och öppnar ingen QR-dialog', async () => {
     const onClose = renderDialog();
-    fireEvent.change(screen.getByLabelText('Antal enheter *'), { target: { value: '3' } });
-    fireEvent.change(screen.getByLabelText('Ort *'), { target: { value: 'Uppsala' } });
-    fireEvent.change(screen.getByLabelText('Affärsförslagsnummer (Mockfjärds) *'), { target: { value: 'AF-1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Skapa ärende' }));
+    fillAndSubmit();
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     const record = mocks.createCase.mock.calls[0][0];
@@ -110,5 +133,30 @@ describe('SignedCaseDialog', () => {
     expect(mocks.logActivity).toHaveBeenCalledWith(expect.objectContaining({ action: 'followup_signed_case_created', case_id: 'case-1' }));
     expect(mocks.toastSuccess).toHaveBeenCalledWith('Ärende skapat – 3 träd registrerade på kunden');
     expect(screen.queryByTestId('klimat-qr-dialog')).not.toBeInTheDocument();
+    expect(mocks.orFilter).toHaveBeenCalledWith('visit_id.eq.visit-1,upstream_key.eq.visit-1');
+    // Uppslaget görs innan signeringshändelsen skickas.
+    expect(mocks.visitTreeLookup.mock.invocationCallOrder[0]).toBeLessThan(mocks.sendKlimatEvent.mock.invocationCallOrder[0]);
+  });
+
+  it('inget besöksträd: visar QR-dialogen och stänger formuläret först när QR-dialogen stängs', async () => {
+    mocks.visitTreeLookup.mockResolvedValue({ data: [], error: null });
+    const onClose = renderDialog();
+    fillAndSubmit();
+
+    const qr = await screen.findByTestId('klimat-qr-dialog');
+    expect(qr).toHaveAttribute('data-url', 'https://smartklimat.org/c/x');
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Stäng QR' }));
+    expect(onClose).toHaveBeenCalled();
+    expect(screen.queryByTestId('klimat-qr-dialog')).not.toBeInTheDocument();
+  });
+
+  it('uppslaget misslyckas: visar QR-dialogen när svaret har en claim_url', async () => {
+    mocks.visitTreeLookup.mockResolvedValue({ data: null, error: { message: 'nätverksfel' } });
+    const onClose = renderDialog();
+    fillAndSubmit();
+
+    expect(await screen.findByTestId('klimat-qr-dialog')).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

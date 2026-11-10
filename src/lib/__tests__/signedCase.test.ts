@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSignedCaseRecord, emptySignedCaseFields, signedCaseFieldsValid } from '@/lib/signedCase';
+import { buildSignedCaseRecord, emptySignedCaseFields, shouldShowSigningQr, signedCaseFieldsValid } from '@/lib/signedCase';
 
 const base = {
   customer_name: 'Kund Testsson',
@@ -45,5 +45,23 @@ describe('signedCaseFieldsValid', () => {
   it('kräver heltal minst 1 enhet', () => {
     expect(signedCaseFieldsValid({ ...base, units: '0' })).toBe(false);
     expect(signedCaseFieldsValid({ ...base, units: '1.5' })).toBe(false);
+  });
+});
+
+describe('shouldShowSigningQr', () => {
+  const url = 'https://smartklimat.org/c/x';
+  it('besöksträd finns: ingen QR (kunden fick den vid besöket)', () => {
+    expect(shouldShowSigningQr(true, url)).toBe(false);
+  });
+  it('inget besöksträd: visa QR', () => {
+    expect(shouldShowSigningQr(false, url)).toBe(true);
+  });
+  it('uppslaget misslyckades: visa QR om claim_url finns', () => {
+    expect(shouldShowSigningQr(null, url)).toBe(true);
+  });
+  it('utan claim_url visas aldrig QR', () => {
+    expect(shouldShowSigningQr(false, null)).toBe(false);
+    expect(shouldShowSigningQr(null, undefined)).toBe(false);
+    expect(shouldShowSigningQr(null, '')).toBe(false);
   });
 });
