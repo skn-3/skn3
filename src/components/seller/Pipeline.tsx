@@ -18,6 +18,7 @@ import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui
 import { sellerStepsFor } from '@/lib/sellerSteps';
 import { needsCustomerFollowup } from '@/lib/customerFollowup';
 import { needsWasteBooking } from '@/lib/wastePickup';
+import { hasShortcutModifier, isTypingTarget } from '@/lib/keyboard';
 
 // Statusfärger kommer från src/lib/statusTheme.ts (samma i hela appen).
 
@@ -83,7 +84,11 @@ export function Pipeline({ sellerName, isAdmin, isCoordinator, onSelectCase }: P
   // Keyboard shortcut "/"
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === '/' && document.activeElement !== inputRef.current) {
+      // Paneler (uppföljning, ärende) öppnas ovanpå pipelinen: sluka aldrig tecken i deras fält.
+      if (hasShortcutModifier(e)) return;
+      const inSearch = e.target === inputRef.current;
+      if (isTypingTarget(e.target) && !inSearch) return;
+      if (e.key === '/' && !inSearch) {
         e.preventDefault();
         inputRef.current?.focus();
       }
