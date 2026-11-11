@@ -71,11 +71,99 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
   }
 
   function makePrefill(p: Parsed, matchedCase: any, matchedTeam: any) {
+    const sold = Number(matchedCase?.extra_hours_sold ?? 0) || 0;
+    const approved = Number(matchedCase?.extra_hours_approved ?? 0) || 0;
+    const extra = matchedCase ? Math.max(sold - approved, 0) : 0;
+    return {
+      customer_name: matchedCase?.customer_name || p.customer_name || '',
+      customer_address: matchedCase?.address || '',
+      case_id: matchedCase?.id ?? null,
+      team_id: matchedTeam?.id ?? '__none__',
+      line_items: p.line_items,
+      date: p.invoice_date || new Date().toISOString().slice(0, 10),
+      description: `Skapad från Mockfjärds-faktura ${p.invoice_number || '—'} · Fsg.order ${p.sales_order_number || '—'}`,
+      internalExtraHours: extra,
+      internalHourRate: HOUR_RATE,
+      mockfjards_invoice_number: p.invoice_number,
+    };
+  }
+
+  function chooseCase(c: any) {
+    if (!parsed) return;
+    setLinkedCase(c);
+    setPendingPrefill(makePrefill(parsed, c, matchTeam));
+  }
+
+  async function handleParse() {
+    if (!file) return;
+    setParsing(true);
+    setParsed(null);
+    try {
+      const file_base64 = await fileToBase64(file);
+      const { data, error } = await supabase.functions.invoke('parse-mockfjards-invoice', {
+        body: { file_base64, mime_type: file.type || 'application/pdf', file_name: file.name },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const p = data as Parsed;
+      setParsed(p);
+      await buildPrefill(p);
+    } catch (e: any) {
+      toast.error(e?.message || 'Kunde inte läsa fakturan');
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  async function buildPrefill(p: Parsed) {
+    // Duplicate check
+    let dupNum: number | null = null;
+    if (p.invoice_number) {
+      const { data: dups } = await (supabase as any)
+        .from('a_orders')
+        .select('order_number')
+        .eq('mockfjards_invoice_number', p.invoice_number)
+        .limit(1);
+      if (dups && dups.length) dupNum = dups[0].order_number ?? null;
+    }
+
+    if (isService) {
+      const { data: teamRows } = await (supabase as any).from('montor_teams').select('id, invoice_prefix');
+      setPendingPrefill(serviceOrderPrefillFromInvoice(p, teamRows ?? []));
+      if (dupNum !== null) setDuplicate({ orderNumber: dupNum });
+      return;
+    }
+
+    // Ärendematchning via rankPayoutCases (ordernummer + kundnamn). Endast nivå auto
+    // förkopplas; förslag visas som tryckbara knappar i dialogen.
+    let matchedCase: any = null;
+    let suggested: RankedCase<any>[] = [];
+    if (p.sales_order_number || p.customer_name) {
+      const { data: casesList } = await (supabase as any)
+        .from('cases')
+        .select('id, order_number, address, city, customer_name, customer_email, status, extra_hours_sold, extra_hours_approved:extra_hours_approved_amount')
+        .limit(5000);
+      if (casesList) {
+        const ranked = rankPayoutCases(casesList, { mockfjardsOrderNumber: p.sales_order_number ?? null, name: p.customer_name ?? null }, { limit: 5 });
+        if (ranked[0]?.level === 'auto') matchedCase = ranked[0].case;
+        else suggested = ranked.filter(r => r.level === 'suggest');
+      }
+    }
+
+    // Team match by invoice_prefix
+    let matchedTeam: any = null;
+    if (p.team_prefix) {
+      const { data: teams } = await (supabase as any)
+        .from('montor_teams')
+        .select('id, invoice_prefix')
+        .ilike('invoice_prefix', p.team_prefix);
+      if (teams && teams.length) matchedTeam = teams[0];
+    }
+
     setMatchTeam(matchedTeam);
     setLinkedCase(matchedCase);
     setSuggestions(suggested);
-    const prefill = makePrefill(p, matchedCase, matchedTeam);
-    setPendingPrefill(prefill);
+    setPendingPrefill(makePrefill(p, matchedCase, matchedTeam));
     if (dupNum !== null) setDuplicate({ orderNumber: dupNum });
   }
 
