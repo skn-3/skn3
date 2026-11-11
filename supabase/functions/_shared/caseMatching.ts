@@ -374,3 +374,38 @@ export function matchesSearch(fields: readonly unknown[], query: string): boolea
   const hay = searchTokens(fields.filter(Boolean).join(' '));
   return q.every(t => /^\d/.test(t) ? hay.some(h => h.startsWith(t)) : hay.some(h => h.includes(t)));
 }
+
+// ---- Mockfjärds-utbetalningar ----------------------------------------------
+// Utbetalningsrader har bara kundnamn och Fsg.order, och ärenden i KM-fasen
+// saknar nästan alltid ordernummer. Därför en egen namnregel ovanpå rankCases:
+// ett unikt exakt namn kopplas automatiskt, ett unikt delnamn föreslås och
+// flera exakta namnträffar föreslås alla. Ordernummer och adress vinner alltid.
+export const PAYOUT_UNIQUE_NAME_LABEL = 'namn (unikt)';
+export const PAYOUT_SHARED_NAME_LABEL = 'namn (flera ärenden)';
+
+const LEVEL_ORDER: Record<MatchLevel, number> = { auto: 2, suggest: 1, none: 0 };
+
+export function rankPayoutCases<T extends CaseLike>(cases: readonly T[], target: MatchTarget, options: RankOptions = {}): RankedCase<T>[] {
+  const ranked = rankCases(cases, target, { excludeIds: options.excludeIds, includeAll: true });
+  const finish = (list: RankedCase<T>[]) => {
+    const kept = options.includeAll ? list : list.filter(r => r.level !== 'none');
+    return options.limit ? kept.slice(0, options.limit) : kept;
+  };
+  if (ranked.some(r => r.level === 'auto')) return finish(ranked);
+
+  const names = ranked.map(r => ({ r, n: nameScore(target, r.case).score }));
+  const exact = names.filter(x => x.n >= 40);
+  if (exact.length === 1) {
+    exact[0].r.level = 'auto';
+    exact[0].r.label = PAYOUT_UNIQUE_NAME_LABEL;
+  } else if (exact.length > 1) {
+    for (const { r } of exact) { r.level = 'suggest'; r.label = PAYOUT_SHARED_NAME_LABEL; }
+  } else {
+    const partial = names.filter(x => x.n >= 30);
+    if (partial.length === 1 && partial[0].r.level === 'none') partial[0].r.level = 'suggest';
+  }
+  const sorted = [...ranked].sort((a, b) =>
+    LEVEL_ORDER[b.level] - LEVEL_ORDER[a.level] || b.score - a.score ||
+    String(a.case.address ?? '').localeCompare(String(b.case.address ?? ''), 'sv'));
+  return finish(sorted);
+}

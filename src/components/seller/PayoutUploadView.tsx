@@ -17,8 +17,9 @@ import {
 import { toast } from 'sonner';
 import { Upload, FileText, Search, Check, Loader2, AlertTriangle, Sparkles, Trash2, Plus, ChevronDown, Layers } from 'lucide-react';
 import { logActivity } from '@/lib/activityLog';
-import { rankCases, parseAddress, matchesSearch, type RankedCase, type MatchTarget } from '@/lib/caseMatching';
+import { rankCases, rankPayoutCases, parseAddress, matchesSearch, type RankedCase, type MatchTarget } from '@/lib/caseMatching';
 import { validateMockfjards, sumLines } from '@/lib/mockfjardsInvoice';
+import { savePayoutOrderNumber } from '@/lib/payoutOrderNumber';
 
 interface PayoutUploadViewProps {
   currentUser: string;
@@ -53,8 +54,8 @@ const norm = (s: string | null | undefined) => (s ?? '').trim();
 // ---- Ärendematchning: all logik i src/lib/caseMatching.ts ------------------
 type Candidate = RankedCase<CaseRow>;
 
-const rankCaseRows = (all: CaseRow[], target: MatchTarget, limit = 5): Candidate[] =>
-  rankCases(all as any[], target, { limit }) as unknown as Candidate[];
+const rankCaseRows = (all: CaseRow[], target: MatchTarget, limit = 5, payout = false): Candidate[] =>
+  (payout ? rankPayoutCases : rankCases)(all as any[], target, { limit }) as unknown as Candidate[];
 
 type GroupChoice =
   | { kind: 'case'; case: CaseRow }
@@ -258,8 +259,8 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       mockfjardsOrderNumber: isSheet ? null : (orderNumber.trim() || null),
     };
     if (!target.address && !target.name && !target.mockfjardsOrderNumber) return [];
-    return rankCaseRows(cases as CaseRow[], target, 5);
-  }, [cases, jobAddress, customerName, orderNumber, isSheet]);
+    return rankCaseRows(cases as CaseRow[], target, 5, docType === 'mockfjards_payout');
+  }, [cases, jobAddress, customerName, orderNumber, isSheet, docType]);
   const singleTop = singleRanked[0] ?? null;
   // Nivå auto väljs automatiskt; nivå suggest är förvald men måste bekräftas.
   const autoCase = singleTop?.level === 'auto' ? singleTop.case : null;
@@ -384,7 +385,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       const groupCustomerName = lines.find(l => norm(l.customer_name))?.customer_name ?? null;
       const groupAddress = lines.find(l => norm(l.job_address))?.job_address ?? null;
       const target: MatchTarget = { mockfjardsOrderNumber: on, name: groupCustomerName, address: groupAddress };
-      const candidates = rankCaseRows(cases as CaseRow[], target, 5);
+      const candidates = rankCaseRows(cases as CaseRow[], target, 5, docType === 'mockfjards_payout');
       const r = resolve(on, candidates);
       const aOrderCandidates = !r.choice ? rankAOrders(unlinkedAOrders as any[], target) : [];
       return {
@@ -403,7 +404,7 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         aOrderCandidates,
       };
     });
-  }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, clearedGroups, lineCaseChoices, unlinkedAOrders]);
+  }, [isMontorInvoice, distinctOrderNumbers, lineItems, cases, groupChoices, clearedGroups, lineCaseChoices, unlinkedAOrders, docType]);
 
   /** Bekräfta ett förslag (nivå suggest) för en grupp. */
   const confirmGroupCase = (groupId: string, c: CaseRow) => {
@@ -598,7 +599,10 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
       });
       if (insErr) throw insErr;
 
-      if (caseId && !isSheet && !norm((effectiveCase as any)?.order_number)) {
+      if (caseId && docType === 'mockfjards_payout') {
+        // Saknar ärendet ordernummer sparas Fsg.order med en händelse (kastar aldrig).
+        await savePayoutOrderNumber({ caseId, payoutOrderNumber: orderNumber, invoiceNumber, createdBy: currentUser });
+      } else if (caseId && !isSheet && !norm((effectiveCase as any)?.order_number)) {
         try { await updateCase(caseId, { order_number: orderNumber.trim() } as any); } catch (e) { console.warn(e); }
       }
 
@@ -849,7 +853,9 @@ export function PayoutUploadView({ currentUser }: PayoutUploadViewProps) {
         if (insErr) throw insErr;
 
         // Only update case.order_number for n3prenad-orders (not montor_invoice/sheet — those are addresses)
-        if (!isMontorInvoice && !norm((c as any).order_number)) {
+        if (docType === 'mockfjards_payout') {
+          await savePayoutOrderNumber({ caseId, payoutOrderNumber: g.order_number, invoiceNumber: inv, createdBy: currentUser });
+        } else if (!isMontorInvoice && !norm((c as any).order_number)) {
           try { await updateCase(caseId, { order_number: g.order_number } as any); } catch (e) { console.warn(e); }
         }
 

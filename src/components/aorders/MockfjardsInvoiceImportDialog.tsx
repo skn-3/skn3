@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { HOUR_RATE } from '@/lib/constants';
-import { rankCases } from '@/lib/caseMatching';
+import { rankPayoutCases, type RankedCase } from '@/lib/caseMatching';
 import { serviceOrderPrefillFromInvoice } from '@/lib/serviceOrder';
 
 interface Parsed {
@@ -59,10 +59,39 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [duplicate, setDuplicate] = useState<{ orderNumber: number | null } | null>(null);
   const [pendingPrefill, setPendingPrefill] = useState<any | null>(null);
+  /** Förslag (nivå suggest) när inget ärende kunde kopplas automatiskt. */
+  const [suggestions, setSuggestions] = useState<RankedCase<any>[]>([]);
+  const [matchTeam, setMatchTeam] = useState<any>(null);
+  const [linkedCase, setLinkedCase] = useState<any>(null);
 
   function reset() {
     setFile(null); setParsed(null); setParsing(false);
     setDuplicate(null); setPendingPrefill(null);
+    setSuggestions([]); setMatchTeam(null); setLinkedCase(null);
+  }
+
+  function makePrefill(p: Parsed, matchedCase: any, matchedTeam: any) {
+    const sold = Number(matchedCase?.extra_hours_sold ?? 0) || 0;
+    const approved = Number(matchedCase?.extra_hours_approved ?? 0) || 0;
+    const extra = matchedCase ? Math.max(sold - approved, 0) : 0;
+    return {
+      customer_name: matchedCase?.customer_name || p.customer_name || '',
+      customer_address: matchedCase?.address || '',
+      case_id: matchedCase?.id ?? null,
+      team_id: matchedTeam?.id ?? '__none__',
+      line_items: p.line_items,
+      date: p.invoice_date || new Date().toISOString().slice(0, 10),
+      description: `Skapad från Mockfjärds-faktura ${p.invoice_number || '—'} · Fsg.order ${p.sales_order_number || '—'}`,
+      internalExtraHours: extra,
+      internalHourRate: HOUR_RATE,
+      mockfjards_invoice_number: p.invoice_number,
+    };
+  }
+
+  function chooseCase(c: any) {
+    if (!parsed) return;
+    setLinkedCase(c);
+    setPendingPrefill(makePrefill(parsed, c, matchTeam));
   }
 
   async function handleParse() {
@@ -105,17 +134,19 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
       return;
     }
 
-    // Ärendematchning via gemensam caseMatching (ordernummer + kundnamn). Endast nivå auto
-    // förkopplas; förslag visas sedan som "Ärende hittat" i A-orderformuläret.
+    // Ärendematchning via rankPayoutCases (ordernummer + kundnamn). Endast nivå auto
+    // förkopplas; förslag visas som tryckbara knappar i dialogen.
     let matchedCase: any = null;
+    let suggested: RankedCase<any>[] = [];
     if (p.sales_order_number || p.customer_name) {
       const { data: casesList } = await (supabase as any)
         .from('cases')
         .select('id, order_number, address, city, customer_name, customer_email, status, extra_hours_sold, extra_hours_approved:extra_hours_approved_amount')
         .limit(5000);
       if (casesList) {
-        const top = rankCases(casesList, { mockfjardsOrderNumber: p.sales_order_number ?? null, name: p.customer_name ?? null }, { limit: 1 })[0];
-        if (top?.level === 'auto') matchedCase = top.case;
+        const ranked = rankPayoutCases(casesList, { mockfjardsOrderNumber: p.sales_order_number ?? null, name: p.customer_name ?? null }, { limit: 5 });
+        if (ranked[0]?.level === 'auto') matchedCase = ranked[0].case;
+        else suggested = ranked.filter(r => r.level === 'suggest');
       }
     }
 
@@ -129,23 +160,10 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
       if (teams && teams.length) matchedTeam = teams[0];
     }
 
-    const sold = Number(matchedCase?.extra_hours_sold ?? 0) || 0;
-    const approved = Number(matchedCase?.extra_hours_approved ?? 0) || 0;
-    const extra = matchedCase ? Math.max(sold - approved, 0) : 0;
-
-    const prefill = {
-      customer_name: matchedCase?.customer_name || p.customer_name || '',
-      customer_address: matchedCase?.address || '',
-      case_id: matchedCase?.id ?? null,
-      team_id: matchedTeam?.id ?? '__none__',
-      line_items: p.line_items,
-      date: p.invoice_date || new Date().toISOString().slice(0, 10),
-      description: `Skapad från Mockfjärds-faktura ${p.invoice_number || '—'} · Fsg.order ${p.sales_order_number || '—'}`,
-      internalExtraHours: extra,
-      internalHourRate: HOUR_RATE,
-      mockfjards_invoice_number: p.invoice_number,
-    };
-    setPendingPrefill(prefill);
+    setMatchTeam(matchedTeam);
+    setLinkedCase(matchedCase);
+    setSuggestions(suggested);
+    setPendingPrefill(makePrefill(p, matchedCase, matchedTeam));
     if (dupNum !== null) setDuplicate({ orderNumber: dupNum });
   }
 
@@ -191,11 +209,38 @@ export function MockfjardsInvoiceImportDialog({ open, onOpenChange, onPrefillRea
                 <div><span className="text-muted-foreground">Rader:</span> {parsed.line_items?.length ?? 0}</div>
                 {parsed.due_date && <div><span className="text-muted-foreground">Förfallodatum:</span> {parsed.due_date}</div>}
                 <div className="text-xs text-muted-foreground">{parsed.source === 'text' ? 'Läst direkt ur PDF:en' : 'Tolkad av AI – kontrollera uppgifterna'}</div>
+                {!isService && linkedCase && (
+                  <div className="pt-1"><span className="text-muted-foreground">Ärende:</span> {linkedCase.customer_name} — {linkedCase.address}</div>
+                )}
                 {!!parsed.warnings?.length && (
                   <ul className="mt-2 list-disc pl-5 text-destructive space-y-1">
                     {parsed.warnings.map(w => <li key={w}>{w}</li>)}
                   </ul>
                 )}
+              </div>
+            )}
+
+            {parsed && !isService && suggestions.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Föreslagna ärenden</div>
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.map(sug => {
+                    const active = linkedCase?.id === sug.case.id;
+                    return (
+                      <Button
+                        key={sug.case.id}
+                        variant={active ? 'default' : 'outline'}
+                        aria-pressed={active}
+                        onClick={() => chooseCase(active ? null : sug.case)}
+                        className="h-auto min-h-12 whitespace-normal text-left text-xs rounded-md px-3 py-2 justify-start"
+                      >
+                        {sug.case.customer_name} — {sug.case.address}
+                        <span className={active ? '' : 'text-muted-foreground'}>&nbsp;· {sug.label}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">Tryck på rätt ärende för att koppla det, eller fortsätt utan koppling.</p>
               </div>
             )}
           </div>
