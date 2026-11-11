@@ -13,7 +13,8 @@ import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { createAndSendDebitInvoice } from '@/lib/debitInvoice';
 import { logActivity } from '@/lib/activityLog';
 import { HOUR_RATE } from '@/lib/constants';
-import { rankCases, matchesSearch, type MatchTarget } from '@/lib/caseMatching';
+import { rankPayoutCases, matchesSearch, type MatchTarget } from '@/lib/caseMatching';
+import { savePayoutOrderNumber } from '@/lib/payoutOrderNumber';
 import { Checkbox } from '@/components/ui/checkbox';
 import { validateMockfjards, sumLines } from '@/lib/mockfjardsInvoice';
 import { groupPayoutLines, payoutRowTotal as rowTotal, payoutRowWithHour as rowTotalWithHour, selectedPayoutRows, planPayoutInvoices, type PayoutLineItem } from '@/lib/payoutGroups';
@@ -38,7 +39,7 @@ async function fileToBase64(file: File): Promise<string> {
 type Candidate = { case: CaseRow; score: number; reason: string; level: string };
 
 function rankForPayout(allCases: CaseRow[], target: MatchTarget, limit = 5): Candidate[] {
-  return rankCases(allCases as any[], target, { limit }).map(r => ({ case: r.case as unknown as CaseRow, score: r.score, reason: r.label, level: r.level }));
+  return rankPayoutCases(allCases as any[], target, { limit }).map(r => ({ case: r.case as unknown as CaseRow, score: r.score, reason: r.label, level: r.level }));
 }
 
 type LineItem = PayoutLineItem;
@@ -262,6 +263,8 @@ export function KmPayoutView({ currentUser }: Props) {
           uploaded_by: currentUser,
         });
         if (error) throw error;
+        // Saknar ärendet ordernummer sparas Fsg.order (kastar aldrig).
+        if (caseId) await savePayoutOrderNumber({ caseId, payoutOrderNumber: r.order_number, invoiceNumber: r.invoice_number, createdBy: currentUser });
       }
 
       // En gemensam självfaktura per team för KM och aktivt valda extrajobb.
@@ -298,6 +301,7 @@ export function KmPayoutView({ currentUser }: Props) {
       qc.invalidateQueries({ queryKey: ['unlinked-case-documents'] });
       qc.invalidateQueries({ queryKey: ['payout-docs-map'] });
       qc.invalidateQueries({ queryKey: ['montor_debit_invoices'] });
+      qc.invalidateQueries({ queryKey: ['cases-all'] });
       toast.success('Utbetalningarna är bokförda');
     } catch (e: any) {
       console.error(e);
