@@ -40,6 +40,6 @@ Some subdirectories have their own AGENTS.md; read it before editing files there
 
 - Keep installer AI proposal validation and execution in function-local modules, recheck caller role/team/status at confirmation and use atomic ai_create_proposal/ai_claim_action with a thread lock; only one unclaimed pending card can remain.
 - Keep seller actions in sellerLogic/proposeSeller/executeSeller with panel gates; chat uses start_conversation. Normalize decimal approved hours at case boundaries via extra_hours_approved_amount; shared extraHours validation keeps UI and AI consistent.
-- Route all case matching through edge-shared caseMatching (frontend re-export), never component-local; Mockfjärds payouts use rankPayoutCases and booking fills a missing case order_number via payoutOrderNumber. Coupling: aOrderCoupling, moves: aOrderMove.
+- Route all case matching via edge-shared caseMatching (frontend re-export), never component-local; payouts use rankPayoutCases, booking fills empty order_number via payoutOrderNumber; aOrderCoupling, aOrderMove.
 - Merge cases only via merge_cases (dynamic FKs, dry_run = rolled-back run); rules in caseMerge. Invoice emails use _shared/invoiceEmailFooter.
-- Signed-case fields and case record (SignedCaseFields, signedCase) are shared by VisitForm and SignedCaseDialog; change them in one place.
+- SignedCaseFields/signedCase are shared by VisitForm and SignedCaseDialog; change them in one place.
