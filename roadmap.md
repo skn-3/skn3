@@ -1,5 +1,10 @@
 # Roadmap
 
+- [x] Offertsystem etapp 1: prislista (price_items, price_log, kalkyl_settings, offers.calc_data/calc_version, migration 0050), kalkylmotorn i src/lib/kalkyl med tester och underfliken Prislista i offerthubben.
+- [ ] Offertsystem etapp 1: prislistan inloggad mot riktig databas (spara, godkänna, import, bilduppladdning) — preview-session saknas (--self utan konto).
+- [ ] Offertsystem etapp 2: kalkylvyn för iPad — väntar på nästa beställning.
+- [ ] Offertsystem etapp 3: kundsida och AI-kontroll — väntar.
+
 - [x] Slå ihop dubblett: merge_cases (migration 0045, admin/koordinator, dynamiska kopplingar, provläge), panel i ärendet och "Möjliga dubbletter" i pipelinevalideringen; provläge och riktig sammanslagning testade på två tillfälliga testärenden (borttagna), montör nekas; 501 tester gröna.
 - [ ] Slå ihop dubblett: klicka igenom panelen inloggad — preview-session saknas (--self utan konto).
 - [x] F-skatt-sidfot i fakturamejl: send-a-order-invoice och send-montor-debit-invoice ändrade.

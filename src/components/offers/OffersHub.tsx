@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { OffersView } from './OffersView';
 import { UppdragView } from '@/components/uppdrag/UppdragView';
+import { PriceListAdmin } from './PriceListAdmin';
 
-export type OffersHubSubTab = 'offers' | 'uppdrag';
+export type OffersHubSubTab = 'offers' | 'uppdrag' | 'prislista';
 
 interface Props {
   currentUser: string;
@@ -16,6 +17,7 @@ export function OffersHub({ currentUser, initialSubTab = 'offers' }: Props) {
   const tabs: { value: OffersHubSubTab; label: string }[] = [
     { value: 'offers', label: 'Offerter' },
     { value: 'uppdrag', label: 'Uppdrag' },
+    { value: 'prislista', label: 'Prislista' },
   ];
 
   return (
@@ -40,6 +42,7 @@ export function OffersHub({ currentUser, initialSubTab = 'offers' }: Props) {
       </div>
       {subTab === 'offers' && <OffersView currentUser={currentUser} />}
       {subTab === 'uppdrag' && <UppdragView />}
+      {subTab === 'prislista' && <PriceListAdmin currentUser={currentUser} />}
     </div>
   );
 }

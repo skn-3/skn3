@@ -351,6 +351,13 @@
       "when": 1794212541203,
       "tag": "0049_waste_pickup",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794450932314,
+      "tag": "0050_kalkyl_price_list",
+      "breakpoints": true
     }
   ]
 }

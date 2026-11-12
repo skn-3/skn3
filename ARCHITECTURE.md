@@ -1,4 +1,4 @@
-# ARCHITECTURE.md — N3prenad (CaseFlow)
+# ARCHITECTURE.md — SmartKlimat N3prenad
 
 > Systemkarta för SmartKlimat N3prenad AB:s interna verktyg.
 > Syftet med detta dokument är att kunskapen om systemet ska bo i repot — inte bara i en chatt eller i någons huvud.
@@ -12,7 +12,7 @@ Senast större uppdatering: juli 2026.
 
 Internt verktyg för fönster-/dörrmontageverksamheten. Hanterar hela kedjan: ärenden (pipeline) → kontrollmätning → produktion → leverans → montage → fakturering, plus ett separat offert-/entreprenadspår och ett A-ordersystem för montörsersättning.
 
-**Viktig namnkonvention:** I all text som användare ser heter systemet **"N3prenad"**. Namnet **"CaseFlow"** är bara Lovables projektnamn och förekommer i admin-/utvecklarsammanhang — aldrig mot montörer, säljare eller kunder.
+**Viktig namnkonvention:** I all text som användare ser heter systemet **"SmartKlimat N3prenad"**. Namnet **"CaseFlow"** är bara Lovables projektnamn och förekommer i admin-/utvecklarsammanhang — aldrig mot montörer, säljare eller kunder.
 
 **Företagsuppgifter (avsändare på fakturor m.m.):**
 - SmartKlimat N3prenad AB, org.nr 559026-6630
@@ -76,6 +76,11 @@ Tabeller (Postgres, samtliga med RLS aktiverat):
 ### Offert-/entreprenaddomän
 - **`offers`** — offerter. `line_items` (jsonb, med `is_labor`-flagga för ROT), `vat_mode` (vanlig/omvand), `rot_enabled`, `customer_note` (kundsynlig), interna noteringar, `pdf_path`, `signed_pdf_path`, `public_token`, status (draft/sent/accepted/declined/expired).
 - **`uppdrag`** — accepterade offerter som blivit jobb. Egen `uppdrag_number`-serie, förberedda fakturafält (handpenning + slutfaktura).
+- **`offers.calc_data` / `calc_version`** — (nullbara, migration 0050) kalkyl per rum och yta (`KalkylData` från `src/lib/kalkyl`), belopp exklusive moms. Används från etapp 2 (kalkylvyn).
+- **`price_items`** — prislistan för entreprenadkalkylen (migration 0050). Stabil `code` (gemener), `trade` (golv/malning/tak/fasad/badrum/kok/altan/renovering/gemensamt), `kind`, `rot_class` (bara `arbete` ger ROT och blir `is_labor`), `slot` (valgrupp), kundpris `price_ex_vat` och intern `cost_ex_vat` (exklusive moms; NULL = saknas, hittas aldrig på), förpackning/spill/åtgång, kulör (NCS/RAL), ritad `swatch` eller `image_path` i `catalog-images`, `status` utkast/godkand/arkiverad med `approved_by/_at`, `meta` (receptkopplingar som `lay_code`). Bara godkända priser kan skickas. Startdata: 29 exempelpriser som utkast.
+- **`price_log`** — spårbarhet: triggern `price_items_log_changes` (security definer) skriver en rad när kundpris, kostnad eller status ändras. Personal läser, ingen skriver direkt.
+- **`kalkyl_settings`** — en rad (id = 1) med marginalmål, max prisålder och standardmått för dörr och fönster.
+- Åtkomst: personal (admin, säljare, koordinator) för alla tre; montörer har ingen åtkomst.
 
 ### A-order-/montörsdomän (porterat från fristående n3prenad-app)
 - **`montor_teams`** — montörsteam: bolagsnamn, org.nr, adress, e-post, `invoice_email`, **`bankgiro`** (teamets eget), `invoice_prefix` (GVMO/SAMY/ALEX/JERK), `next_invoice_number` (per-team fakturaräknare).
@@ -215,6 +220,7 @@ AI-gateway har separat saldo från build-credits (~$1/mån gratis räcker för n
 - **`case-documents`** — **privat**. Offerter, fakturor, signerade avtal, A-order-PDF:er, bilder. PII bor här. Åtkomst via signerade URL:er, endast personal kan skriva/radera.
 - **`case-images`** — privat bucket. Avvikelsefoton och kvitton; visas enbart via tidsbegränsade signerade URL:er (SignedImage / getSignedImageUrl). Gjordes privat juli 2026.
 - **`sheet-metal-sketches`** — privat bucket. Plåtskisser; visas via signerade URL:er, bifogas (inte länkas) i beställningsmail. Gjordes privat juli 2026.
+- **`catalog-images`** — produktbilder för prislistan (ingen persondata). Privat eftersom arbetsytan spärrar publika buckets; personal läser via signerade länkar (SignedImage) och är ensam om att skriva/radera.
 - **`backups`** — privat bucket utan klientpolicys (endast service_role). Veckovisa databasbackuper (zip); åtkomst via tidsbegränsad signerad länk i backupmejlet.
 
 ### Säkerhetsmodell (genomgången juni 2026)
@@ -257,7 +263,7 @@ FAS 4 genomförd juli 2026: alla vyer läser lokala `a_orders`; importverktyget,
 ---
 
 ## Testsvit (regressionsskydd på pengaflödena)
-Beräkningslogiken för ekonomi bor i rena moduler: `src/lib/caseEconomy.ts` (marginalformeln — enda källan för EconomyView OCH CaseMarginBlock), `src/lib/invoiceMath.ts` (moms + radbelopp) och `src/lib/litteraDiff.ts` (kontrollmätningens diff, delas av personalvy/montörsvy/montagerapport). Testerna ligger i `src/lib/__tests__/`. **Regel: varje ändring som rör ekonomi, fakturering eller littera-diff avslutas med `npm test` — alla tester ska passera före commit. Ändra aldrig en formel i en vy; ändra i lib-modulen så följer alla konsumenter med.**
+Beräkningslogiken för ekonomi bor i rena moduler: `src/lib/caseEconomy.ts` (marginalformeln — enda källan för EconomyView OCH CaseMarginBlock), `src/lib/invoiceMath.ts` (moms + radbelopp) och `src/lib/litteraDiff.ts` (kontrollmätningens diff, delas av personalvy/montörsvy/montagerapport). Testerna ligger i `src/lib/__tests__/`. Entreprenadkalkylen bor i `src/lib/kalkyl/` (geometri, förpackningar, recept för golv och målning, summering, offertrader till `calcOfferTotals`, kontroller, kulörer, prisändring och prisimport) med tester i `src/lib/__tests__/kalkyl*.test.ts` och startdatan som fixtur (`kalkylFixture.ts`); prislistans admin (`PriceListAdmin`) testas i `src/components/offers/__tests__/`. **Regel: varje ändring som rör ekonomi, fakturering eller littera-diff avslutas med `npm test` — alla tester ska passera före commit. Ändra aldrig en formel i en vy; ändra i lib-modulen så följer alla konsumenter med.**
 
 ---
 

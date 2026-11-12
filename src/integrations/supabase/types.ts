@@ -1978,6 +1978,27 @@ export type Database = {
         }
         Relationships: []
       }
+      kalkyl_settings: {
+        Row: {
+          data: Json
+          id: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          data: Json
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          data?: Json
+          id?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       knowledge_chunks: {
         Row: {
           content: string
@@ -2438,6 +2459,8 @@ export type Database = {
           accept_name: string | null
           accept_user_agent: string | null
           accepted_at: string | null
+          calc_data: Json | null
+          calc_version: number | null
           case_id: string | null
           confirmation_pdf_path: string | null
           confirmation_sent_at: string | null
@@ -2495,6 +2518,8 @@ export type Database = {
           accept_name?: string | null
           accept_user_agent?: string | null
           accepted_at?: string | null
+          calc_data?: Json | null
+          calc_version?: number | null
           case_id?: string | null
           confirmation_pdf_path?: string | null
           confirmation_sent_at?: string | null
@@ -2552,6 +2577,8 @@ export type Database = {
           accept_name?: string | null
           accept_user_agent?: string | null
           accepted_at?: string | null
+          calc_data?: Json | null
+          calc_version?: number | null
           case_id?: string | null
           confirmation_pdf_path?: string | null
           confirmation_sent_at?: string | null
@@ -2655,6 +2682,155 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: true
             referencedRelation: "a_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_items: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          article_no: string | null
+          code: string
+          color_code: string | null
+          color_hex: string | null
+          color_system: string | null
+          cost_ex_vat: number | null
+          coverage: number | null
+          created_at: string
+          hours_per_unit: number | null
+          id: string
+          image_path: string | null
+          kind: string
+          level: string | null
+          meta: Json
+          name: string
+          pack_label: string | null
+          pack_size: number | null
+          price_date: string | null
+          price_ex_vat: number | null
+          rot_class: string
+          slot: string | null
+          sort_order: number
+          source: string | null
+          spec: string | null
+          status: string
+          supplier: string | null
+          swatch: Json | null
+          trade: string
+          unit: string
+          updated_at: string
+          updated_by: string | null
+          waste_pct: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          article_no?: string | null
+          code: string
+          color_code?: string | null
+          color_hex?: string | null
+          color_system?: string | null
+          cost_ex_vat?: number | null
+          coverage?: number | null
+          created_at?: string
+          hours_per_unit?: number | null
+          id?: string
+          image_path?: string | null
+          kind: string
+          level?: string | null
+          meta?: Json
+          name: string
+          pack_label?: string | null
+          pack_size?: number | null
+          price_date?: string | null
+          price_ex_vat?: number | null
+          rot_class: string
+          slot?: string | null
+          sort_order?: number
+          source?: string | null
+          spec?: string | null
+          status?: string
+          supplier?: string | null
+          swatch?: Json | null
+          trade: string
+          unit: string
+          updated_at?: string
+          updated_by?: string | null
+          waste_pct?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          article_no?: string | null
+          code?: string
+          color_code?: string | null
+          color_hex?: string | null
+          color_system?: string | null
+          cost_ex_vat?: number | null
+          coverage?: number | null
+          created_at?: string
+          hours_per_unit?: number | null
+          id?: string
+          image_path?: string | null
+          kind?: string
+          level?: string | null
+          meta?: Json
+          name?: string
+          pack_label?: string | null
+          pack_size?: number | null
+          price_date?: string | null
+          price_ex_vat?: number | null
+          rot_class?: string
+          slot?: string | null
+          sort_order?: number
+          source?: string | null
+          spec?: string | null
+          status?: string
+          supplier?: string | null
+          swatch?: Json | null
+          trade?: string
+          unit?: string
+          updated_at?: string
+          updated_by?: string | null
+          waste_pct?: number
+        }
+        Relationships: []
+      }
+      price_log: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          field: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          price_item_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          field: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          price_item_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          field?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          price_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_log_price_item_id_fkey"
+            columns: ["price_item_id"]
+            isOneToOne: false
+            referencedRelation: "price_items"
             referencedColumns: ["id"]
           },
         ]

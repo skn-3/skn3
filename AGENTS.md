@@ -15,8 +15,8 @@ Keep Drive sync isolated from invoice workflows, with service-only leases, paren
 The Google Drive sync may only read and create in Drive (list, folder create, upload). It must never delete, trash, move, rename, overwrite or change permissions; assertAllowedDriveRequest and driveNoDelete.test.ts enforce this and must not be weakened.
 Drive placement goes through driveFolders + candidates.holdFor (review, never create year folders, audit copies); Mockfjärds headers come from the PDF text layer via mockfjardsInvoice.
 Keep A-order PDF regeneration in a dedicated PDF-only service that updates only pdf_path; this prevents invoice status, dates, counters and case history from changing during layout refreshes.
-Keep A-order rich-text parsing and browser/PDF rendering in shared modules, with equivalent escaped email rendering; this preserves consistent formatting without changing description storage.
-Keep offer description, terms and date text logic in offerText for PDF and customer-page reuse; this keeps their presentation consistent.
+Keep A-order rich-text parsing and browser/PDF/email rendering in shared escaped modules; description storage stays unchanged.
+Offer description, terms and date text logic lives in offerText, shared by PDF and customer page.
 Keep payout grouping, explicit inclusion, totals and per-team invoice plans in payoutGroups; shared pure logic prevents duplicate extra-work payments and KM-only hour supplements from diverging between review and booking.
 In installer submit flows, create the primary row first and treat later steps (events, logging, image uploads) as non-fatal, with duplicate detection in deviationDedup; a late failure must never invite a retry that duplicates the submission.
 - Only case_documents with payout_kind='montage' mean the installation is paid (classification and paid-date maps live in src/lib/payoutKind.ts); KM/extra payouts are already self-billed and must never trigger installer-invoicing prompts.
@@ -35,7 +35,7 @@ In installer submit flows, create the primary row first and treat later steps (e
 - Reuse function-local pure AI date/marker logic through the frontend re-export and render checked case references with ChatCaseCard; this keeps date boundaries and access consistent.
 - Share package-free voice recording/playback in hooks; voice confirms reuse claims and TTS reserves quota atomically.
 Some subdirectories have their own AGENTS.md; read it before editing files there.
-- Use the documented raw Chat Completions contract for the selected fast Google models without new npm packages; preserve the six-round read-only loop and server-side key/run-ID state. This scoped exception avoids adding AI SDK and adapter packages.
+- Call the selected fast Google models via the raw Chat Completions contract (no AI SDK packages); keep the six-round read-only loop and server-side key/run-ID state.
 - Persist gateway credit/access pauses and require owner recovery rather than automatic retries; never substitute a model after a terminal refusal or provider denial.
 
 - Keep installer AI proposal validation and execution in function-local modules, recheck caller role/team/status at confirmation and use atomic ai_create_proposal/ai_claim_action with a thread lock; only one unclaimed pending card can remain.
@@ -43,3 +43,4 @@ Some subdirectories have their own AGENTS.md; read it before editing files there
 - Route all case matching via edge-shared caseMatching (frontend re-export), never component-local; payouts use rankPayoutCases, booking fills empty order_number via payoutOrderNumber; coupling: aOrderCoupling, moves: aOrderMove.
 - Merge cases only via merge_cases (dynamic FKs, dry_run = rolled-back run); rules in caseMerge. Invoice emails use _shared/invoiceEmailFooter.
 - SignedCaseFields/signedCase are shared by VisitForm and SignedCaseDialog; change them in one place.
+- Kalkyl quantity/price logic lives only in src/lib/kalkyl (see its AGENTS.md): prices ex VAT, a missing price stays NULL (amount 0, flagged), import never approves.
