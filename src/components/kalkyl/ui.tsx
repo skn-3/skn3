@@ -89,6 +89,36 @@ export function DimField({ label, value, onChange, step = 0.1, min = 0, max = 99
   );
 }
 
+/** Valfritt tal (decimalkomma). Tomt fält = inget värde. Sparas när fältet lämnas eller med Enter. */
+export function OptionalNumberField({ label, value, onChange, unit, disabled }: {
+  label: string; value: number | null | undefined; onChange: (v: number | null) => void; unit?: string; disabled?: boolean;
+}) {
+  const id = useId();
+  const [text, setText] = useState(dec(value, 2));
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { setText(dec(value, 2)); setError(null); }, [value]);
+  const commit = () => {
+    const n = parseSvNumber(text);
+    if (n === 'invalid' || (n != null && (!Number.isFinite(n) || n < 0))) { setError('Skriv ett tal, t.ex. 24,5, eller lämna tomt.'); return; }
+    setError(null);
+    if ((n ?? null) !== (value ?? null)) onChange(n);
+  };
+  return (
+    <div className="space-y-1">
+      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">{label}</label>
+      <div className="relative">
+        <input id={id} inputMode="decimal" value={text} disabled={disabled} aria-invalid={!!error}
+          onChange={e => setText(e.target.value)} onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }}
+          className={cn('h-11 w-full rounded-lg border bg-background px-3 pr-10 font-mono tabular-nums text-base', focusRing,
+            error ? 'border-destructive' : 'border-input', 'disabled:opacity-60')} />
+        {unit && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{unit}</span>}
+      </div>
+      {error && <p className="text-xs text-destructive" role="alert">{error}</p>}
+    </div>
+  );
+}
+
 export function SectionTitle({ children, aside, className }: { children: ReactNode; aside?: ReactNode; className?: string }) {
   return (
     <div className={cn('flex items-center justify-between gap-2', className)}>

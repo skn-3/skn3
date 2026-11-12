@@ -3,7 +3,7 @@ import { ChevronDown, Plus, LayoutGrid, Settings2, Replace, Copy, ArrowUp, Arrow
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  resolveSlotItem, displayAmount, rowFigures, rowLines, rowNeedsAction, rowQuantityLabel, rowSpecText, roomOf, lineQtyText,
+  resolveSlotItem, displayAmount, isGrenRow, rowTypeLabel, rowFigures, rowLines, rowNeedsAction, rowQuantityLabel, rowSpecText, roomOf, lineQtyText,
   type GolvInput, type KalkylData, type KalkylRow, type Kontroll, type MalningInput,
 } from '@/lib/kalkyl';
 import { PriceSwatch } from '@/components/offers/priceList/PriceSwatch';
@@ -12,7 +12,6 @@ import { RoomPlan, KulorSwatch } from './drawings';
 import { focusRing, motion, StatusDot } from './ui';
 import { kr } from './format';
 
-const TRADE_CHIP: Record<KalkylRow['trade'], string> = { golv: 'Golv', malning: 'Målning', fri: 'Fri rad' };
 
 export interface RowActions {
   onConfigure: (rowId: string) => void;
@@ -136,7 +135,7 @@ export const OverviewRow = forwardRef<HTMLDivElement, {
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2 min-w-0">
             <span className="text-[15px] font-semibold truncate">{title}</span>
-            <span className="shrink-0 inline-flex h-6 items-center rounded-full bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground">{room && row.trade === 'fri' ? row.title : TRADE_CHIP[row.trade]}</span>
+            <span className="shrink-0 inline-flex h-6 items-center rounded-full bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground">{room && row.trade === 'fri' && !isGrenRow(row) ? row.title : rowTypeLabel(row)}</span>
           </span>
           <span className="block text-[13px] text-muted-foreground truncate">{rowSpecText(row, prices)}</span>
         </span>

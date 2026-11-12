@@ -1,4 +1,5 @@
 import type { GolvInput, KalkylData, KalkylLine, KalkylOverride, KalkylRoom, KalkylRow, KalkylSettings, MalningInput, RotClass } from './types';
+import { isGrenTrade } from './types';
 import type { PriceIndex } from './prices';
 import { round2 } from './packaging';
 import { computeGolv } from './recipes/golv';
@@ -38,9 +39,22 @@ export function applyOverrides(lines: KalkylLine[], overrides?: Record<string, K
   return out;
 }
 
-/** Raderna som gäller för en kalkylrad efter säljarens ändringar. */
+/** Grenrad där säljaren stängt av ROT ("ROT på arbetet i den här raden" av). */
+export const rowRotOff = (row: Pick<KalkylRow, 'trade' | 'gren' | 'rot_off'>): boolean =>
+  row.trade === 'fri' && isGrenTrade(row.gren) && row.rot_off === true;
+
+/** Radens gällande ROT-klass: arbete räknas som övrigt när ROT är avstängt på grenraden. */
+export const effectiveRotClass = (row: Pick<KalkylRow, 'trade' | 'gren' | 'rot_off'>, cls: RotClass): RotClass =>
+  cls === 'arbete' && rowRotOff(row) ? 'ovrigt' : cls;
+
+/**
+ * Raderna som gäller för en kalkylrad efter säljarens ändringar. Det enda stället där ROT-reglaget på en grenrad
+ * verkar: summering, ROT-underlag, offertrader och kontroller läser alla härifrån. Sparad ROT-klass ändras inte.
+ */
 export function rowLines(row: KalkylRow): KalkylLine[] {
-  return applyOverrides(row.lines ?? [], row.overrides);
+  const lines = applyOverrides(row.lines ?? [], row.overrides);
+  if (!rowRotOff(row)) return lines;
+  return lines.map(l => (l.rot_class === 'arbete' ? { ...l, rot_class: 'ovrigt' as const } : l));
 }
 
 /** Räknar om en kalkylrad från rummets mått och prislistan. Fria rader lämnas orörda. */

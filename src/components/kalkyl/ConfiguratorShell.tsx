@@ -17,8 +17,8 @@ type Tab = 'settings' | 'drawing' | 'extras';
  * Tre kolumner från 1024 px (318 px, flex, 360 px). 768–1023 px: ritningen överst i full bredd och
  * sidokolumnerna under. Under 768 px: en kolumn med växeln Inställningar, Ritning, Tillbehör.
  */
-export function ConfiguratorShell({ left, center, right, footer, rightLabel = 'Tillbehör' }: {
-  left: ReactNode; center: ReactNode; right: ReactNode; footer: ReactNode; rightLabel?: string;
+export function ConfiguratorShell({ left, center, right, footer, rightLabel = 'Tillbehör', centerLabel = 'Ritning' }: {
+  left: ReactNode; center: ReactNode; right: ReactNode; footer: ReactNode; rightLabel?: string; centerLabel?: string;
 }) {
   const [tab, setTab] = useState<Tab>('settings');
   const side = 'bg-card border-border';
@@ -26,14 +26,14 @@ export function ConfiguratorShell({ left, center, right, footer, rightLabel = 'T
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="md:hidden shrink-0 border-b border-border bg-card px-3 py-2">
         <Segmented label="Visa" value={tab} onChange={setTab} className="w-full" size="lg"
-          options={[{ value: 'settings', label: 'Inställningar' }, { value: 'drawing', label: 'Ritning' }, { value: 'extras', label: rightLabel }]} />
+          options={[{ value: 'settings', label: 'Inställningar' }, { value: 'drawing', label: centerLabel }, { value: 'extras', label: rightLabel }]} />
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden md:grid md:grid-cols-2 md:content-start lg:grid-cols-[318px_minmax(0,1fr)_360px] lg:content-stretch">
         <section aria-label="Inställningar"
           className={cn(side, 'md:order-2 lg:order-1 md:border-r lg:min-h-0 lg:overflow-y-auto p-4 space-y-6', tab !== 'settings' && 'hidden md:block')}>
           {left}
         </section>
-        <section aria-label="Ritning"
+        <section aria-label={centerLabel}
           className={cn('bg-background md:order-1 md:col-span-2 lg:col-span-1 lg:order-2 lg:min-h-0 lg:overflow-y-auto p-4 space-y-4 md:border-b lg:border-b-0', tab !== 'drawing' && 'hidden md:block')}>
           {center}
         </section>

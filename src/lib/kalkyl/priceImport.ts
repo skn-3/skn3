@@ -65,11 +65,28 @@ function splitLine(line: string, sep: string): string[] {
 const normHeader = (h: string) => h.trim().toLowerCase()
   .replace(/^\uFEFF/, '').replace(/å|ä/g, 'a').replace(/ö/g, 'o').replace(/[\s-]+/g, '_');
 
-/** Decimalkomma och tusentalsavgränsare tolkas. Tomt = null. */
+/**
+ * Tolkar ett tal från prisark eller formulär. Tomt = null.
+ * - Både komma och punkt: tecknet som står sist är decimaltecken, det andra tusentalsavgränsare i grupper om tre
+ *   siffror ("1,195.00" och "1.195,00" ger 1195; "1,19.5" är ogiltigt).
+ * - Bara komma: decimalkomma. Bara punkt: decimalpunkt. Mellanslag och hårda mellanslag tas bort.
+ */
 export function parseSvNumber(raw: string): number | null | 'invalid' {
   const s = raw.replace(/\s|\u00A0|kr/gi, '');
   if (!s) return null;
-  const normalized = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s;
+  let normalized: string;
+  if (s.includes(',') && s.includes('.')) {
+    const dec = s.lastIndexOf(',') > s.lastIndexOf('.') ? ',' : '.';
+    const sep = dec === ',' ? '.' : ',';
+    const at = s.lastIndexOf(dec);
+    const int = s.slice(0, at);
+    const frac = s.slice(at + 1);
+    const grouped = new RegExp(`^-?\\d{1,3}(\\${sep}\\d{3})+$`);
+    if (!grouped.test(int) || !/^\d+$/.test(frac)) return 'invalid';
+    normalized = `${int.split(sep).join('')}.${frac}`;
+  } else {
+    normalized = s.includes(',') ? s.replace(',', '.') : s;
+  }
   if (!/^-?\d+(\.\d+)?$/.test(normalized)) return 'invalid';
   return Number(normalized);
 }

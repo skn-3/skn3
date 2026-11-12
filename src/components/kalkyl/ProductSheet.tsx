@@ -9,7 +9,7 @@ import { SmallSheet } from './LineSheets';
 import { focusRing, motion } from './ui';
 import { kr2 } from './format';
 
-const LEVEL: Record<PriceLevel, string> = { bas: 'Bas', standard: 'Standard', premium: 'Premium' };
+export const LEVEL_LABEL: Record<PriceLevel, string> = { bas: 'Bas', standard: 'Standard', premium: 'Premium' };
 
 /** Pris per enhet i vald visning, "Pris saknas" när priset saknas. */
 export function useUnitPriceText() {
@@ -49,7 +49,7 @@ export function SlotProductSheet({ slot, current, onOpenChange, onPick, onGaller
               <div className="min-w-0 flex-1 leading-tight">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-sm font-semibold">{p.name}</span>
-                  {p.level && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold">{LEVEL[p.level]}</span>}
+                  {p.level && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold">{LEVEL_LABEL[p.level]}</span>}
                 </div>
                 {p.spec && <div className="text-xs text-muted-foreground">{p.spec}</div>}
                 {p.color_code && <div className="font-mono text-[11px] text-muted-foreground">{p.color_code}</div>}

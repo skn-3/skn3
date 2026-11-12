@@ -91,7 +91,22 @@ export interface GolvInput { material_code: string; direction: 'langs' | 'tvars'
 export interface MalningInput { underarbete: 'latt' | 'normal' | 'omfattande'; tak: boolean; snickerier: boolean; coats?: 2 | 3; kulor_vagg?: Kulor | null; kulor_tak?: Kulor | null; kulor_snickerier?: Kulor | null; selections?: SlotSelections }
 export interface KalkylRoom { id: string; name: string; dims: RoomDims }
 export type KalkylOverride = { qty?: number; unit_price?: number; removed?: boolean };
-export interface KalkylRow { id: string; room_id: string | null; trade: 'golv' | 'malning' | 'fri'; title: string; input: GolvInput | MalningInput | null; lines: KalkylLine[]; overrides?: Record<string, KalkylOverride>; note?: string }
+/** Grenar utan recept som kan ha en grenrad med mängdlista, i PRICE_TRADES-ordning. */
+export const GREN_TRADES = ['fasad', 'tak', 'altan', 'mark', 'el', 'badrum', 'kok', 'renovering'] as const satisfies readonly PriceTrade[];
+export type GrenTrade = typeof GREN_TRADES[number];
+export const isGrenTrade = (v: unknown): v is GrenTrade => (GREN_TRADES as readonly unknown[]).includes(v);
+/** Mått på en grenrad: yta i m² och längd i m. Bara förslag på mängd när en rad läggs till. */
+export interface GrenMeasure { area?: number | null; length?: number | null }
+export interface KalkylRow {
+  id: string; room_id: string | null; trade: 'golv' | 'malning' | 'fri'; title: string; input: GolvInput | MalningInput | null; lines: KalkylLine[];
+  overrides?: Record<string, KalkylOverride>; note?: string;
+  /** Grenrad: fri rad som hör till en gren (bara när trade är 'fri'). */
+  gren?: PriceTrade;
+  /** Grenrad: mått som förslag på mängd. */
+  measure?: GrenMeasure;
+  /** Grenrad: ROT avstängt, radens arbete räknas som övrigt (se rowLines). */
+  rot_off?: boolean;
+}
 export interface KalkylAdjustment { id: string; label: string; amount: number; rot_class: RotClass }   // ex moms, negativt = rabatt
 export interface KalkylData { version: 1; premises: { house_type: 'villa' | 'radhus' | 'bostadsratt' | 'fritidshus' | 'annat' | null; build_year: number | null; floors: number | null }; rooms: KalkylRoom[]; rows: KalkylRow[]; common: KalkylLine[]; adjustments: KalkylAdjustment[]; priced_at: string | null; /** Prisradskoder som kunden gillat. */ favorites?: string[] }
 

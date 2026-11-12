@@ -12,6 +12,7 @@ import {
   kalkylFromRow, kalkylSaveFields, shouldClearPdf, moveRow, newFriRow, newGolvRow, newMalningRow, newRoom, offerEditMode, offerMetaFromRow,
   offerOptions, offerScopeText, priceChanges, removeAdjustment, removeCommonLine, removeFriLine, removeRow, repriceKalkyl, roomOf,
   runKontroller, selectSlotProduct, setOverride, toggleFavorite, updateFriLine, updateRoom, updateRowInput, updateRowMeta, validateMeta,
+  addGrenItem, applyMeasure, isGrenRow, isGrenTrade, newGrenRow, rowTypeLabel, setGrenMeasure, setGrenQty, setGrenRotOff,
   DEFAULT_KALKYL_SETTINGS, resolveSlotCode, SLOT_LABEL, type KalkylData, type KontrollFix, type Kulor, type OfferMeta, type PriceDisplay, type SelectableSlot, type SlotSelections,
 } from '@/lib/kalkyl';
 import { fetchKalkylSettings, fetchPriceItems, KALKYL_SETTINGS_KEY, PRICE_ITEMS_KEY } from '@/components/offers/priceList/api';
@@ -27,6 +28,7 @@ import { AdjustmentSheet, CommonLineSheet } from './LineSheets';
 import { GolvConfigurator } from './GolvConfigurator';
 import { MalningConfigurator, type Surface } from './MalningConfigurator';
 import { FriConfigurator } from './FriConfigurator';
+import { GrenConfigurator } from './GrenConfigurator';
 import { Gallery, type GalleryTarget } from './Gallery';
 import { clearLocalDraft, readLocalDraft, saveKalkylOffer, writeLocalDraft, type LocalDraft } from './api';
 import { timeLabel } from './format';
@@ -34,7 +36,6 @@ import { timeLabel } from './format';
 type OfferRow = Record<string, unknown> & { id?: string };
 type View = { kind: 'overview' } | { kind: 'row'; rowId: string } | { kind: 'gallery'; target: GalleryTarget | null; from: 'overview' | 'row' };
 
-const TRADE_TITLE = { golv: 'Golv', malning: 'Målning', fri: 'Fri rad' } as const;
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export interface KalkylWorkspaceProps {
@@ -174,7 +175,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
     const row = data.rows.find(r => r.id === rowId);
     if (!row) return;
     const room = roomOf(data, row);
-    const label = `${room?.name ?? row.title} · ${TRADE_TITLE[row.trade]}`;
+    const label = `${room?.name ?? row.title} · ${rowTypeLabel(row)}`;
     if (slot) {
       const selections = (row.input as { selections?: SlotSelections } | null)?.selections;
       setView({ kind: 'gallery', from, target: { kind: 'slot', rowId, slot, label: `${label}, ${SLOT_LABEL[slot].toLocaleLowerCase('sv-SE')}`, current: resolveSlotCode(slot, selections, prices) } });
@@ -191,6 +192,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
     const firstGolv = items.find(i => i.slot === 'golv.golvtyp' && i.status !== 'arkiverad');
     const row = req.kind === 'golv' ? newGolvRow(roomId!, firstGolv?.code ?? '')
       : req.kind === 'malning' ? newMalningRow(roomId!)
+      : isGrenTrade(req.kind) ? newGrenRow(roomId, req.kind, req.friTitle ?? '', roomOf(next, { room_id: roomId }))
       : newFriRow(roomId, req.friTitle || 'Fri rad');
     next = addRow(next, row, prices, settings);
     setData(() => next);
@@ -295,21 +297,31 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
       onSelect: (slot: SelectableSlot, code: string) => setData(d => selectSlotProduct(d, rowId, slot, code, prices, settings)),
       onGallerySlot: (slot: SelectableSlot) => openGalleryFor(rowId, 'row', slot),
     };
+    const friActions = {
+      onTitle: (t: string) => setData(d => updateRowMeta(d, rowId, { title: t })),
+      onAdd: (l: Parameters<typeof addFriLine>[2]) => setData(d => addFriLine(d, rowId, l)),
+      onUpdate: (key: string, p: Parameters<typeof updateFriLine>[3]) => setData(d => updateFriLine(d, rowId, key, p, prices)),
+      onRemove: (key: string) => setData(d => removeFriLine(d, rowId, key)),
+      onFix: common.onFix,
+    };
     body = currentRow.trade === 'golv' && currentRoom ? (
       <GolvConfigurator data={data} row={currentRow} room={currentRoom} kontroller={kontroller}
         actions={{ ...common, onRoom: roomPatch, onInput: p => setData(d => updateRowInput(d, rowId, p, prices, settings)), onGallery: () => openGalleryFor(rowId, 'row') }} />
     ) : currentRow.trade === 'malning' && currentRoom ? (
       <MalningConfigurator data={data} row={currentRow} room={currentRoom} kontroller={kontroller} surface={surface} onSurface={setSurface}
         actions={{ ...common, onRoom: roomPatch, onInput: p => setData(d => updateRowInput(d, rowId, p, prices, settings)) }} />
-    ) : (
-      <FriConfigurator data={data} row={currentRow} room={currentRoom} kontroller={kontroller}
+    ) : isGrenRow(currentRow) ? (
+      <GrenConfigurator key={rowId} data={data} row={currentRow} room={currentRoom} kontroller={kontroller}
         actions={{
-          onTitle: t => setData(d => updateRowMeta(d, rowId, { title: t })),
-          onAdd: l => setData(d => addFriLine(d, rowId, l)),
-          onUpdate: (key, p) => setData(d => updateFriLine(d, rowId, key, p, prices)),
-          onRemove: key => setData(d => removeFriLine(d, rowId, key)),
-          onFix: common.onFix,
+          ...friActions,
+          onQty: (item, qty) => setData(d => setGrenQty(d, rowId, item, qty, prices)),
+          onAddItem: item => setData(d => addGrenItem(d, rowId, item, prices)),
+          onMeasure: patch => setData(d => setGrenMeasure(d, rowId, patch)),
+          onApplyMeasure: unit => setData(d => applyMeasure(d, rowId, unit, prices)),
+          onRotOff: off => setData(d => setGrenRotOff(d, rowId, off)),
         }} />
+    ) : (
+      <FriConfigurator data={data} row={currentRow} room={currentRoom} kontroller={kontroller} actions={friActions} />
     );
   } else {
     const aside = (
@@ -368,7 +380,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
                 backLabel={inRow ? `Tillbaka till ${offerLabel}` : 'Stäng kalkylen'}
                 onBack={inRow ? () => setView({ kind: 'overview' }) : handleClose}
                 eyebrow={inRow ? offerLabel : 'SmartKlimat N3prenad'}
-                title={inRow ? `${currentRoom?.name ?? currentRow.title} · ${currentRow.trade === 'fri' ? currentRow.title : TRADE_TITLE[currentRow.trade]}` : offerLabel}
+                title={inRow ? `${currentRoom?.name ?? currentRow.title} · ${currentRow.trade === 'fri' && !isGrenRow(currentRow) ? currentRow.title : rowTypeLabel(currentRow)}` : offerLabel}
                 status={inRow ? null : status}
                 savedAt={savedAt}
                 dirty={dirty}

@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react';
-import { Layers, PaintRoller, ListPlus, ArrowLeft } from 'lucide-react';
+import { Layers, PaintRoller, ListPlus, ArrowLeft, Building2, Home, Fence, Shovel, Zap, Bath, CookingPot, Hammer } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import type { KalkylRoom, RoomDims } from '@/lib/kalkyl';
+import { GREN_TRADES, TRADE_LABEL, isGrenTrade, type GrenTrade, type KalkylRoom, type RoomDims } from '@/lib/kalkyl';
 import { DimField, focusRing, motion } from './ui';
 
-export type AddKind = 'golv' | 'malning' | 'fri';
+export type AddKind = 'golv' | 'malning' | 'fri' | GrenTrade;
 export interface AddRequest { kind: AddKind; roomId: string | null; newRoom?: { name: string; dims: RoomDims }; friTitle?: string }
 
 const SUGGESTIONS = ['Vardagsrum', 'Kök', 'Hall', 'Sovrum', 'Badrum'];
+const GREN_ICON: Record<GrenTrade, typeof Layers> = { fasad: Building2, tak: Home, altan: Fence, mark: Shovel, el: Zap, badrum: Bath, kok: CookingPot, renovering: Hammer };
 const KINDS: { value: AddKind; label: string; text: string; Icon: typeof Layers }[] = [
   { value: 'golv', label: 'Golv', text: 'Golvmaterial, läggning och tillbehör', Icon: Layers },
   { value: 'malning', label: 'Målning', text: 'Väggar, tak och snickerier med kulörer', Icon: PaintRoller },
-  { value: 'fri', label: 'Fri rad', text: 'Tak, fasad, badrum, kök och annat utan recept', Icon: ListPlus },
+  ...GREN_TRADES.map(g => ({ value: g, label: TRADE_LABEL[g], text: 'Mängdlista från prislistan', Icon: GREN_ICON[g] })),
+  { value: 'fri', label: 'Fri rad', text: 'Egna rader utan gren', Icon: ListPlus },
 ];
+const GREN_LABELS: string[] = GREN_TRADES.map(g => TRADE_LABEL[g]);
+/** Fri rad och grenrader: rum är valfritt och raden har en benämning. */
+const isFreeKind = (k: AddKind) => k !== 'golv' && k !== 'malning';
 const START: RoomDims = { length: 4, width: 3, height: 2.4, doors: 1, windows: 1 };
 
 export function AddRowSheet({ open, onOpenChange, rooms, onAdd }: { open: boolean; onOpenChange: (v: boolean) => void; rooms: KalkylRoom[]; onAdd: (r: AddRequest) => void }) {
@@ -34,10 +39,16 @@ export function AddRowSheet({ open, onOpenChange, rooms, onAdd }: { open: boolea
     setStep(1); setKind('golv'); setRoomId(rooms.length ? rooms[rooms.length - 1].id : 'new'); setName(''); setDims(START); setFriTitle(''); setNameError(false);
   }, [open, rooms]);
 
+  // Benämningen förifylls med grenens etikett; en egen benämning skrivs aldrig över.
+  const pickKind = (k: AddKind) => {
+    setKind(k);
+    setFriTitle(t => (!t.trim() || GREN_LABELS.includes(t) ? (isGrenTrade(k) ? TRADE_LABEL[k] : '') : t));
+  };
+
   const submit = () => {
     if (roomId === 'new' || roomId == null) {
-      if (kind !== 'fri' && !name.trim()) { setNameError(true); return; }
-      if (kind === 'fri' && !name.trim()) { onAdd({ kind, roomId: null, friTitle }); return; }
+      if (!isFreeKind(kind) && !name.trim()) { setNameError(true); return; }
+      if (isFreeKind(kind) && !name.trim()) { onAdd({ kind, roomId: null, friTitle }); return; }
       onAdd({ kind, roomId: null, newRoom: { name: name.trim(), dims }, friTitle });
       return;
     }
@@ -57,21 +68,23 @@ export function AddRowSheet({ open, onOpenChange, rooms, onAdd }: { open: boolea
           <SheetDescription>Steg {step} av 2</SheetDescription>
         </SheetHeader>
         {step === 1 ? (
-          <div className="mt-5 space-y-3" role="radiogroup" aria-label="Vad">
+          <div className="mt-5 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3" role="radiogroup" aria-label="Vad">
             {KINDS.map(k => (
-              <button key={k.value} type="button" role="radio" aria-checked={kind === k.value} className={tile(kind === k.value)} onClick={() => setKind(k.value)}>
+              <button key={k.value} type="button" role="radio" aria-checked={kind === k.value} className={tile(kind === k.value)} onClick={() => pickKind(k.value)}>
                 <k.Icon className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
                 <span><span className="block text-[15px] font-semibold">{k.label}</span><span className="block text-sm text-muted-foreground">{k.text}</span></span>
               </button>
             ))}
+            </div>
             <Button type="button" className="w-full min-h-[48px] mt-2" onClick={() => setStep(2)}>Fortsätt</Button>
           </div>
         ) : (
           <div className="mt-5 space-y-5">
-            {kind === 'fri' && (
+            {isFreeKind(kind) && (
               <div className="space-y-1.5">
                 <label htmlFor="fri-title" className="text-sm font-medium">Benämning</label>
-                <Input id="fri-title" className="h-11 text-base" value={friTitle} onChange={e => setFriTitle(e.target.value)} placeholder="t.ex. Kakel i badrum" />
+                <Input id="fri-title" className="h-11 text-base" value={friTitle} onChange={e => setFriTitle(e.target.value)} placeholder={kind === 'fri' ? 't.ex. Kakel i badrum' : undefined} />
               </div>
             )}
             <div className="space-y-2">
@@ -84,7 +97,7 @@ export function AddRowSheet({ open, onOpenChange, rooms, onAdd }: { open: boolea
             {roomId === 'new' && (
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="room-name" className="text-sm font-medium">Namn på rummet{kind === 'fri' ? ' (valfritt)' : ''}</label>
+                  <label htmlFor="room-name" className="text-sm font-medium">Namn på rummet{isFreeKind(kind) ? ' (valfritt)' : ''}</label>
                   <Input id="room-name" className="h-11 text-base" value={name} aria-invalid={nameError} onChange={e => { setName(e.target.value); setNameError(false); }} />
                   {nameError && <p className="text-xs text-destructive" role="alert">Ge rummet ett namn, t.ex. Vardagsrum.</p>}
                   <div className="flex flex-wrap gap-2 pt-1">
