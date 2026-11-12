@@ -80,7 +80,7 @@ export function runKontroller(data: KalkylData, prices: PriceIndex, settings: Ka
       const inp = row.input as GolvInput;
       if (!inp.underlag) out.push({
         id: `golv_underlag_saknas:${row.id}`, level: 'atgard', blocking: false, row_id: row.id,
-        title: 'Underlag saknas', text: `${row.title}: flytande golv behöver underlag med ångspärr om det inte redan finns.`, source: 'Läggningsanvisning',
+        title: 'Underlag saknas', text: `${row.title}: flytande golv behöver underlag med ångspärr om det inte redan finns.`, source: 'Regel i kalkylen',
       });
       if (!inp.sockel) out.push({
         id: `golv_sockel_saknas:${row.id}`, level: 'info', blocking: false, row_id: row.id,
@@ -88,14 +88,14 @@ export function runKontroller(data: KalkylData, prices: PriceIndex, settings: Ka
       });
       if (inp.rivning && !inp.flytspackling) out.push({
         id: `golv_avjamning:${row.id}`, level: 'info', blocking: false, row_id: row.id,
-        title: 'Avjämning', text: `${row.title}: rivning är vald men inte flytspackling. Kontrollera att undergolvet är plant.`, source: 'Läggningsanvisning',
+        title: 'Avjämning', text: `${row.title}: rivning är vald men inte flytspackling. Kontrollera att undergolvet är plant.`, source: 'Regel i kalkylen',
       });
     }
     if (row.trade === 'malning' && row.input) {
       const inp = row.input as MalningInput;
       if (inp.kulor_vagg?.dark && wallCoats(inp) < 3) out.push({
         id: `malning_mork_kulor:${row.id}`, level: 'atgard', blocking: false, row_id: row.id,
-        title: 'Mörk kulör', text: `${row.title}: ${inp.kulor_vagg.code} är en mörk kulör och brukar behöva 3 strykningar.`, source: 'Färgtillverkarnas rekommendation',
+        title: 'Mörk kulör', text: `${row.title}: ${inp.kulor_vagg.code} är en mörk kulör och brukar behöva 3 strykningar.`, source: 'Regel i kalkylen',
       });
     }
   }

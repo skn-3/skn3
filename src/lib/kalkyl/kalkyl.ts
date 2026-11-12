@@ -5,6 +5,8 @@ import { computeGolv } from './recipes/golv';
 import { computeMalning } from './recipes/malning';
 
 export const VAT_RATE = 0.25;
+/** Nyckelprefix för egna rader i en golv- eller målningsrad. */
+export const OWN_LINE_PREFIX = 'egen.';
 
 /**
  * Lägger säljarens ändringar ovanpå beräknade rader. Ändrad mängd eller pris
@@ -44,8 +46,10 @@ export function rowLines(row: KalkylRow): KalkylLine[] {
 /** Räknar om en kalkylrad från rummets mått och prislistan. Fria rader lämnas orörda. */
 export function computeRow(row: KalkylRow, room: KalkylRoom | null | undefined, prices: PriceIndex, settings: KalkylSettings): KalkylRow {
   if (!room || !row.input || row.trade === 'fri') return row;
-  if (row.trade === 'golv') return { ...row, lines: computeGolv(room.dims, row.input as GolvInput, prices, settings) };
-  if (row.trade === 'malning') return { ...row, lines: computeMalning(room.dims, row.input as MalningInput, prices, settings) };
+  // Säljarens egna rader (nyckel "egen.") följer med när receptet räknas om.
+  const own = (row.lines ?? []).filter(l => l.key.startsWith(OWN_LINE_PREFIX));
+  if (row.trade === 'golv') return { ...row, lines: [...computeGolv(room.dims, row.input as GolvInput, prices, settings), ...own] };
+  if (row.trade === 'malning') return { ...row, lines: [...computeMalning(room.dims, row.input as MalningInput, prices, settings), ...own] };
   return row;
 }
 

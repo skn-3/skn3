@@ -91,7 +91,7 @@ export interface KalkylRoom { id: string; name: string; dims: RoomDims }
 export type KalkylOverride = { qty?: number; unit_price?: number; removed?: boolean };
 export interface KalkylRow { id: string; room_id: string | null; trade: 'golv' | 'malning' | 'fri'; title: string; input: GolvInput | MalningInput | null; lines: KalkylLine[]; overrides?: Record<string, KalkylOverride>; note?: string }
 export interface KalkylAdjustment { id: string; label: string; amount: number; rot_class: RotClass }   // ex moms, negativt = rabatt
-export interface KalkylData { version: 1; premises: { house_type: 'villa' | 'radhus' | 'bostadsratt' | 'fritidshus' | 'annat' | null; build_year: number | null; floors: number | null }; rooms: KalkylRoom[]; rows: KalkylRow[]; common: KalkylLine[]; adjustments: KalkylAdjustment[]; priced_at: string | null }
+export interface KalkylData { version: 1; premises: { house_type: 'villa' | 'radhus' | 'bostadsratt' | 'fritidshus' | 'annat' | null; build_year: number | null; floors: number | null }; rooms: KalkylRoom[]; rows: KalkylRow[]; common: KalkylLine[]; adjustments: KalkylAdjustment[]; priced_at: string | null; /** Prisradskoder som kunden gillat. */ favorites?: string[] }
 
 export const DEFAULT_KALKYL_SETTINGS: KalkylSettings = {
   margin_target_pct: 25,
