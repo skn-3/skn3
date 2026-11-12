@@ -1,6 +1,7 @@
 import { offerPdfName, type OfferNameSource } from './pdfNames';
 import { calcOfferTotals, fmtKr, type OfferLineItem } from './offerCalc';
 import { balanceTerms, deviceLabel, fmtDateLong, fmtDateTimeSv, parseDescription, parseTerms } from './offerText';
+import { sanitizeCustomerView, type CustomerItem, type CustomerSection, type CustomerTotals, type CustomerView } from '../../supabase/functions/_shared/customerView';
 
 type TDocumentDefinitions = any;
 
@@ -150,6 +151,49 @@ export interface OfferForPdf {
   handpenning_percent?: number;
   terms_text?: string | null;
   created_by?: string | null;
+  /** Kundvyn för offerter från kalkylen (offers.customer_view eller svaret från public-offer). Ger PDF:en rum för rum. */
+  customer_view?: unknown;
+}
+
+/**
+ * Kundvyn som PDF:en får använda: bara version 1 som går igenom sanitizeCustomerView. Kundsidans variant
+ * (image_url i stället för image_path) godtas; bilder ritas aldrig. Allt annat ger null, alltså dagens dokument.
+ */
+export function offerPdfCustomerView(raw: unknown): CustomerView | null {
+  if (raw == null) return null;
+  return sanitizeCustomerView(raw);
+}
+
+/** Prisraderna Arbete, Material och Övrigt; rader med belopp 0 visas inte (samma regel som kundsidan). */
+export function offerPdfPriceRows(totals: CustomerTotals): { label: string; amount_ex_vat: number }[] {
+  return [
+    { label: 'Arbete', amount_ex_vat: totals.arbete_ex_vat },
+    { label: 'Material', amount_ex_vat: totals.material_ex_vat },
+    { label: 'Övrigt', amount_ex_vat: totals.ovrigt_ex_vat },
+  ].filter(r => Math.round(r.amount_ex_vat * 100) !== 0);
+}
+
+/** "Sockellist furu vit 12×56 · NCS S 0502-Y": namn, spec och kulörkod för en valrad i PDF:en. */
+export function offerPdfItemText(item: Pick<CustomerItem, 'name' | 'detail' | 'color'>): string {
+  const c = item.color;
+  const code = !c?.code ? '' : !c.system || c.code.toUpperCase().startsWith(c.system.toUpperCase()) ? c.code : `${c.system} ${c.code}`;
+  const name = [item.name, item.detail].filter(Boolean).join(' ');
+  return code ? `${name} · ${code}` : name;
+}
+
+/** Färgrutans färg som #rrggbb (pdfmake), från kulörens hex eller provbitens färg. null = ingen ruta. */
+export function offerPdfSwatchColor(item: Pick<CustomerItem, 'color' | 'swatch'>): string | null {
+  const raw = (item.color?.hex || item.swatch?.color || '').trim();
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(raw);
+  if (hex) {
+    const h = hex[1];
+    const full = h.length <= 4 ? h.slice(0, 3).split('').map(x => x + x).join('') : h.slice(0, 6);
+    return `#${full.toUpperCase()}`;
+  }
+  const rgb = /^rgba?\(\s*([\d.]+)(%?)\s*,\s*([\d.]+)(%?)\s*,\s*([\d.]+)(%?)/i.exec(raw);
+  if (!rgb) return null;
+  const ch = (v: string, pct: string) => Math.max(0, Math.min(255, Math.round(pct ? (Number(v) / 100) * 255 : Number(v))));
+  return `#${[ch(rgb[1], rgb[2]), ch(rgb[3], rgb[4]), ch(rgb[5], rgb[6])].map(n => n.toString(16).padStart(2, '0')).join('').toUpperCase()}`;
 }
 
 export interface OfferPdfOptions {
@@ -257,8 +301,62 @@ export function buildOfferDocDef(offer: OfferForPdf, opts: OfferPdfOptions = {},
     margin: [0, 0, 0, 4],
   });
 
+  // Offert från kalkylen med giltig kundvy: "Det här ingår" rum för rum (och tillval) ersätter "Omfattning".
+  const cv = offerPdfCustomerView(offer.customer_view);
+  const cvAmount = (exVat: number) => fmtKr(exVat * priceFactor);
+  const hairline = () => ({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: PAGE_W - 2 * M, y2: 0, lineWidth: 0.5, lineColor: C.border }] }); // nytt objekt varje gång: pdfmake ändrar noderna
+  const cvHead = (s: CustomerSection) => nfc(s.room ? `${s.room} · ${s.title}` : s.title);
+  const cvItem = (it: CustomerItem) => {
+    const color = offerPdfSwatchColor(it);
+    return {
+      columns: [
+        { width: 12, ...(color ? { canvas: [{ type: 'rect', x: 0, y: 1.5, w: 8, h: 8, r: 1.5, color, lineColor: C.borderStrong, lineWidth: 0.4 }] } : { text: '' }) },
+        { width: '*', text: [{ text: `${nfc(it.label)}: `, bold: true, color: C.text }, { text: nfc(offerPdfItemText(it)), color: C.text }], fontSize: 8.8, lineHeight: 1.25 },
+      ],
+      margin: [0, 2.5, 0, 0],
+    };
+  };
+  const cvBlock = (s: CustomerSection, amountText: string, withItems: boolean) => ({
+    unbreakable: true,
+    stack: [
+      { columns: [
+        { width: '*', text: cvHead(s), bold: true, fontSize: 10, color: C.text },
+        { width: 110, text: amountText, fontSize: 9.5, bold: true, color: C.text, alignment: 'right' },
+      ], columnGap: 8 },
+      ...(s.text ? [{ text: nfc(s.text), fontSize: 9.5, lineHeight: 1.32, color: C.text, margin: [0, 3, 0, 0] }] : []),
+      ...(withItems && s.facts.length ? [{ text: nfc(s.facts.join(' · ')), fontSize: 8.5, color: C.muted, margin: [0, 3, 0, 0] }] : []),
+      ...(withItems ? s.items.map(cvItem) : []),
+    ],
+    margin: [0, 7, 0, 7],
+  });
+  // Rubriken (och intro) hålls ihop med första blocket så att den aldrig blir ensam sist på en sida.
+  const cvBlocks = (head: any[], list: any[]) => {
+    if (!list.length) return head;
+    return [{ unbreakable: true, stack: [...head, list[0]] }, ...list.slice(1).flatMap(b => [hairline(), b])];
+  };
+
+  if (cv) {
+    const intro = cv.intro ? [{ text: nfc(cv.intro), fontSize: 9.5, lineHeight: 1.32, color: C.text, margin: [0, 0, 0, 5] }] : [];
+    content.push(...cvBlocks([sectionHead('Det här ingår'), ...intro], cv.sections.map(s => cvBlock(s, cvAmount(s.amount_ex_vat), true))));
+    if (cv.common.length) {
+      content.push(hairline());
+      for (const c of cv.common) content.push({
+        columns: [
+          { width: '*', text: nfc(c.title), fontSize: 9.5, color: C.text },
+          { width: 110, text: cvAmount(c.amount_ex_vat), fontSize: 9.5, color: C.text, alignment: 'right' },
+        ],
+        columnGap: 8,
+        margin: [0, 4, 0, 0],
+      });
+    }
+    if (cv.options.length) {
+      content.push(...cvBlocks([sectionHead('Tillval, ingår inte i priset')], cv.options.map(s => cvBlock(s, `+ ${cvAmount(s.amount_ex_vat)}`, false))));
+      content.push({ text: 'Hör av dig till din kontakt om du vill lägga till något.', fontSize: 8.8, color: C.muted, margin: [0, 4, 0, 0] });
+    }
+  }
+
   // Omfattning
-  if (offer.description) {
+  if (!cv && offer.description) {
     content.push(sectionHead('Omfattning'));
     for (const b of parseDescription(offer.description)) {
       if (b.type === 'heading') content.push({ text: b.text, bold: true, fontSize: 10, color: C.ink, margin: [0, 7, 0, 3] });
@@ -300,7 +398,18 @@ export function buildOfferDocDef(offer: OfferForPdf, opts: OfferPdfOptions = {},
     },
     margin: [0, 0, 0, 10],
   };
-  content.push({ unbreakable: true, stack: [sectionHead('Pris'), specTable] });
+  // Med kundvy: Arbete, Material och Övrigt (kundvyns totals) i stället för offertraderna. Summorna nedan räknas som förut.
+  const cvPriceTable = cv && {
+    table: { headerRows: 1, widths: ['*', 110], body: [[th('Benämning'), th(sumHead, true)], ...offerPdfPriceRows(cv.totals).map(r => [
+      r.label === 'Arbete' && rotActive
+        ? { stack: [{ text: r.label, fontSize: 9.5, color: C.text }, { text: 'ROT-berättigat arbete redovisas nedan', fontSize: 7.2, color: C.sage, bold: true, margin: [0, 2, 0, 0] }] }
+        : { text: r.label, fontSize: 9.5, color: C.text },
+      { text: cvAmount(r.amount_ex_vat), fontSize: 9.5, color: C.text, alignment: 'right' },
+    ])] },
+    layout: specTable.layout,
+    margin: specTable.margin,
+  };
+  content.push({ unbreakable: true, stack: [sectionHead('Pris'), cvPriceTable || specTable] });
 
   const row = (l: string, v: string, o: { size?: number; color?: string; bold?: boolean } = {}) => ({
     columns: [

@@ -138,6 +138,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
         return;
       }
       // No saved PDF — generate on the fly and download
+      // Hela raden (select('*')), även customer_view: offerter från kalkylen får PDF:en rum för rum.
       const blob = await buildOfferPdfBlob(offer as any);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

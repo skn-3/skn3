@@ -16,6 +16,8 @@
 - [ ] Offertsystem etapp 3b: inloggat anrop genom kalkyl-ai från panelen (riktig session, foto från iPad-kamera, riktig UE-PDF) — preview-session saknas (--self utan konto).
 - [x] Offertsystem etapp 3c del 1: tillval — optional på kalkylrad med includedRows/optionalRows/optionTotals, reglaget Tillval och radmenyn, "Tillval, ingår inte" i summeringen, kundvyns options och kortet Tillval på kundsidan och i förhandsvisningen, kalkyl-ai läser ai_settings.model. public-offer och kalkyl-ai driftsatta; svaret utan kundvy oförändrat (test + live-anrop, 37 fält). 861 tester gröna; provad med simulerad data i 1280 och 390 px.
 - [ ] Offertsystem etapp 3c del 1: inloggad kontroll mot riktig databas (spara kalkyloffert med tillval så att customer_view.options skrivs, öppna riktig kundlänk) — preview-session saknas (--self utan konto).
+- [x] Offertsystem etapp 3d: offert-PDF och signerat avtal rum för rum när customer_view finns ("Det här ingår", tillval, Arbete/Material/Övrigt), summor och övriga delar oförändrade; utan kundvy identiskt dokument (test mot fryst kopia, med och utan signatur). Inga edge-funktioner driftsatta. 875 tester gröna; riktiga PDF:er genererade i webbläsaren med testdata.
+- [ ] Offertsystem etapp 3d: inloggad kontroll (Generera PDF på riktig kalkyloffert, signera riktig kundlänk med kundvy) — preview-session saknas (--self utan konto).
 - [ ] Offertsystem etapp 3c del 2: kunden väljer tillval vid signering — väntar på Johannes klartecken.
 
 - [x] Slå ihop dubblett: merge_cases (migration 0045, admin/koordinator, dynamiska kopplingar, provläge), panel i ärendet och "Möjliga dubbletter" i pipelinevalideringen; provläge och riktig sammanslagning testade på två tillfälliga testärenden (borttagna), montör nekas; 501 tester gröna.

@@ -211,6 +211,7 @@ export default function PublicOffer() {
     const acceptedAt = new Date().toISOString();
     let signedPdfBase64: string | undefined;
     try {
+      // Svaret från public-offer, även customer_view: det signerade avtalet får samma utseende som offert-PDF:en.
       const blob = await buildOfferPdfBlob(data as any, { signature: { name: acceptName.trim(), acceptedAt, userAgent: navigator.userAgent, imageDataUrl: signatureDataUrl || undefined } });
       signedPdfBase64 = await blobToBase64(blob);
     } catch (e) {

@@ -236,6 +236,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
       // Fetch the saved row to ensure offer_number + created_at är aktuella
       const { data: saved, error: fErr } = await (supabase as any).from('offers').select('*').eq('id', id).single();
       if (fErr) throw fErr;
+      // Hela raden, även customer_view: offerter från kalkylen får PDF:en rum för rum.
       const blob = await buildOfferPdfBlob(saved);
       const path = `offers/${id}.pdf`;
       const { error: upErr } = await supabase.storage
