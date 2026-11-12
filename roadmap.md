@@ -8,6 +8,8 @@
 - [ ] Offertsystem etapp 2b del 1: inloggad kontroll mot riktig databas (sparning med pdf_path, serverspärren med riktig offert, godkännande som säljare/admin i Prislista) — preview-session saknas (--self utan konto).
 - [x] Offertsystem etapp 2b del 2: valgrupper (selections + resolveSlotCode, Byt-sheet, galleri, kundtexter), atgang_saknas, arbetskod i import och "Arbetsrad vid läggning", laggning_saknas, enheter m³/ton/vecka, grenar mark och el (migration 0053), kontrollerna rot_bostadsratt_utvandigt och el_behorighet. 761 tester gröna.
 - [ ] Offertsystem etapp 2b del 2: inloggad kontroll mot riktig databas (import med arbetskod, spara gren mark/el, byte av produkt i sparad offert) — preview-session saknas (--self utan konto).
+- [x] Offertsystem etapp 2c: grenrader med mängdlista (AddRowSheet med grenbrickor, GrenConfigurator, gren.ts), mått som förslag på mängd, ROT per grenrad i rowLines, grenens etikett i översikt och radhuvud, parseSvNumber med både komma och punkt. 793 tester gröna; provad med simulerad data i 1280 och 390 px.
+- [ ] Offertsystem etapp 2c: inloggad kontroll mot riktig databas (spara och läsa tillbaka en grenrad med mått och ROT av, import av prisark med amerikanskt talformat) — preview-session saknas (--self utan konto).
 - [ ] Offertsystem etapp 3: kundsida och AI-kontroll — väntar.
 
 - [x] Slå ihop dubblett: merge_cases (migration 0045, admin/koordinator, dynamiska kopplingar, provläge), panel i ärendet och "Möjliga dubbletter" i pipelinevalideringen; provläge och riktig sammanslagning testade på två tillfälliga testärenden (borttagna), montör nekas; 501 tester gröna.

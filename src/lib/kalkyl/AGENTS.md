@@ -17,3 +17,5 @@
 - Lay codes: meta.lay_code is read/written only via layCodeOf/withLayCode (UI) and importRowPatch (import, column arbetskod); other meta keys are preserved and an empty cell changes nothing.
 - A missing lay code is reported by laggning_saknas, not pris_saknas (missingPriceLines); paint without coverage by atgang_saknas (paintCoverageMissing). sendCheck counts must use the same helpers.
 - Branch-based checks look up price_items.trade through the line's code; lines without code are never affected.
+- Grenrader är fria rader med `gren` (GREN_TRADES); listlogik, mått och ROT-reglage bara via gren.ts. `rot_off` verkar bara i rowLines (arbete → övrigt) så summor, ROT, line_items och kontroller följer samma regel; formulär får alltid den sparade raden.
+- parseSvNumber: med både komma och punkt är det sista tecknet decimaltecken och det andra tusental i grupper om tre, annars 'invalid'.

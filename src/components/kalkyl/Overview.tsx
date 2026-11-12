@@ -135,7 +135,7 @@ export const OverviewRow = forwardRef<HTMLDivElement, {
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2 min-w-0">
             <span className="text-[15px] font-semibold truncate">{title}</span>
-            <span className="shrink-0 inline-flex h-6 items-center rounded-full bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground">{room && row.trade === 'fri' && !isGrenRow(row) ? row.title : rowTypeLabel(row)}</span>
+            <span className="min-w-0 max-w-[60%] truncate inline-block h-6 leading-6 rounded-full bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground">{room && row.trade === 'fri' && !isGrenRow(row) ? row.title : rowTypeLabel(row)}</span>
           </span>
           <span className="block text-[13px] text-muted-foreground truncate">{rowSpecText(row, prices)}</span>
         </span>
