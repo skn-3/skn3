@@ -238,6 +238,7 @@ export function PriceListAdmin({ currentUser }: { currentUser: string }) {
         currentUser={currentUser}
         canApprove={canApprove}
         onSaved={refresh}
+        items={items}
       />
       <PriceImportSheet open={importOpen} onOpenChange={setImportOpen} existing={items} currentUser={currentUser} onImported={refresh} />
     </div>

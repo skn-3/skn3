@@ -3,12 +3,14 @@ import type { PriceIndex } from '../prices';
 import { floorArea, sockelLength } from '../geometry';
 import { packsNeeded, round2, withWaste } from '../packaging';
 import { fmtQty, packLabel, priceLine } from '../lines';
+import { resolveSlotCode, SLOT_DEFAULT_CODES } from '../slots';
 
+/** Fasta koder i golvreceptet. underlag, sockel och tröskel är bara standardval – se resolveSlotCode. */
 export const GOLV_CODES = {
-  underlag: 'golv.mat.underlag',
-  sockel: 'golv.mat.sockel-vit-12x56',
+  underlag: SLOT_DEFAULT_CODES['golv.underlag'],
+  sockel: SLOT_DEFAULT_CODES['golv.sockel'],
   sockelMontering: 'golv.arb.sockel-montering',
-  troskel: 'golv.mat.troskel-ek',
+  troskel: SLOT_DEFAULT_CODES['golv.troskel'],
   troskelMontering: 'golv.arb.troskel-montering',
   rivning: 'golv.arb.rivning',
   flytspackel: 'golv.mat.flytspackel',
@@ -44,23 +46,25 @@ export function computeGolv(dims: RoomDims, input: GolvInput, prices: PriceIndex
   lines.push(priceLine('golv.laggning', prices, layCode, area, { description: 'Läggning golv', unit: 'm²', rot_class: 'arbete' }));
 
   if (input.underlag) {
-    const it = prices[GOLV_CODES.underlag];
+    const code = resolveSlotCode('golv.underlag', input.selections, prices);
+    const it = prices[code];
     const u = packed(withWaste(area, it?.waste_pct ?? 0), it?.pack_size, it?.pack_label, it?.unit ?? 'm²');
-    lines.push(priceLine('golv.underlag', prices, GOLV_CODES.underlag, u.qty,
+    lines.push(priceLine('golv.underlag', prices, code, u.qty,
       { description: 'Underlag', unit: 'm²', rot_class: 'material' }, u.detail));
   }
 
   if (input.sockel) {
-    const it = prices[GOLV_CODES.sockel];
+    const code = resolveSlotCode('golv.sockel', input.selections, prices);
+    const it = prices[code];
     const s = packed(withWaste(sockel, it?.waste_pct ?? 0), it?.pack_size, it?.pack_label, it?.unit ?? 'm');
-    lines.push(priceLine('golv.sockel', prices, GOLV_CODES.sockel, s.qty,
+    lines.push(priceLine('golv.sockel', prices, code, s.qty,
       { description: 'Sockellist', unit: 'm', rot_class: 'material' }, s.detail));
     lines.push(priceLine('golv.sockel_montering', prices, GOLV_CODES.sockelMontering, sockel,
       { description: 'Montering sockellist', unit: 'm', rot_class: 'arbete' }));
   }
 
   if (input.troskel) {
-    lines.push(priceLine('golv.troskel', prices, GOLV_CODES.troskel, doors, { description: 'Tröskel', unit: 'st', rot_class: 'material' }));
+    lines.push(priceLine('golv.troskel', prices, resolveSlotCode('golv.troskel', input.selections, prices), doors, { description: 'Tröskel', unit: 'st', rot_class: 'material' }));
     lines.push(priceLine('golv.troskel_montering', prices, GOLV_CODES.troskelMontering, doors,
       { description: 'Montering tröskel', unit: 'st', rot_class: 'arbete' }));
   }

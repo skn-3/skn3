@@ -8,7 +8,7 @@ import { Chip } from '@/components/ui/chip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import {
-  applyPriceEdit, diffPriceImport, parsePriceImport, IMPORT_COLUMNS, IMPORT_FIELD_LABEL,
+  applyPriceEdit, diffPriceImport, importRowPatch, parsePriceImport, IMPORT_FIELD_LABEL, IMPORT_HEADERS,
   type ImportDiffRow, type PriceItem,
 } from '@/lib/kalkyl';
 import { insertPriceItems, updatePriceItem } from './api';
@@ -62,11 +62,12 @@ export function PriceImportSheet({ open, onOpenChange, existing, currentUser, on
     try {
       const fresh = toImport.filter(d => d.status === 'ny').map(d => {
         const base = { status: 'utkast', approved_by: null, approved_at: null, meta: {}, waste_pct: 0, sort_order: 0 } as unknown as PriceItem;
-        return applyPriceEdit(base, { ...d.row.values, code: d.row.code, status: 'utkast' }, currentUser, now, false);
+        return applyPriceEdit(base, { ...importRowPatch(d.row), status: 'utkast' }, currentUser, now, false);
       });
       await insertPriceItems(fresh);
       for (const d of toImport.filter(x => x.status === 'andrad')) {
-        const next = applyPriceEdit(d.existing!, { ...d.row.values, status: 'utkast' }, currentUser, now, false);
+        const { code: _code, ...patch } = importRowPatch(d.row, d.existing);
+        const next = applyPriceEdit(d.existing!, { ...patch, status: 'utkast' }, currentUser, now, false);
         await updatePriceItem(d.existing!.id, next);
       }
       toast.success(`${toImport.length} rader importerade som utkast`);
@@ -98,12 +99,12 @@ export function PriceImportSheet({ open, onOpenChange, existing, currentUser, on
           <Textarea
             value={text}
             onChange={e => setText(e.target.value)}
-            placeholder={Object.keys(IMPORT_COLUMNS).join(';')}
+            placeholder={IMPORT_HEADERS.join(';')}
             className="min-h-[160px] font-mono text-xs"
             aria-label="Inklistrat prisark"
           />
           <p className="text-xs text-muted-foreground">
-            Rubriker: <span className="font-mono">{Object.keys(IMPORT_COLUMNS).join(', ')}</span>. Kod, gren, typ, rot, namn och enhet krävs. Ett tomt pris betyder att priset saknas.
+            Rubriker: <span className="font-mono">{IMPORT_HEADERS.join(', ')}</span>. Kod, gren, typ, rot, namn och enhet krävs. Ett tomt pris betyder att priset saknas. Arbetskod anger golvmaterialets läggningsrad; en tom cell ändrar inte en befintlig rad.
           </p>
 
           {parsed?.errors.length ? (

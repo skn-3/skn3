@@ -372,6 +372,13 @@
       "when": 1794456147352,
       "tag": "0052_price_items_admin_approval",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794457118081,
+      "tag": "0053_price_items_trade_mark_el",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,11 @@
 import type { ColorSystem, PriceItem, PriceKind, PriceLevel, PriceTrade, RotClass } from './types';
+import { layCodeOf } from './priceEdit';
 
-export const PRICE_TRADES: PriceTrade[] = ['golv', 'malning', 'tak', 'fasad', 'badrum', 'kok', 'altan', 'renovering', 'gemensamt'];
+/** Grenarna i visningsordning (samma ordning som TRADE_LABEL). */
+export const PRICE_TRADES: PriceTrade[] = ['golv', 'malning', 'fasad', 'tak', 'altan', 'mark', 'el', 'badrum', 'kok', 'renovering', 'gemensamt'];
 export const PRICE_KINDS: PriceKind[] = ['arbete', 'material', 'tillbehor', 'ovrigt'];
 export const ROT_CLASSES: RotClass[] = ['arbete', 'material', 'ovrigt'];
-export const PRICE_UNITS = ['m²', 'm', 'st', 'tim', 'l', 'kg', 'fast'] as const;
+export const PRICE_UNITS = ['m²', 'm', 'st', 'tim', 'l', 'kg', 'fast', 'm³', 'ton', 'vecka'] as const;
 export const PRICE_LEVELS: PriceLevel[] = ['bas', 'standard', 'premium'];
 
 /** Rubrik i prisarket → kolumn i price_items. */
@@ -15,9 +17,14 @@ export const IMPORT_COLUMNS = {
   leverantor: 'supplier', kalla: 'source', prisdatum: 'price_date',
 } as const satisfies Record<string, keyof PriceItem>;
 
+/** Kolumnen arbetskod skrivs till meta.lay_code (golvmaterialets läggningsrad). */
+export const IMPORT_LAY_CODE_HEADER = 'arbetskod';
+
 type ImportHeader = keyof typeof IMPORT_COLUMNS;
 export type ImportField = (typeof IMPORT_COLUMNS)[ImportHeader];
 export type ImportValues = Partial<Pick<PriceItem, ImportField>>;
+/** Fält som kan ändras av en import: kolumnerna plus arbetskoden (meta.lay_code). */
+export type ImportChangeField = ImportField | 'lay_code';
 
 const NUMERIC: ImportField[] = ['price_ex_vat', 'cost_ex_vat', 'hours_per_unit', 'pack_size', 'waste_pct', 'coverage'];
 
@@ -26,6 +33,8 @@ export interface ParsedImportRow {
   line: number;
   code: string;
   values: ImportValues;
+  /** Arbetskod (meta.lay_code). Saknas = kolumnen finns inte eller cellen är tom, och då ändras ingenting. */
+  lay_code?: string;
   errors: string[];
 }
 
@@ -71,6 +80,9 @@ const normUnit = (u: string) => {
   if (s === 'lm' || s === 'löpmeter') return 'm';
   if (s === 'liter') return 'l';
   if (s === 'timme' || s === 'timmar' || s === 'h') return 'tim';
+  if (s === 'm3' || s === 'kbm' || s === 'm^3') return 'm³';
+  if (s === 't') return 'ton';
+  if (s === 'v' || s === 'veckor') return 'vecka';
   return s;
 };
 
@@ -92,6 +104,7 @@ export function parsePriceImport(text: string): PriceImportResult {
   const sep = headerLine.includes('\t') ? '\t' : ';';
   const headers = splitLine(headerLine, sep).map(normHeader);
   const fields: (ImportField | null)[] = headers.map(h => (h in IMPORT_COLUMNS ? IMPORT_COLUMNS[h as ImportHeader] : null));
+  const layIdx = headers.indexOf(IMPORT_LAY_CODE_HEADER);
   const errors: string[] = [];
   for (const req of ['kod', 'namn', 'gren', 'typ', 'rot', 'enhet'] as ImportHeader[]) {
     if (!headers.includes(req)) errors.push(`Kolumnen "${req}" saknas.`);
@@ -152,7 +165,10 @@ export function parsePriceImport(text: string): PriceImportResult {
     const code = (values.code ?? '').trim();
     if (!code) rowErrors.unshift('Kod saknas');
     if (!values.name) rowErrors.unshift('Namn saknas');
-    rows.push({ line: i + 1, code, values, errors: rowErrors });
+    const row: ParsedImportRow = { line: i + 1, code, values, errors: rowErrors };
+    const lay = layIdx >= 0 ? (cells[layIdx] ?? '').trim().toLowerCase() : '';
+    if (lay) row.lay_code = lay;
+    rows.push(row);
   }
 
   const seen = new Map<string, number>();
@@ -166,7 +182,7 @@ export function parsePriceImport(text: string): PriceImportResult {
 
 export type ImportDiffStatus = 'ny' | 'andrad' | 'oforandrad' | 'fel';
 
-export interface ImportChange { field: ImportField; old: unknown; new: unknown }
+export interface ImportChange { field: ImportChangeField; old: unknown; new: unknown }
 
 export interface ImportDiffRow {
   row: ParsedImportRow;
@@ -181,10 +197,18 @@ const same = (field: ImportField, a: unknown, b: unknown) => {
   return String(a ?? '') === String(b ?? '');
 };
 
-/** Märker varje importrad ny, ändrad (med gammalt → nytt), oförändrad eller fel. */
+
+/**
+ * Märker varje importrad ny, ändrad (med gammalt → nytt), oförändrad eller fel. Arbetskoden måste finnas
+ * i prislistan eller i samma import, annars radfel "Arbetskoden finns inte: <kod>".
+ */
 export function diffPriceImport(rows: ParsedImportRow[], existing: PriceItem[]): ImportDiffRow[] {
   const byCode = new Map(existing.map(e => [e.code, e]));
-  return rows.map(row => {
+  const known = new Set([...existing.map(e => e.code), ...rows.map(r => r.code).filter(Boolean)]);
+  return rows.map(input => {
+    const row = input.lay_code && !known.has(input.lay_code)
+      ? { ...input, errors: [...input.errors, `Arbetskoden finns inte: ${input.lay_code}`] }
+      : input;
     if (row.errors.length) return { row, status: 'fel' as const, changes: [] };
     const ex = byCode.get(row.code);
     if (!ex) return { row, status: 'ny' as const, changes: [] };
@@ -194,10 +218,25 @@ export function diffPriceImport(rows: ParsedImportRow[], existing: PriceItem[]):
       const old = (ex as unknown as Record<string, unknown>)[field];
       if (!same(field, old, value)) changes.push({ field, old: old ?? null, new: value ?? null });
     }
+    if (row.lay_code && row.lay_code !== layCodeOf(ex.meta)) changes.push({ field: 'lay_code', old: layCodeOf(ex.meta), new: row.lay_code });
     return { row, status: changes.length ? 'andrad' as const : 'oforandrad' as const, changes, existing: ex };
   });
 }
 
-export const IMPORT_FIELD_LABEL: Record<ImportField, string> = Object.fromEntries(
-  Object.entries(IMPORT_COLUMNS).map(([h, f]) => [f, h]),
-) as Record<ImportField, string>;
+export const IMPORT_FIELD_LABEL: Record<ImportChangeField, string> = {
+  ...(Object.fromEntries(Object.entries(IMPORT_COLUMNS).map(([h, f]) => [f, h])) as Record<ImportField, string>),
+  lay_code: IMPORT_LAY_CODE_HEADER,
+};
+
+/** Alla rubriker som importen känner igen, i ordning. */
+export const IMPORT_HEADERS: string[] = [...Object.keys(IMPORT_COLUMNS), IMPORT_LAY_CODE_HEADER];
+
+/**
+ * Ändringen som importen skriver för en rad. Arbetskoden går till meta.lay_code och övriga nycklar i meta
+ * lämnas orörda; utan arbetskod (tom cell) ändras inte meta.
+ */
+export function importRowPatch(row: Pick<ParsedImportRow, 'code' | 'values' | 'lay_code'>, existing?: Pick<PriceItem, 'meta'> | null): Partial<PriceItem> {
+  const patch: Partial<PriceItem> = { ...row.values, code: row.code };
+  if (row.lay_code) patch.meta = { ...(existing?.meta ?? {}), lay_code: row.lay_code };
+  return patch;
+}

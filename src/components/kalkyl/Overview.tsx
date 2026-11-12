@@ -3,7 +3,7 @@ import { ChevronDown, Plus, LayoutGrid, Settings2, Replace, Copy, ArrowUp, Arrow
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  GOLV_CODES, displayAmount, rowFigures, rowLines, rowNeedsAction, rowQuantityLabel, rowSpecText, roomOf, lineQtyText,
+  resolveSlotItem, displayAmount, rowFigures, rowLines, rowNeedsAction, rowQuantityLabel, rowSpecText, roomOf, lineQtyText,
   type GolvInput, type KalkylData, type KalkylRow, type Kontroll, type MalningInput,
 } from '@/lib/kalkyl';
 import { PriceSwatch } from '@/components/offers/priceList/PriceSwatch';
@@ -27,7 +27,7 @@ function RowSwatch({ row }: { row: KalkylRow }) {
   if (row.trade === 'golv' && row.input) {
     const inp = row.input as GolvInput;
     const mat = prices[inp.material_code];
-    const sockel = inp.sockel ? prices[GOLV_CODES.sockel] : null;
+    const sockel = inp.sockel ? resolveSlotItem('golv.sockel', inp.selections, prices) ?? null : null;
     return (
       <div className="flex items-center gap-2 min-w-0">
         {mat ? <PriceSwatch item={mat} className="h-6 w-6 rounded" /> : <span className="h-6 w-6 rounded border border-dashed border-border" aria-hidden="true" />}

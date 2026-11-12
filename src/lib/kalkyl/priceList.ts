@@ -3,9 +3,10 @@ import { DEFAULT_KALKYL_SETTINGS } from './types';
 import { isStale, priceAgeDays } from './prices';
 import { round2 } from './packaging';
 
+/** Etiketter i den ordning grenarna visas i appen. */
 export const TRADE_LABEL: Record<PriceTrade, string> = {
-  golv: 'Golv', malning: 'Målning', tak: 'Tak', fasad: 'Fasad', badrum: 'Badrum', kok: 'Kök',
-  altan: 'Altan', renovering: 'Renovering', gemensamt: 'Gemensamt',
+  golv: 'Golv', malning: 'Målning', fasad: 'Fasad och puts', tak: 'Tak', altan: 'Altan och trall',
+  mark: 'Mark, betong och grävning', el: 'El', badrum: 'Badrum', kok: 'Kök', renovering: 'Renovering', gemensamt: 'Gemensamt',
 };
 export const KIND_LABEL: Record<PriceKind, string> = { arbete: 'Arbete', material: 'Material', tillbehor: 'Tillbehör', ovrigt: 'Övrigt' };
 export const STATUS_LABEL: Record<PriceStatus, string> = { utkast: 'Utkast', godkand: 'Godkänd', arkiverad: 'Arkiverad' };

@@ -1,8 +1,8 @@
-import type { GolvInput, KalkylData, KalkylLine, KalkylSettings, MalningInput } from './types';
+import type { GolvInput, KalkylData, KalkylLine, KalkylRow, KalkylSettings, MalningInput, PriceItem, PriceTrade } from './types';
 import type { PriceIndex } from './prices';
 import { isStale, priceAgeDays } from './prices';
 import { rowLines, summarizeKalkyl } from './kalkyl';
-import { wallCoats } from './recipes/malning';
+import { paintNeeds, wallCoats } from './recipes/malning';
 import { linesWithChangedPrice, listPricedCommon, listPricedLines } from './priceCheck';
 
 export type KontrollLevel = 'atgard' | 'info' | 'ok';
@@ -26,7 +26,58 @@ const toDate = (v: Date | string) => (typeof v === 'string' ? new Date(v.length 
 export interface KontrollContext {
   /** Offertens status. Saknad status räknas som utkast. */
   status?: string | null;
+  /** ROT på offerten. Bara uttryckligt false stänger av ROT-kontrollen för bostadsrätt. */
+  rot_enabled?: boolean | null;
 }
+
+/** Grenar med utvändigt arbete som inte ger ROT i bostadsrätt. */
+export const BRF_EXTERIOR_TRADES: PriceTrade[] = ['fasad', 'tak', 'altan', 'mark'];
+
+/**
+ * Golvraden saknar arbetsrad för läggning: golvmaterialet finns i prislistan men läggningsraden har ingen kod
+ * (materialet saknar meta.lay_code). Då ersätter kontrollen laggning_saknas "pris saknas" för läggningsraden.
+ */
+export function golvLayMissing(row: KalkylRow, prices: PriceIndex): boolean {
+  if (row.trade !== 'golv' || !row.input) return false;
+  if (!prices[(row.input as GolvInput).material_code]) return false;
+  return rowLines(row).some(l => l.key === 'golv.laggning' && !l.code);
+}
+
+/** Raderna som saknar pris och flaggas som "pris saknas" (läggningsrad utan arbetskod har en egen kontroll). */
+export function missingPriceLines(row: KalkylRow | null, lines: KalkylLine[], prices: PriceIndex): KalkylLine[] {
+  const layMissing = row ? golvLayMissing(row, prices) : false;
+  return lines.filter(l => l.unit_price == null && !(layMissing && l.key === 'golv.laggning'));
+}
+
+/** Alla rader i kalkylen som saknar pris enligt missingPriceLines. */
+export function kalkylMissingPriceLines(data: KalkylData, prices: PriceIndex): KalkylLine[] {
+  return [
+    ...(data.rows ?? []).flatMap(r => missingPriceLines(r, rowLines(r), prices)),
+    ...missingPriceLines(null, data.common ?? [], prices),
+  ];
+}
+
+/**
+ * Färgprodukter i en målningsrad som saknar åtgång (m² per liter), för färgrader där ytan är större än 0.
+ * Borttagna rader och rader där säljaren själv satt mängden räknas inte. Produkt som saknas helt flaggas av "pris saknas".
+ */
+export function paintCoverageMissing(row: KalkylRow, data: Pick<KalkylData, 'rooms'>, prices: PriceIndex, settings: KalkylSettings): PriceItem[] {
+  if (row.trade !== 'malning' || !row.input) return [];
+  const room = row.room_id ? (data.rooms ?? []).find(r => r.id === row.room_id) : undefined;
+  if (!room) return [];
+  const lines = rowLines(row);
+  const out: PriceItem[] = [];
+  for (const need of paintNeeds(room.dims, row.input as MalningInput, settings)) {
+    if (!(need.area > 0)) continue;
+    if (row.overrides?.[need.key]?.qty != null) continue;
+    const line = lines.find(l => l.key === need.key);
+    const item = line?.code ? prices[line.code] : undefined;
+    if (item && !(Number(item.coverage) > 0) && !out.some(i => i.code === item.code)) out.push(item);
+  }
+  return out;
+}
+
+const tradeOf = (l: KalkylLine, prices: PriceIndex): PriceTrade | null => (l.code ? prices[l.code]?.trade ?? null : null);
 
 /** Utkast (även saknad status): allt utom skickad och accepterad. */
 export const isDraftStatus = (status: string | null | undefined) => status !== 'sent' && status !== 'accepted';
@@ -34,15 +85,15 @@ export const isDraftStatus = (status: string | null | undefined) => status !== '
 /** Version 1 av kontrollerna. Blockerande kontroller stoppar att offerten skickas. */
 export function runKontroller(data: KalkylData, prices: PriceIndex, settings: KalkylSettings, today: Date | string, ctx?: KontrollContext): Kontroll[] {
   const out: Kontroll[] = [];
-  const groups: { row_id?: string; label: string; lines: KalkylLine[]; listed: KalkylLine[] }[] = [
-    ...(data.rows ?? []).map(r => ({ row_id: r.id, label: r.title, lines: rowLines(r), listed: listPricedLines(r) })),
-    { row_id: undefined, label: 'Gemensamt', lines: data.common ?? [], listed: listPricedCommon(data) },
+  const groups: { row_id?: string; row: KalkylRow | null; label: string; lines: KalkylLine[]; listed: KalkylLine[] }[] = [
+    ...(data.rows ?? []).map(r => ({ row_id: r.id, row: r, label: r.title, lines: rowLines(r), listed: listPricedLines(r) })),
+    { row_id: undefined, row: null, label: 'Gemensamt', lines: data.common ?? [], listed: listPricedCommon(data) },
   ];
   const scope = (row_id?: string) => row_id ?? 'gemensamt';
   const draft = isDraftStatus(ctx?.status);
 
   for (const g of groups) {
-    const missing = g.lines.filter(l => l.unit_price == null);
+    const missing = missingPriceLines(g.row, g.lines, prices);
     if (missing.length) out.push({
       id: `pris_saknas:${scope(g.row_id)}`, level: 'atgard', blocking: true, row_id: g.row_id,
       title: 'Pris saknas', text: `${g.label}: ${names(missing)} saknar pris i prislistan. Lägg in priset innan offerten skickas.`, source: 'Prislistan',
@@ -93,6 +144,15 @@ export function runKontroller(data: KalkylData, prices: PriceIndex, settings: Ka
   }
 
   for (const row of data.rows ?? []) {
+    if (golvLayMissing(row, prices)) out.push({
+      id: `laggning_saknas:${row.id}`, level: 'atgard', blocking: true, row_id: row.id,
+      title: 'Arbetsrad saknas', text: `${row.title}: golvmaterialet saknar arbetsrad för läggning. Välj arbetsrad på materialet i Prislista.`, source: 'Prislistan',
+    });
+    const noCoverage = paintCoverageMissing(row, data, prices, settings);
+    if (noCoverage.length) out.push({
+      id: `atgang_saknas:${row.id}`, level: 'atgard', blocking: true, row_id: row.id,
+      title: 'Åtgång saknas', text: `${row.title}: ${noCoverage.map(i => i.name).join(', ')} saknar åtgång i prislistan, så färgmängden kan inte räknas. Lägg in åtgången i Prislista eller välj en annan produkt.`, source: 'Prislistan',
+    });
     if (row.trade === 'golv' && row.input) {
       const inp = row.input as GolvInput;
       if (!inp.underlag) out.push({
@@ -125,6 +185,18 @@ export function runKontroller(data: KalkylData, prices: PriceIndex, settings: Ka
       title: 'ROT och nybyggt hus', text: `Huset är byggt ${by}. I hus som är yngre än fem år ger bara återställande arbete (reparation) ROT, inte förbättringar eller om- och tillbyggnad. Kontrollera innan ROT dras.`, source: 'Skatteverket (ROT)',
     });
   }
+
+  // Grenen kommer från radens prisrad via koden; rader utan kod berörs inte.
+  const coded = [...(data.rows ?? []).flatMap(rowLines), ...(data.common ?? [])];
+  if (data.premises?.house_type === 'bostadsratt' && ctx?.rot_enabled !== false
+    && coded.some(l => l.rot_class === 'arbete' && BRF_EXTERIOR_TRADES.includes(tradeOf(l, prices) as PriceTrade))) out.push({
+    id: 'rot_bostadsratt_utvandigt', level: 'atgard', blocking: false,
+    title: 'ROT och bostadsrätt', text: 'ROT ges inte för utvändigt arbete i bostadsrätt (fasad, tak, balkong, altan, mark). Ändra radens ROT-klass eller stäng av ROT.', source: 'Skatteverket (ROT)',
+  });
+  if (coded.some(l => tradeOf(l, prices) === 'el')) out.push({
+    id: 'el_behorighet', level: 'info', blocking: false,
+    title: 'Elarbete', text: 'Elinstallationsarbete ska utföras av ett elinstallationsföretag som är registrerat hos Elsäkerhetsverket. Ange i offerten vilket företag som gör elarbetet.', source: 'Elsäkerhetsverket',
+  });
 
   const sum = summarizeKalkyl(data);
   if (sum.total_ex_vat > 0) {

@@ -13,3 +13,7 @@
 - Egna rader i golv-/målningsrader har nyckelprefixet OWN_LINE_PREFIX ('egen.') och överlever computeRow; manuella à-priser (setOverride unit_price, manual) behålls vid repriceKalkyl och ingår inte i priceChanges; en ändrad mängd ensam gör inte priset eget. Formulärändringar går via overrideFromForm (tolerans 0,005).
 - Prisändringar räknas aldrig om tyst: hela kalkylen räknas om endast via repriceKalkyl ("Uppdatera priser").
 - Skicka-spärren för offerter med calc_data går via sendCheck/checkKalkylSend; lägg inte till en andra spärr i en vy.
+- Selectable slots (underlag, sockel, tröskel, vägg-/tak-/snickerifärg) resolve only via resolveSlotCode in slots.ts; recipes, texts, views and the gallery use it so saved rows without selections stay identical. Line keys never change with the chosen product.
+- Lay codes: meta.lay_code is read/written only via layCodeOf/withLayCode (UI) and importRowPatch (import, column arbetskod); other meta keys are preserved and an empty cell changes nothing.
+- A missing lay code is reported by laggning_saknas, not pris_saknas (missingPriceLines); paint without coverage by atgang_saknas (paintCoverageMissing). sendCheck counts must use the same helpers.
+- Branch-based checks look up price_items.trade through the line's code; lines without code are never affected.

@@ -4,8 +4,8 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import {
-  GOLV_CODES, displayAmount, floorArea, golvOptions, perimeter, rowLines, sockelLength, lineQtyText, rotClassWords,
-  type FriLineInput, type GolvFlag, type GolvInput, type KalkylData, type KalkylLine, type KalkylOverride, type KalkylRoom,
+  displayAmount, floorArea, golvOptions, hasProductChoice, perimeter, resolveSlotItem, rowLines, sockelLength, lineQtyText, rotClassWords,
+  type SelectableSlot, type FriLineInput, type GolvFlag, type GolvInput, type KalkylData, type KalkylLine, type KalkylOverride, type KalkylRoom,
   type KalkylRow, type Kontroll, type KontrollFix, type PriceItem, type RoomPatch,
 } from '@/lib/kalkyl';
 import { PriceSwatch } from '@/components/offers/priceList/PriceSwatch';
@@ -15,6 +15,7 @@ import { ConfiguratorShell, PriceFooter, RowKontroller } from './ConfiguratorShe
 import { DimField, Segmented, SectionTitle, focusRing, motion } from './ui';
 import { OverrideSheet, OwnLineForm, SmallSheet } from './LineSheets';
 import { dec, kr } from './format';
+import { SlotProductSheet, SwapButton } from './ProductSheet';
 
 const LEVEL: Record<string, string> = { bas: 'Bas', standard: 'Standard', premium: 'Premium' };
 
@@ -26,6 +27,9 @@ export interface GolvActions {
   onRemoveOwn: (key: string) => void;
   onGallery: () => void;
   onFix: (fix: KontrollFix) => void;
+  /** Säljaren väljer produkt i en valgrupp. */
+  onSelect: (slot: SelectableSlot, code: string) => void;
+  onGallerySlot: (slot: SelectableSlot) => void;
 }
 
 export function RoomNameField({ room, onRoom, disabled }: { room: KalkylRoom; onRoom: (p: RoomPatch) => void; disabled?: boolean }) {
@@ -40,9 +44,11 @@ export function RoomNameField({ room, onRoom, disabled }: { room: KalkylRoom; on
   );
 }
 
-function LineRow({ title, detail, amount, swatch, manual, onTap, toggle, enabled = true, disabledPrice, children }: {
+function LineRow({ title, detail, amount, swatch, manual, onTap, toggle, enabled = true, disabledPrice, children, below }: {
   title: string; detail: string; amount: string; swatch?: React.ReactNode; manual?: boolean; onTap?: () => void;
   toggle?: React.ReactNode; enabled?: boolean; disabledPrice?: boolean; children?: React.ReactNode;
+  /** Rad under, t.ex. vald produkt med knappen Byt. */
+  below?: React.ReactNode;
 }) {
   const { customerMode } = useKalkylUi();
   const body = (
@@ -59,12 +65,15 @@ function LineRow({ title, detail, amount, swatch, manual, onTap, toggle, enabled
     </>
   );
   return (
-    <li className="flex items-center gap-2 min-h-[54px] py-1">
-      {toggle}
-      {onTap ? (
-        <button type="button" onClick={onTap} className={cn('min-h-[48px] flex-1 min-w-0 flex items-center gap-3 rounded-lg px-1 text-left active:bg-muted', motion, focusRing)}>{body}</button>
-      ) : <div className="flex-1 min-w-0 flex items-center gap-3 px-1">{body}</div>}
-      {children}
+    <li className="py-1">
+      <div className="flex items-center gap-2 min-h-[54px]">
+        {toggle}
+        {onTap ? (
+          <button type="button" onClick={onTap} className={cn('min-h-[48px] flex-1 min-w-0 flex items-center gap-3 rounded-lg px-1 text-left active:bg-muted', motion, focusRing)}>{body}</button>
+        ) : <div className="flex-1 min-w-0 flex items-center gap-3 px-1">{body}</div>}
+        {children}
+      </div>
+      {below && <div className={cn('flex items-center gap-2 pb-1', toggle ? 'pl-14' : 'pl-1')}>{below}</div>}
     </li>
   );
 }
@@ -74,6 +83,7 @@ export function GolvConfigurator({ data, row, room, kontroller, actions }: { dat
   const inp = row.input as GolvInput;
   const [override, setOverride] = useState<{ title: string; keys: string[] } | null>(null);
   const [ownOpen, setOwnOpen] = useState(false);
+  const [slotSheet, setSlotSheet] = useState<SelectableSlot | null>(null);
   const show = (v: number) => displayAmount(v, opts.vat_mode === 'omvand' ? 'exkl' : display);
   const types = useMemo(() => items.filter(i => i.slot === 'golv.golvtyp' && i.status !== 'arkiverad'), [items]);
   const mat = prices[inp.material_code];
@@ -154,7 +164,7 @@ export function GolvConfigurator({ data, row, room, kontroller, actions }: { dat
     </>
   );
 
-  const sockelItem: PriceItem | undefined = prices[GOLV_CODES.sockel];
+  const sockelItem: PriceItem | undefined = resolveSlotItem('golv.sockel', inp.selections, prices);
   const right = (
     <>
       <h2 className="font-display text-lg font-semibold">Tillbehör och tillägg</h2>
@@ -163,11 +173,23 @@ export function GolvConfigurator({ data, row, room, kontroller, actions }: { dat
           <LineRow key={l.key} title={l.description} detail={`${lineQtyText(l)} · ${rotClassWords([l])}`} amount={l.unit_price == null ? 'Pris saknas' : kr(show(l.amount))}
             manual={l.manual} onTap={readOnly ? undefined : () => setOverride({ title: l.description, keys: [l.key] })} />
         ))}
-        {options.map(o => (
+        {options.map(o => {
+          const choice = !!o.slot && hasProductChoice(o.slot, items);
+          return (
           <LineRow key={o.flag} title={o.label} detail={o.detail || 'Ingen mängd'} enabled={o.enabled} disabledPrice={!o.enabled}
             amount={o.lines.some(l => l.unit_price == null) ? 'Pris saknas' : `${o.enabled ? '' : '+'}${kr(show(o.amount))}`}
             manual={o.enabled && o.manual}
-            swatch={o.flag === 'sockel' && sockelItem ? (
+            below={choice && o.slot ? (
+              <>
+                {o.product && <PriceSwatch item={o.product} className="h-7 w-7 rounded" />}
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block text-sm truncate">{o.product?.name ?? 'Produkt saknas i prislistan'}</span>
+                  {o.product?.color_code && <span className="block font-mono text-[11px] text-muted-foreground">{o.product.color_code}</span>}
+                </span>
+                <SwapButton slot={o.slot} label={o.label} onClick={() => setSlotSheet(o.slot)} />
+              </>
+            ) : undefined}
+            swatch={o.flag === 'sockel' && sockelItem && !choice ? (
               <span className="flex items-center gap-1.5 shrink-0"><PriceSwatch item={sockelItem} className="h-7 w-7 rounded" />
                 {sockelItem.color_code && <span className="font-mono text-[11px] text-muted-foreground">{sockelItem.color_code}</span>}</span>
             ) : undefined}
@@ -177,7 +199,8 @@ export function GolvConfigurator({ data, row, room, kontroller, actions }: { dat
                 <Switch checked={o.enabled} disabled={readOnly} onCheckedChange={v => actions.onInput({ [o.flag]: v } as Partial<Record<GolvFlag, boolean>>)} aria-label={o.label} />
               </label>
             )} />
-        ))}
+          );
+        })}
         {own.map(l => (
           <LineRow key={l.key} title={l.description} detail={`${lineQtyText(l)} · ${rotClassWords([l])}`} amount={l.unit_price == null ? 'Pris saknas' : kr(show(l.amount))}>
             {!readOnly && <button type="button" aria-label={`Ta bort ${l.description}`} onClick={() => actions.onRemoveOwn(l.key)}
@@ -192,6 +215,8 @@ export function GolvConfigurator({ data, row, room, kontroller, actions }: { dat
       )}
       <OverrideSheet open={!!override} onOpenChange={v => !v && setOverride(null)} title={override?.title ?? ''} lines={overrideLines}
         base={row.lines.filter(l => override?.keys.includes(l.key))} onSet={actions.onOverride} />
+      <SlotProductSheet slot={slotSheet} current={slotSheet ? resolveSlotItem(slotSheet, inp.selections, prices)?.code ?? null : null}
+        onOpenChange={v => !v && setSlotSheet(null)} onPick={actions.onSelect} onGallery={actions.onGallerySlot} />
       <SmallSheet open={ownOpen} onOpenChange={setOwnOpen} title="Lägg till egen rad" description="Raden hör till golvet i det här rummet.">
         <OwnLineForm onSubmit={l => { actions.onAddOwn(l); setOwnOpen(false); }} />
       </SmallSheet>

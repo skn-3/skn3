@@ -3,7 +3,7 @@ import { Check, Plus, X } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
-  KULOR_PALETTE, MALNING_CODES, displayAmount, floorArea, malningOptions, parseKulor, rowLines, wallArea, wallCoats, lineQtyText, rotClassWords,
+  KULOR_PALETTE, MALNING_CODES, displayAmount, resolveSlotItem, type SelectableSlot, floorArea, malningOptions, parseKulor, rowLines, wallArea, wallCoats, lineQtyText, rotClassWords,
   type FriLineInput, type KalkylData, type KalkylOverride, type KalkylRoom, type KalkylRow, type Kontroll, type KontrollFix,
   type Kulor, type MalningInput, type RoomPatch, type ColorSystem,
 } from '@/lib/kalkyl';
@@ -14,11 +14,14 @@ import { DimField, Segmented, SectionTitle, focusRing, motion } from './ui';
 import { OwnLineForm, SmallSheet } from './LineSheets';
 import { RoomNameField } from './GolvConfigurator';
 import { dec, kr } from './format';
+import { SlotProductSheet, SwapButton, useUnitPriceText } from './ProductSheet';
+import { PriceSwatch } from '@/components/offers/priceList/PriceSwatch';
 
 export type Surface = 'vagg' | 'tak' | 'snickerier';
 const SURFACE_LABEL: Record<Surface, string> = { vagg: 'Väggar', tak: 'Tak', snickerier: 'Snickerier' };
 const SURFACE_KEY = { vagg: 'kulor_vagg', tak: 'kulor_tak', snickerier: 'kulor_snickerier' } as const;
-const SURFACE_PAINT = { vagg: MALNING_CODES.vaggfarg, tak: MALNING_CODES.takfarg, snickerier: MALNING_CODES.snickerifarg } as const;
+/** Valgruppen för färgen på respektive yta. */
+const SURFACE_SLOT: Record<Surface, SelectableSlot> = { vagg: 'malning.vaggfarg', tak: 'malning.takfarg', snickerier: 'malning.snickerifarg' };
 
 export interface MalningActions {
   onRoom: (patch: RoomPatch) => void;
@@ -27,6 +30,9 @@ export interface MalningActions {
   onAddOwn: (line: FriLineInput) => void;
   onRemoveOwn: (key: string) => void;
   onFix: (fix: KontrollFix) => void;
+  /** Säljaren väljer färgprodukt i en valgrupp. */
+  onSelect: (slot: SelectableSlot, code: string) => void;
+  onGallerySlot: (slot: SelectableSlot) => void;
 }
 
 /** Kulörväljare: kod med parseKulor, vald kulör stort och startpaletten med flikar NCS och RAL. */
@@ -86,12 +92,16 @@ export function MalningConfigurator({ data, row, room, kontroller, actions, surf
   const { prices, settings, opts, display, readOnly } = useKalkylUi();
   const inp = row.input as MalningInput;
   const [ownOpen, setOwnOpen] = useState(false);
+  const [slotSheet, setSlotSheet] = useState<SelectableSlot | null>(null);
+  const priceText = useUnitPriceText();
   const show = (v: number) => displayAmount(v, opts.vat_mode === 'omvand' ? 'exkl' : display);
   const walls = wallArea(room.dims, settings);
   const ceiling = floorArea(room.dims);
   const o = malningOptions(row, room, prices, settings);
   const coats = wallCoats(inp);
-  const gloss = (s: Surface) => prices[SURFACE_PAINT[s]]?.spec ?? null;
+  const paintOf = (s: Surface) => resolveSlotItem(SURFACE_SLOT[s], inp.selections, prices);
+  const gloss = (s: Surface) => paintOf(s)?.spec ?? null;
+  const paint = paintOf(surface);
   const own = rowLines(row).filter(l => l.key.startsWith('egen.'));
   const underCode = MALNING_CODES.vagg[inp.underarbete];
   const doors = Math.max(0, Math.floor(room.dims.doors));
@@ -197,6 +207,17 @@ export function MalningConfigurator({ data, row, room, kontroller, actions, surf
         <h2 className="font-display text-lg font-semibold">Kulör</h2>
         <span className="inline-flex h-7 items-center rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground">{SURFACE_LABEL[surface]}</span>
       </div>
+      <div className="space-y-2">
+        <SectionTitle>Färg</SectionTitle>
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-2">
+          {paint ? <PriceSwatch item={paint} className="h-11 w-11" /> : <span className="h-11 w-11 shrink-0 rounded-md border border-dashed border-border" aria-hidden="true" />}
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="text-sm font-semibold truncate">{paint?.name ?? 'Färg saknas i prislistan'}</div>
+            <div className="text-xs text-muted-foreground truncate">{[paint?.spec, paint ? priceText(paint) : null].filter(Boolean).join(' · ')}</div>
+          </div>
+          <SwapButton slot={SURFACE_SLOT[surface]} label={`färg för ${SURFACE_LABEL[surface].toLocaleLowerCase('sv-SE')}`} onClick={() => setSlotSheet(SURFACE_SLOT[surface])} />
+        </div>
+      </div>
       <KulorPicker value={inp[SURFACE_KEY[surface]]} gloss={gloss(surface)} surfaceLabel={SURFACE_LABEL[surface]} disabled={readOnly}
         onPick={k => actions.onInput({ [SURFACE_KEY[surface]]: k })} />
       {(own.length > 0 || !readOnly) && (
@@ -218,6 +239,8 @@ export function MalningConfigurator({ data, row, room, kontroller, actions, surf
           )}
         </div>
       )}
+      <SlotProductSheet slot={slotSheet} current={slotSheet ? resolveSlotItem(slotSheet, inp.selections, prices)?.code ?? null : null}
+        onOpenChange={v => !v && setSlotSheet(null)} onPick={actions.onSelect} onGallery={actions.onGallerySlot} />
       <SmallSheet open={ownOpen} onOpenChange={setOwnOpen} title="Lägg till egen rad" description="Raden hör till målningen i det här rummet.">
         <OwnLineForm onSubmit={l => { actions.onAddOwn(l); setOwnOpen(false); }} />
       </SmallSheet>

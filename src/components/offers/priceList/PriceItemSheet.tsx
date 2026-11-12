@@ -11,7 +11,7 @@ import { Chip } from '@/components/ui/chip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import {
-  applyPriceEdit, parseKulor, parseSvNumber, normalizePriceCode, inclVat, itemTbPct,
+  applyPriceEdit, parseKulor, parseSvNumber, normalizePriceCode, inclVat, itemTbPct, layCodeOf, layCodeOptions, withLayCode, GOLV_MATERIAL_SLOT,
   PRICE_TRADES, PRICE_KINDS, ROT_CLASSES, PRICE_UNITS, PRICE_LEVELS, TRADE_LABEL, KIND_LABEL, STATUS_LABEL,
   type PriceItem, type PricePatch, type Swatch,
 } from '@/lib/kalkyl';
@@ -122,9 +122,15 @@ interface Props {
   /** Bara administratör godkänner priser. */
   canApprove: boolean;
   onSaved: () => void;
+  /** Hela prislistan, för att välja arbetsrad vid läggning. */
+  items?: PriceItem[];
 }
 
-export function PriceItemSheet({ open, onOpenChange, item, existingCodes, currentUser, canApprove, onSaved }: Props) {
+const parseMeta = (text: string): Record<string, unknown> | null => {
+  try { const m = text.trim() ? JSON.parse(text) : {}; return m && typeof m === 'object' && !Array.isArray(m) ? m : null; } catch { return null; }
+};
+
+export function PriceItemSheet({ open, onOpenChange, item, existingCodes, currentUser, canApprove, onSaved, items = [] }: Props) {
   const isMobile = useIsMobile();
   const [form, setForm] = useState<Form>(() => toForm(item));
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
@@ -197,6 +203,12 @@ export function PriceItemSheet({ open, onOpenChange, item, existingCodes, curren
     } finally { setBusy(null); if (fileRef.current) fileRef.current.value = ''; }
   }
 
+  const isGolvMaterial = form.slot.trim() === GOLV_MATERIAL_SLOT;
+  const layOptions = useMemo(() => layCodeOptions(items), [items]);
+  const metaObj = parseMeta(form.meta);
+  const layCode = layCodeOf(metaObj) ?? '';
+  const setLayCode = (code: string) => setForm(prev => ({ ...prev, meta: JSON.stringify(withLayCode(parseMeta(prev.meta) ?? {}, code || null)) }));
+
   const opt = <T extends string>(values: readonly T[], labels?: Record<string, string>) => values.map(v => ({ value: v, label: labels?.[v] ?? v }));
   const swatchPreview = toPatch(form).patch;
 
@@ -233,6 +245,21 @@ export function PriceItemSheet({ open, onOpenChange, item, existingCodes, curren
               <Field label="Nivå"><Select ariaLabel="Nivå" value={form.level} onChange={set('level')} options={[{ value: '', label: 'Ingen' }, ...opt(PRICE_LEVELS, { bas: 'Bas', standard: 'Standard', premium: 'Premium' })]} /></Field>
             </div>
           </section>
+
+          {isGolvMaterial && (
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold">Läggning</h3>
+              <Field label="Arbetsrad vid läggning" error={metaObj ? undefined : 'Rätta receptkopplingarna (JSON) först'}
+                hint={layCode ? undefined : 'Utan arbetsrad kan offerter med golvet inte skickas.'}>
+                <Select ariaLabel="Arbetsrad vid läggning" value={layCode} onChange={setLayCode}
+                  options={[
+                    { value: '', label: 'Ingen arbetsrad vald' },
+                    ...(layCode && !layOptions.some(o => o.code === layCode) ? [{ value: layCode, label: `${layCode} (finns inte bland golvets arbetsrader)` }] : []),
+                    ...layOptions.map(o => ({ value: o.code, label: o.name })),
+                  ]} />
+              </Field>
+            </section>
+          )}
 
           <section className="space-y-3">
             <h3 className="text-sm font-semibold">Pris och kostnad (exklusive moms)</h3>

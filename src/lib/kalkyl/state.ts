@@ -9,6 +9,7 @@ import { computeRow, OWN_LINE_PREFIX } from './kalkyl';
 import { priceLine } from './lines';
 import { round2 } from './packaging';
 import { listPricedCommon, listPricedLines, priceDiffers } from './priceCheck';
+import { isSelectableSlot } from './slots';
 
 export function newId(prefix = ''): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -107,6 +108,21 @@ export function updateRowInput(
   return mapRow(data, rowId, row => {
     if (!row.input) return row;
     const next: KalkylRow = { ...row, input: { ...row.input, ...patch } as GolvInput | MalningInput };
+    return computeRow(next, roomOf(data, row), prices, settings);
+  });
+}
+
+/**
+ * Säljaren väljer produkt i en valgrupp (t.ex. golv.sockel eller malning.vaggfarg). Raden räknas om från prislistan;
+ * radnycklarna är oförändrade, så säljarens ändringar av mängd och pris ligger kvar.
+ */
+export function selectSlotProduct(data: KalkylData, rowId: string, slot: string, code: string, prices: PriceIndex, settings: KalkylSettings): KalkylData {
+  if (!isSelectableSlot(slot) || !code) return data;
+  const target = (data.rows ?? []).find(r => r.id === rowId);
+  if (!target?.input || !slot.startsWith(`${target.trade}.`)) return data;
+  return mapRow(data, rowId, row => {
+    const input = row.input as GolvInput | MalningInput;
+    const next: KalkylRow = { ...row, input: { ...input, selections: { ...(input.selections ?? {}), [slot]: code } } };
     return computeRow(next, roomOf(data, row), prices, settings);
   });
 }

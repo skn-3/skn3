@@ -6,6 +6,7 @@ import type { PriceIndex } from './prices';
 import { toOfferLineItems } from './lineItems';
 import { floorArea, wallArea } from './geometry';
 import { GOLV_CODES } from './recipes/golv';
+import { resolveSlotItem, type SelectableSlot } from './slots';
 import { wallCoats } from './recipes/malning';
 import { fmtQty } from './lines';
 import { roomOf } from './state';
@@ -79,7 +80,7 @@ export function defaultOfferTitle(data: KalkylData): string {
 
 /** Kort namn för kundtext: "Bortforsling, container" → "bortforsling". */
 const shortName = (name: string) => name.split(',')[0].trim();
-const PLURAL_FIRST: Record<string, string> = { 'Tröskel': 'Trösklar', 'Sockellist': 'Sockellister' };
+const PLURAL_FIRST: Record<string, string> = { 'Tröskel': 'Trösklar', 'Sockellist': 'Sockellister', 'tröskel': 'trösklar', 'sockellist': 'sockellister' };
 const pluralize = (name: string, count: number) => {
   if (count <= 1) return name;
   const [first, ...rest] = name.split(' ');
@@ -95,15 +96,27 @@ function golvExtras(row: KalkylRow, room: KalkylRoom | null, prices: PriceIndex)
   const doors = room ? Math.max(0, Math.floor(Number(room.dims.doors) || 0)) : 0;
   const it = (code: string) => prices[code];
   const named = (code: string, fallback: string) => shortName(it(code)?.name ?? fallback);
+  // Tillbehör med valgrupp: den valda produktens namn och kulör.
+  const chosen = (slot: SelectableSlot) => resolveSlotItem(slot, inp.selections, prices);
+  const chosenName = (slot: SelectableSlot, fallback: string) => shortName(chosen(slot)?.name ?? fallback);
   const out: string[] = [];
   if (inp.rivning) out.push(named(GOLV_CODES.rivning, 'Rivning befintligt golv'));
   if (inp.flytspackling) out.push(named(GOLV_CODES.flytspackling, 'Flytspackling'));
-  if (inp.underlag) out.push(named(GOLV_CODES.underlag, 'Underlag'));
-  if (inp.sockel) out.push(named(GOLV_CODES.sockel, 'Sockellist') + colorTag(it(GOLV_CODES.sockel)));
-  if (inp.troskel && doors > 0) out.push(pluralize(named(GOLV_CODES.troskel, 'Tröskel'), doors));
+  if (inp.underlag) out.push(chosenName('golv.underlag', 'Underlag'));
+  if (inp.sockel) out.push(chosenName('golv.sockel', 'Sockellist') + colorTag(chosen('golv.sockel')));
+  if (inp.troskel && doors > 0) out.push(pluralize(chosenName('golv.troskel', 'Tröskel'), doors));
   if (inp.mobelflytt) out.push(named(GOLV_CODES.mobelflytt, 'Möbelflytt'));
   if (inp.bortforsling) out.push(named(GOLV_CODES.bortforsling, 'Bortforsling'));
   return out;
+}
+
+/** "NCS S 0502-Y" eller "RAL 9010". */
+const kulorText = (k: MalningInput['kulor_vagg']) => (k ? `${k.system} ${k.code}`.replace('RAL RAL', 'RAL') : null);
+
+/** Vald färgprodukt för kundtext: "Väggfärg Matt 7". */
+function paintName(inp: MalningInput, slot: SelectableSlot, prices: PriceIndex): string | null {
+  const it = resolveSlotItem(slot, inp.selections, prices);
+  return it ? `${it.name}${it.spec ? ` ${it.spec}` : ''}` : null;
 }
 
 const UNDERARBETE_WORD: Record<MalningInput['underarbete'], string> = { latt: 'lätt', normal: 'normalt', omfattande: 'omfattande' };
@@ -124,9 +137,10 @@ function rowScope(row: KalkylRow, data: KalkylData, prices: PriceIndex, settings
     const inp = row.input as MalningInput;
     const parts: string[] = [];
     const walls = room ? ` ${m2(wallArea(room.dims, settings))}` : '';
-    parts.push(`väggar${walls} (${wallCoats(inp)} strykningar${inp.kulor_vagg ? `, ${inp.kulor_vagg.system} ${inp.kulor_vagg.code}`.replace('RAL RAL', 'RAL') : ''})`);
-    if (inp.tak) parts.push(`tak${room ? ` ${m2(floorArea(room.dims))}` : ''}${inp.kulor_tak ? ` (${inp.kulor_tak.system} ${inp.kulor_tak.code})`.replace('RAL RAL', 'RAL') : ''}`);
-    if (inp.snickerier) parts.push(`foder och socklar${inp.kulor_snickerier ? ` (${inp.kulor_snickerier.system} ${inp.kulor_snickerier.code})`.replace('RAL RAL', 'RAL') : ''}`);
+    const paren = (parts: (string | null)[]) => { const p = parts.filter(Boolean); return p.length ? ` (${p.join(', ')})` : ''; };
+    parts.push(`väggar${walls}${paren([`${wallCoats(inp)} strykningar`, paintName(inp, 'malning.vaggfarg', prices), kulorText(inp.kulor_vagg)])}`);
+    if (inp.tak) parts.push(`tak${room ? ` ${m2(floorArea(room.dims))}` : ''}${paren([paintName(inp, 'malning.takfarg', prices), kulorText(inp.kulor_tak)])}`);
+    if (inp.snickerier) parts.push(`foder och socklar${paren([paintName(inp, 'malning.snickerifarg', prices), kulorText(inp.kulor_snickerier)])}`);
     return `${head}: ${upperFirst(joinSv(parts))}. Underarbete ${UNDERARBETE_WORD[inp.underarbete] ?? 'normalt'}.`;
   }
   const names = [...new Set((row.lines ?? []).map(l => l.description))];
@@ -147,17 +161,21 @@ export function rowSpecText(row: KalkylRow, prices: PriceIndex): string {
   if (row.trade === 'golv' && row.input) {
     const inp = row.input as GolvInput;
     const mat = prices[inp.material_code];
-    const extras = [inp.underlag && 'underlag', inp.sockel && 'sockel', inp.troskel && 'trösklar', inp.rivning && 'rivning',
+    const chosen = (slot: SelectableSlot, fallback: string) => lowerFirst(shortName(resolveSlotItem(slot, inp.selections, prices)?.name ?? fallback));
+    const sockel = resolveSlotItem('golv.sockel', inp.selections, prices);
+    const extras = [inp.underlag && chosen('golv.underlag', 'underlag'), inp.sockel && `${chosen('golv.sockel', 'sockel')}${colorTag(sockel)}`,
+      inp.troskel && pluralize(chosen('golv.troskel', 'tröskel'), 2), inp.rivning && 'rivning',
       inp.flytspackling && 'flytspackling', inp.mobelflytt && 'möbelflytt', inp.bortforsling && 'bortforsling'].filter(Boolean) as string[];
     return [mat ? `${mat.name}${mat.spec ? `, ${mat.spec}` : ''}` : 'Golvmaterial saknas', inp.direction === 'tvars' ? 'tvärs' : 'längs', ...extras].join(' · ');
   }
   if (row.trade === 'malning' && row.input) {
     const inp = row.input as MalningInput;
+    const paint = (slot: SelectableSlot) => { const n = paintName(inp, slot, prices); return n ? ` (${n})` : ''; };
     return [
-      `Väggar ${inp.kulor_vagg?.code ?? 'kulör ej vald'}`,
+      `Väggar ${inp.kulor_vagg?.code ?? 'kulör ej vald'}${paint('malning.vaggfarg')}`,
       `${wallCoats(inp)} strykningar`,
-      inp.tak ? `tak ${inp.kulor_tak?.code ?? ''}`.trim() : null,
-      inp.snickerier ? 'snickerier' : null,
+      inp.tak ? `${`tak ${inp.kulor_tak?.code ?? ''}`.trim()}${paint('malning.takfarg')}` : null,
+      inp.snickerier ? `snickerier${inp.kulor_snickerier?.code ? ` ${inp.kulor_snickerier.code}` : ''}${paint('malning.snickerifarg')}` : null,
       `${UNDERARBETE_WORD[inp.underarbete] ?? 'normalt'} underarbete`,
     ].filter(Boolean).join(' · ');
   }

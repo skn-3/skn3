@@ -1,23 +1,26 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Heart, Search, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { KULOR_PALETTE, displayAmount, isStale, type Kulor, type PriceItem, type PriceLevel } from '@/lib/kalkyl';
+import { KULOR_PALETTE, SELECTABLE_SLOTS, SLOT_LABEL, displayAmount, isSelectableSlot, isStale, slotProducts, type Kulor, type PriceItem, type PriceLevel, type SelectableSlot } from '@/lib/kalkyl';
 import { PriceSwatch } from '@/components/offers/priceList/PriceSwatch';
 import { useKalkylUi } from './context';
 import { focusRing, motion } from './ui';
 import { kr } from './format';
 
-type Category = 'golv' | 'ncs' | 'ral' | 'tillbehor';
-const CAT_LABEL: Record<Category, string> = { golv: 'Golv', ncs: 'Kulörer NCS', ral: 'Kulörer RAL', tillbehor: 'Tillbehör' };
+type Category = 'golv' | SelectableSlot | 'ncs' | 'ral' | 'tillbehor';
+const CAT_LABEL: Record<Category, string> = { golv: 'Golv', ...SLOT_LABEL, ncs: 'Kulörer NCS', ral: 'Kulörer RAL', tillbehor: 'Övriga tillbehör' };
+const CAT_ORDER: Category[] = ['golv', ...SELECTABLE_SLOTS, 'ncs', 'ral', 'tillbehor'];
 const LEVEL: Record<PriceLevel, string> = { bas: 'Bas', standard: 'Standard', premium: 'Premium' };
 
 export type GalleryTarget =
   | { kind: 'golv'; rowId: string; label: string; current: string | null }
-  | { kind: 'kulor'; rowId: string; label: string; current: string | null };
+  | { kind: 'kulor'; rowId: string; label: string; current: string | null }
+  | { kind: 'slot'; rowId: string; slot: SelectableSlot; label: string; current: string | null };
 
-export function Gallery({ target, favorites, onToggleFavorite, onBack, onUseGolv, onUseKulor }: {
+export function Gallery({ target, favorites, onToggleFavorite, onBack, onUseGolv, onUseKulor, onUseSlot }: {
   target: GalleryTarget | null; favorites: string[]; onToggleFavorite: (code: string) => void; onBack: () => void;
   onUseGolv: (rowId: string, code: string) => void; onUseKulor: (rowId: string, k: Kulor) => void;
+  onUseSlot: (rowId: string, slot: SelectableSlot, code: string) => void;
 }) {
   const { items, opts, display, customerMode, readOnly, settings, today } = useKalkylUi();
   const [q, setQ] = useState('');
@@ -29,18 +32,22 @@ export function Gallery({ target, favorites, onToggleFavorite, onBack, onUseGolv
   const match = (text: string) => !s || text.toLowerCase().includes(s);
   const active = items.filter(i => i.status !== 'arkiverad');
 
-  const golv = active.filter(i => i.slot === 'golv.golvtyp' && (level === 'alla' || i.level === level) && match(`${i.name} ${i.spec ?? ''}`) && (!onlyFav || favorites.includes(i.code)));
-  const tillbehor = active.filter(i => i.kind === 'tillbehor' && match(`${i.name} ${i.spec ?? ''}`) && (!onlyFav || favorites.includes(i.code)));
+  const keep = (i: PriceItem) => (level === 'alla' || i.level === level) && match(`${i.name} ${i.spec ?? ''} ${i.color_code ?? ''}`) && (!onlyFav || favorites.includes(i.code));
+  const golv = active.filter(i => i.slot === 'golv.golvtyp' && keep(i));
+  // Produkter i valgrupperna (underlag, sockel, tröskel, färger) i samma ordning som resolveSlotCode.
+  const bySlot = Object.fromEntries(SELECTABLE_SLOTS.map(sl => [sl, slotProducts(sl, active).filter(keep)])) as Record<SelectableSlot, PriceItem[]>;
+  const tillbehor = active.filter(i => i.kind === 'tillbehor' && !isSelectableSlot(i.slot) && match(`${i.name} ${i.spec ?? ''}`) && (!onlyFav || favorites.includes(i.code)));
   const ncs = onlyFav ? [] : KULOR_PALETTE.filter(k => k.system === 'NCS' && match(`${k.code} ${k.name ?? ''}`));
   const ral = onlyFav ? [] : KULOR_PALETTE.filter(k => k.system === 'RAL' && match(`${k.code} ${k.name ?? ''}`));
-  const allowed: Category[] = target?.kind === 'golv' ? ['golv'] : target?.kind === 'kulor' ? ['ncs', 'ral'] : ['golv', 'ncs', 'ral', 'tillbehor'];
-  const cats = useMemo(() => allowed.filter(c => ({ golv: golv.length, ncs: ncs.length, ral: ral.length, tillbehor: tillbehor.length }[c] > 0)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [golv.length, ncs.length, ral.length, tillbehor.length, target?.kind]);
+  const allowed: Category[] = target?.kind === 'golv' ? ['golv'] : target?.kind === 'kulor' ? ['ncs', 'ral'] : target?.kind === 'slot' ? [target.slot] : CAT_ORDER;
+  const count = (c: Category) => (c === 'golv' ? golv.length : c === 'ncs' ? ncs.length : c === 'ral' ? ral.length : c === 'tillbehor' ? tillbehor.length : bySlot[c].length);
+  const countKey = CAT_ORDER.map(count).join(',');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const cats = useMemo(() => allowed.filter(c => count(c) > 0), [countKey, target?.kind, target?.kind === 'slot' ? target.slot : null]);
   const [catState, setCat] = useState<Category | null>(null);
   const cat = catState && cats.includes(catState) ? catState : cats[0] ?? null;
 
-  const pickedItem = target?.kind === 'golv' && picked ? items.find(i => i.code === picked) : null;
+  const pickedItem = (target?.kind === 'golv' || target?.kind === 'slot') && picked ? items.find(i => i.code === picked) : null;
   const pickedKulor = target?.kind === 'kulor' && picked ? KULOR_PALETTE.find(k => k.code === picked) : null;
   const favCount = favorites.length;
   const chip = (on: boolean) => cn('min-h-[44px] rounded-full border px-4 text-sm font-semibold', motion, focusRing, on ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background active:bg-muted');
@@ -53,10 +60,10 @@ export function Gallery({ target, favorites, onToggleFavorite, onBack, onUseGolv
     </button>
   );
 
-  const golvTile = (i: PriceItem) => {
-    const sel = target?.kind === 'golv' && picked === i.code;
+  const productTile = (i: PriceItem, selectable: boolean) => {
+    const sel = selectable && picked === i.code;
     const stale = i.price_date ? isStale({ price_date: i.price_date }, today, settings.price_max_age_days) : false;
-    const Tag = target?.kind === 'golv' ? 'button' : 'div';
+    const Tag = selectable ? 'button' : 'div';
     return (
       <li key={i.code} className="relative">
         <Tag {...(Tag === 'button' ? { type: 'button' as const, onClick: () => setPicked(i.code), 'aria-pressed': sel } : {})}
@@ -67,7 +74,7 @@ export function Gallery({ target, favorites, onToggleFavorite, onBack, onUseGolv
             {sel && <span className="absolute bottom-1.5 right-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground"><Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" /></span>}
           </div>
           <div className="mt-2 text-sm font-semibold leading-tight">{i.name}</div>
-          <div className="text-xs text-muted-foreground truncate">{i.spec}</div>
+          <div className="text-xs text-muted-foreground truncate">{[i.spec, i.color_code].filter(Boolean).join(' · ')}</div>
           <div className="mt-1 flex items-center justify-between gap-2">
             <span className="font-mono text-sm tabular-nums">{i.price_ex_vat == null ? 'Pris saknas' : `${kr(show(i.price_ex_vat))}/${i.unit}`}</span>
             {!customerMode && i.price_date && (
@@ -122,7 +129,11 @@ export function Gallery({ target, favorites, onToggleFavorite, onBack, onUseGolv
               Vald till {target.label}: <strong>{pickedItem ? `${pickedItem.name}${pickedItem.price_ex_vat != null ? `, ${kr(show(pickedItem.price_ex_vat))}/${pickedItem.unit}` : ''}` : pickedKulor ? `${pickedKulor.code} ${pickedKulor.name ?? ''}` : 'inget valt'}</strong>
             </span>
             <button type="button" disabled={!picked || readOnly}
-              onClick={() => { if (target.kind === 'golv' && picked) onUseGolv(target.rowId, picked); if (target.kind === 'kulor' && pickedKulor) onUseKulor(target.rowId, pickedKulor); }}
+              onClick={() => {
+                if (target.kind === 'golv' && picked) onUseGolv(target.rowId, picked);
+                if (target.kind === 'kulor' && pickedKulor) onUseKulor(target.rowId, pickedKulor);
+                if (target.kind === 'slot' && pickedItem) onUseSlot(target.rowId, target.slot, pickedItem.code);
+              }}
               className={cn('min-h-[44px] rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50', motion, focusRing)}>
               Använd i raden
             </button>
@@ -143,7 +154,10 @@ export function Gallery({ target, favorites, onToggleFavorite, onBack, onUseGolv
             {cats.map(c => <button key={c} type="button" aria-pressed={c === cat} onClick={() => setCat(c)} className={chip(c === cat)}>{CAT_LABEL[c]}</button>)}
           </div>
           {!cat && <p className="text-sm text-muted-foreground">{onlyFav ? 'Inga favoriter ännu. Tryck på hjärtat för att spara en.' : 'Inget matchar sökningen.'}</p>}
-          {cat === 'golv' && <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">{golv.map(golvTile)}</ul>}
+          {cat === 'golv' && <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">{golv.map(i => productTile(i, target?.kind === 'golv'))}</ul>}
+          {cat && isSelectableSlot(cat) && (
+            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">{bySlot[cat].map(i => productTile(i, target?.kind === 'slot' && target.slot === cat))}</ul>
+          )}
           {(cat === 'ncs' || cat === 'ral') && (
             <>
               <ul className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">{(cat === 'ncs' ? ncs : ral).map(kulorTile)}</ul>

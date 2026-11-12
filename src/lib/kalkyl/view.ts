@@ -9,7 +9,9 @@ import { computeMalning } from './recipes/malning';
 import { floorArea } from './geometry';
 import { round2 } from './packaging';
 import { fmtQty } from './lines';
-import { canSend, runKontroller, type Kontroll, type KontrollContext } from './kontroller';
+import { canSend, kalkylMissingPriceLines, paintCoverageMissing, runKontroller, type Kontroll, type KontrollContext } from './kontroller';
+import { resolveSlotItem, type SelectableSlot } from './slots';
+import type { PriceItem } from './types';
 import { kalkylTotals, type KalkylOfferOptions } from './offer';
 import { priceChanges, roomOf } from './state';
 
@@ -92,6 +94,8 @@ export const GOLV_OPTION_KEYS: Record<GolvFlag, string[]> = {
   bortforsling: ['golv.bortforsling'],
 };
 export const GOLV_OPTION_ORDER: GolvFlag[] = ['underlag', 'sockel', 'troskel', 'rivning', 'flytspackling', 'mobelflytt', 'bortforsling'];
+/** Tillval med valbar produkt (valgrupp). */
+export const GOLV_OPTION_SLOT: Partial<Record<GolvFlag, SelectableSlot>> = { underlag: 'golv.underlag', sockel: 'golv.sockel', troskel: 'golv.troskel' };
 const GOLV_OPTION_LABEL: Record<GolvFlag, string> = {
   underlag: 'Underlag med ångspärr', sockel: 'Sockellist', troskel: 'Trösklar', rivning: 'Rivning befintligt golv',
   flytspackling: 'Flytspackling', mobelflytt: 'Möbelflytt', bortforsling: 'Bortforsling',
@@ -108,6 +112,10 @@ export interface GolvOption {
   manual: boolean;
   /** Första prisraden, för provbit och kulörkod. */
   code: string | null;
+  /** Valgruppen när tillvalet har valbar produkt (underlag, sockel, tröskel). */
+  slot: SelectableSlot | null;
+  /** Vald produkt i valgruppen (resolveSlotItem), annars null. */
+  product: PriceItem | null;
 }
 
 /** Tillbehör och tillägg för golvraden, med pris även för avstängda val (vad det skulle kosta). */
@@ -122,9 +130,13 @@ export function golvOptions(row: KalkylRow, room: KalkylRoom | null | undefined,
     const enabled = !!inp[flag];
     const lines = (enabled ? actual : preview).filter(l => keys.includes(l.key));
     const first = lines[0];
+    const slot = GOLV_OPTION_SLOT[flag] ?? null;
+    const product = slot ? resolveSlotItem(slot, inp.selections, prices) ?? null : null;
     return {
       flag,
       label: GOLV_OPTION_LABEL[flag],
+      slot,
+      product,
       enabled,
       lines,
       amount: round2(lines.reduce((s, l) => s + (Number(l.amount) || 0), 0)),
@@ -174,7 +186,8 @@ export function sendCheck(data: KalkylData | null | undefined, prices: PriceInde
     const st = prices[l.code]?.status ?? l.price_status ?? null;
     return st != null && st !== 'godkand';
   }).map(l => l.code as string));
-  const missing = lines.filter(l => l.unit_price == null).length;
+  const missing = kalkylMissingPriceLines(data, prices).length;
+  const noCoverage = new Set((data.rows ?? []).flatMap(r => paintCoverageMissing(r, data, prices, settings)).map(i => i.code)).size;
   const messages: string[] = [];
   if (missing) messages.push(`${missing} ${missing === 1 ? 'rad saknar' : 'rader saknar'} pris i prislistan`);
   if (notApproved.size) messages.push(`${notApproved.size} ${notApproved.size === 1 ? 'pris är' : 'priser är'} inte godkända i prislistan`.replace('pris är inte godkända', 'pris är inte godkänt'));
@@ -182,7 +195,10 @@ export function sendCheck(data: KalkylData | null | undefined, prices: PriceInde
     const n = priceChanges(data, prices).length;
     messages.push(`${n} ${n === 1 ? 'pris har' : 'priser har'} ändrats i prislistan sedan kalkylen räknades`);
   }
-  const summarized = ['pris_saknas', 'pris_ej_godkant', 'pris_andrat'];
+  if (noCoverage && blocking.some(k => k.id.startsWith('atgang_saknas'))) {
+    messages.push(`${noCoverage} ${noCoverage === 1 ? 'produkt saknar' : 'produkter saknar'} åtgång`);
+  }
+  const summarized = ['pris_saknas', 'pris_ej_godkant', 'pris_andrat', 'atgang_saknas'];
   for (const k of blocking) if (!summarized.some(p => k.id.startsWith(p))) messages.push(k.text);
   return { can_send: canSend(list), blocking, messages };
 }

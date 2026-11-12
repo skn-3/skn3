@@ -70,9 +70,9 @@ describe('prisimport', () => {
     expect(r.rows[0].values.price_ex_vat).toBeNull();
   });
   it('fel per rad', () => {
-    const r = parsePriceImport(`${header}\na;golvet;material;material;;A;;m²;1;;;;\nb;golv;sak;material;;B;;m²;1;;;;\nc;golv;material;moms;;C;;m²;1;;;;\nd;golv;material;material;;D;;ton;1;;;;\n;golv;material;material;;E;;m²;1;;;;\nf;golv;material;material;;;;m²;1;;;;`);
+    const r = parsePriceImport(`${header}\na;golvet;material;material;;A;;m²;1;;;;\nb;golv;sak;material;;B;;m²;1;;;;\nc;golv;material;moms;;C;;m²;1;;;;\nd;golv;material;material;;D;;pall;1;;;;\n;golv;material;material;;E;;m²;1;;;;\nf;golv;material;material;;;;m²;1;;;;`);
     expect(r.rows.map(x => x.errors[0])).toEqual([
-      'Okänd gren: "golvet"', 'Okänd typ: "sak"', 'Okänd rot: "moms"', 'Okänd enhet: "ton"', 'Kod saknas', 'Namn saknas',
+      'Okänd gren: "golvet"', 'Okänd typ: "sak"', 'Okänd rot: "moms"', 'Okänd enhet: "pall"', 'Kod saknas', 'Namn saknas',
     ]);
   });
   it('saknad rubrik ger fel för hela importen', () => {

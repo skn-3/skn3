@@ -21,3 +21,4 @@ export * from './view';
 export * from './offerMeta';
 export * from './priceCheck';
 export * from './localDraft';
+export * from './slots';

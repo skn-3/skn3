@@ -11,8 +11,8 @@ import {
   addAdjustment, addCommonLine, addFriLine, addRoom, addRow, defaultDisplay, duplicateRow, indexPrices, insertRow, isLocalNewer,
   kalkylFromRow, kalkylSaveFields, shouldClearPdf, moveRow, newFriRow, newGolvRow, newMalningRow, newRoom, offerEditMode, offerMetaFromRow,
   offerOptions, offerScopeText, priceChanges, removeAdjustment, removeCommonLine, removeFriLine, removeRow, repriceKalkyl, roomOf,
-  runKontroller, setOverride, toggleFavorite, updateFriLine, updateRoom, updateRowInput, updateRowMeta, validateMeta,
-  DEFAULT_KALKYL_SETTINGS, type KalkylData, type KontrollFix, type Kulor, type OfferMeta, type PriceDisplay,
+  runKontroller, selectSlotProduct, setOverride, toggleFavorite, updateFriLine, updateRoom, updateRowInput, updateRowMeta, validateMeta,
+  DEFAULT_KALKYL_SETTINGS, resolveSlotCode, SLOT_LABEL, type KalkylData, type KontrollFix, type Kulor, type OfferMeta, type PriceDisplay, type SelectableSlot, type SlotSelections,
 } from '@/lib/kalkyl';
 import { fetchKalkylSettings, fetchPriceItems, KALKYL_SETTINGS_KEY, PRICE_ITEMS_KEY } from '@/components/offers/priceList/api';
 import { PriceListAdmin } from '@/components/offers/PriceListAdmin';
@@ -85,7 +85,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
   const settings = settingsQ.data ?? DEFAULT_KALKYL_SETTINGS;
   const opts = useMemo(() => offerOptions(meta), [meta]);
   const today = todayIso();
-  const kontroller = useMemo(() => runKontroller(data, prices, settings, today, { status }), [data, prices, settings, today, status]);
+  const kontroller = useMemo(() => runKontroller(data, prices, settings, today, { status, rot_enabled: opts.rot_enabled }), [data, prices, settings, today, status, opts.rot_enabled]);
   // Visas alltid när offerten går att ändra och inte är skickad, även för en ny osparad kalkyl.
   const changes = useMemo(() => (pricesQ.data && mode === 'edit' ? priceChanges(data, prices) : []), [data, prices, pricesQ.data, mode]);
 
@@ -170,11 +170,16 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
     },
   };
 
-  const openGalleryFor = (rowId: string, from: 'overview' | 'row') => {
+  const openGalleryFor = (rowId: string, from: 'overview' | 'row', slot?: SelectableSlot) => {
     const row = data.rows.find(r => r.id === rowId);
     if (!row) return;
     const room = roomOf(data, row);
     const label = `${room?.name ?? row.title} · ${TRADE_TITLE[row.trade]}`;
+    if (slot) {
+      const selections = (row.input as { selections?: SlotSelections } | null)?.selections;
+      setView({ kind: 'gallery', from, target: { kind: 'slot', rowId, slot, label: `${label}, ${SLOT_LABEL[slot].toLocaleLowerCase('sv-SE')}`, current: resolveSlotCode(slot, selections, prices) } });
+      return;
+    }
     if (row.trade === 'golv') setView({ kind: 'gallery', from, target: { kind: 'golv', rowId, label, current: (row.input as { material_code: string }).material_code } });
     else if (row.trade === 'malning') setView({ kind: 'gallery', from, target: { kind: 'kulor', rowId, label: `${label}, väggar`, current: (row.input as { kulor_vagg?: Kulor | null }).kulor_vagg?.code ?? null } });
   };
@@ -276,6 +281,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
         onBack={() => setView(view.from === 'row' && view.target ? { kind: 'row', rowId: view.target.rowId } : { kind: 'overview' })}
         onUseGolv={(rowId, code) => { setData(d => updateRowInput(d, rowId, { material_code: code }, prices, settings)); setView(view.from === 'row' ? { kind: 'row', rowId } : { kind: 'overview' }); }}
         onUseKulor={(rowId, k) => { setData(d => updateRowInput(d, rowId, { kulor_vagg: k }, prices, settings)); setView(view.from === 'row' ? { kind: 'row', rowId } : { kind: 'overview' }); }}
+        onUseSlot={(rowId, slot, code) => { setData(d => selectSlotProduct(d, rowId, slot, code, prices, settings)); setView(view.from === 'row' ? { kind: 'row', rowId } : { kind: 'overview' }); }}
       />
     );
   } else if (view.kind === 'row' && currentRow) {
@@ -286,6 +292,8 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
       onAddOwn: (l: Parameters<typeof addFriLine>[2]) => setData(d => addFriLine(d, rowId, l)),
       onRemoveOwn: (key: string) => setData(d => removeFriLine(d, rowId, key)),
       onFix: (fix: KontrollFix) => applyFix(fix, rowId),
+      onSelect: (slot: SelectableSlot, code: string) => setData(d => selectSlotProduct(d, rowId, slot, code, prices, settings)),
+      onGallerySlot: (slot: SelectableSlot) => openGalleryFor(rowId, 'row', slot),
     };
     body = currentRow.trade === 'golv' && currentRoom ? (
       <GolvConfigurator data={data} row={currentRow} room={currentRoom} kontroller={kontroller}

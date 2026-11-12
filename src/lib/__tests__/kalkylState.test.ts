@@ -160,7 +160,7 @@ describe('offer', () => {
 
   it('rowSpecText och rowQuantityLabel', () => {
     const { d, g, m, room } = build();
-    expect(rowSpecText(d.rows[0], prices)).toBe('Ekparkett 3-stav, 14 mm, mattlack · längs · underlag · sockel · trösklar · rivning · bortforsling');
+    expect(rowSpecText(d.rows[0], prices)).toBe('Ekparkett 3-stav, 14 mm, mattlack · längs · underlag med ångspärr · sockellist vit 12×56 (NCS S 0502-Y) · trösklar ek · rivning · bortforsling');
     expect(rowQuantityLabel(d.rows.find(r => r.id === g.id)!, room, S)).toBe('24,6 m²');
     expect(rowQuantityLabel(d.rows.find(r => r.id === m.id)!, room, S)).toBe('43,6 + 24,6 m²');
   });

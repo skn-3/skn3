@@ -2,7 +2,7 @@
 // Etapp 2 (kalkylvyn) och etapp 3 (kundsida, AI-kontroll) bygger på dessa signaturer – håll dem stabila.
 
 export type RotClass = 'arbete' | 'material' | 'ovrigt';
-export type PriceTrade = 'golv' | 'malning' | 'tak' | 'fasad' | 'badrum' | 'kok' | 'altan' | 'renovering' | 'gemensamt';
+export type PriceTrade = 'golv' | 'malning' | 'tak' | 'fasad' | 'badrum' | 'kok' | 'altan' | 'renovering' | 'gemensamt' | 'mark' | 'el';
 export type PriceKind = 'arbete' | 'material' | 'tillbehor' | 'ovrigt';
 export type PriceLevel = 'bas' | 'standard' | 'premium';
 export type PriceStatus = 'utkast' | 'godkand' | 'arkiverad';
@@ -85,8 +85,10 @@ export interface KalkylLine {
   manual?: boolean;            // säljaren har ändrat mängd eller pris
 }
 
-export interface GolvInput { material_code: string; direction: 'langs' | 'tvars'; underlag: boolean; sockel: boolean; troskel: boolean; rivning: boolean; flytspackling: boolean; mobelflytt: boolean; bortforsling: boolean }
-export interface MalningInput { underarbete: 'latt' | 'normal' | 'omfattande'; tak: boolean; snickerier: boolean; coats?: 2 | 3; kulor_vagg?: Kulor | null; kulor_tak?: Kulor | null; kulor_snickerier?: Kulor | null }
+/** Valgrupp (price_items.slot) → vald prislistekod. Saknas valet gäller resolveSlotCode. */
+export type SlotSelections = Record<string, string>;
+export interface GolvInput { material_code: string; direction: 'langs' | 'tvars'; underlag: boolean; sockel: boolean; troskel: boolean; rivning: boolean; flytspackling: boolean; mobelflytt: boolean; bortforsling: boolean; selections?: SlotSelections }
+export interface MalningInput { underarbete: 'latt' | 'normal' | 'omfattande'; tak: boolean; snickerier: boolean; coats?: 2 | 3; kulor_vagg?: Kulor | null; kulor_tak?: Kulor | null; kulor_snickerier?: Kulor | null; selections?: SlotSelections }
 export interface KalkylRoom { id: string; name: string; dims: RoomDims }
 export type KalkylOverride = { qty?: number; unit_price?: number; removed?: boolean };
 export interface KalkylRow { id: string; room_id: string | null; trade: 'golv' | 'malning' | 'fri'; title: string; input: GolvInput | MalningInput | null; lines: KalkylLine[]; overrides?: Record<string, KalkylOverride>; note?: string }
