@@ -8,6 +8,7 @@ import type { PriceIndex } from './prices';
 import { computeRow, OWN_LINE_PREFIX } from './kalkyl';
 import { priceLine } from './lines';
 import { round2 } from './packaging';
+import { listPricedCommon, listPricedLines, priceDiffers } from './priceCheck';
 
 export function newId(prefix = ''): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -185,10 +186,20 @@ function friLine(key: string, input: FriLineInput, base?: KalkylLine): KalkylLin
     unit_price,
     amount: unit_price == null ? 0 : round2(qty * unit_price),
   };
-  // Kostnaden följer mängden för rader från prislistan; för egna rader är den okänd.
-  if (base?.cost != null && base.qty > 0) line.cost = round2((base.cost / base.qty) * qty);
-  else if (!base) line.cost = null;
+  // Reserv när prisraden inte finns: kostnad och timmar skalas med mängden. Gick det inte (mängd 0) är de okända.
+  if (base) {
+    if (base.cost != null) line.cost = base.qty > 0 ? round2((base.cost / base.qty) * qty) : qty === 0 ? 0 : null;
+    if (base.hours != null) line.hours = base.qty > 0 ? round2((base.hours / base.qty) * qty) : qty === 0 ? 0 : null;
+  } else line.cost = null;
   return line;
+}
+
+/** Kostnad och timmar från prisraden för en mängd (null när prisraden saknar värdet). */
+function costFromItem(item: PriceItem, qty: number): Pick<KalkylLine, 'cost' | 'hours'> {
+  return {
+    cost: item.cost_ex_vat == null ? null : round2(qty * Number(item.cost_ex_vat)),
+    hours: item.hours_per_unit == null ? null : round2(qty * Number(item.hours_per_unit)),
+  };
 }
 
 /** En rad från prislistan som fri rad eller gemensam rad (priset kommer alltid från prislistan). */
@@ -209,7 +220,11 @@ export function addFriLine(data: KalkylData, rowId: string, line: FriLineInput |
   });
 }
 
-export function updateFriLine(data: KalkylData, rowId: string, key: string, patch: Partial<FriLineInput>): KalkylData {
+/**
+ * Ändrar en fri rad eller egen rad. Har raden prislistekod räknas kostnad och timmar om från prisraden;
+ * skalning med mängden används bara som reserv när koden inte finns kvar i prislistan.
+ */
+export function updateFriLine(data: KalkylData, rowId: string, key: string, patch: Partial<FriLineInput>, prices: PriceIndex = {}): KalkylData {
   return mapRow(data, rowId, row => {
     if (row.trade !== 'fri' && !key.startsWith(OWN_LINE_PREFIX)) return row;
     return {
@@ -227,6 +242,8 @@ export function updateFriLine(data: KalkylData, rowId: string, key: string, patc
         // Ändrat pris på en prislisterad rad räknas som manuellt.
         const priceChanged = 'unit_price' in patch && patch.unit_price !== l.unit_price;
         const out = friLine(key, merged, l);
+        const item = l.code ? prices[l.code] : undefined;
+        if (item) Object.assign(out, costFromItem(item, out.qty));
         if (l.code && (priceChanged || l.manual)) out.manual = true;
         return out;
       }),
@@ -280,18 +297,22 @@ function repriceLine(line: KalkylLine, prices: PriceIndex): KalkylLine {
     ...line,
     unit_price,
     amount: unit_price == null ? 0 : round2(line.qty * unit_price),
-    cost: item.cost_ex_vat == null ? null : round2(line.qty * Number(item.cost_ex_vat)),
-    hours: item.hours_per_unit == null ? null : round2(line.qty * Number(item.hours_per_unit)),
+    ...costFromItem(item, line.qty),
     price_date: item.price_date ?? null,
     price_status: item.status ?? null,
   };
 }
 
-/** Räknar om hela kalkylen med aktuell prislista och sätter priced_at. */
+/**
+ * Räknar om hela kalkylen med aktuell prislista och sätter priced_at. Golv och målning räknas om från receptet;
+ * fria rader, egna rader (nyckel "egen.") och gemensamma rader med prislistekod får prislistans pris. Manuella behålls.
+ */
 export function repriceKalkyl(data: KalkylData, prices: PriceIndex, settings: KalkylSettings, now: Date | string): KalkylData {
-  const rows = (data.rows ?? []).map(row => (row.trade === 'fri'
-    ? { ...row, lines: row.lines.map(l => repriceLine(l, prices)) }
-    : computeRow(row, roomOf(data, row), prices, settings)));
+  const rows = (data.rows ?? []).map(row => {
+    if (row.trade === 'fri') return { ...row, lines: row.lines.map(l => repriceLine(l, prices)) };
+    const computed = computeRow(row, roomOf(data, row), prices, settings);
+    return { ...computed, lines: computed.lines.map(l => (l.key.startsWith(OWN_LINE_PREFIX) ? repriceLine(l, prices) : l)) };
+  });
   const common = (data.common ?? []).map(l => repriceLine(l, prices));
   const at = typeof now === 'string' ? now : now.toISOString();
   return { ...data, rows, common, priced_at: at };
@@ -299,19 +320,36 @@ export function repriceKalkyl(data: KalkylData, prices: PriceIndex, settings: Ka
 
 export interface PriceChange { code: string; name: string; old: number | null; new: number | null }
 
-/** Prisrader vars sparade à-pris skiljer sig från prislistan (en post per kod). */
+/**
+ * Prisrader vars sparade à-pris skiljer sig från prislistan (en post per kod). Samma regel som kontrollen
+ * pris_andrat (priceCheck.ts): rader med eget à-pris ingår inte.
+ */
 export function priceChanges(data: KalkylData, prices: PriceIndex): PriceChange[] {
   const out = new Map<string, PriceChange>();
-  const lines = [...(data.rows ?? []).flatMap(r => r.lines ?? []), ...(data.common ?? [])];
+  const lines = [...(data.rows ?? []).flatMap(listPricedLines), ...listPricedCommon(data)];
+  const p2 = (v: number | null | undefined) => (v == null ? null : round2(Number(v)));
   for (const l of lines) {
-    if (!l.code || l.manual || out.has(l.code)) continue;
+    if (!l.code || out.has(l.code)) continue;
     const item = prices[l.code];
-    if (!item) continue;
-    const now = item.price_ex_vat == null ? null : round2(Number(item.price_ex_vat));
-    const was = l.unit_price == null ? null : round2(Number(l.unit_price));
-    if (now !== was) out.set(l.code, { code: l.code, name: item.name, old: was, new: now });
+    if (!item || !priceDiffers(l, item)) continue;
+    out.set(l.code, { code: l.code, name: item.name, old: p2(l.unit_price), new: p2(item.price_ex_vat) });
   }
   return [...out.values()];
+}
+
+/** Skillnad mindre än 0,005 räknas som oförändrat (mängd och pris visas med 2 decimaler). */
+export const sameAmount = (a: number | null | undefined, b: number | null | undefined) =>
+  (a == null && b == null) || (a != null && b != null && Math.abs(Number(a) - Number(b)) < 0.005);
+
+/**
+ * Säljarens ändring från formuläret för en beräknad rad. Bara det som faktiskt ändrats sparas, så att
+ * mängden fortsätter följa rummets mått när säljaren bara ändrar à-priset. null = ingen ändring.
+ */
+export function overrideFromForm(base: Pick<KalkylLine, 'qty' | 'unit_price'>, qty: number, unitPrice: number | null): KalkylOverride | null {
+  const o: KalkylOverride = {};
+  if (!sameAmount(qty, base.qty)) o.qty = qty;
+  if (unitPrice != null && !sameAmount(unitPrice, base.unit_price)) o.unit_price = unitPrice;
+  return Object.keys(o).length ? o : null;
 }
 
 /** Sätter tillbaka en borttagen rad på sin plats (för Ångra). */

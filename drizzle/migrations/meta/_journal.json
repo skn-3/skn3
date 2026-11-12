@@ -365,6 +365,13 @@
       "when": 1794452018613,
       "tag": "0051_price_log_restrict_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1794456147352,
+      "tag": "0052_price_items_admin_approval",
+      "breakpoints": true
     }
   ]
 }

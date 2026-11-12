@@ -17,7 +17,7 @@ import { openDocumentInNewTab } from '@/lib/openDocument';
 import { createUppdragFromOffer, findUppdragForOffer } from '@/lib/uppdrag';
 import { useQueryClient } from '@tanstack/react-query';
 import { Calculator } from 'lucide-react';
-import { checkKalkylSend, hasKalkyl, sendBlockedText, useKalkylSendCheck } from '@/components/kalkyl/sendGate';
+import { checkKalkylSend, functionErrorText, hasKalkyl, sendBlockedText, useKalkylSendCheck } from '@/components/kalkyl/sendGate';
 
 type OfferRow = any;
 
@@ -268,7 +268,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: id, origin: window.location.origin } });
-      if (error) throw error;
+      if (error) throw new Error(await functionErrorText(error));
       if ((data as any)?.error) throw new Error((data as any).error);
       const tok = (data as any)?.public_token as string | undefined;
       if (tok) setPublicToken(tok);
@@ -439,7 +439,8 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
           )}
         </div>
       )}
-      {/* UE-import */}
+      {/* UE-import (inte för offerter med kalkyl: raderna kommer från kalkylen) */}
+      {!isKalkyl && (
       <section className="rounded-md border bg-muted/20">
         <Collapsible open={ueOpen} onOpenChange={setUeOpen}>
           <CollapsibleTrigger asChild>
@@ -607,6 +608,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
           </CollapsibleContent>
         </Collapsible>
       </section>
+      )}
 
       {/* Kundtyp */}
 

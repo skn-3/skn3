@@ -7,7 +7,9 @@ import { Chip } from '@/components/ui/chip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { useRole } from '@/hooks/useRole';
 import {
+  canApprovePrices,
   applyPriceEdit, groupPriceItems, inclVat, itemTbPct, needsReview, priceAgeLabel, priceListSummary, reviewReasons, isStale,
   DEFAULT_KALKYL_SETTINGS, KIND_LABEL, PRICE_KINDS, PRICE_TRADES, STATUS_LABEL, TRADE_LABEL,
   type PriceItem, type PriceKind, type PriceStatus, type PriceTrade,
@@ -52,6 +54,8 @@ function FilterRow<T extends string>({ label, value, options, onChange }: { labe
 
 export function PriceListAdmin({ currentUser }: { currentUser: string }) {
   const qc = useQueryClient();
+  const { role } = useRole();
+  const canApprove = canApprovePrices(role);
   const today = useMemo(() => new Date(), []);
   const { data: items = [], isLoading, error } = useQuery({ queryKey: PRICE_ITEMS_KEY, queryFn: fetchPriceItems });
   const { data: settings = DEFAULT_KALKYL_SETTINGS } = useQuery({ queryKey: KALKYL_SETTINGS_KEY, queryFn: fetchKalkylSettings });
@@ -114,9 +118,10 @@ export function PriceListAdmin({ currentUser }: { currentUser: string }) {
         <div>
           <h2 className="font-display text-xl font-semibold">Prislista</h2>
           <p className="text-sm text-muted-foreground">Priser exklusive moms. Bara godkända priser kan skickas i en offert.</p>
+          {!canApprove && <p className="text-sm text-muted-foreground">Bara administratör kan godkänna priser.</p>}
         </div>
         <div className="flex flex-wrap gap-2">
-          {!selecting && (
+          {canApprove && !selecting && (
             <Button variant="outline" className="h-11" onClick={() => setSelecting(true)} disabled={!items.length}>
               <CheckSquare /> Markera
             </Button>
@@ -213,7 +218,7 @@ export function PriceListAdmin({ currentUser }: { currentUser: string }) {
         </section>
       ))}
 
-      {selecting && (
+      {canApprove && selecting && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 py-3 backdrop-blur md:px-4" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <div className="mx-auto flex max-w-5xl items-center gap-2">
             <span className="flex-1 text-sm font-medium">{selected.size} valda</span>
@@ -231,6 +236,7 @@ export function PriceListAdmin({ currentUser }: { currentUser: string }) {
         item={editing}
         existingCodes={existingCodes}
         currentUser={currentUser}
+        canApprove={canApprove}
         onSaved={refresh}
       />
       <PriceImportSheet open={importOpen} onOpenChange={setImportOpen} existing={items} currentUser={currentUser} onImported={refresh} />

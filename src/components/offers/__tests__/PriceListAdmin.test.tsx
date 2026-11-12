@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   items: [] as unknown[],
   updatePriceItem: vi.fn(),
   insertPriceItems: vi.fn(),
+  role: { type: 'coordinator', name: 'Mirna', isAdmin: true } as { type: string; name: string; isAdmin: boolean },
 }));
 
 vi.mock('@/components/offers/priceList/api', () => ({
@@ -24,6 +25,7 @@ vi.mock('@/components/offers/priceList/api', () => ({
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
+vi.mock('@/hooks/useRole', () => ({ useRole: () => ({ role: mocks.role }) }));
 
 import { PriceListAdmin } from '@/components/offers/PriceListAdmin';
 
@@ -36,6 +38,7 @@ beforeEach(() => {
   mocks.items = seedPriceItems(i => (i.code === 'golv.arb.rivning' ? { price_ex_vat: null } : {}));
   mocks.updatePriceItem.mockReset().mockResolvedValue(undefined);
   mocks.insertPriceItems.mockReset().mockResolvedValue(undefined);
+  mocks.role = { type: 'coordinator', name: 'Mirna', isAdmin: true };
 });
 
 describe('PriceListAdmin', () => {
@@ -81,5 +84,16 @@ describe('PriceListAdmin', () => {
     await waitFor(() => expect(screen.queryByText('Ekparkett 3-stav')).not.toBeInTheDocument());
     const list = screen.getByText('Laminat ek').closest('ul')!;
     expect(within(list).getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('bara administratör ser godkännande', async () => {
+    mocks.role = { type: 'seller', name: 'Daniel', isAdmin: false };
+    renderAdmin();
+    await screen.findByText('Ekparkett 3-stav');
+    expect(screen.getByText('Bara administratör kan godkänna priser.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Markera/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Ekparkett 3-stav').closest('button')!);
+    await screen.findByRole('button', { name: /Spara som utkast/ });
+    expect(screen.queryByRole('button', { name: /Spara och godkänn/ })).not.toBeInTheDocument();
   });
 });

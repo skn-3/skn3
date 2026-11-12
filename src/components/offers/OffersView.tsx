@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy, FileCheck, Trash2, Sparkles, Loader2, MailCheck, Calculator } from 'lucide-react';
 import { KalkylWorkspace } from '@/components/kalkyl/KalkylWorkspace';
-import { checkKalkylSend, hasKalkyl, sendBlockedText } from '@/components/kalkyl/sendGate';
+import { checkKalkylSend, functionErrorText, hasKalkyl, sendBlockedText } from '@/components/kalkyl/sendGate';
 import { fetchOfferRow } from '@/components/kalkyl/api';
 import { OrderConfirmationDialog } from './OrderConfirmationDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -169,7 +169,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
       const check = await checkKalkylSend(qc, offer);
       if (!check.can_send) throw new Error(sendBlockedText(check));
       const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: offer.id, origin: window.location.origin } });
-      if (error) throw error;
+      if (error) throw new Error(await functionErrorText(error));
       if ((data as any)?.error) throw new Error((data as any).error);
       const tok = (data as any)?.public_token as string | undefined;
       const public_url = tok ? `${window.location.origin}/offert/${tok}` : ((data as any)?.public_url as string);

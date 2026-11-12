@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { ChevronUp, AlertTriangle, Info, Check, Ban } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
 import {
-  costMissingCount, kalkylTotals, marginInfo, rowNeedsAction, sortKontroller, summarizeKalkyl, summaryView,
-  type KalkylData, type Kontroll, type PriceDisplay,
+  costMissingCount, kalkylTotals, kontrollFix, marginInfo, rowNeedsAction, sortKontroller, summarizeKalkyl, summaryView,
+  type KalkylData, type Kontroll, type KontrollFix, type PriceDisplay,
 } from '@/lib/kalkyl';
 import { useKalkylUi } from './context';
 import { focusRing, motion } from './ui';
@@ -111,8 +112,10 @@ export function KontrollItem({ k, onShowRow, compact, action }: { k: Kontroll; o
   );
 }
 
-export function KontrollCard({ data, kontroller, onShowRow }: { data: KalkylData; kontroller: Kontroll[]; onShowRow: (rowId: string) => void }) {
-  const { customerMode } = useKalkylUi();
+export function KontrollCard({ data, kontroller, onShowRow, onFix }: {
+  data: KalkylData; kontroller: Kontroll[]; onShowRow: (rowId: string) => void; onFix?: (fix: KontrollFix, rowId?: string) => void;
+}) {
+  const { customerMode, readOnly } = useKalkylUi();
   if (customerMode) return null;
   const toFix = kontroller.filter(k => k.blocking || k.level === 'atgard').length;
   const clean = (data.rows ?? []).filter(r => !rowNeedsAction(kontroller, r.id)).length;
@@ -123,7 +126,14 @@ export function KontrollCard({ data, kontroller, onShowRow }: { data: KalkylData
       <p className="text-sm text-muted-foreground mt-0.5">
         <span className="font-mono tabular-nums">{toFix}</span> att åtgärda · <span className="font-mono tabular-nums">{clean}</span> {clean === 1 ? 'rad' : 'rader'} utan anmärkning
       </p>
-      {sorted.length > 0 && <ul className="mt-1 divide-y divide-border">{sorted.map(k => <KontrollItem key={k.id} k={k} onShowRow={onShowRow} />)}</ul>}
+      {sorted.length > 0 && <ul className="mt-1 divide-y divide-border">{sorted.map(k => {
+        const fix = onFix && !readOnly ? kontrollFix(k) : null;
+        return (
+          <KontrollItem key={k.id} k={k} onShowRow={onShowRow} action={fix
+            ? <Button type="button" variant="outline" className="min-h-[44px]" onClick={() => onFix!(fix, k.row_id)}>{fix.label}</Button>
+            : undefined} />
+        );
+      })}</ul>}
     </section>
   );
 }

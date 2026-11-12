@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-import { parseSvNumber, type FriLineInput, type KalkylLine, type KalkylOverride, type PriceItem, type RotClass } from '@/lib/kalkyl';
+import { overrideFromForm, parseSvNumber, type FriLineInput, type KalkylLine, type KalkylOverride, type PriceItem, type RotClass } from '@/lib/kalkyl';
 import { PriceSwatch } from '@/components/offers/priceList/PriceSwatch';
 import { Segmented, focusRing, motion } from './ui';
 import { kr2, dec } from './format';
@@ -184,10 +184,7 @@ export function OverrideSheet({ open, onOpenChange, title, lines, base, onSet }:
       if (q == null || q < 0) { errs[l.key] = 'Skriv en mängd, t.ex. 12 eller 12,5.'; continue; }
       if (f.price.trim() && p == null) { errs[l.key] = 'Skriv ett à-pris i kronor.'; continue; }
       const b = base.find(x => x.key === l.key) ?? l;
-      const o: KalkylOverride = {};
-      if (q !== b.qty) o.qty = q;
-      if (p != null && p !== b.unit_price) o.unit_price = p;
-      onSet(l.key, Object.keys(o).length ? o : null);
+      onSet(l.key, overrideFromForm(b, q, p));
     }
     setErrors(errs);
     if (!Object.keys(errs).length) onOpenChange(false);

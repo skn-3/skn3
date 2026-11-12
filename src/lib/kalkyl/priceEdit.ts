@@ -26,3 +26,6 @@ export function applyPriceEdit(item: PriceItem, patch: PricePatch, user: string,
   }
   return next;
 }
+
+/** Bara administratör godkänner priser (databasen spärrar detsamma med triggern price_items_guard_approval). */
+export const canApprovePrices = (role: { isAdmin?: boolean | null } | null | undefined): boolean => !!role?.isAdmin;

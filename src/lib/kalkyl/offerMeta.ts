@@ -1,5 +1,6 @@
 // Offertens uppgifter som kalkylvyn redigerar (kund, hus, ROT, giltighet) och vad som sparas.
 import { ROT_CAP_PER_PERSON } from '@/lib/offerCalc';
+import { DEFAULT_OFFER_TERMS } from '@/lib/offerTerms';
 import type { KalkylData } from './types';
 import { buildOfferPayloadFromKalkyl, defaultOfferTitle, offerScopeText, type KalkylOfferOptions, type KalkylOfferPayload } from './offer';
 import type { PriceIndex } from './prices';
@@ -147,3 +148,14 @@ export type OfferEditMode = 'edit' | 'sent' | 'readonly';
 /** Accepterad offert öppnas skrivskyddad; skickad går att ändra med en upplysning. */
 export const offerEditMode = (status: string | null | undefined): OfferEditMode =>
   status === 'accepted' ? 'readonly' : status === 'sent' ? 'sent' : 'edit';
+
+/** Fälten som bara sätts när kalkylen skapar offerten: utkast, säljaren, källan och standardvillkoren. */
+export function kalkylInsertDefaults(currentUser: string) {
+  return { status: 'draft', created_by: currentUser, source: 'kalkyl', terms_text: DEFAULT_OFFER_TERMS } as const;
+}
+
+/**
+ * En befintlig offert som sparas med ändringar får pdf_path = null i samma sparning, så att formuläret kräver
+ * en ny PDF och kundsidan inte visar en gammal PDF med andra belopp. Utan ändringar rörs PDF:en inte.
+ */
+export const shouldClearPdf = (offerId: string | null | undefined, dirty: boolean): boolean => !!offerId && dirty;

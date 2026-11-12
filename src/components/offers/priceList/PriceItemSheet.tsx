@@ -119,10 +119,12 @@ interface Props {
   item: PriceItem | null;
   existingCodes: Set<string>;
   currentUser: string;
+  /** Bara administratör godkänner priser. */
+  canApprove: boolean;
   onSaved: () => void;
 }
 
-export function PriceItemSheet({ open, onOpenChange, item, existingCodes, currentUser, onSaved }: Props) {
+export function PriceItemSheet({ open, onOpenChange, item, existingCodes, currentUser, canApprove, onSaved }: Props) {
   const isMobile = useIsMobile();
   const [form, setForm] = useState<Form>(() => toForm(item));
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
@@ -155,6 +157,7 @@ export function PriceItemSheet({ open, onOpenChange, item, existingCodes, curren
   }, [form.price_ex_vat, form.cost_ex_vat]);
 
   async function save(mode: 'draft' | 'approve' | 'archive') {
+    if (mode === 'approve' && !canApprove) { toast.error('Bara administratör kan godkänna priser.'); return; }
     const { patch, errors: errs } = toPatch(form);
     if (isNew && patch.code && existingCodes.has(patch.code)) errs.code = 'Koden finns redan';
     if (mode === 'approve' && patch.price_ex_vat == null && !errs.price_ex_vat) errs.price_ex_vat = 'Ett pris måste finnas för att godkännas';
@@ -311,12 +314,15 @@ export function PriceItemSheet({ open, onOpenChange, item, existingCodes, curren
         </div>
 
         <div className="sticky bottom-0 -mx-6 flex flex-wrap gap-2 border-t border-border bg-background px-6 py-3">
+          {!canApprove && <p className="w-full text-sm text-muted-foreground">Bara administratör kan godkänna priser.</p>}
           <Button className="h-11 flex-1" variant="outline" onClick={() => save('draft')} disabled={!!busy}>
             {busy === 'draft' ? <Loader2 className="animate-spin" /> : <Save />} Spara som utkast
           </Button>
-          <Button className="h-11 flex-1" onClick={() => save('approve')} disabled={!!busy}>
-            {busy === 'approve' ? <Loader2 className="animate-spin" /> : <Check />} Spara och godkänn
-          </Button>
+          {canApprove && (
+            <Button className="h-11 flex-1" onClick={() => save('approve')} disabled={!!busy}>
+              {busy === 'approve' ? <Loader2 className="animate-spin" /> : <Check />} Spara och godkänn
+            </Button>
+          )}
           {!isNew && item!.status !== 'arkiverad' && (
             <Button className="h-11" variant="ghost" onClick={() => save('archive')} disabled={!!busy}>
               {busy === 'archive' ? <Loader2 className="animate-spin" /> : <Archive />} Arkivera

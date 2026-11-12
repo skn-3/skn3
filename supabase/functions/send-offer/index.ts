@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { MAIL_LINK_BASE_URL } from '../_shared/mailLinks.ts';
+import { calcPriceCodes, checkOfferSendGate } from '../_shared/offerSendGate.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -141,6 +142,21 @@ Deno.serve(async (req) => {
     }
     if (!offer.pdf_path) {
       return new Response(JSON.stringify({ error: 'Generera PDF först' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Offert med kalkyl: samma grundregel som i webbläsaren – inga rader utan pris, bara godkända priser.
+    if (offer.calc_data && typeof offer.calc_data === 'object') {
+      const codes = calcPriceCodes(offer.calc_data);
+      const statusByCode: Record<string, string | null> = {};
+      if (codes.length) {
+        const { data: items, error: piErr } = await admin.from('price_items').select('code, status').in('code', codes);
+        if (piErr) throw piErr;
+        for (const it of items ?? []) statusByCode[it.code as string] = (it.status as string | null) ?? null;
+      }
+      const gate = checkOfferSendGate(offer.calc_data, statusByCode);
+      if (!gate.ok) {
+        return new Response(JSON.stringify({ error: gate.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     let publicToken: string = offer.public_token;

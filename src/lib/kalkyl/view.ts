@@ -9,9 +9,9 @@ import { computeMalning } from './recipes/malning';
 import { floorArea } from './geometry';
 import { round2 } from './packaging';
 import { fmtQty } from './lines';
-import { canSend, runKontroller, type Kontroll } from './kontroller';
+import { canSend, runKontroller, type Kontroll, type KontrollContext } from './kontroller';
 import { kalkylTotals, type KalkylOfferOptions } from './offer';
-import { roomOf } from './state';
+import { priceChanges, roomOf } from './state';
 
 export type PriceDisplay = 'inkl' | 'exkl';
 
@@ -164,9 +164,9 @@ export interface SendCheck { can_send: boolean; blocking: Kontroll[]; messages: 
  * Skicka-spärr för offerter med kalkyl: kör kontrollerna mot aktuell prislista och
  * sammanfattar det som stoppar, t.ex. "3 priser är inte godkända i prislistan".
  */
-export function sendCheck(data: KalkylData | null | undefined, prices: PriceIndex, settings: KalkylSettings, today: Date | string): SendCheck {
+export function sendCheck(data: KalkylData | null | undefined, prices: PriceIndex, settings: KalkylSettings, today: Date | string, ctx?: KontrollContext): SendCheck {
   if (!data) return { can_send: true, blocking: [], messages: [] };
-  const list = runKontroller(data, prices, settings, today);
+  const list = runKontroller(data, prices, settings, today, ctx);
   const blocking = list.filter(k => k.blocking);
   const lines = allLines(data);
   const notApproved = new Set(lines.filter(l => {
@@ -178,7 +178,12 @@ export function sendCheck(data: KalkylData | null | undefined, prices: PriceInde
   const messages: string[] = [];
   if (missing) messages.push(`${missing} ${missing === 1 ? 'rad saknar' : 'rader saknar'} pris i prislistan`);
   if (notApproved.size) messages.push(`${notApproved.size} ${notApproved.size === 1 ? 'pris är' : 'priser är'} inte godkända i prislistan`.replace('pris är inte godkända', 'pris är inte godkänt'));
-  for (const k of blocking) if (!k.id.startsWith('pris_saknas') && !k.id.startsWith('pris_ej_godkant')) messages.push(k.text);
+  if (blocking.some(k => k.id.startsWith('pris_andrat'))) {
+    const n = priceChanges(data, prices).length;
+    messages.push(`${n} ${n === 1 ? 'pris har' : 'priser har'} ändrats i prislistan sedan kalkylen räknades`);
+  }
+  const summarized = ['pris_saknas', 'pris_ej_godkant', 'pris_andrat'];
+  for (const k of blocking) if (!summarized.some(p => k.id.startsWith(p))) messages.push(k.text);
   return { can_send: canSend(list), blocking, messages };
 }
 
@@ -250,14 +255,18 @@ export function malningOptions(row: KalkylRow, room: KalkylRoom | null | undefin
   return { tak: { enabled: !!inp.tak, amount: sum('tak') }, snickerier: { enabled: !!inp.snickerier, amount: sum('snickerier') } };
 }
 
-export interface KontrollFix { label: string; patch: Partial<GolvInput> | Partial<MalningInput> }
+/** Ändring av radens val, eller omräkning av hela kalkylen med aktuell prislista (repriceKalkyl). */
+export type KontrollFix =
+  | { label: string; patch: Partial<GolvInput> | Partial<MalningInput>; reprice?: undefined }
+  | { label: string; reprice: true; patch?: undefined };
 
-/** Åtgärd som går att göra direkt från kontrollkortet, t.ex. "Lägg till flytspackling". */
+/** Åtgärd som går att göra direkt från kontrollkortet, t.ex. "Lägg till flytspackling" eller "Uppdatera priser". */
 export function kontrollFix(k: Pick<Kontroll, 'id'>): KontrollFix | null {
   const rule = k.id.split(':')[0];
   if (rule === 'golv_underlag_saknas') return { label: 'Lägg till underlag', patch: { underlag: true } };
   if (rule === 'golv_sockel_saknas') return { label: 'Lägg till sockellist', patch: { sockel: true } };
   if (rule === 'golv_avjamning') return { label: 'Lägg till flytspackling', patch: { flytspackling: true } };
   if (rule === 'malning_mork_kulor') return { label: 'Räkna med 3 strykningar', patch: { coats: 3 } };
+  if (rule === 'pris_andrat') return { label: 'Uppdatera priser', reprice: true };
   return null;
 }

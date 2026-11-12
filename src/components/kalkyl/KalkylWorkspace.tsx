@@ -9,10 +9,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { cn } from '@/lib/utils';
 import {
   addAdjustment, addCommonLine, addFriLine, addRoom, addRow, defaultDisplay, duplicateRow, indexPrices, insertRow, isLocalNewer,
-  kalkylFromRow, kalkylSaveFields, moveRow, newFriRow, newGolvRow, newMalningRow, newRoom, offerEditMode, offerMetaFromRow,
+  kalkylFromRow, kalkylSaveFields, shouldClearPdf, moveRow, newFriRow, newGolvRow, newMalningRow, newRoom, offerEditMode, offerMetaFromRow,
   offerOptions, offerScopeText, priceChanges, removeAdjustment, removeCommonLine, removeFriLine, removeRow, repriceKalkyl, roomOf,
   runKontroller, setOverride, toggleFavorite, updateFriLine, updateRoom, updateRowInput, updateRowMeta, validateMeta,
-  DEFAULT_KALKYL_SETTINGS, type KalkylData, type Kulor, type OfferMeta, type PriceDisplay,
+  DEFAULT_KALKYL_SETTINGS, type KalkylData, type KontrollFix, type Kulor, type OfferMeta, type PriceDisplay,
 } from '@/lib/kalkyl';
 import { fetchKalkylSettings, fetchPriceItems, KALKYL_SETTINGS_KEY, PRICE_ITEMS_KEY } from '@/components/offers/priceList/api';
 import { PriceListAdmin } from '@/components/offers/PriceListAdmin';
@@ -71,9 +71,11 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
   const [expanded, setExpanded] = useState<string | null>(null);
   const [surface, setSurface] = useState<Surface>('vagg');
   const [localDraft, setLocalDraft] = useState<LocalDraft | null>(() => {
-    const local = readLocalDraft((offer?.id as string) ?? null);
+    const local = readLocalDraft(currentUser, (offer?.id as string) ?? null);
     return local && isLocalNewer(local.saved_at, (offer?.updated_at as string) ?? null) ? local : null;
   });
+  const [hasPdf, setHasPdf] = useState<boolean>(!!offer?.pdf_path);
+  const [pdfNotice, setPdfNotice] = useState(false);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
 
   const mode = offerEditMode(status);
@@ -83,8 +85,9 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
   const settings = settingsQ.data ?? DEFAULT_KALKYL_SETTINGS;
   const opts = useMemo(() => offerOptions(meta), [meta]);
   const today = todayIso();
-  const kontroller = useMemo(() => runKontroller(data, prices, settings, today), [data, prices, settings, today]);
-  const changes = useMemo(() => (pricesQ.data && status === 'draft' && offerId ? priceChanges(data, prices) : []), [data, prices, pricesQ.data, status, offerId]);
+  const kontroller = useMemo(() => runKontroller(data, prices, settings, today, { status }), [data, prices, settings, today, status]);
+  // Visas alltid när offerten går att ändra och inte är skickad, även för en ny osparad kalkyl.
+  const changes = useMemo(() => (pricesQ.data && mode === 'edit' ? priceChanges(data, prices) : []), [data, prices, pricesQ.data, mode]);
 
   // Ändringar sparas lokalt på enheten, fördröjt 500 ms.
   const setData = useCallback((fn: (d: KalkylData) => KalkylData) => {
@@ -100,9 +103,9 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
   }, [readOnly]);
   useEffect(() => {
     if (!dirty || readOnly) return;
-    const t = setTimeout(() => writeLocalDraft(offerId, { saved_at: new Date().toISOString(), data, meta }), 500);
+    const t = setTimeout(() => writeLocalDraft(currentUser, offerId, { saved_at: new Date().toISOString(), data, meta }), 500);
     return () => clearTimeout(t);
-  }, [data, meta, dirty, offerId, readOnly]);
+  }, [data, meta, dirty, offerId, readOnly, currentUser]);
 
   const save = useCallback(async (): Promise<string | null> => {
     if (readOnly) return offerId;
@@ -110,9 +113,11 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
     setSaving(true);
     try {
       const fields = kalkylSaveFields(meta, data, prices, settings);
-      const saved = await saveKalkylOffer(offerId, fields, currentUser);
-      if (!offerId) clearLocalDraft(null);
-      clearLocalDraft(saved.id);
+      const clearPdf = shouldClearPdf(offerId, dirty);
+      const saved = await saveKalkylOffer(offerId, fields, currentUser, clearPdf);
+      if (!offerId) clearLocalDraft(currentUser, null);
+      clearLocalDraft(currentUser, saved.id);
+      if (clearPdf && hasPdf) { setHasPdf(false); setPdfNotice(true); }
       setOfferId(saved.id);
       setOfferNumber(saved.offer_number);
       setStatus(saved.status);
@@ -130,9 +135,14 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
     } finally {
       setSaving(false);
     }
-  }, [readOnly, meta, data, prices, settings, offerId, currentUser, qc, onSaved]);
+  }, [readOnly, meta, data, prices, settings, offerId, currentUser, qc, onSaved, dirty, hasPdf]);
 
   const handleSave = async () => { const id = await save(); if (id) toast.success('Kalkylen är sparad'); };
+  const reprice = () => { setData(d => repriceKalkyl(d, prices, settings, new Date())); toast.success('Priserna är uppdaterade'); };
+  const applyFix = (fix: KontrollFix, rowId?: string) => {
+    if (fix.reprice) { reprice(); return; }
+    if (rowId) setData(d => updateRowInput(d, rowId, fix.patch, prices, settings));
+  };
   const handleDone = async () => {
     if (view.kind !== 'overview') { setView({ kind: 'overview' }); return; }
     if (readOnly) { if (offerId) onDone(offerId); else onClose(); return; }
@@ -190,8 +200,9 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
     requestAnimationFrame(() => rowRefs.current.get(rowId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
   };
 
-  const restoreLocal = () => { if (!localDraft) return; setDataRaw(localDraft.data); setMetaRaw(localDraft.meta); setDirty(true); setLocalDraft(null); };
-  const discardLocal = () => { clearLocalDraft(offerId); setLocalDraft(null); };
+  // Personnummer finns aldrig i den lokala versionen; ett sparat personnummer på offerten behålls.
+  const restoreLocal = () => { if (!localDraft) return; setDataRaw(localDraft.data); setMetaRaw(m => ({ ...localDraft.meta, customer_personnummer: m.customer_personnummer })); setDirty(true); setLocalDraft(null); };
+  const discardLocal = () => { clearLocalDraft(currentUser, offerId); setLocalDraft(null); };
 
   const ui: KalkylUi = { customerMode, readOnly, display, prices, items, settings, opts, today };
   const loading = pricesQ.isLoading || settingsQ.isLoading;
@@ -203,7 +214,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
 
   const banners = (
     <>
-      {localDraft && (
+      {localDraft && !customerMode && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-warning-soft px-4 py-3 text-sm text-warning-ink" role="status">
           <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span className="flex-1 min-w-[200px]">Det finns en osparad version från kl. {timeLabel(localDraft.saved_at)} på den här enheten.</span>
@@ -211,16 +222,23 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
           <Button type="button" size="sm" variant="outline" className="min-h-[44px]" onClick={discardLocal}>Släng</Button>
         </div>
       )}
-      {changes.length > 0 && !readOnly && (
+      {changes.length > 0 && !readOnly && !customerMode && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm" role="status">
           <AlertTriangle className="h-4 w-4 shrink-0 text-warning-ink" aria-hidden="true" />
-          <span className="flex-1 min-w-[200px]">{changes.length} {changes.length === 1 ? 'pris har' : 'priser har'} ändrats sedan kalkylen sparades.</span>
-          <Button type="button" size="sm" className="min-h-[44px]" onClick={() => { setData(d => repriceKalkyl(d, prices, settings, new Date())); toast.success('Priserna är uppdaterade'); }}>Uppdatera priser</Button>
+          <span className="flex-1 min-w-[200px]">{changes.length} {changes.length === 1 ? 'pris har' : 'priser har'} ändrats i prislistan sedan kalkylen räknades.</span>
+          <Button type="button" size="sm" className="min-h-[44px]" onClick={reprice}>Uppdatera priser</Button>
         </div>
       )}
       {mode === 'sent' && (
         <div className="flex items-center gap-3 rounded-xl border border-border bg-info-soft px-4 py-3 text-sm text-info" role="status">
-          <Info className="h-4 w-4 shrink-0" aria-hidden="true" /> Offerten är skickad. Ändringar gäller när du skickar den igen.
+          <Info className="h-4 w-4 shrink-0" aria-hidden="true" /> Offerten är skickad. När du sparar ser kunden ändringarna direkt på sin länk. Skapa en ny PDF och skicka offerten igen när du är klar.
+        </div>
+      )}
+      {pdfNotice && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-info-soft px-4 py-3 text-sm text-info" role="status">
+          <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="flex-1 min-w-[200px]">PDF:en behöver skapas om.</span>
+          <Button type="button" size="sm" variant="outline" className="min-h-[44px]" onClick={() => setPdfNotice(false)}>Stäng</Button>
         </div>
       )}
       {readOnly && (
@@ -267,7 +285,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
       onOverride: (key: string, o: Parameters<typeof setOverride>[3]) => setData(d => setOverride(d, rowId, key, o)),
       onAddOwn: (l: Parameters<typeof addFriLine>[2]) => setData(d => addFriLine(d, rowId, l)),
       onRemoveOwn: (key: string) => setData(d => removeFriLine(d, rowId, key)),
-      onFix: (fix: { patch: Parameters<typeof updateRowInput>[2] }) => setData(d => updateRowInput(d, rowId, fix.patch, prices, settings)),
+      onFix: (fix: KontrollFix) => applyFix(fix, rowId),
     };
     body = currentRow.trade === 'golv' && currentRoom ? (
       <GolvConfigurator data={data} row={currentRow} room={currentRoom} kontroller={kontroller}
@@ -280,7 +298,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
         actions={{
           onTitle: t => setData(d => updateRowMeta(d, rowId, { title: t })),
           onAdd: l => setData(d => addFriLine(d, rowId, l)),
-          onUpdate: (key, p) => setData(d => updateFriLine(d, rowId, key, p)),
+          onUpdate: (key, p) => setData(d => updateFriLine(d, rowId, key, p, prices)),
           onRemove: key => setData(d => removeFriLine(d, rowId, key)),
           onFix: common.onFix,
         }} />
@@ -290,7 +308,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
       <>
         <SummaryCard data={data} display={display} onDisplay={setDisplay} />
         <InternalCard data={data} onOpenPriceList={() => setPriceListOpen(true)} />
-        <KontrollCard data={data} kontroller={kontroller} onShowRow={showRow} />
+        <KontrollCard data={data} kontroller={kontroller} onShowRow={showRow} onFix={applyFix} />
       </>
     );
     body = (
@@ -312,7 +330,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
               onRemoveCommon={key => setData(d => removeCommonLine(d, key))} onRemoveAdjustment={id => setData(d => removeAdjustment(d, id))} />
             <div className="lg:hidden space-y-3 pb-2">
               <InternalCard data={data} onOpenPriceList={() => setPriceListOpen(true)} />
-              <KontrollCard data={data} kontroller={kontroller} onShowRow={showRow} />
+              <KontrollCard data={data} kontroller={kontroller} onShowRow={showRow} onFix={applyFix} />
             </div>
           </div>
           <aside className="hidden lg:block lg:min-h-0 lg:overflow-y-auto border-l border-border bg-background p-4 space-y-3" aria-label="Summering och kontroll">{aside}</aside>

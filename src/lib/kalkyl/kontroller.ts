@@ -3,6 +3,7 @@ import type { PriceIndex } from './prices';
 import { isStale, priceAgeDays } from './prices';
 import { rowLines, summarizeKalkyl } from './kalkyl';
 import { wallCoats } from './recipes/malning';
+import { linesWithChangedPrice, listPricedCommon, listPricedLines } from './priceCheck';
 
 export type KontrollLevel = 'atgard' | 'info' | 'ok';
 
@@ -22,14 +23,23 @@ const ROT_NEW_BUILD_YEARS = 5;
 const names = (lines: KalkylLine[]) => [...new Set(lines.map(l => l.description))].join(', ');
 const toDate = (v: Date | string) => (typeof v === 'string' ? new Date(v.length === 10 ? `${v}T00:00:00Z` : v) : v);
 
+export interface KontrollContext {
+  /** Offertens status. Saknad status räknas som utkast. */
+  status?: string | null;
+}
+
+/** Utkast (även saknad status): allt utom skickad och accepterad. */
+export const isDraftStatus = (status: string | null | undefined) => status !== 'sent' && status !== 'accepted';
+
 /** Version 1 av kontrollerna. Blockerande kontroller stoppar att offerten skickas. */
-export function runKontroller(data: KalkylData, prices: PriceIndex, settings: KalkylSettings, today: Date | string): Kontroll[] {
+export function runKontroller(data: KalkylData, prices: PriceIndex, settings: KalkylSettings, today: Date | string, ctx?: KontrollContext): Kontroll[] {
   const out: Kontroll[] = [];
-  const groups: { row_id?: string; label: string; lines: KalkylLine[] }[] = [
-    ...(data.rows ?? []).map(r => ({ row_id: r.id, label: r.title, lines: rowLines(r) })),
-    { row_id: undefined, label: 'Gemensamt', lines: data.common ?? [] },
+  const groups: { row_id?: string; label: string; lines: KalkylLine[]; listed: KalkylLine[] }[] = [
+    ...(data.rows ?? []).map(r => ({ row_id: r.id, label: r.title, lines: rowLines(r), listed: listPricedLines(r) })),
+    { row_id: undefined, label: 'Gemensamt', lines: data.common ?? [], listed: listPricedCommon(data) },
   ];
   const scope = (row_id?: string) => row_id ?? 'gemensamt';
+  const draft = isDraftStatus(ctx?.status);
 
   for (const g of groups) {
     const missing = g.lines.filter(l => l.unit_price == null);
@@ -46,6 +56,13 @@ export function runKontroller(data: KalkylData, prices: PriceIndex, settings: Ka
     if (notApproved.length) out.push({
       id: `pris_ej_godkant:${scope(g.row_id)}`, level: 'atgard', blocking: true, row_id: g.row_id,
       title: 'Pris inte godkänt', text: `${g.label}: ${names(notApproved)} har ett pris som inte är godkänt i prislistan.`, source: 'Prislistan',
+    });
+
+    // Det som skickas är prislistans godkända pris eller säljarens eget pris, aldrig ett gammalt listpris.
+    const changed = draft ? linesWithChangedPrice(g.listed, prices) : [];
+    if (changed.length) out.push({
+      id: `pris_andrat:${scope(g.row_id)}`, level: 'atgard', blocking: true, row_id: g.row_id,
+      title: 'Priset har ändrats', text: `${g.label}: ${names(changed)} har ett annat pris i prislistan än i kalkylen. Uppdatera priserna innan offerten skickas.`, source: 'Prislistan',
     });
 
     const stale = g.lines.filter(l => {
@@ -105,7 +122,7 @@ export function runKontroller(data: KalkylData, prices: PriceIndex, settings: Ka
     const age = toDate(today).getUTCFullYear() - Number(by);
     if (age <= ROT_NEW_BUILD_YEARS) out.push({
       id: 'rot_femarsregeln', level: 'atgard', blocking: false,
-      title: 'ROT och nybyggt hus', text: `Huset är byggt ${by}. ROT-avdrag gäller inte arbete på hus som tagits i bruk de senaste fem åren. Kontrollera innan ROT dras.`, source: 'Skatteverket (ROT)',
+      title: 'ROT och nybyggt hus', text: `Huset är byggt ${by}. I hus som är yngre än fem år ger bara återställande arbete (reparation) ROT, inte förbättringar eller om- och tillbyggnad. Kontrollera innan ROT dras.`, source: 'Skatteverket (ROT)',
     });
   }
 
