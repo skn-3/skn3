@@ -6,6 +6,7 @@ import { buildOfferPayloadFromKalkyl, defaultOfferTitle, offerScopeText, type Ka
 import type { PriceIndex } from './prices';
 import type { KalkylSettings } from './types';
 import { emptyKalkyl } from './kalkyl';
+import { buildCustomerView, isAutoDescription, type CustomerView } from './customerView';
 
 export interface OfferMeta {
   customer_type: 'privat' | 'foretag';
@@ -56,7 +57,8 @@ export function offerMetaFromRow(offer: OfferLike, today: Date = new Date()): Of
     valid_until: str(o.valid_until) || addDays(today, 30),
     handpenning_percent: numOr(o.handpenning_percent, 25),
     title: str(o.title),
-    description: str(o.description),
+    // Kundvy med intro null: beskrivningen är automatisk, fältet är tomt och texten byggs om vid varje sparning.
+    description: isAutoDescription(o.customer_view) ? '' : str(o.description),
   };
 }
 
@@ -111,11 +113,13 @@ export interface KalkylSaveFields extends KalkylOfferPayload {
   handpenning_percent: number;
   title: string;
   description: string | null;
+  customer_view: CustomerView;
 }
 
 /**
  * Fälten som "Spara" och "Klar" skriver: kalkylens offertrader och totaler plus kund, ROT och giltighet.
- * Tom titel fylls från defaultOfferTitle, tom beskrivning från offerScopeText.
+ * Tom titel fylls från defaultOfferTitle, tom beskrivning från offerScopeText (byggs om vid varje sparning).
+ * customer_view sparas i samma sparning; dess intro är null när beskrivningen är tom eller automatisk.
  */
 export function kalkylSaveFields(meta: OfferMeta, data: KalkylData, prices: PriceIndex, settings: KalkylSettings): KalkylSaveFields {
   const opts = offerOptions(meta);
@@ -141,6 +145,7 @@ export function kalkylSaveFields(meta: OfferMeta, data: KalkylData, prices: Pric
     handpenning_percent: meta.handpenning_percent,
     title: meta.title.trim() || defaultOfferTitle(data),
     description: meta.description.trim() ? meta.description : (offerScopeText(data, prices, settings) || null),
+    customer_view: buildCustomerView(data, prices, settings, meta.description),
   };
 }
 

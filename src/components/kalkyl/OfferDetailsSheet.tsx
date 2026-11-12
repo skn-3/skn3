@@ -120,10 +120,10 @@ export function OfferDetailsSheet({ open, onOpenChange, meta, onMeta, premises, 
               <Field label="Giltig t.o.m.">{id => <Input id={id} type="date" className={input} value={meta.valid_until} onChange={e => onMeta({ valid_until: e.target.value })} />}</Field>
               <Field label="Handpenning i procent">{id => <Input id={id} inputMode="numeric" className={input} value={meta.handpenning_percent} onChange={e => onMeta({ handpenning_percent: Math.min(100, Math.max(0, numOr(e.target.value, 25))) })} />}</Field>
             </div>
-            <Field label="Titel" hint="Lämnas den tom fylls den i från kalkylen när du sparar.">
+            <Field label="Titel" hint="Lämnas den tom byggs den från kalkylen vid varje sparning.">
               {id => <Input id={id} className={input} value={meta.title} onChange={e => onMeta({ title: e.target.value })} />}
             </Field>
-            <Field label="Beskrivning" hint="Lämnas den tom fylls den i från kalkylen när du sparar.">
+            <Field label="Beskrivning" hint="Lämnas den tom byggs den från kalkylen vid varje sparning.">
               {id => <Textarea id={id} rows={5} className="text-base" value={meta.description} onChange={e => onMeta({ description: e.target.value })} />}
             </Field>
             <Button type="button" variant="outline" className="min-h-[44px]" onClick={onFillDescription}>Fyll i beskrivning från kalkylen</Button>

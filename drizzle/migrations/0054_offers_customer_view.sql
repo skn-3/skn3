@@ -1,0 +1,2 @@
+ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS customer_view jsonb;
+COMMENT ON COLUMN public.offers.customer_view IS 'Kundvy version 1 från kalkylen (rum för rum, ex moms). NULL för offerter utan kalkyl; kundsidan visas då som tidigare.';

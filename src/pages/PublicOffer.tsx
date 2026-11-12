@@ -13,6 +13,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { buildOfferPdfBlob } from '@/lib/offerPdf';
 import { daysLeft, fmtDateLong, fmtDateTimeSv, parseDescription, parseTerms } from '@/lib/offerText';
 import { SignaturePad } from '@/components/public/SignaturePad';
+import { CustomerOfferSections, CustomerPriceRows } from '@/components/public/CustomerOfferSections';
+import { customerPriceRows, type PublicCustomerView } from '@/lib/kalkyl';
 import { toast } from 'sonner';
 import { useForceLight } from '@/hooks/useForceLight';
 
@@ -54,6 +56,7 @@ type PublicOfferData = {
   fastighetsbeteckning?: string | null;
   signed_url: string | null;       // offert-PDF (signerad nedladdningslänk)
   signed_pdf_url: string | null;   // accepterat avtal med verifikat
+  customer_view?: PublicCustomerView | null; // kalkyloffert: rum för rum (saknas för övriga offerter)
 };
 
 const COMPANY_PHONE = '070-719 72 35';
@@ -311,6 +314,9 @@ export default function PublicOffer() {
   const confirmationSent = !!data.confirmation_sent_at;
   const pdfUrl = data.signed_pdf_url || data.signed_url;
   const firstName = (data.accept_name || data.customer_name || '').split(/\s+/)[0] || '';
+  // Kundvy version 1 från kalkylen; utan den (eller med okänd version) visas sidan som tidigare.
+  const cv = data.customer_view && data.customer_view.version === 1 ? data.customer_view : null;
+  const shown = (exVat: number) => fmtKr(Number(exVat || 0) * priceFactor);
 
   /* ---------- Delade block ---------- */
   const summaryCard = (
@@ -470,7 +476,15 @@ export default function PublicOffer() {
               </Card>
             )}
 
-            {data.description && (
+            {cv && (
+              <Card>
+                <SectionLabel>Omfattning</SectionLabel>
+                <h2 className="font-display text-[22px] font-bold mt-1 mb-3">Det här ingår</h2>
+                <CustomerOfferSections view={cv} formatAmount={shown} />
+              </Card>
+            )}
+
+            {!cv && data.description && (
               <Card>
                 <SectionLabel>Omfattning</SectionLabel>
                 <h2 className="font-display text-[22px] font-bold mt-1 mb-3">Det här ingår i offerten</h2>
@@ -481,6 +495,7 @@ export default function PublicOffer() {
             <Card>
               <SectionLabel>Pris</SectionLabel>
               <h2 className="font-display text-[22px] font-bold mt-1 mb-3">Pris och betalning</h2>
+              {cv ? <CustomerPriceRows rows={customerPriceRows(cv.totals)} formatAmount={shown} /> : (
               <div className="border-t border-border">
                 {(data.line_items || []).map((it, idx) => (
                   <div key={it.id || idx} className="flex items-center justify-between gap-4 py-3 border-b border-border">
@@ -493,6 +508,7 @@ export default function PublicOffer() {
                   </div>
                 ))}
               </div>
+              )}
               <div className="ml-auto w-full sm:max-w-[400px] mt-4">
                 <div className="flex justify-between text-sm py-1"><span>{inclVat ? 'Ordersumma inkl. moms' : 'Ordersumma exkl. moms'}</span><Num>{fmtKr(orderSum)}</Num></div>
                 <div className="flex justify-between text-[13px] text-muted-foreground py-1"><span>{inclVat ? 'varav moms 25 %' : 'Omvänd byggmoms – köparen redovisar momsen'}</span>{inclVat && <Num>{fmtKr(data.total_vat)}</Num>}</div>

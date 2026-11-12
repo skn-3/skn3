@@ -18,6 +18,7 @@ import { createUppdragFromOffer, findUppdragForOffer } from '@/lib/uppdrag';
 import { useQueryClient } from '@tanstack/react-query';
 import { Calculator } from 'lucide-react';
 import { checkKalkylSend, functionErrorText, hasKalkyl, sendBlockedText, useKalkylSendCheck } from '@/components/kalkyl/sendGate';
+import { customerViewWithFormIntro } from '@/lib/kalkyl';
 
 type OfferRow = any;
 
@@ -154,6 +155,8 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const addItem = () => setItems(prev => [...prev, emptyLine()]);
   const removeItem = (id: string) => setItems(prev => prev.length > 1 ? prev.filter(i => i.id !== id) : prev);
 
+  const formCustomerView = (desc: string) => customerViewWithFormIntro(offer?.customer_view, offer?.description, desc);
+
   const buildPayload = () => ({
     case_id: caseId,
     customer_type: customerType,
@@ -192,6 +195,8 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     markup_percent: ueSourceLoaded ? markupPercent : (offer?.markup_percent ?? null),
     // Duplicerad kalkyloffert behåller kalkylen.
     ...(isKalkyl && !offer?.id ? { calc_data: offer.calc_data, calc_version: offer.calc_version ?? 1 } : {}),
+    // Kalkyloffert: ändrad beskrivning följer med till kundsidans intro (oförändrad behåller den sparade).
+    ...(isKalkyl && offer?.id && formCustomerView(description) ? { customer_view: formCustomerView(description) } : {}),
   });
 
 

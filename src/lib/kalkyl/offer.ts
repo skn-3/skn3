@@ -12,6 +12,7 @@ import { fmtQty } from './lines';
 import { roomOf } from './state';
 
 export const CALC_VERSION = 1;
+const DEFAULT_SETTINGS: KalkylSettings = { margin_target_pct: 25, price_max_age_days: 60, door_width_m: 0.9, door_height_m: 2.1, window_width_m: 1.2, window_height_m: 1.3 };
 
 export type KalkylOfferOptions = OfferCalcOptions;
 
@@ -121,9 +122,12 @@ function paintName(inp: MalningInput, slot: SelectableSlot, prices: PriceIndex):
 
 const UNDERARBETE_WORD: Record<MalningInput['underarbete'], string> = { latt: 'lätt', normal: 'normalt', omfattande: 'omfattande' };
 
-function rowScope(row: KalkylRow, data: KalkylData, prices: PriceIndex, settings: KalkylSettings): string {
+/**
+ * Kundtexten för en kalkylrad utan rubrikdelen ("Rum – Benämning:"). Delas av offertens beskrivning (rowScope)
+ * och kundvyn (customerView), så att de aldrig går isär. Tom sträng när en fri rad saknar rader.
+ */
+export function rowScopeText(row: KalkylRow, data: KalkylData, prices: PriceIndex, settings: KalkylSettings): string {
   const room = roomOf(data, row);
-  const head = room ? `${room.name} – ${row.title}` : row.title;
   if (row.trade === 'golv' && row.input) {
     const inp = row.input as GolvInput;
     const mat = prices[inp.material_code];
@@ -131,7 +135,7 @@ function rowScope(row: KalkylRow, data: KalkylData, prices: PriceIndex, settings
     const area = room ? `, ${m2(floorArea(room.dims))}` : '';
     const extras = golvExtras(row, room, prices);
     const tail = extras.length ? ` ${upperFirst([extras[0], ...extras.slice(1).map(lowerFirst)].join(', '))}.` : '';
-    return `${head}: ${matText}${area}.${tail}`;
+    return `${matText}${area}.${tail}`;
   }
   if (row.trade === 'malning' && row.input) {
     const inp = row.input as MalningInput;
@@ -141,15 +145,22 @@ function rowScope(row: KalkylRow, data: KalkylData, prices: PriceIndex, settings
     parts.push(`väggar${walls}${paren([`${wallCoats(inp)} strykningar`, paintName(inp, 'malning.vaggfarg', prices), kulorText(inp.kulor_vagg)])}`);
     if (inp.tak) parts.push(`tak${room ? ` ${m2(floorArea(room.dims))}` : ''}${paren([paintName(inp, 'malning.takfarg', prices), kulorText(inp.kulor_tak)])}`);
     if (inp.snickerier) parts.push(`foder och socklar${paren([paintName(inp, 'malning.snickerifarg', prices), kulorText(inp.kulor_snickerier)])}`);
-    return `${head}: ${upperFirst(joinSv(parts))}. Underarbete ${UNDERARBETE_WORD[inp.underarbete] ?? 'normalt'}.`;
+    return `${upperFirst(joinSv(parts))}. Underarbete ${UNDERARBETE_WORD[inp.underarbete] ?? 'normalt'}.`;
   }
   const names = [...new Set((row.lines ?? []).map(l => l.description))];
-  return names.length ? `${head}: ${upperFirst(names.map((n, i) => (i ? lowerFirst(n) : n)).join(', '))}.` : `${head}.`;
+  return names.length ? `${upperFirst(names.map((n, i) => (i ? lowerFirst(n) : n)).join(', '))}.` : '';
+}
+
+function rowScope(row: KalkylRow, data: KalkylData, prices: PriceIndex, settings: KalkylSettings): string {
+  const room = roomOf(data, row);
+  const head = room ? `${room.name} – ${row.title}` : row.title;
+  const text = rowScopeText(row, data, prices, settings);
+  return text ? `${head}: ${text}` : `${head}.`;
 }
 
 /** Kundtext för offertens beskrivning, en rad per kalkylrad och en för gemensamt. */
 export function offerScopeText(data: KalkylData, prices: PriceIndex = {}, settings?: KalkylSettings): string {
-  const s = settings ?? { margin_target_pct: 25, price_max_age_days: 60, door_width_m: 0.9, door_height_m: 2.1, window_width_m: 1.2, window_height_m: 1.3 };
+  const s = settings ?? DEFAULT_SETTINGS;
   const lines = (data.rows ?? []).map(r => rowScope(r, data, prices, s));
   const common = [...new Set((data.common ?? []).map(l => l.description))];
   if (common.length) lines.push(`Gemensamt: ${common.join(', ')}.`);

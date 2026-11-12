@@ -30,6 +30,7 @@ import { MalningConfigurator, type Surface } from './MalningConfigurator';
 import { FriConfigurator } from './FriConfigurator';
 import { GrenConfigurator } from './GrenConfigurator';
 import { Gallery, type GalleryTarget } from './Gallery';
+import { CustomerPreviewSheet } from './CustomerPreview';
 import { clearLocalDraft, readLocalDraft, saveKalkylOffer, writeLocalDraft, type LocalDraft } from './api';
 import { timeLabel } from './format';
 
@@ -69,6 +70,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
   const [commonOpen, setCommonOpen] = useState(false);
   const [adjOpen, setAdjOpen] = useState(false);
   const [priceListOpen, setPriceListOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [surface, setSurface] = useState<Surface>('vagg');
   const [localDraft, setLocalDraft] = useState<LocalDraft | null>(() => {
@@ -122,7 +124,8 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
       setOfferId(saved.id);
       setOfferNumber(saved.offer_number);
       setStatus(saved.status);
-      setMetaRaw(m => ({ ...m, title: fields.title, description: fields.description ?? '' }));
+      // Beskrivningen lämnas som säljaren skrev den: tom betyder automatisk och byggs om från kalkylen vid varje sparning.
+      setMetaRaw(m => ({ ...m, title: fields.title }));
       setSavedAt(saved.updated_at ? new Date(saved.updated_at) : new Date());
       setDirty(false);
       setLocalDraft(null);
@@ -388,6 +391,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
                 onCustomerMode={setCustomerMode}
                 onSave={handleSave}
                 showSave={!inRow}
+                onPreview={view.kind === 'overview' && !loading && !loadError ? () => setPreviewOpen(true) : undefined}
                 onDone={handleDone}
                 saving={saving}
                 readOnly={readOnly}
@@ -398,6 +402,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
             <OfferDetailsSheet open={detailsOpen} onOpenChange={setDetailsOpen} meta={meta} onMeta={setMeta} premises={data.premises}
               onPremises={p => setData(d => ({ ...d, premises: { ...d.premises, ...p } }))} nameError={nameError} readOnly={readOnly} isNew={!offerId}
               onFillDescription={() => { setMeta({ description: offerScopeText(data, prices, settings) }); toast.success('Beskrivningen är ifylld från kalkylen'); }} />
+            <CustomerPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} data={data} prices={prices} settings={settings} opts={opts} description={meta.description} />
             <AddRowSheet open={addOpen} onOpenChange={setAddOpen} rooms={data.rooms} onAdd={handleAdd} />
             <CommonLineSheet open={commonOpen} onOpenChange={setCommonOpen} onAdd={v => { setData(d => addCommonLine(d, v)); setCommonOpen(false); }} />
             <AdjustmentSheet open={adjOpen} onOpenChange={setAdjOpen} onAdd={a => { setData(d => addAdjustment(d, a)); setAdjOpen(false); }} />

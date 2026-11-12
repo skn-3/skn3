@@ -23,3 +23,4 @@ export * from './priceCheck';
 export * from './localDraft';
 export * from './slots';
 export * from './gren';
+export * from './customerView';

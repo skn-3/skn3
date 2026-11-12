@@ -2474,6 +2474,7 @@ export type Database = {
           customer_personnummer: string | null
           customer_phone: string | null
           customer_type: string
+          customer_view: Json | null
           decline_name: string | null
           decline_reason: string | null
           declined_at: string | null
@@ -2533,6 +2534,7 @@ export type Database = {
           customer_personnummer?: string | null
           customer_phone?: string | null
           customer_type?: string
+          customer_view?: Json | null
           decline_name?: string | null
           decline_reason?: string | null
           declined_at?: string | null
@@ -2592,6 +2594,7 @@ export type Database = {
           customer_personnummer?: string | null
           customer_phone?: string | null
           customer_type?: string
+          customer_view?: Json | null
           decline_name?: string | null
           decline_reason?: string | null
           declined_at?: string | null

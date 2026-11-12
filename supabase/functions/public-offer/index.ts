@@ -1,19 +1,43 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { offerPdfName, orderConfirmationPdfName } from '../_shared/pdfNames.ts';
+import { publicOfferBody } from '../_shared/publicOffer.ts';
+import { customerViewImagePaths, sanitizeCustomerView, withImageUrls, type PublicCustomerView } from '../_shared/customerView.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PUBLIC_FIELDS = [
-  'id', 'offer_number', 'created_at', 'sent_at', 'created_by', 'valid_until', 'payment_terms', 'customer_type',
-  'customer_name', 'customer_address', 'customer_personnummer', 'fastighetsbeteckning',
-  'title', 'description', 'line_items',
-  'vat_mode', 'rot_enabled', 'rot_percent', 'rot_persons', 'rot_cap_per_person', 'rot_used', 'total_ex_vat', 'total_vat', 'total_incl_vat',
-  'rot_base', 'rot_amount', 'total_after_rot', 'handpenning_percent', 'terms_text', 'status', 'accepted_at',
-  'accept_name', 'declined_at', 'confirmation_sent_at',
-] as const;
+const CATALOG_BUCKET = 'catalog-images';
+
+/**
+ * Kundvyn för kalkyloffert: saneras, och bilder signeras bara när sökvägen finns i price_items.image_path.
+ * Fel vid signering ger image_url null och stoppar aldrig svaret.
+ */
+// deno-lint-ignore no-explicit-any
+async function publicCustomerView(admin: any, raw: unknown): Promise<PublicCustomerView | null> {
+  const view = sanitizeCustomerView(raw);
+  if (!view) return null;
+  const urls: Record<string, string | null> = {};
+  const paths = customerViewImagePaths(view);
+  if (paths.length) {
+    try {
+      const { data: known } = await admin.from('price_items').select('image_path').in('image_path', paths);
+      const knownPaths: string[] = (known ?? []).map((r: { image_path: string | null }) => r.image_path ?? '');
+      const allowed: string[] = [...new Set(knownPaths.filter((p: string) => !!p && paths.includes(p)))];
+      if (allowed.length) {
+        const { data: signed } = await admin.storage.from(CATALOG_BUCKET).createSignedUrls(allowed, 3600);
+        (signed ?? []).forEach((s: { path?: string | null; signedUrl?: string | null; error?: string | null }, i: number) => {
+          const key: string = s?.path ?? allowed[i];
+          if (s?.signedUrl && !s.error && allowed.includes(key)) urls[key] = s.signedUrl;
+        });
+      }
+    } catch (e) {
+      console.error('public-offer: bildlänkar för kundvyn misslyckades', e);
+    }
+  }
+  return withImageUrls(view, urls);
+}
 
 function isExpired(validUntil: string | null | undefined): boolean {
   if (!validUntil) return false;
@@ -77,8 +101,9 @@ Deno.serve(async (req) => {
       confirmationPdfUrl = sig3?.signedUrl || null;
     }
 
-    const out: Record<string, unknown> = { signed_url: signedUrl, signed_pdf_url: signedPdfUrl, confirmation_pdf_url: confirmationPdfUrl };
-    for (const f of PUBLIC_FIELDS) out[f] = (offer as any)[f];
+    // Utan customer_view (eller med ogiltig) är svaret exakt som tidigare: samma nycklar och värden.
+    const customerView = offer.customer_view != null ? await publicCustomerView(admin, offer.customer_view) : null;
+    const out = publicOfferBody(offer as Record<string, unknown>, { signed_url: signedUrl, signed_pdf_url: signedPdfUrl, confirmation_pdf_url: confirmationPdfUrl }, customerView as Record<string, unknown> | null);
 
     return new Response(JSON.stringify(out), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
