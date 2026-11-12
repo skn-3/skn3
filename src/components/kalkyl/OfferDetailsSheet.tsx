@@ -129,7 +129,7 @@ export function OfferDetailsSheet({ open, onOpenChange, meta, onMeta, premises, 
             <Button type="button" variant="outline" className="min-h-[44px]" onClick={onFillDescription}>Fyll i beskrivning från kalkylen</Button>
           </section>
         </fieldset>
-        <div className="sticky bottom-0 -mx-6 mt-6 border-t border-border bg-background px-6 py-3">
+        <div className="sticky -bottom-6 -mx-6 -mb-6 mt-6 border-t border-border bg-background px-6 pt-3 pb-6">
           <Button type="button" className="w-full min-h-[44px]" onClick={() => onOpenChange(false)}>Klar</Button>
         </div>
       </SheetContent>

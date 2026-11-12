@@ -15,6 +15,9 @@ import { calcOfferTotals, fmtKr, type OfferLineItem, ROT_CAP_PER_PERSON, rotRoom
 import { buildOfferPdfBlob, offerFileName } from '@/lib/offerPdf';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { createUppdragFromOffer, findUppdragForOffer } from '@/lib/uppdrag';
+import { useQueryClient } from '@tanstack/react-query';
+import { Calculator } from 'lucide-react';
+import { checkKalkylSend, hasKalkyl, sendBlockedText, useKalkylSendCheck } from '@/components/kalkyl/sendGate';
 
 type OfferRow = any;
 
@@ -25,6 +28,8 @@ interface OfferFormProps {
   currentUser: string;
   onSaved: () => void;
   onClose: () => void;
+  /** Bara för offerter med kalkyl: öppnar kalkylvyn för samma offert. */
+  onOpenKalkyl?: () => void;
 }
 
 function makeId() {
@@ -41,7 +46,10 @@ function defaultValidUntil(): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, onSaved, onClose }: OfferFormProps) {
+export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, onSaved, onClose, onOpenKalkyl }: OfferFormProps) {
+  const qc = useQueryClient();
+  const isKalkyl = hasKalkyl(offer);
+  const kalkylCheck = useKalkylSendCheck(offer);
   const [currentId, setCurrentId] = useState<string | null>(offer?.id ?? null);
   const isEdit = !!currentId;
   const [saving, setSaving] = useState(false);
@@ -182,6 +190,8 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
     ue_document_path: ueDocPath,
     ue_total_excl: ueTotalExcl,
     markup_percent: ueSourceLoaded ? markupPercent : (offer?.markup_percent ?? null),
+    // Duplicerad kalkyloffert behåller kalkylen.
+    ...(isKalkyl && !offer?.id ? { calc_data: offer.calc_data, calc_version: offer.calc_version ?? 1 } : {}),
   });
 
 
@@ -229,6 +239,7 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
       if (upErr) throw upErr;
       await (supabase as any).from('offers').update({ pdf_path: path }).eq('id', id);
       setPdfPath(path);
+      if (kalkylCheck && !kalkylCheck.can_send) toast.warning(sendBlockedText(kalkylCheck));
       const opened = await openDocumentInNewTab(async () => {
         const { data: signed } = await supabase.storage.from('case-documents').createSignedUrl(path, 3600);
         return signed?.signedUrl ?? null;
@@ -247,6 +258,10 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
   const handleSendToCustomer = async () => {
     if (!email) { toast.error('Kunden saknar e-post'); return; }
     if (!pdfPath) { toast.error('Generera PDF först'); return; }
+    if (isKalkyl) {
+      const check = await checkKalkylSend(qc, offer);
+      if (!check.can_send) { toast.error(sendBlockedText(check)); return; }
+    }
     // Spara alltid innan utskick — send-offer läser kunduppgifterna från databasen, inte från formuläret.
     const id = await handleSave(false);
     if (!id) return;
@@ -659,6 +674,27 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
       </section>
 
       {/* Rader */}
+      {isKalkyl ? (
+        <section className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label>Rader</Label>
+            {onOpenKalkyl && (
+              <Button type="button" variant="outline" size="sm" onClick={onOpenKalkyl} className="gap-1 min-h-[44px]">
+                <Calculator className="h-4 w-4" /> Öppna kalkyl
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">Raderna kommer från kalkylen. Ändra dem i kalkylen. Belopp exklusive moms.</p>
+          <div className="rounded-md border divide-y">
+            {items.map(it => (
+              <div key={it.id} className="px-3 py-2 flex items-baseline justify-between gap-3 text-sm">
+                <span className="min-w-0">{it.description}{it.is_labor && <span className="ml-2 text-xs text-muted-foreground">(arbete, ROT)</span>}</span>
+                <span className="tabular-nums whitespace-nowrap">{fmtKr(it.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : (
       <section className="space-y-2">
         <div className="flex items-center justify-between">
           <Label>Rader</Label>
@@ -712,6 +748,8 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
           ))}
         </div>
       </section>
+
+      )}
 
       {/* Moms + ROT */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -848,6 +886,13 @@ export function OfferForm({ offer, prefillCaseId, prefillCustomer, currentUser, 
           );
         })()}
       </section>
+
+      {kalkylCheck && !kalkylCheck.can_send && (
+        <div className="flex items-start gap-2 rounded-md border border-warning/50 bg-warning-soft p-3 text-sm text-warning-ink" role="status">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{sendBlockedText(kalkylCheck)} PDF går att skapa, men offerten kan inte skickas förrän det är åtgärdat.</span>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 justify-end pt-2 border-t sticky bottom-0 bg-background pb-2">

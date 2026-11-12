@@ -135,7 +135,7 @@ export function GolvConfigurator({ data, row, room, kontroller, actions }: { dat
         <h2 className="font-display text-xl font-semibold">Planritning</h2>
         <p className="text-sm text-muted-foreground">Ritas efter måtten och uppdateras direkt</p>
       </div>
-      <div className="h-[336px] rounded-xl border border-border bg-card p-2">
+      <div className="h-[260px] md:h-[336px] rounded-xl border border-border bg-card p-2">
         <RoomPlan dims={room.dims} item={mat} direction={inp.direction} settings={settings} width={560} height={320} />
       </div>
       <div className="flex flex-wrap gap-2">

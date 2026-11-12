@@ -9,7 +9,7 @@ export const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-
 export const motion = 'transition-colors duration-[160ms] motion-reduce:transition-none';
 
 export function Segmented<T extends string>({ value, options, onChange, label, disabled, className, size = 'md' }: {
-  value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; label: string; disabled?: boolean; className?: string; size?: 'md' | 'lg';
+  value: T; options: { value: NoInfer<T>; label: string }[]; onChange: (v: NoInfer<T>) => void; label: string; disabled?: boolean; className?: string; size?: 'md' | 'lg';
 }) {
   return (
     <div role="radiogroup" aria-label={label} className={cn('inline-flex rounded-lg border border-border bg-muted p-1 gap-1', className)}>

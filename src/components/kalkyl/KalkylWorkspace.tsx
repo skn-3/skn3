@@ -330,6 +330,8 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
           aria-describedby={undefined}
           className="fixed inset-0 z-50 flex flex-col bg-background text-foreground outline-none"
           onEscapeKeyDown={e => { if (view.kind !== 'overview') { e.preventDefault(); setView(view.kind === 'gallery' && view.from === 'row' && view.target ? { kind: 'row', rowId: view.target.rowId } : { kind: 'overview' }); } }}
+          onOpenAutoFocus={e => { e.preventDefault(); (e.currentTarget as HTMLElement | null)?.focus(); }}
+          tabIndex={-1}
           onPointerDownOutside={e => e.preventDefault()}
           onInteractOutside={e => e.preventDefault()}
         >

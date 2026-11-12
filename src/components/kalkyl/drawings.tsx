@@ -5,6 +5,9 @@ import { elevationLayout, fitRoom, unfoldWalls, type Kulor, type KalkylSettings,
 import { cn } from '@/lib/utils';
 import { dec } from './format';
 
+/** Mått på ritningen med minst en decimal: "6,0 m". */
+const dimText = (v: number) => `${Number(v).toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} m`;
+
 const NEUTRAL = '#E7E5DF';
 
 function FloorPattern({ id, item, direction, scale }: { id: string; item?: Pick<PriceItem, 'swatch' | 'color_hex'> | null; direction: 'langs' | 'tvars'; scale: number }) {
@@ -92,9 +95,9 @@ export function RoomPlan({ dims, item, direction = 'langs', settings, width, hei
       )}
       {!mini && (
         <g className="fill-foreground font-mono text-[12px]">
-          <text x={x0 + f.w / 2} y={y0 - 26} textAnchor="middle" className="fill-card stroke-card" strokeWidth={6}>{dec(dims.length)} m</text>
-          <text x={x0 + f.w / 2} y={y0 - 26} textAnchor="middle">{dec(dims.length)} m</text>
-          <text x={x0 - 26} y={y0 + f.h / 2} textAnchor="middle" transform={`rotate(-90 ${x0 - 26} ${y0 + f.h / 2})`}>{dec(dims.width)} m</text>
+          <text x={x0 + f.w / 2} y={y0 - 26} textAnchor="middle" className="fill-card stroke-card" strokeWidth={6}>{dimText(dims.length)}</text>
+          <text x={x0 + f.w / 2} y={y0 - 26} textAnchor="middle">{dimText(dims.length)}</text>
+          <text x={x0 - 26} y={y0 + f.h / 2} textAnchor="middle" transform={`rotate(-90 ${x0 - 26} ${y0 + f.h / 2})`}>{dimText(dims.width)}</text>
         </g>
       )}
     </svg>
@@ -146,8 +149,8 @@ export function WallElevation({ dims, settings, wall, ceiling, trim, width, heig
         <line x1={x0 - 26} y1={floorY} x2={x0 - 14} y2={floorY} />
       </g>
       <g className="fill-foreground font-mono text-[12px]">
-        <text x={x0 + e.w / 2} y={floorY + 32} textAnchor="middle">{dec(dims.length)} m</text>
-        <text x={x0 - 28} y={y0 + e.h / 2} textAnchor="middle" transform={`rotate(-90 ${x0 - 28} ${y0 + e.h / 2})`}>{dec(dims.height)} m</text>
+        <text x={x0 + e.w / 2} y={floorY + 32} textAnchor="middle">{dimText(dims.length)}</text>
+        <text x={x0 - 28} y={y0 + e.h / 2} textAnchor="middle" transform={`rotate(-90 ${x0 - 28} ${y0 + e.h / 2})`}>{dimText(dims.height)}</text>
       </g>
     </svg>
   );
@@ -165,7 +168,7 @@ export function UnfoldedWalls({ dims, wall, width }: { dims: RoomDims; wall?: Ku
           <g key={w.label}>
             <rect x={x} y={0} width={w.w} height={h} fill={fill(wall)} className="stroke-border" />
             <text x={x + w.w / 2} y={h / 2 + 4} textAnchor="middle" className="fill-foreground text-[11px] font-semibold">{w.label}</text>
-            <text x={x + w.w / 2} y={h + 14} textAnchor="middle" className="fill-muted-foreground font-mono text-[11px]">{dec(w.length)} m</text>
+            <text x={x + w.w / 2} y={h + 14} textAnchor="middle" className="fill-muted-foreground font-mono text-[11px]">{dimText(w.length)}</text>
           </g>
         );
         x += w.w + 4;

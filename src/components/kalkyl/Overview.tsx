@@ -50,7 +50,7 @@ function RowSwatch({ row }: { row: KalkylRow }) {
       </div>
     );
   }
-  return <div className="text-xs text-muted-foreground">{row.lines.length} {row.lines.length === 1 ? 'rad' : 'rader'}</div>;
+  return null;
 }
 
 function ExpandedRow({ data, row, actions, index, count }: { data: KalkylData; row: KalkylRow; actions: RowActions; index: number; count: number }) {

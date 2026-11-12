@@ -1,6 +1,9 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy, FileCheck, Trash2, Sparkles, Loader2, MailCheck } from 'lucide-react';
+import { Plus, FileText, ExternalLink, Pencil, Download, Send, Briefcase, Copy, FileCheck, Trash2, Sparkles, Loader2, MailCheck, Calculator } from 'lucide-react';
+import { KalkylWorkspace } from '@/components/kalkyl/KalkylWorkspace';
+import { checkKalkylSend, hasKalkyl, sendBlockedText } from '@/components/kalkyl/sendGate';
+import { fetchOfferRow } from '@/components/kalkyl/api';
 import { OrderConfirmationDialog } from './OrderConfirmationDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -64,6 +67,7 @@ export function OffersView({ currentUser }: OffersViewProps) {
   const [aiText, setAiText] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
   const [confirmFor, setConfirmFor] = useState<any | null>(null);
+  const [kalkylFor, setKalkylFor] = useState<{ offer: OfferRow | null } | null>(null);
   const isAdmin = isCurrentUserAdmin(currentUser);
 
   const { data: offers, isLoading } = useQuery({
@@ -161,6 +165,9 @@ export function OffersView({ currentUser }: OffersViewProps) {
     mutationFn: async (offer: OfferRow) => {
       if (!offer.customer_email) throw new Error('Kunden saknar e-post');
       if (!offer.pdf_path) throw new Error('Generera PDF först');
+      // Offerter med kalkyl: kontrollerna måste vara gröna mot aktuell prislista.
+      const check = await checkKalkylSend(qc, offer);
+      if (!check.can_send) throw new Error(sendBlockedText(check));
       const { data, error } = await supabase.functions.invoke('send-offer', { body: { offer_id: offer.id, origin: window.location.origin } });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -285,8 +292,11 @@ export function OffersView({ currentUser }: OffersViewProps) {
           <Button variant="outline" onClick={() => setAiOpen(true)} className="gap-2">
             <Sparkles className="h-4 w-4" /> Skapa med AI
           </Button>
-          <Button onClick={handleOpenNew} className="gap-2">
+          <Button variant="outline" onClick={handleOpenNew} className="gap-2">
             <Plus className="h-4 w-4" /> Ny offert
+          </Button>
+          <Button onClick={() => setKalkylFor({ offer: null })} className="gap-2">
+            <Calculator className="h-4 w-4" /> Ny kalkyl
           </Button>
         </div>
       </div>
@@ -361,7 +371,12 @@ export function OffersView({ currentUser }: OffersViewProps) {
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2 max-w-xs truncate">{o.title || '—'}</td>
+                  <td className="px-3 py-2 max-w-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {hasKalkyl(o) && <span className="shrink-0 inline-flex h-5 items-center rounded-full bg-secondary px-2 text-[11px] font-semibold text-secondary-foreground">Kalkyl</span>}
+                      <span className="truncate">{o.title || '—'}</span>
+                    </div>
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums">{amount != null ? fmtKr(amount) : '—'}</td>
                   <td className="px-3 py-2">
                     <Badge variant="secondary" className={meta.cls}>{meta.label}</Badge>
@@ -427,6 +442,16 @@ export function OffersView({ currentUser }: OffersViewProps) {
                         title="Skapa uppdrag från denna offert"
                       >
                         <Briefcase className="h-3 w-3" /> Skapa uppdrag
+                      </button>
+                    )}
+                    {hasKalkyl(o) && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setKalkylFor({ offer: o }); }}
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1 mr-3"
+                        title="Öppna kalkylen"
+                      >
+                        <Calculator className="h-3 w-3" /> Kalkyl
                       </button>
                     )}
                     <button
@@ -535,10 +560,29 @@ export function OffersView({ currentUser }: OffersViewProps) {
                 qc.invalidateQueries({ queryKey: ['case_offers'] });
               }}
               onClose={() => { setOpenForm(false); setEditing(null); }}
+              onOpenKalkyl={editing?.id ? async () => {
+                const fresh = await fetchOfferRow(editing.id).catch(() => null);
+                setOpenForm(false);
+                setEditing(null);
+                setKalkylFor({ offer: (fresh as OfferRow | null) ?? editing });
+              } : undefined}
             />
           </div>
         </SheetContent>
       </Sheet>
+      {kalkylFor && (
+        <KalkylWorkspace
+          offer={kalkylFor.offer}
+          currentUser={currentUser}
+          onClose={() => setKalkylFor(null)}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ['offers'] }); qc.invalidateQueries({ queryKey: ['case_offers'] }); }}
+          onDone={async (id) => {
+            const fresh = await fetchOfferRow(id).catch(() => null);
+            setKalkylFor(null);
+            if (fresh) { setEditing(fresh as OfferRow); setOpenForm(true); }
+          }}
+        />
+      )}
       <OrderConfirmationDialog offer={confirmFor} open={!!confirmFor} onOpenChange={v => { if (!v) setConfirmFor(null); }} currentUser={currentUser} />
     </div>
   );

@@ -132,7 +132,7 @@ export function MalningConfigurator({ data, row, room, kontroller, actions, surf
           <DimField label="Längd" value={room.dims.length} onChange={v => actions.onRoom({ dims: { length: v } })} disabled={readOnly} />
           <DimField label="Bredd" value={room.dims.width} onChange={v => actions.onRoom({ dims: { width: v } })} disabled={readOnly} />
           <DimField label="Takhöjd" value={room.dims.height} onChange={v => actions.onRoom({ dims: { height: v } })} disabled={readOnly} />
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-3">
             <DimField label="Dörrar" value={room.dims.doors} onChange={v => actions.onRoom({ dims: { doors: v } })} step={1} integer unit="st" max={20} disabled={readOnly} />
             <DimField label="Fönster" value={room.dims.windows} onChange={v => actions.onRoom({ dims: { windows: v } })} step={1} integer unit="st" max={30} disabled={readOnly} />
           </div>
