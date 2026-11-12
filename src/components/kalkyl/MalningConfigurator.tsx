@@ -247,5 +247,5 @@ export function MalningConfigurator({ data, row, room, kontroller, actions, surf
     </>
   );
 
-  return <ConfiguratorShell left={left} center={center} right={right} rightLabel="Kulör" footer={<PriceFooter data={data} row={row} />} />;
+  return <ConfiguratorShell row={row} left={left} center={center} right={right} rightLabel="Kulör" footer={<PriceFooter data={data} row={row} />} />;
 }

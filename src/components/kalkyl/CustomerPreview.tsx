@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { SignedImage } from '@/components/shared/SignedImage';
-import { CustomerOfferSections, CustomerPriceRows } from '@/components/public/CustomerOfferSections';
+import { CustomerOfferOptions, CustomerOfferSections, CustomerPriceRows } from '@/components/public/CustomerOfferSections';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import {
@@ -43,6 +43,12 @@ export function CustomerPreviewSheet({ open, onOpenChange, data, prices, setting
                 : <CustomerOfferSections view={view} formatAmount={shown}
                     renderImage={(item, className) => <SignedImage value={item.image_path} bucket="catalog-images" alt="" className={className} />} />}
             </section>
+            {view.options.length > 0 && (
+              <section aria-label="Tillval">
+                <CustomerOfferOptions options={view.options} formatAmount={shown}
+                  renderImage={(item, className) => <SignedImage value={item.image_path} bucket="catalog-images" alt="" className={className} />} />
+              </section>
+            )}
             <section aria-label="Pris och betalning">
               <div className="text-[11px] font-bold tracking-[.12em] uppercase text-gold-ink">Pris</div>
               <h2 className="font-display text-[22px] font-bold mt-1 mb-3">Pris och betalning</h2>

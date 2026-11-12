@@ -12,7 +12,7 @@ import {
   kalkylFromRow, kalkylSaveFields, shouldClearPdf, moveRow, newFriRow, newGolvRow, newMalningRow, newRoom, offerEditMode, offerMetaFromRow,
   offerOptions, offerScopeText, priceChanges, removeAdjustment, removeCommonLine, removeFriLine, removeRow, repriceKalkyl, roomOf,
   runKontroller, selectSlotProduct, setOverride, toggleFavorite, updateFriLine, updateRoom, updateRowInput, updateRowMeta, validateMeta,
-  addGrenItem, applyMeasure, isGrenRow, isGrenTrade, newGrenRow, rowTypeLabel, setGrenMeasure, setGrenQty, setGrenRotOff,
+  addGrenItem, applyMeasure, isGrenRow, isGrenTrade, newGrenRow, rowTypeLabel, setGrenMeasure, setGrenQty, setGrenRotOff, setRowOptional,
   DEFAULT_KALKYL_SETTINGS, resolveSlotCode, SLOT_LABEL, type KalkylData, type KontrollFix, type Kulor, type OfferMeta, type PriceDisplay, type SelectableSlot, type SlotSelections,
 } from '@/lib/kalkyl';
 import { fetchKalkylSettings, fetchPriceItems, KALKYL_SETTINGS_KEY, PRICE_ITEMS_KEY } from '@/components/offers/priceList/api';
@@ -166,6 +166,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
     onChangeMaterial: rowId => openGalleryFor(rowId, 'overview'),
     onDuplicate: rowId => { setData(d => duplicateRow(d, rowId)); toast.success('Raden är duplicerad'); },
     onMove: (rowId, dir) => setData(d => moveRow(d, rowId, dir)),
+    onOptional: (rowId, optional) => setData(d => setRowOptional(d, rowId, optional)),
     onRemove: rowId => {
       const index = data.rows.findIndex(r => r.id === rowId);
       const row = data.rows[index];
@@ -216,7 +217,10 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
   const restoreLocal = () => { if (!localDraft) return; setDataRaw(localDraft.data); setMetaRaw(m => ({ ...localDraft.meta, customer_personnummer: m.customer_personnummer })); setDirty(true); setLocalDraft(null); };
   const discardLocal = () => { clearLocalDraft(currentUser, offerId); setLocalDraft(null); };
 
-  const ui: KalkylUi = { customerMode, readOnly, display, prices, items, settings, opts, today };
+  const ui: KalkylUi = {
+    customerMode, readOnly, display, prices, items, settings, opts, today,
+    onRowOptional: readOnly ? undefined : (rowId, optional) => setData(d => setRowOptional(d, rowId, optional)),
+  };
   const loading = pricesQ.isLoading || settingsQ.isLoading;
   const loadError = pricesQ.error || settingsQ.error;
 

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import {
-  costMissingCount, kalkylTotals, kontrollFix, marginInfo, rowNeedsAction, sortKontroller, summarizeKalkyl, summaryView,
+  costMissingCount, kalkylTotals, kontrollFix, marginInfo, optionSummaryLine, rowNeedsAction, sortKontroller, summarizeKalkyl, summaryView,
   type KalkylData, type Kontroll, type KontrollFix, type PriceDisplay,
 } from '@/lib/kalkyl';
 import { useKalkylUi } from './context';
@@ -23,6 +23,7 @@ function Line({ label, value, className }: { label: string; value: string; class
 export function SummaryCard({ data, display, onDisplay }: { data: KalkylData; display: PriceDisplay; onDisplay: (d: PriceDisplay) => void }) {
   const { opts } = useKalkylUi();
   const v = summaryView(kalkylTotals(data, opts), summarizeKalkyl(data), display, opts);
+  const option = optionSummaryLine(data, display, opts);
   return (
     <section className="rounded-xl border border-border bg-card p-4 space-y-3" aria-label="Summering">
       <div className="flex items-center justify-between gap-2">
@@ -42,6 +43,7 @@ export function SummaryCard({ data, display, onDisplay }: { data: KalkylData; di
       <div className="border-t border-border pt-3">
         <Line label={v.sumLabel} value={kr(v.sum)} className="font-semibold" />
         <div className="text-xs text-muted-foreground mt-0.5">{opts.vat_mode === 'omvand' ? v.vatLabel : `${v.vatLabel} ${kr(v.vat)}`}</div>
+        {option && <Line label={option.label} value={kr(option.amount)} className="mt-2 text-muted-foreground" />}
       </div>
       {v.rotActive && (
         <Line label={v.rotLabel + (v.rotCapped ? ', begränsat av taket' : '')} value={`−${kr(v.rot)}`} className="text-primary font-semibold" />

@@ -103,3 +103,17 @@ describe('kalkyl-ai: prompter och svar', () => {
     expect(pausesGateway('busy')).toBe(false);
   });
 });
+
+describe('kalkyl-ai: modell', () => {
+  it('använder ai_settings.model och faller tillbaka på konstanten bara när inställningen saknas eller är ogiltig', async () => {
+    const { kalkylAiModel, KALKYL_AI_MODEL: fallback } = await import('../../../supabase/functions/kalkyl-ai/logic');
+    expect(kalkylAiModel('google/gemini-3-flash-preview')).toBe('google/gemini-3-flash-preview');
+    expect(kalkylAiModel('  openai/gpt-6-astra ')).toBe('openai/gpt-6-astra');
+    expect(kalkylAiModel(null)).toBe(fallback);
+    expect(kalkylAiModel(undefined)).toBe(fallback);
+    expect(kalkylAiModel('')).toBe(fallback);
+    expect(kalkylAiModel('inte en modell')).toBe(fallback);
+    expect(kalkylAiModel(42)).toBe(fallback);
+    expect(fallback).toBe('google/gemini-2.5-flash');
+  });
+});

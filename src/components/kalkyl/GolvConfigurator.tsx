@@ -223,5 +223,5 @@ export function GolvConfigurator({ data, row, room, kontroller, actions }: { dat
     </>
   );
 
-  return <ConfiguratorShell left={left} center={center} right={right} footer={<PriceFooter data={data} row={row} />} />;
+  return <ConfiguratorShell row={row} left={left} center={center} right={right} footer={<PriceFooter data={data} row={row} />} />;
 }

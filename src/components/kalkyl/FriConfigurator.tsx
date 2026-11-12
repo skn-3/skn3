@@ -134,5 +134,5 @@ export function FriConfigurator({ data, row, room, kontroller, actions }: { data
     </>
   );
 
-  return <ConfiguratorShell left={left} center={center} right={right} rightLabel="Lägg till" footer={<PriceFooter data={data} row={row} />} />;
+  return <ConfiguratorShell row={row} left={left} center={center} right={right} rightLabel="Lägg till" footer={<PriceFooter data={data} row={row} />} />;
 }

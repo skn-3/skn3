@@ -5,3 +5,4 @@
 - Respect ai_settings.enabled and gateway_error; persist 402/403 as gateway_error (owner recovery), never retry or switch model.
 - Photos and PDFs are forwarded to the gateway and dropped; never write them to storage or logs.
 - The client always validates replies against the price list (src/lib/kalkyl/ai.ts); the function only parses JSON.
+- The model comes from ai_settings.model via kalkylAiModel (logic.ts); KALKYL_AI_MODEL is only the fallback when the setting is missing or invalid.

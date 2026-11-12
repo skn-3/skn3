@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { ChevronDown, Plus, LayoutGrid, Settings2, Replace, Copy, ArrowUp, ArrowDown, Trash2, X, Percent } from 'lucide-react';
+import { ChevronDown, Plus, LayoutGrid, Settings2, Replace, Copy, ArrowUp, ArrowDown, Trash2, X, Percent, CirclePlus, CircleCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -19,6 +19,8 @@ export interface RowActions {
   onDuplicate: (rowId: string) => void;
   onMove: (rowId: string, dir: 'up' | 'down') => void;
   onRemove: (rowId: string) => void;
+  /** Gör raden till tillval (true) eller räkna in den i summan igen (false). */
+  onOptional: (rowId: string, optional: boolean) => void;
 }
 
 function RowSwatch({ row }: { row: KalkylRow }) {
@@ -103,6 +105,10 @@ function ExpandedRow({ data, row, actions, index, count }: { data: KalkylData; r
         {!readOnly && (
           <>
             {row.trade !== 'fri' && <button type="button" className={btn} onClick={() => actions.onChangeMaterial(row.id)}><Replace className="h-4 w-4" aria-hidden="true" />{row.trade === 'golv' ? 'Byt material' : 'Byt kulör'}</button>}
+            <button type="button" className={btn} onClick={() => actions.onOptional(row.id, !row.optional)}>
+              {row.optional ? <CircleCheck className="h-4 w-4" aria-hidden="true" /> : <CirclePlus className="h-4 w-4" aria-hidden="true" />}
+              {row.optional ? 'Räkna in i summan' : 'Gör till tillval'}
+            </button>
             <button type="button" className={btn} onClick={() => actions.onDuplicate(row.id)}><Copy className="h-4 w-4" aria-hidden="true" />Duplicera</button>
             <button type="button" className={btn} disabled={index === 0} onClick={() => actions.onMove(row.id, 'up')}><ArrowUp className="h-4 w-4" aria-hidden="true" />Flytta upp</button>
             <button type="button" className={btn} disabled={index === count - 1} onClick={() => actions.onMove(row.id, 'down')}><ArrowDown className="h-4 w-4" aria-hidden="true" />Flytta ner</button>
@@ -124,6 +130,7 @@ export const OverviewRow = forwardRef<HTMLDivElement, {
   const warn = rowNeedsAction(kontroller, row.id);
   const mat = row.trade === 'golv' && row.input ? prices[(row.input as GolvInput).material_code] : null;
   const title = room ? room.name : row.title;
+  const optional = row.optional === true;
   void items;
   return (
     <div ref={ref} className="rounded-xl border border-border bg-card overflow-hidden scroll-mt-4">
@@ -136,12 +143,14 @@ export const OverviewRow = forwardRef<HTMLDivElement, {
           <span className="flex items-center gap-2 min-w-0">
             <span className="text-[15px] font-semibold truncate">{title}</span>
             <span className="min-w-0 max-w-[60%] truncate inline-block h-6 leading-6 rounded-full bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground">{room && row.trade === 'fri' && !isGrenRow(row) ? row.title : rowTypeLabel(row)}</span>
+            {optional && <span className="shrink-0 inline-block h-6 leading-6 rounded-full border border-gold bg-gold-soft px-2.5 text-xs font-semibold text-gold-ink">Tillval</span>}
           </span>
           <span className="block text-[13px] text-muted-foreground truncate">{rowSpecText(row, prices)}</span>
         </span>
         <span className="hidden md:block w-44 shrink-0"><RowSwatch row={row} /></span>
         <span className="hidden sm:block w-28 shrink-0 text-right font-mono text-[13px] tabular-nums text-muted-foreground">{rowQuantityLabel(row, room, settings)}</span>
-        <span className="w-28 shrink-0 text-right font-mono text-[15px] font-semibold tabular-nums">{kr(total)}</span>
+        <span className={cn('w-28 shrink-0 text-right font-mono text-[15px] tabular-nums', optional ? 'font-normal text-muted-foreground' : 'font-semibold')}
+          aria-label={optional ? `Tillval ${kr(total)}, ingår inte i summan` : undefined}>{optional ? `+ ${kr(total)}` : kr(total)}</span>
         {!customerMode && <StatusDot warn={warn} label={warn ? 'Raden har en kontroll att åtgärda' : 'Inga anmärkningar'} />}
         <ChevronDown className={cn('h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-[160ms] motion-reduce:transition-none', expanded && 'rotate-180')} aria-hidden="true" />
       </button>

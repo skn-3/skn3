@@ -10,6 +10,7 @@ import { resolveSlotItem, type SelectableSlot } from './slots';
 import { wallCoats } from './recipes/malning';
 import { fmtQty } from './lines';
 import { roomOf } from './state';
+import { includedRows } from './kalkyl';
 
 export const CALC_VERSION = 1;
 const DEFAULT_SETTINGS: KalkylSettings = { margin_target_pct: 25, price_max_age_days: 60, door_width_m: 0.9, door_height_m: 2.1, window_width_m: 1.2, window_height_m: 1.3 };
@@ -63,9 +64,9 @@ const upperFirst = (s: string) => (s ? s[0].toLocaleUpperCase('sv-SE') + s.slice
 
 const TRADE_WORD: Record<'golv' | 'malning', string> = { golv: 'golv', malning: 'målning' };
 
-/** T.ex. "Golv och målning, Vardagsrum och Hall". */
+/** T.ex. "Golv och målning, Vardagsrum och Hall". Tillval ingår inte. */
 export function defaultOfferTitle(data: KalkylData): string {
-  const rows = data.rows ?? [];
+  const rows = includedRows(data);
   const trades: string[] = [];
   const rooms: string[] = [];
   for (const r of rows) {
@@ -158,10 +159,10 @@ function rowScope(row: KalkylRow, data: KalkylData, prices: PriceIndex, settings
   return text ? `${head}: ${text}` : `${head}.`;
 }
 
-/** Kundtext för offertens beskrivning, en rad per kalkylrad och en för gemensamt. */
+/** Kundtext för offertens beskrivning, en rad per kalkylrad och en för gemensamt. Tillval ingår inte (de finns bara i kundvyn). */
 export function offerScopeText(data: KalkylData, prices: PriceIndex = {}, settings?: KalkylSettings): string {
   const s = settings ?? DEFAULT_SETTINGS;
-  const lines = (data.rows ?? []).map(r => rowScope(r, data, prices, s));
+  const lines = includedRows(data).map(r => rowScope(r, data, prices, s));
   const common = [...new Set((data.common ?? []).map(l => l.description))];
   if (common.length) lines.push(`Gemensamt: ${common.join(', ')}.`);
   return lines.join('\n');

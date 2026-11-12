@@ -6,6 +6,7 @@ import {
   type KalkylData, type KalkylRow, type Kontroll, type KontrollFix,
 } from '@/lib/kalkyl';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { useKalkylUi } from './context';
 import { Segmented, focusRing, motion } from './ui';
 import { kr } from './format';
@@ -17,8 +18,23 @@ type Tab = 'settings' | 'drawing' | 'extras';
  * Tre kolumner från 1024 px (318 px, flex, 360 px). 768–1023 px: ritningen överst i full bredd och
  * sidokolumnerna under. Under 768 px: en kolumn med växeln Inställningar, Ritning, Tillbehör.
  */
-export function ConfiguratorShell({ left, center, right, footer, rightLabel = 'Tillbehör', centerLabel = 'Ritning' }: {
-  left: ReactNode; center: ReactNode; right: ReactNode; footer: ReactNode; rightLabel?: string; centerLabel?: string;
+/** Reglaget "Tillval" i radens inställningar (alla radtyper). */
+export function RowOptionalSwitch({ row }: { row: KalkylRow }) {
+  const { readOnly, onRowOptional } = useKalkylUi();
+  const id = `tillval-${row.id}`;
+  return (
+    <div className="space-y-1 border-t border-border pt-4">
+      <label htmlFor={id} className="flex min-h-[44px] items-center justify-between gap-3 text-sm font-semibold">
+        Tillval
+        <Switch id={id} checked={row.optional === true} disabled={readOnly || !onRowOptional} onCheckedChange={v => onRowOptional?.(row.id, v)} />
+      </label>
+      <p className="text-xs text-muted-foreground">Raden visas för kunden som ett tillval och räknas inte in i summan.</p>
+    </div>
+  );
+}
+
+export function ConfiguratorShell({ left, center, right, footer, row, rightLabel = 'Tillbehör', centerLabel = 'Ritning' }: {
+  left: ReactNode; center: ReactNode; right: ReactNode; footer: ReactNode; row?: KalkylRow; rightLabel?: string; centerLabel?: string;
 }) {
   const [tab, setTab] = useState<Tab>('settings');
   const side = 'bg-card border-border';
@@ -32,6 +48,7 @@ export function ConfiguratorShell({ left, center, right, footer, rightLabel = 'T
         <section aria-label="Inställningar"
           className={cn(side, 'md:order-2 lg:order-1 md:border-r lg:min-h-0 lg:overflow-y-auto p-4 space-y-6', tab !== 'settings' && 'hidden md:block')}>
           {left}
+          {row && <RowOptionalSwitch row={row} />}
         </section>
         <section aria-label={centerLabel}
           className={cn('bg-background md:order-1 md:col-span-2 lg:col-span-1 lg:order-2 lg:min-h-0 lg:overflow-y-auto p-4 space-y-4 md:border-b lg:border-b-0', tab !== 'drawing' && 'hidden md:block')}>
@@ -71,6 +88,7 @@ export function PriceFooter({ data, row }: { data: KalkylData; row: KalkylRow })
   const sum = incl ? f.totals.total_incl_vat : f.totals.total_ex_vat;
   const details = (
     <div className="space-y-1.5">
+      {row.optional === true && <p className="text-xs font-semibold text-gold-ink">Tillval – räknas inte in i offertens summa.</p>}
       <FLine label="Material" value={kr(show(f.summary.material))} />
       <FLine label="Arbete" value={kr(show(f.summary.arbete))} />
       <FLine label="Övrigt" value={kr(show(f.summary.ovrigt))} />

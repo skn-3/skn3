@@ -106,6 +106,8 @@ export interface KalkylRow {
   measure?: GrenMeasure;
   /** Grenrad: ROT avstängt, radens arbete räknas som övrigt (se rowLines). */
   rot_off?: boolean;
+  /** Tillval: visas för kunden med pris men räknas inte in i offertens summa (se includedRows/optionalRows). */
+  optional?: boolean;
 }
 export interface KalkylAdjustment { id: string; label: string; amount: number; rot_class: RotClass }   // ex moms, negativt = rabatt
 export interface KalkylData { version: 1; premises: { house_type: 'villa' | 'radhus' | 'bostadsratt' | 'fritidshus' | 'annat' | null; build_year: number | null; floors: number | null }; rooms: KalkylRoom[]; rows: KalkylRow[]; common: KalkylLine[]; adjustments: KalkylAdjustment[]; priced_at: string | null; /** Prisradskoder som kunden gillat. */ favorites?: string[] }

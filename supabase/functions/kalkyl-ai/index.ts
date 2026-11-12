@@ -1,12 +1,12 @@
 // kalkyl-ai: AI-kontrollen i kalkylen (tolka underlag, granska kalkylen, fråga om offerten).
 // Bara inloggad personal (admin, säljare, koordinator). Samma användningslogg (ai_usage) och samma dagstak
-// (ai_settings.daily_message_limit via ai_reserve_kalkyl) som N3prenad-AI. Foton och PDF:er sparas aldrig.
+// (ai_settings.daily_message_limit via ai_reserve_kalkyl) som N3prenad-AI. Modellen är ai_settings.model (kalkylAiModel). Foton och PDF:er sparas aldrig.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { requireStaff } from '../_shared/auth.ts';
 import { createLovableAiGatewayRunIdFetch, getLovableAiGatewayResponseHeaders } from './run-id.ts';
 import {
-  buildMessages, checkKalkylAiRequest, gatewayErrorCode, KALKYL_AI_ERRORS, KALKYL_AI_MODEL, parseModelJson, pausesGateway, replyFor, requestUsage,
+  buildMessages, checkKalkylAiRequest, gatewayErrorCode, KALKYL_AI_ERRORS, kalkylAiModel, parseModelJson, pausesGateway, replyFor, requestUsage,
   type KalkylAiErrorCode,
 } from './logic.ts';
 
@@ -48,13 +48,14 @@ Deno.serve(async req => {
   };
 
   try {
-    const { data: settings, error: settingsError } = await admin.from('ai_settings').select('enabled,gateway_error').eq('id', 1).single();
+    const { data: settings, error: settingsError } = await admin.from('ai_settings').select('enabled,gateway_error,model').eq('id', 1).single();
     if (settingsError) throw new Error(settingsError.message);
     if (settings.gateway_error) return fail('paused', settings.gateway_error);
+    const model = kalkylAiModel(settings.model);
 
     // Atomisk reservation mot samma dagstak som N3prenad-AI; raden i ai_usage är också loggposten.
     const { data: reserved, error: reserveError } = await admin.rpc('ai_reserve_kalkyl', {
-      p_user_id: auth.userId, p_kind: kind, p_model: KALKYL_AI_MODEL, p_input_chars: usage.input_chars, p_image_count: usage.image_count, p_pdf_count: usage.pdf_count,
+      p_user_id: auth.userId, p_kind: kind, p_model: model, p_input_chars: usage.input_chars, p_image_count: usage.image_count, p_pdf_count: usage.pdf_count,
     });
     if (reserveError) throw new Error(reserveError.message);
     if (reserved?.status === 'limit') return fail('limit');
@@ -64,7 +65,7 @@ Deno.serve(async req => {
     const response = await gateway.fetch(GATEWAY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Lovable-API-Key': key, 'X-Lovable-AIG-SDK': 'fetch' },
-      body: JSON.stringify({ model: KALKYL_AI_MODEL, messages: buildMessages(request), response_format: { type: 'json_object' } }),
+      body: JSON.stringify({ model, messages: buildMessages(request), response_format: { type: 'json_object' } }),
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));

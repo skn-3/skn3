@@ -125,7 +125,32 @@ export function adjustmentLines(data: Pick<KalkylData, 'adjustments'>): KalkylLi
   }));
 }
 
-/** Alla rader i kalkylen: rum och ytor efter ändringar, gemensamma rader och justeringar. */
+// ── Tillval ─────────────────────────────────────────────────────────────────
+// Det enda stället som avgör vad som ingår i offerten. Summor, offertrader, kundvyns avsnitt och marginal
+// läser includedRows/includedLines; priskontrollerna läser alla rader (allLines), eftersom kunden ser tillvalens pris.
+
+/** Kalkylrad märkt som tillval. Bara uttryckligt true; en sparad rad utan fältet ingår. */
+export const isOptionalRow = (row: Pick<KalkylRow, 'optional'>): boolean => row.optional === true;
+
+/** Kalkylraderna som ingår i offerten, i kalkylens ordning. */
+export const includedRows = (data: Pick<KalkylData, 'rows'>): KalkylRow[] => (data.rows ?? []).filter(r => !isOptionalRow(r));
+
+/** Tillvalen, i kalkylens ordning. */
+export const optionalRows = (data: Pick<KalkylData, 'rows'>): KalkylRow[] => (data.rows ?? []).filter(isOptionalRow);
+
+/** Raderna som ingår i offerten: rader som inte är tillval, gemensamma rader och justeringar. Underlag för alla summor. */
+export function includedLines(data: KalkylData): KalkylLine[] {
+  return [
+    ...includedRows(data).flatMap(rowLines),
+    ...(data.common ?? []),
+    ...adjustmentLines(data),
+  ];
+}
+
+/**
+ * Alla rader i kalkylen, även tillval: rum och ytor efter ändringar, gemensamma rader och justeringar.
+ * Bara för priskontroller (pris saknas, inte godkänt). Summor räknas alltid på includedLines.
+ */
 export function allLines(data: KalkylData): KalkylLine[] {
   return [
     ...(data.rows ?? []).flatMap(rowLines),
@@ -134,8 +159,25 @@ export function allLines(data: KalkylData): KalkylLine[] {
   ];
 }
 
+/** Summa, kostnad, täckningsbidrag och timmar för det som ingår i offerten (tillval räknas inte). */
 export function summarizeKalkyl(data: KalkylData, vatRate = VAT_RATE): KalkylSummary {
-  return summarize(allLines(data), vatRate);
+  return summarize(includedLines(data), vatRate);
+}
+
+/** Beloppet för en kalkylrad ex moms: summan av radens gällande rader (samma som radens offertrader). */
+export const rowAmountExVat = (row: KalkylRow): number => summarize(rowLines(row)).total_ex_vat;
+
+export interface OptionTotals {
+  /** Summan av alla tillval ex moms. */
+  total_ex_vat: number;
+  /** Ett belopp per tillval, i kalkylens ordning. */
+  rows: { id: string; amount_ex_vat: number }[];
+}
+
+/** Tillvalens belopp exklusive moms, totalt och per rad. Ingår aldrig i offertens summa. */
+export function optionTotals(data: Pick<KalkylData, 'rows'>): OptionTotals {
+  const rows = optionalRows(data).map(r => ({ id: r.id, amount_ex_vat: rowAmountExVat(r) }));
+  return { total_ex_vat: round2(rows.reduce((s, r) => s + r.amount_ex_vat, 0)), rows };
 }
 
 export function emptyKalkyl(): KalkylData {

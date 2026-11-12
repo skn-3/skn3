@@ -135,6 +135,17 @@ export function updateRowMeta(data: KalkylData, rowId: string, patch: { title?: 
   }));
 }
 
+/** Märker raden som tillval (true) eller som en del av offerten (false). false tar bort fältet, så raden blir som förut. */
+export function setRowOptional(data: KalkylData, rowId: string, optional: boolean): KalkylData {
+  const target = (data.rows ?? []).find(r => r.id === rowId);
+  if (!target || (target.optional === true) === optional) return data;
+  return mapRow(data, rowId, row => {
+    const next = { ...row };
+    if (optional) next.optional = true; else delete next.optional;
+    return next;
+  });
+}
+
 /** Sätter eller tar bort (null) säljarens ändring av mängd eller à-pris för en beräknad rad. */
 export function setOverride(data: KalkylData, rowId: string, key: string, override: KalkylOverride | null): KalkylData {
   return mapRow(data, rowId, row => {

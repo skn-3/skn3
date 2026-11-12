@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { buildOfferPdfBlob } from '@/lib/offerPdf';
 import { daysLeft, fmtDateLong, fmtDateTimeSv, parseDescription, parseTerms } from '@/lib/offerText';
 import { SignaturePad } from '@/components/public/SignaturePad';
-import { CustomerOfferSections, CustomerPriceRows } from '@/components/public/CustomerOfferSections';
+import { CustomerOfferOptions, CustomerOfferSections, CustomerPriceRows } from '@/components/public/CustomerOfferSections';
 import { customerPriceRows, type PublicCustomerView } from '@/lib/kalkyl';
 import { toast } from 'sonner';
 import { useForceLight } from '@/hooks/useForceLight';
@@ -481,6 +481,12 @@ export default function PublicOffer() {
                 <SectionLabel>Omfattning</SectionLabel>
                 <h2 className="font-display text-[22px] font-bold mt-1 mb-3">Det här ingår</h2>
                 <CustomerOfferSections view={cv} formatAmount={shown} />
+              </Card>
+            )}
+
+            {cv && (cv.options ?? []).length > 0 && (
+              <Card>
+                <CustomerOfferOptions options={cv.options} formatAmount={shown} />
               </Card>
             )}
 

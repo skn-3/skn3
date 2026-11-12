@@ -160,6 +160,7 @@ describe('buildCustomerView: innehåll', () => {
       for (const [k, child] of Object.entries(v as Record<string, unknown>)) {
         expect(allowed[level], `${path}.${k}`).toContain(k);
         if (level === 'root' && k === 'sections') (child as unknown[]).forEach((s, i) => walk(s, 'section', `${path}.sections[${i}]`));
+        else if (level === 'root' && k === 'options') (child as unknown[]).forEach((s, i) => walk(s, 'section', `${path}.options[${i}]`));
         else if (level === 'root' && k === 'common') (child as unknown[]).forEach((c, i) => walk(c, 'common', `${path}.common[${i}]`));
         else if (level === 'root' && k === 'totals') walk(child, 'totals', `${path}.totals`);
         else if (level === 'section' && k === 'items') (child as unknown[]).forEach((it, i) => walk(it, 'item', `${path}.items[${i}]`));

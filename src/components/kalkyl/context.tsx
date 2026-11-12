@@ -10,6 +10,8 @@ export interface KalkylUi {
   settings: KalkylSettings;
   opts: KalkylOfferOptions;
   today: string;
+  /** Gör en rad till tillval eller tillbaka (setRowOptional). Saknas i skrivskyddat läge. */
+  onRowOptional?: (rowId: string, optional: boolean) => void;
 }
 
 const Ctx = createContext<KalkylUi | null>(null);

@@ -1,7 +1,17 @@
 // Ren logik för kalkyl-ai: gränser, sanering av underlaget, prompter, svarstolkning och felkoder.
 // Inga importer, så modulen testas med vitest och återanvänds av klienten (src/lib/kalkyl/ai.ts).
 
+/** Reservmodell när ai_settings.model saknas. */
 export const KALKYL_AI_MODEL = 'google/gemini-2.5-flash';
+
+/**
+ * Modellen för anropet: ai_settings.model (samma inställning som N3prenad-AI) när den är ett modell-id som
+ * "leverantör/modell", annars reservmodellen KALKYL_AI_MODEL.
+ */
+export function kalkylAiModel(settingsModel: unknown): string {
+  const m = typeof settingsModel === 'string' ? settingsModel.trim() : '';
+  return m.length <= 100 && /^[a-z0-9-]+\/[A-Za-z0-9._:-]+$/.test(m) ? m : KALKYL_AI_MODEL;
+}
 export const KALKYL_AI_MODES = ['tolka', 'granska', 'fraga'] as const;
 export type KalkylAiMode = (typeof KALKYL_AI_MODES)[number];
 

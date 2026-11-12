@@ -32,18 +32,21 @@ export interface CustomerView {
   sections: CustomerSection[];
   common: CustomerCommonLine[];
   totals: CustomerTotals;
+  /** Tillval: samma form som sections, ingår inte i totals eller i offertens summa. Saknas i äldre kundvyer (blir []). */
+  options: CustomerSection[];
 }
 
 /** Det kunden får: image_path är utbytt mot en kortlivad länk. */
 export type PublicCustomerItem = Omit<CustomerItem, 'image_path'> & { image_url: string | null };
 export type PublicCustomerSection = Omit<CustomerSection, 'items'> & { items: PublicCustomerItem[] };
-export type PublicCustomerView = Omit<CustomerView, 'sections'> & { sections: PublicCustomerSection[] };
+export type PublicCustomerView = Omit<CustomerView, 'sections' | 'options'> & { sections: PublicCustomerSection[]; options: PublicCustomerSection[] };
 
-export const CUSTOMER_VIEW_LIMITS = { sections: 100, items: 12, facts: 12, common: 100, text: 2000, path: 500 } as const;
+export const CUSTOMER_VIEW_LIMITS = { sections: 100, options: 50, items: 12, facts: 12, common: 100, text: 2000, path: 500 } as const;
 
 /** De enda nycklar som får finnas i en kundvy, per nivå. */
 export const CUSTOMER_VIEW_KEYS = {
-  root: ['version', 'intro', 'sections', 'common', 'totals'],
+  root: ['version', 'intro', 'sections', 'common', 'totals', 'options'],
+  /** Gäller både sections och options. */
   section: ['id', 'room', 'title', 'type', 'amount_ex_vat', 'text', 'facts', 'items'],
   item: ['label', 'name', 'detail', 'color', 'swatch', 'image_path'],
   color: ['system', 'code', 'name', 'hex'],
@@ -134,6 +137,7 @@ export function sanitizeCustomerView(raw: unknown): CustomerView | null {
       sections: list(raw.sections, CUSTOMER_VIEW_LIMITS.sections).map(section),
       common: list(raw.common ?? [], CUSTOMER_VIEW_LIMITS.common).map(common),
       totals: { arbete_ex_vat: money(t.arbete_ex_vat), material_ex_vat: money(t.material_ex_vat), ovrigt_ex_vat: money(t.ovrigt_ex_vat) },
+      options: list(raw.options ?? [], CUSTOMER_VIEW_LIMITS.options).map(section),
     };
   } catch (e) {
     if (e instanceof Invalid) return null;
@@ -144,17 +148,15 @@ export function sanitizeCustomerView(raw: unknown): CustomerView | null {
 /** Unika bildsökvägar i kundvyn, i ordning. */
 export function customerViewImagePaths(view: CustomerView): string[] {
   const out: string[] = [];
-  for (const s of view.sections) for (const i of s.items) if (i.image_path && !out.includes(i.image_path)) out.push(i.image_path);
+  for (const s of [...view.sections, ...(view.options ?? [])]) for (const i of s.items) if (i.image_path && !out.includes(i.image_path)) out.push(i.image_path);
   return out;
 }
 
 /** Byter image_path mot image_url. En sökväg utan signerad länk ger image_url null; sökvägen skickas aldrig ut. */
 export function withImageUrls(view: CustomerView, urls: Record<string, string | null | undefined>): PublicCustomerView {
-  return {
-    ...view,
-    sections: view.sections.map(s => ({
-      ...s,
-      items: s.items.map(({ image_path, ...rest }) => ({ ...rest, image_url: (image_path && urls[image_path]) || null })),
-    })),
-  };
+  const pub = (s: CustomerSection): PublicCustomerSection => ({
+    ...s,
+    items: s.items.map(({ image_path, ...rest }) => ({ ...rest, image_url: (image_path && urls[image_path]) || null })),
+  });
+  return { ...view, sections: view.sections.map(pub), options: (view.options ?? []).map(pub) };
 }

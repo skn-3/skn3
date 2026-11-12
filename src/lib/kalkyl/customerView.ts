@@ -10,7 +10,7 @@ import type { PriceIndex } from './prices';
 import type { KalkylOfferOptions } from './offer';
 import { offerScopeText, rowScopeText } from './offer';
 import { toOfferLineItems } from './lineItems';
-import { adjustmentLines, applyOverrides, rowLines } from './kalkyl';
+import { adjustmentLines, applyOverrides, includedRows, optionalRows, optionTotals, rowLines } from './kalkyl';
 import { floorArea, wallArea } from './geometry';
 import { fmtQty } from './lines';
 import { round2 } from './packaging';
@@ -150,11 +150,11 @@ function rowItems(row: KalkylRow, data: KalkylData, prices: PriceIndex): Custome
   return freeItems(row, prices);
 }
 
-/** Fördelning på kalkylradens sparade klass: arbete är arbete även när ROT är avstängt på en grenrad. */
+/** Fördelning på kalkylradens sparade klass: arbete är arbete även när ROT är avstängt på en grenrad. Tillval ingår inte. */
 function savedClassTotals(data: KalkylData): CustomerTotals {
   const by: Record<RotClass, number> = { arbete: 0, material: 0, ovrigt: 0 };
   const add = (cls: RotClass, amount: unknown) => { by[cls] = (by[cls] ?? 0) + (Number(amount) || 0); };
-  for (const row of data.rows ?? []) for (const l of applyOverrides(row.lines ?? [], row.overrides)) add(l.rot_class, l.amount);
+  for (const row of includedRows(data)) for (const l of applyOverrides(row.lines ?? [], row.overrides)) add(l.rot_class, l.amount);
   for (const l of data.common ?? []) add(l.rot_class, round2(Number(l.amount) || 0));
   for (const a of adjustmentLines(data)) add(a.rot_class, a.amount);
   return { arbete_ex_vat: round2(by.arbete), material_ex_vat: round2(by.material), ovrigt_ex_vat: round2(by.ovrigt) };
@@ -163,20 +163,24 @@ function savedClassTotals(data: KalkylData): CustomerTotals {
 /**
  * Kundvyn (version 1) för kalkylen. Beloppen kommer från toOfferLineItems, så att avsnitt och gemensamt
  * summerar till offertens total_ex_vat. intro är säljarens beskrivning (null när den är tom eller automatisk).
+ * Tillval hamnar bara i options, med beloppet från optionTotals; de ingår varken i avsnitt, gemensamt eller totals.
  */
 export function buildCustomerView(data: KalkylData, prices: PriceIndex, settings: KalkylSettings, intro: string | null | undefined): CustomerView {
   const offerLines = toOfferLineItems(data);
   const rowAmount = (rowId: string) => round2(offerLines.filter(i => i.id.startsWith(`${rowId}:`)).reduce((s, i) => s + (Number(i.amount) || 0), 0));
-  const sections: CustomerSection[] = (data.rows ?? []).map(row => ({
+  const section = (row: KalkylRow, amount_ex_vat: number): CustomerSection => ({
     id: row.id,
     room: roomOf(data, row)?.name ?? null,
     title: row.title,
     type: rowTypeLabel(row),
-    amount_ex_vat: rowAmount(row.id),
+    amount_ex_vat,
     text: rowScopeText(row, data, prices, settings),
     facts: rowFacts(row, data, settings),
     items: rowItems(row, data, prices),
-  }));
+  });
+  const sections = includedRows(data).map(row => section(row, rowAmount(row.id)));
+  const optionAmount = new Map(optionTotals(data).rows.map(r => [r.id, r.amount_ex_vat]));
+  const options = optionalRows(data).map(row => section(row, optionAmount.get(row.id) ?? 0));
   const common: CustomerCommonLine[] = offerLines
     .filter(i => i.id.startsWith('common:') || i.id.startsWith('adj:'))
     .map(i => ({ title: i.description, amount_ex_vat: round2(Number(i.amount) || 0) }));
@@ -186,6 +190,7 @@ export function buildCustomerView(data: KalkylData, prices: PriceIndex, settings
     sections,
     common,
     totals: savedClassTotals(data),
+    options,
   };
 }
 

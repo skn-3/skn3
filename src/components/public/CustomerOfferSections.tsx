@@ -52,38 +52,46 @@ function Tile({ item, renderImage }: { item: CustomerTile; renderImage?: (item: 
   );
 }
 
+type SectionData = CustomerSectionsData['sections'][number];
+type RenderImage = (item: CustomerTile, className: string) => ReactNode;
+
+/** Ett avsnitt: rubrik och pris på samma rad, text, uppgifter och val med provbit. Delas av det som ingår och tillvalen. */
+function SectionArticle({ s, amountText, renderImage }: { s: SectionData; amountText: string; renderImage?: RenderImage }) {
+  return (
+    <article className="py-4">
+      <div className="flex items-baseline justify-between gap-4">
+        <h3 className="font-display text-[17px] font-bold leading-snug min-w-0">{s.room ? `${s.room} · ${s.title}` : s.title}</h3>
+        <Num className="text-[15px]">{amountText}</Num>
+      </div>
+      {s.text && <p className="text-[14.5px] leading-relaxed text-muted-foreground mt-1.5">{s.text}</p>}
+      {s.facts.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5 mt-2.5" aria-label="Uppgifter">
+          {s.facts.map((f, i) => (
+            <li key={i} className="inline-flex h-7 items-center rounded-full border border-border bg-background px-2.5 text-[12.5px] font-semibold">{f}</li>
+          ))}
+        </ul>
+      )}
+      {s.items.length > 0 && (
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3" aria-label="Val">
+          {s.items.map((it, i) => <Tile key={i} item={it} renderImage={renderImage} />)}
+        </ul>
+      )}
+    </article>
+  );
+}
+
 export function CustomerOfferSections({ view, formatAmount, renderImage }: {
   view: CustomerSectionsData;
   /** Belopp ex moms → visad text, t.ex. inkl. moms. */
   formatAmount: (exVat: number) => string;
   /** Bild från sökväg (förhandsvisningen signerar själv); kundsidan får färdiga image_url. */
-  renderImage?: (item: CustomerTile, className: string) => ReactNode;
+  renderImage?: RenderImage;
 }) {
   return (
     <div>
       {view.intro && <p className="text-[15px] leading-relaxed mb-4 whitespace-pre-line">{view.intro}</p>}
       <div className="border-t border-border divide-y divide-border">
-        {view.sections.map(s => (
-          <article key={s.id} className="py-4">
-            <div className="flex items-baseline justify-between gap-4">
-              <h3 className="font-display text-[17px] font-bold leading-snug min-w-0">{s.room ? `${s.room} · ${s.title}` : s.title}</h3>
-              <Num className="text-[15px]">{formatAmount(s.amount_ex_vat)}</Num>
-            </div>
-            {s.text && <p className="text-[14.5px] leading-relaxed text-muted-foreground mt-1.5">{s.text}</p>}
-            {s.facts.length > 0 && (
-              <ul className="flex flex-wrap gap-1.5 mt-2.5" aria-label="Uppgifter">
-                {s.facts.map((f, i) => (
-                  <li key={i} className="inline-flex h-7 items-center rounded-full border border-border bg-background px-2.5 text-[12.5px] font-semibold">{f}</li>
-                ))}
-              </ul>
-            )}
-            {s.items.length > 0 && (
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3" aria-label="Val">
-                {s.items.map((it, i) => <Tile key={i} item={it} renderImage={renderImage} />)}
-              </ul>
-            )}
-          </article>
-        ))}
+        {view.sections.map(s => <SectionArticle key={s.id} s={s} amountText={formatAmount(s.amount_ex_vat)} renderImage={renderImage} />)}
         {view.common.length > 0 && (
           <div className="py-2">
             {view.common.map((c, i) => (
@@ -94,6 +102,27 @@ export function CustomerOfferSections({ view, formatAmount, renderImage }: {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Innehållet i kortet "Tillval": rubriker, förklaring och ett avsnitt per tillval med plustecken före priset.
+ * Tillvalen går inte att välja här. Visas bara när det finns tillval (den som anropar avgör).
+ */
+export function CustomerOfferOptions({ options, formatAmount, renderImage }: {
+  options: SectionData[];
+  formatAmount: (exVat: number) => string;
+  renderImage?: RenderImage;
+}) {
+  return (
+    <div>
+      <div className="text-[11px] font-bold tracking-[.12em] uppercase text-gold-ink">Tillval</div>
+      <h2 className="font-display text-[22px] font-bold mt-1 mb-2">Lägg till om du vill</h2>
+      <p className="text-[14.5px] leading-relaxed text-muted-foreground mb-3">Tillvalen ingår inte i priset. Hör av dig till din kontakt om du vill lägga till något.</p>
+      <div className="border-t border-border divide-y divide-border">
+        {options.map(s => <SectionArticle key={s.id} s={s} amountText={`+ ${formatAmount(s.amount_ex_vat)}`} renderImage={renderImage} />)}
       </div>
     </div>
   );

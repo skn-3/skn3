@@ -3,7 +3,7 @@
 import type { OfferTotals } from '@/lib/offerCalc';
 import type { GolvInput, KalkylData, KalkylLine, KalkylRoom, KalkylRow, KalkylSettings, MalningInput, RotClass } from './types';
 import type { PriceIndex } from './prices';
-import { rowLines, summarize, VAT_RATE, type KalkylSummary, allLines } from './kalkyl';
+import { rowLines, summarize, VAT_RATE, type KalkylSummary, allLines, includedLines, optionTotals } from './kalkyl';
 import { computeGolv } from './recipes/golv';
 import { computeMalning } from './recipes/malning';
 import { floorArea } from './geometry';
@@ -47,11 +47,16 @@ export interface RowFigures {
   per_m2: number | null;
 }
 
-/** Summor för en kalkylrad, via samma offertväg som hela kalkylen. ROT-avdraget är utan tak. */
+/**
+ * Summor för en kalkylrad, via samma offertväg som hela kalkylen. ROT-avdraget är utan tak.
+ * Ett tillval räknas som om det ingick, så att raden visar vad tillvalet kostar.
+ */
 export function rowFigures(data: KalkylData, rowId: string, opts: KalkylOfferOptions): RowFigures | null {
   const row = (data.rows ?? []).find(r => r.id === rowId);
   if (!row) return null;
-  const only: KalkylData = { ...data, rows: [row], common: [], adjustments: [] };
+  const asIncluded: KalkylRow = { ...row };
+  delete asIncluded.optional;
+  const only: KalkylData = { ...data, rows: [asIncluded], common: [], adjustments: [] };
   const summary = summarize(rowLines(row));
   const totals = kalkylTotals(only, { ...opts, rot_persons: 10, rot_used: 0 });
   const room = roomOf(data, row);
@@ -147,9 +152,9 @@ export function golvOptions(row: KalkylRow, room: KalkylRoom | null | undefined,
   });
 }
 
-/** Antal rader med belopp men utan känd kostnad. */
+/** Antal rader med belopp men utan känd kostnad, bland det som ingår i offerten (samma underlag som marginalen). */
 export function costMissingCount(data: KalkylData): number {
-  return allLines(data).filter(l => l.cost == null && (Number(l.amount) || 0) !== 0).length;
+  return includedLines(data).filter(l => l.cost == null && (Number(l.amount) || 0) !== 0).length;
 }
 
 export interface MarginInfo { tb: number; tb_pct: number | null; target: number; /** 0–1 för stapeln, 1 = målet nått. */ ratio: number; reached: boolean }
@@ -249,6 +254,13 @@ export function summaryView(totals: OfferTotals, summary: KalkylSummary, display
     handpenning: round2(totals.handpenning),
     slutfaktura: round2(totals.slutfaktura),
   };
+}
+
+/** Raden "Tillval, ingår inte" under summan, i vald prisvisning (exklusive moms vid omvänd byggmoms). null utan tillval. */
+export function optionSummaryLine(data: KalkylData, display: PriceDisplay, opts: KalkylOfferOptions): { label: string; amount: number } | null {
+  const t = optionTotals(data);
+  if (!t.rows.length) return null;
+  return { label: 'Tillval, ingår inte', amount: displayAmount(t.total_ex_vat, opts.vat_mode === 'omvand' ? 'exkl' : display) };
 }
 
 export type MalningFlag = 'tak' | 'snickerier';

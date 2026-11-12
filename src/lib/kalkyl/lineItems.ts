@@ -1,6 +1,6 @@
 import type { OfferLineItem } from '@/lib/offerCalc';
 import type { KalkylData, RotClass } from './types';
-import { rowLines, adjustmentLines } from './kalkyl';
+import { rowLines, adjustmentLines, includedRows } from './kalkyl';
 import { round2 } from './packaging';
 
 const CLASS_LABEL: Record<RotClass, string> = { arbete: 'arbete', material: 'material', ovrigt: 'övrigt' };
@@ -10,12 +10,13 @@ const MAX_NAMES = 4;
 /**
  * Gör om kalkylen till offertrader som går rakt in i calcOfferTotals.
  * En offertrad per kalkylrad och ROT-klass med belopp, en per gemensam rad och en per justering.
+ * Tillval blir aldrig offertrader (includedRows).
  */
 export function toOfferLineItems(data: KalkylData): OfferLineItem[] {
   const roomName = new Map((data.rooms ?? []).map(r => [r.id, r.name]));
   const out: OfferLineItem[] = [];
 
-  for (const row of data.rows ?? []) {
+  for (const row of includedRows(data)) {
     const lines = rowLines(row);
     const prefix = row.room_id && roomName.get(row.room_id) ? `${roomName.get(row.room_id)} – ${row.title}` : row.title;
     for (const klass of CLASS_ORDER) {
