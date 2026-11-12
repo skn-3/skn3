@@ -19,3 +19,5 @@
 - Branch-based checks look up price_items.trade through the line's code; lines without code are never affected.
 - Grenrader är fria rader med `gren` (GREN_TRADES); listlogik, mått och ROT-reglage bara via gren.ts. `rot_off` verkar bara i rowLines (arbete → övrigt) så summor, ROT, line_items och kontroller följer samma regel; formulär får alltid den sparade raden.
 - parseSvNumber: med både komma och punkt är det sista tecknet decimaltecken och det andra tusental i grupper om tre, annars 'invalid'.
+- Kundvyn (offers.customer_view) byggs bara av buildCustomerView i customerView.ts: belopp ur toOfferLineItems (summan = total_ex_vat), text ur rowScopeText (samma som rowScope), totals efter sparad klass. Lägg aldrig till kostnad, timmar, prisstatus/-datum, koder, anteckning, kontroller eller favoriter; nyckellistan CUSTOMER_VIEW_KEYS och testet i kalkylCustomerView.test.ts ska följa med varje ny nyckel, liksom sanitizeCustomerView i supabase/functions/_shared/customerView.ts.
+- intro null = automatisk beskrivning: offerMetaFromRow ger tom beskrivning och kalkylSaveFields bygger om texten vid varje sparning; intro med text är säljarens egen och lämnas orörd.
