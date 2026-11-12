@@ -24,3 +24,4 @@ export * from './localDraft';
 export * from './slots';
 export * from './gren';
 export * from './customerView';
+export * from './ai';

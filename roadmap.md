@@ -12,7 +12,8 @@
 - [ ] Offertsystem etapp 2c: inloggad kontroll mot riktig databas (spara och läsa tillbaka en grenrad med mått och ROT av, import av prisark med amerikanskt talformat) — preview-session saknas (--self utan konto).
 - [x] Offertsystem etapp 3a: kundvyn som data (customerView.ts, offers.customer_view migration 0054), automatisk beskrivning fryses inte längre, public-offer med sanerad kundvy och signerade katalogbilder (driftsatt; svaret utan kundvy identiskt, visat med test och live-anrop), kundsidans "Det här ingår" och prisrader Arbete/Material/Övrigt, "Förhandsvisa" i kalkylen. 817 tester gröna; provad med simulerad data i 1280 och 390 px.
 - [ ] Offertsystem etapp 3a: inloggad kontroll mot riktig databas (spara kalkyloffert så att customer_view skrivs, öppna riktig kundlänk med kundvy och katalogbild) — preview-session saknas (--self utan konto).
-- [ ] Offertsystem etapp 3: resten (tillval, AI-kontroll) — väntar.
+- [ ] Offertsystem etapp 3b: AI-kontroll i kalkylen (kalkyl-ai med tolka/granska/fråga, ai.ts, panelen AI-kontroll) — pågår.
+- [ ] Offertsystem etapp 3: tillval — väntar.
 
 - [x] Slå ihop dubblett: merge_cases (migration 0045, admin/koordinator, dynamiska kopplingar, provläge), panel i ärendet och "Möjliga dubbletter" i pipelinevalideringen; provläge och riktig sammanslagning testade på två tillfälliga testärenden (borttagna), montör nekas; 501 tester gröna.
 - [ ] Slå ihop dubblett: klicka igenom panelen inloggad — preview-session saknas (--self utan konto).

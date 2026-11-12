@@ -1,4 +1,4 @@
-import { ArrowLeft, Eye, Loader2 } from 'lucide-react';
+import { ArrowLeft, Eye, Loader2, Sparkles } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { focusRing, motion } from './ui';
@@ -12,13 +12,15 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 export function TopBar({
-  backLabel, onBack, eyebrow, title, status, savedAt, dirty, customerMode, onCustomerMode, onSave, onDone, saving, readOnly, doneLabel = 'Klar', showSave = true, onPreview,
+  backLabel, onBack, eyebrow, title, status, savedAt, dirty, customerMode, onCustomerMode, onSave, onDone, saving, readOnly, doneLabel = 'Klar', showSave = true, onPreview, onAi,
 }: {
   backLabel: string; onBack: () => void; eyebrow: string; title: string; status?: string | null; savedAt: Date | null; dirty: boolean;
   customerMode: boolean; onCustomerMode: (v: boolean) => void; onSave?: () => void; onDone: () => void; saving: boolean; readOnly: boolean;
   doneLabel?: string; showSave?: boolean;
   /** "Förhandsvisa": kundens offert byggd från kalkylen som den är just nu. */
   onPreview?: () => void;
+  /** "AI-kontroll": panelen med tolkning, granskning och frågor. */
+  onAi?: () => void;
 }) {
   const st = status ? STATUS[status] ?? STATUS.draft : null;
   const btn = cn('min-h-[44px] rounded-lg px-4 text-sm', motion, focusRing, 'focus-visible:ring-offset-ink-deep disabled:opacity-50 disabled:cursor-not-allowed');
@@ -42,6 +44,12 @@ export function TopBar({
         <span className="text-sm hidden sm:inline">Kundläge</span>
         <Switch checked={customerMode} onCheckedChange={onCustomerMode} aria-label="Kundläge" className="data-[state=unchecked]:bg-white/25" />
       </label>
+      {onAi && (
+        <button type="button" onClick={onAi} aria-label="AI-kontroll"
+          className={cn(btn, 'inline-flex items-center gap-2 px-3 sm:px-4 border border-white/40 font-semibold active:bg-white/10')}>
+          <Sparkles className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">AI-kontroll</span>
+        </button>
+      )}
       {onPreview && (
         <button type="button" onClick={onPreview} aria-label="Förhandsvisa"
           className={cn(btn, 'inline-flex items-center gap-2 px-3 sm:px-4 border border-white/40 font-semibold active:bg-white/10')}>

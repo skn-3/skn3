@@ -386,6 +386,13 @@
       "when": 1794484004706,
       "tag": "0054_offers_customer_view",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1794485357286,
+      "tag": "0055_kalkyl_ai_usage",
+      "breakpoints": true
     }
   ]
 }

@@ -31,6 +31,7 @@ import { FriConfigurator } from './FriConfigurator';
 import { GrenConfigurator } from './GrenConfigurator';
 import { Gallery, type GalleryTarget } from './Gallery';
 import { CustomerPreviewSheet } from './CustomerPreview';
+import { AiPanel } from './AiPanel';
 import { clearLocalDraft, readLocalDraft, saveKalkylOffer, writeLocalDraft, type LocalDraft } from './api';
 import { timeLabel } from './format';
 
@@ -71,6 +72,7 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
   const [adjOpen, setAdjOpen] = useState(false);
   const [priceListOpen, setPriceListOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [surface, setSurface] = useState<Surface>('vagg');
   const [localDraft, setLocalDraft] = useState<LocalDraft | null>(() => {
@@ -388,10 +390,11 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
                 savedAt={savedAt}
                 dirty={dirty}
                 customerMode={customerMode}
-                onCustomerMode={setCustomerMode}
+                onCustomerMode={v => { setCustomerMode(v); if (v) setAiOpen(false); }}
                 onSave={handleSave}
                 showSave={!inRow}
                 onPreview={view.kind === 'overview' && !loading && !loadError ? () => setPreviewOpen(true) : undefined}
+                onAi={view.kind === 'overview' && !loading && !loadError && !customerMode ? () => setAiOpen(true) : undefined}
                 onDone={handleDone}
                 saving={saving}
                 readOnly={readOnly}
@@ -403,6 +406,9 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
               onPremises={p => setData(d => ({ ...d, premises: { ...d.premises, ...p } }))} nameError={nameError} readOnly={readOnly} isNew={!offerId}
               onFillDescription={() => { setMeta({ description: offerScopeText(data, prices, settings) }); toast.success('Beskrivningen är ifylld från kalkylen'); }} />
             <CustomerPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} data={data} prices={prices} settings={settings} opts={opts} description={meta.description} />
+            <AiPanel open={aiOpen && !customerMode} onOpenChange={setAiOpen} data={data} items={items} prices={prices} settings={settings} kontroller={kontroller}
+              customer={meta} readOnly={readOnly} onChange={setData} onFix={applyFix}
+              onShowRow={rowId => { setAiOpen(false); showRow(rowId); }} onOpenRow={rowId => { setAiOpen(false); setView({ kind: 'row', rowId }); }} />
             <AddRowSheet open={addOpen} onOpenChange={setAddOpen} rooms={data.rooms} onAdd={handleAdd} />
             <CommonLineSheet open={commonOpen} onOpenChange={setCommonOpen} onAdd={v => { setData(d => addCommonLine(d, v)); setCommonOpen(false); }} />
             <AdjustmentSheet open={adjOpen} onOpenChange={setAdjOpen} onAdd={a => { setData(d => addAdjustment(d, a)); setAdjOpen(false); }} />

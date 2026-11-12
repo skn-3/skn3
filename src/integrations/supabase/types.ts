@@ -431,9 +431,12 @@ export type Database = {
           duration_ms: number | null
           error: string | null
           id: string
+          image_count: number | null
+          input_chars: number | null
           kind: string
           message_id: string | null
           model: string
+          pdf_count: number | null
           prompt_tokens: number
           rounds: number
           status: string
@@ -450,9 +453,12 @@ export type Database = {
           duration_ms?: number | null
           error?: string | null
           id?: string
+          image_count?: number | null
+          input_chars?: number | null
           kind?: string
           message_id?: string | null
           model: string
+          pdf_count?: number | null
           prompt_tokens?: number
           rounds?: number
           status?: string
@@ -469,9 +475,12 @@ export type Database = {
           duration_ms?: number | null
           error?: string | null
           id?: string
+          image_count?: number | null
+          input_chars?: number | null
           kind?: string
           message_id?: string | null
           model?: string
+          pdf_count?: number | null
           prompt_tokens?: number
           rounds?: number
           status?: string
@@ -3343,6 +3352,17 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      ai_reserve_kalkyl: {
+        Args: {
+          p_image_count: number
+          p_input_chars: number
+          p_kind: string
+          p_model: string
+          p_pdf_count: number
+          p_user_id: string
+        }
+        Returns: Json
       }
       ai_reserve_tts: {
         Args: { p_characters: number; p_message_id?: string; p_user_id: string }
