@@ -6,3 +6,7 @@
 - Only approved prices can be sent: pris_ej_godkant blocks every priced line whose item is not 'godkand' (draft or archived).
 - Price import and "Spara som utkast" never approve; changed rows become drafts. Approval only via applyPriceEdit(..., approve = true).
 - Keep exported signatures in types.ts/index.ts stable; later stages build on them. Seed fixture for tests mirrors migration 0050 (src/lib/__tests__/kalkylFixture.ts).
+- Kalkylvyn (src/components/kalkyl) ändrar KalkylData bara via state.ts och läser tal bara via view.ts/offer.ts; sparad payload kommer alltid från buildOfferPayloadFromKalkyl så kalkyl, formulär, PDF och kundsida visar samma summor.
+- Egna rader i golv-/målningsrader har nyckelprefixet OWN_LINE_PREFIX ('egen.') och överlever computeRow; manuella värden (setOverride) behålls vid repriceKalkyl och ingår inte i priceChanges.
+- Prisändringar räknas aldrig om tyst: hela kalkylen räknas om endast via repriceKalkyl ("Uppdatera priser").
+- Skicka-spärren för offerter med calc_data går via sendCheck/checkKalkylSend; lägg inte till en andra spärr i en vy.

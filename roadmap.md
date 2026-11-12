@@ -2,7 +2,8 @@
 
 - [x] Offertsystem etapp 1: prislista (price_items, price_log, kalkyl_settings, offers.calc_data/calc_version, migration 0050), kalkylmotorn i src/lib/kalkyl med tester och underfliken Prislista i offerthubben.
 - [ ] Offertsystem etapp 1: prislistan inloggad mot riktig databas (spara, godkänna, import, bilduppladdning) — preview-session saknas (--self utan konto).
-- [ ] Offertsystem etapp 2: rättningar (källtexter, price_log-rättigheter, favorites), state/offer/plan-logik med tester, kalkylvyn (översikt, golv, målning, fri rad, galleri, kundläge, spara), kopplingar i OffersView/OfferForm och skicka-spärr, dokumentation.
+- [x] Offertsystem etapp 2: rättningar (källtexter, price_log-rättigheter migration 0051, favorites), state/offer/plan/view/offerMeta-logik med tester, kalkylvyn (översikt, golv, målning, fri rad, galleri, kundläge, spara lokalt och i databasen), kopplingar i OffersView/OfferForm och skicka-spärr, dokumentation. 717 tester gröna; provad med simulerad data i 1194×834, 834×1194 och 390×844, ljust och mörkt.
+- [ ] Offertsystem etapp 2: inloggad sparning mot riktig databas (ny offert, uppdatering, Klar → formulär) — preview-session saknas (--self utan konto).
 - [ ] Offertsystem etapp 3: kundsida och AI-kontroll — väntar.
 
 - [x] Slå ihop dubblett: merge_cases (migration 0045, admin/koordinator, dynamiska kopplingar, provläge), panel i ärendet och "Möjliga dubbletter" i pipelinevalideringen; provläge och riktig sammanslagning testade på två tillfälliga testärenden (borttagna), montör nekas; 501 tester gröna.
