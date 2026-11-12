@@ -102,7 +102,7 @@ export function AiPanel({ open, onOpenChange, data, items, prices, settings, kon
     setPending('tolka');
     const res = await callKalkylAi<{ proposal?: unknown }>({ mode: 'tolka', context: context(), note, photos, pdf });
     setPending(null);
-    if (!res.ok) { setTolkaError(res.message); return; }
+    if (res.ok === false) { setTolkaError(res.message); return; }
     const v = validateAiProposal(res.data.proposal, prices);
     if (!v.ok) { setTolkaError(AI_TEXT.failed); return; }
     setProposal(v.proposal);
@@ -121,7 +121,7 @@ export function AiPanel({ open, onOpenChange, data, items, prices, settings, kon
     setPending('granska');
     const res = await callKalkylAi<{ review?: unknown }>({ mode: 'granska', context: context(), kontroller: kontroller.map(k => ({ id: k.id, title: k.title })) });
     setPending(null);
-    if (!res.ok) { setReviewError(res.message); return; }
+    if (res.ok === false) { setReviewError(res.message); return; }
     setObservations(validateAiReview(res.data.review, data, prices));
     setDismissed(new Set());
     setObsAdded(new Set());
@@ -143,7 +143,7 @@ export function AiPanel({ open, onOpenChange, data, items, prices, settings, kon
     setAnswer(null);
     const res = await callKalkylAi<{ answer?: unknown }>({ mode: 'fraga', context: context(), question: q });
     setPending(null);
-    if (!res.ok) { setAskError(res.message); return; }
+    if (res.ok === false) { setAskError(res.message); return; }
     const a = validateAiAnswer(res.data.answer);
     if (!a) setAskError(AI_TEXT.failed); else setAnswer(a);
   };

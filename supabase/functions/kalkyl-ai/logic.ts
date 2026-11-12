@@ -234,7 +234,7 @@ const TOLKA_SCHEMA = `{"rooms":[{"name":string,"length":number|null,"width":numb
 
 export const KALKYL_AI_PROMPTS: Record<KalkylAiMode, string> = {
   tolka: `Du hjälper en säljare på SmartKlimat N3prenad att göra en entreprenadkalkyl. Du får säljarens anteckning från platsbesöket, eventuellt foton och en offert från en underentreprenör (UE), samt underlaget: katalogen över prislistans rader (utan priser) och kalkylen som den ser ut nu.
-Gör ett förslag på rum och kalkylrader. Golv och målning hör alltid till ett rum. Grenrader (fasad, tak, altan, mark, el, badrum, kök, renovering) har prisrader ur grenens katalog med mängd. Det som inte passar någon annan typ blir en fri rad med egna rader (mängd och enhet, utan pris).
+Gör ett förslag på rum och kalkylrader för det som underlaget beskriver. Föreslå inte rader som redan finns i kalkylen. Golv och målning hör alltid till ett rum. Grenrader (fasad, tak, altan, mark, el, badrum, kök, renovering) har prisrader ur grenens katalog med mängd. Det som inte passar någon annan typ blir en fri rad med egna rader (mängd och enhet, utan pris).
 Golvmaterial väljs bland katalogens rader med slot "golv.golvtyp". Kulörer anges som kod, till exempel "NCS S 0502-Y" eller "RAL 9010", bara när de nämns.
 Varje rad har "reason": en kort förklaring av vad i underlaget raden bygger på.
 Lägg korta frågor i "questions" om sådant som saknas eller är oklart, till exempel "Takhöjden saknas för vardagsrummet".

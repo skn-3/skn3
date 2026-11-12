@@ -38,7 +38,10 @@ export function buildAiContext(data: KalkylData, prices: PriceIndex | PriceItem[
     if (row.trade === 'golv' && row.input) {
       const inp = row.input as GolvInput;
       const products: Record<string, string> = {};
-      for (const slot of ['golv.underlag', 'golv.sockel', 'golv.troskel'] as SelectableSlot[]) products[slot] = resolveSlotCode(slot, inp.selections, index);
+      // Bara valgrupper som ingår i raden, annars tror AI:n att t.ex. tröskeln är vald.
+      if (inp.underlag) products['golv.underlag'] = resolveSlotCode('golv.underlag', inp.selections, index);
+      if (inp.sockel) products['golv.sockel'] = resolveSlotCode('golv.sockel', inp.selections, index);
+      if (inp.troskel) products['golv.troskel'] = resolveSlotCode('golv.troskel', inp.selections, index);
       return { ...base, type: 'golv', gren: null, choices: {
         material_code: inp.material_code || null, material: index[inp.material_code]?.name ?? null,
         options: GOLV_OPTION_ORDER.filter(f => inp[f]), products,
@@ -47,7 +50,9 @@ export function buildAiContext(data: KalkylData, prices: PriceIndex | PriceItem[
     if (row.trade === 'malning' && row.input) {
       const inp = row.input as MalningInput;
       const products: Record<string, string> = {};
-      for (const slot of ['malning.vaggfarg', 'malning.takfarg', 'malning.snickerifarg'] as SelectableSlot[]) products[slot] = resolveSlotCode(slot, inp.selections, index);
+      products['malning.vaggfarg'] = resolveSlotCode('malning.vaggfarg', inp.selections, index);
+      if (inp.tak) products['malning.takfarg'] = resolveSlotCode('malning.takfarg', inp.selections, index);
+      if (inp.snickerier) products['malning.snickerifarg'] = resolveSlotCode('malning.snickerifarg', inp.selections, index);
       return { ...base, type: 'malning', gren: null, choices: {
         underarbete: inp.underarbete, tak: !!inp.tak, snickerier: !!inp.snickerier, coats: inp.coats ?? 2,
         kulorer: { vagg: kulorText(inp.kulor_vagg), tak: inp.tak ? kulorText(inp.kulor_tak) : null, snickerier: inp.snickerier ? kulorText(inp.kulor_snickerier) : null },
@@ -352,8 +357,8 @@ export function scaledSize(width: number, height: number, max = 1600): { width: 
   return { width: Math.max(1, Math.round(w * f)), height: Math.max(1, Math.round(h * f)) };
 }
 
-/** Personnummer (ÅÅMMDD-NNNN eller ÅÅÅÅMMDDNNNN) i fri text. */
-const PNR_RE = /\b(?:19|20)?\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])[-+ ]?\d{4}\b/;
+/** Personnummer i fri text: ÅÅMMDD-NNNN (med - eller +) eller ÅÅÅÅMMDD(-)NNNN. Ett mobilnummer utan bindestreck räknas inte. */
+const PNR_RE = /\b(?:(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])-?\d{4}|\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])[-+]\d{4})\b/;
 
 export interface CustomerFields { customer_name?: string | null; customer_email?: string | null; customer_phone?: string | null; customer_address?: string | null; customer_personnummer?: string | null; fastighetsbeteckning?: string | null }
 
