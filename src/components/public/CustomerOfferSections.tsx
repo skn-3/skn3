@@ -35,16 +35,17 @@ function TileSwatch({ item, renderImage }: { item: CustomerTile; renderImage?: (
 function Tile({ item, renderImage }: { item: CustomerTile; renderImage?: (item: CustomerTile, className: string) => ReactNode }) {
   const code = colorCodeText(item.color);
   const colorName = item.color?.name && item.color.name !== item.name ? item.color.name : null;
+  const desc = [item.detail, colorName].filter(Boolean).join(' · ');
   return (
     <li className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2.5 min-w-0">
       <TileSwatch item={item} renderImage={renderImage} />
       <div className="min-w-0">
         <div className="text-[11.5px] leading-tight text-muted-foreground">{item.label}</div>
         <div className="text-[14px] font-semibold leading-snug">{item.name}</div>
-        {(item.detail || code || colorName) && (
+        {(desc || code) && (
           <div className="text-[12.5px] leading-snug text-muted-foreground">
-            {[item.detail, colorName].filter(Boolean).join(' · ')}
-            {code && <>{item.detail || colorName ? ' · ' : ''}<span className="font-mono whitespace-nowrap">{code}</span></>}
+            {desc && <span>{desc}</span>}
+            {code && <>{desc ? ' ' : ''}<span className="font-mono whitespace-nowrap">{code}</span></>}
           </div>
         )}
       </div>
