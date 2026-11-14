@@ -414,6 +414,13 @@
       "when": 1794652500632,
       "tag": "0058_calendar_settings_select_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794652847820,
+      "tag": "0059_tighten_read_policies",
+      "breakpoints": true
     }
   ]
 }

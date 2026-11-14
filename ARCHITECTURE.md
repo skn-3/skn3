@@ -235,10 +235,17 @@ AI-gateway har separat saldo från build-credits (~$1/mån gratis räcker för n
 - **Inga hårdkodade hemligheter** i klientbundeln. AI- och e-postanrop går via edge-funktioner.
 - **SECURITY DEFINER-funktioner** har fast `search_path = public`.
 - `auth_is_admin()` och `auth_user_role()` är SECURITY DEFINER och läser från `user_roles` (krävs av RLS).
+- **Läsregler som stramades åt november 2026** (tidigare `USING (true)` för alla inloggade):
+  - `ai_settings` — alla med en roll i appen (`auth_is_admin() OR auth_user_role() IS NOT NULL`); montörens röstknapp läser `voice_enabled`. Ändring endast admin.
+  - `case_climate_compensation` — endast personal: admin, säljare, koordinator (innehåller kundernas hämtlänkar). Montörer läser den inte.
+  - `climate_events` — endast personal: admin, säljare, koordinator (trädstatistik, besöksträd). Montörer läser den inte.
+  - `order_climate_compensation` — endast admin; ingen kod läser tabellen.
+  - `knowledge_sources` — samma villkor som `knowledge_chunks_read`: aktiv källa och målgrupp `all` eller användarens roll, eller admin/koordinator. Admin ser även avstängda källor via `knowledge_sources_admin`.
+  - Edge-funktioner som skriver/läser klimattabellerna (`klimatkompensera`, `public-case-status`) använder tjänstenyckeln och påverkas inte.
 
 ### Medvetet accepterade avvägningar
 - Personnummer synligt för all personal (litet betrott team).
-- Leaked Password Protection går ej att aktivera i Lovable Cloud.
+- Skyddet mot läckta lösenord (`password_hibp_enabled`) går numera att slå på i Lovable Cloud men ska vara **avstängt** så länge PIN lagras som lösenord: i stort sett alla sexsiffriga koder finns i läcklistan, så tvingat och frivilligt PIN-byte skulle nekas. Fyndet är markerat som medvetet accepterat i säkerhetsgenomgången.
 - PIN (4–6 siffror) — utlåsning vid upprepade fel + Supabase rate-limiting gör gissning opraktisk; svagare än lösenord men acceptabelt internt.
 
 ---
