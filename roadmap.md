@@ -20,6 +20,7 @@
 - [ ] Offertsystem etapp 3d: inloggad kontroll (Generera PDF på riktig kalkyloffert, signera riktig kundlänk med kundvy) — preview-session saknas (--self utan konto).
 - [~] ~~Offertsystem etapp 3c del 2: kunden väljer tillval vid signering~~ — struken 14 november 2026 (beslut av Johannes): säljaren väljer tillval i kalkylen, kunden väljer inget på kundsidan. Ska inte byggas.
 - [x] Offertsystem etapp 3e: säljaren väljer tillval, inte kunden — knappen "Lägg till i offerten" vid varje tillval i förhandsvisningen "Kundens offert" (setRowOptional, raden "Tillagt i offerten" med Ångra, bara när kalkylen går att ändra; CustomerOfferOptions.renderAction som kundsidan aldrig skickar in), kalkyl-ai känner till tillval (optional i underlaget, gemensam promptmening). Bara kalkyl-ai driftsatt; PublicOffer.tsx, offerPdf.ts och _shared oförändrade.
+- [x] Offertsystem etapp 3e, rättning: fokus aldrig på knappar som ändrar kalkylen (panelen vid öppning, statusraden efter Lägg till, avsnittet Tillval efter Ångra; fokus tillbaka till Förhandsvisa vid stängning). Provat med tangentbord och mellanslag.
 - [ ] Offertsystem etapp 3e: inloggad kontroll (lägg till tillval i förhandsvisningen på riktig kalkyl, AI-granskning med tillvalsrad) — preview-session saknas (--self utan konto).
 
 - [x] Slå ihop dubblett: merge_cases (migration 0045, admin/koordinator, dynamiska kopplingar, provläge), panel i ärendet och "Möjliga dubbletter" i pipelinevalideringen; provläge och riktig sammanslagning testade på två tillfälliga testärenden (borttagna), montör nekas; 501 tester gröna.

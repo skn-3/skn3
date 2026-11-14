@@ -33,30 +33,46 @@ export function CustomerPreviewSheet({ open, onOpenChange, data, prices, setting
 
   // Senast tillagda tillvalet (för "Ångra"). Försvinner när panelen stängs eller ett annat tillval läggs till.
   const [added, setAdded] = useState<{ id: string; heading: string } | null>(null);
-  const undoRef = useRef<HTMLButtonElement>(null);
-  const focusOption = useRef<string | null>(null);
+  // Fokus sätts aldrig programmatiskt på en knapp som ändrar kalkylen (mellanslag/Enter skulle då ändra offerten
+  // utan synlig markering). Bara panelen, statusraden och avsnittet Tillval får fokus i koden (tabIndex -1).
   const contentRef = useRef<HTMLDivElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
+  const optionsRef = useRef<HTMLElement>(null);
+  const focusOptions = useRef(false);
+  // Panelen öppnas utan Radix-trigger, så knappen som öppnade den ("Förhandsvisa") sparas och får fokus igen vid stängning.
+  const returnFocus = useRef<HTMLElement | null>(null);
   useEffect(() => { if (!open) setAdded(null); }, [open]);
-  useEffect(() => { if (added) undoRef.current?.focus(); }, [added]);
+  useEffect(() => { if (added) statusRef.current?.focus(); }, [added]);
   useEffect(() => {
-    // Efter "Ångra": fokus tillbaka till tillvalets knapp när den syns igen.
-    const id = focusOption.current;
-    if (!id) return;
-    const btn = Array.from(contentRef.current?.querySelectorAll<HTMLButtonElement>('[data-option-id]') ?? []).find(b => b.dataset.optionId === id);
-    if (btn) { btn.focus(); focusOption.current = null; }
+    // Efter "Ångra": fokus till avsnittet Tillval, inte till någon knapp.
+    if (!focusOptions.current || !optionsRef.current) return;
+    focusOptions.current = false;
+    optionsRef.current.focus();
   });
   const addOption = (id: string, heading: string) => { onSetOptional?.(id, false); setAdded({ id, heading }); };
   const undo = () => {
     if (!added) return;
     onSetOptional?.(added.id, true);
-    focusOption.current = added.id;
+    focusOptions.current = true;
     setAdded(null);
   };
   const showOptions = view ? view.options.length > 0 || (editable && !!added) : false;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent ref={contentRef} side={isMobile ? 'bottom' : 'right'} className={cn('overflow-y-auto', isMobile ? 'max-h-[92dvh]' : 'w-full sm:max-w-2xl')}>
+      <SheetContent ref={contentRef} tabIndex={-1}
+        onOpenAutoFocus={e => {
+          e.preventDefault();
+          const prev = document.activeElement;
+          returnFocus.current = prev instanceof HTMLElement && prev !== document.body ? prev : null;
+          contentRef.current?.focus({ preventScroll: true });
+        }}
+        onCloseAutoFocus={e => {
+          const el = returnFocus.current;
+          returnFocus.current = null;
+          if (el?.isConnected) { e.preventDefault(); el.focus(); }
+        }}
+        side={isMobile ? 'bottom' : 'right'} className={cn('overflow-y-auto outline-none', isMobile ? 'max-h-[92dvh]' : 'w-full sm:max-w-2xl')}>
         <SheetHeader className="text-left">
           <SheetTitle className="font-display text-2xl">Kundens offert</SheetTitle>
           <SheetDescription>Så här ser kunden offerten.</SheetDescription>
@@ -72,11 +88,11 @@ export function CustomerPreviewSheet({ open, onOpenChange, data, prices, setting
                     renderImage={(item, className) => <SignedImage value={item.image_path} bucket="catalog-images" alt="" className={className} />} />}
             </section>
             {showOptions && (
-              <section aria-label="Tillval" className="space-y-3">
+              <section ref={optionsRef} tabIndex={-1} aria-label="Tillval" className="space-y-3 outline-none">
                 {editable && added && (
-                  <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-2.5">
+                  <div ref={statusRef} tabIndex={-1} role="status" className="outline-none flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-2.5">
                     <span className="text-[14.5px] min-w-0">Tillagt i offerten: <b className="font-semibold">{added.heading}</b></span>
-                    <Button ref={undoRef} type="button" variant="outline" className="min-h-[44px]" onClick={undo}>Ångra</Button>
+                    <Button type="button" variant="outline" className="min-h-[44px]" onClick={undo}>Ångra</Button>
                   </div>
                 )}
                 {view.options.length > 0 && (
@@ -85,7 +101,7 @@ export function CustomerPreviewSheet({ open, onOpenChange, data, prices, setting
                     renderAction={editable ? (o => {
                       const heading = customerSectionHeading(o);
                       return (
-                        <Button type="button" variant="outline" data-option-id={o.id} className="mt-3 min-h-[44px]"
+                        <Button type="button" variant="outline" className="mt-3 min-h-[44px]"
                           aria-label={`Lägg till ${heading} i offerten`} onClick={() => addOption(o.id, heading)}>
                           Lägg till i offerten
                         </Button>
