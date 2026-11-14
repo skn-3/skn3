@@ -31,6 +31,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { CostPayoutChip } from '@/components/shared/CostPayoutChip';
 import { ListChecks, Share2 } from 'lucide-react';
 import { submitMontagePartial } from '@/lib/montagePartial';
+import { bookKm, bookMontage, rescheduleMontage } from '@/lib/booking';
 import { MontagePartialBlock } from '@/components/shared/MontagePartialBlock';
 import { shareCaseInChat } from '@/lib/chat';
 import { Truck } from 'lucide-react';
@@ -296,24 +297,8 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
 
 
   const kmBookMutation = useMutation({
-    mutationFn: async () => {
-      await updateCase(caseData.id, { status: 'km_bokad', km_date: kmDate });
-      await createCaseEvent({
-        case_id: caseData.id,
-        event_type: 'status_change',
-        description: `KM bokad: ${kmDate}`,
-        created_by: currentUser,
-      });
-      logActivity({
-        category: 'case',
-        action: 'km_booked',
-        description: `Bokade kontrollmätning (${kmDate}) för ${caseData.address}`,
-        case_id: caseData.id,
-        metadata: { km_date: kmDate },
-      });
-      return { emailOk: await sendAndRecord('km_bokad', 'tilldelningsmail', 'Tilldelningsmail skickat till montör') };
-    },
-    onSuccess: ({ emailOk }) => { invalidate(); toast.success('KM bokad', emailOk ? undefined : { description: MAIL_WARNING }); },
+    mutationFn: () => bookKm({ caseData, date: kmDate, actor: currentUser, origin: 'montor' }),
+    onSuccess: ({ warnings }) => { invalidate(); toast.success('KM bokad', warnings.length ? { description: warnings.join(' ') } : undefined); },
     onError: (e: Error) => toast.error(`KM kunde inte bokas: ${e.message || 'okänt fel'}`),
   });
 
@@ -355,39 +340,19 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   });
 
   const bookMontageMutation = useMutation({
-    mutationFn: async () => {
-      if (!montageDate) throw new Error('Datum krävs');
-      // Saknar ärendet montageteam och inloggad är ett montörsteam: tilldela sig själv.
-      const selfAssign = !caseData.team && !!myTeamQuery.data;
-      const team = selfAssign ? currentUser : (caseData.team ?? null);
-      const check = canEnterStatus('montage_bokat', { ...caseData, team, montage_date: montageDate });
-      if (!check.ok) throw new Error(check.reason || 'Förutsättning saknas');
-      await updateCase(caseData.id, {
-        montage_date: montageDate,
-        montage_time: montageTime || null,
-        status: 'montage_bokat',
-        ...(selfAssign ? { team: currentUser } : {}),
-      } as any);
-      const desc = `Montage bokat ${montageDate}${montageTime ? ' ' + montageTime : ''} av ${currentUser}${selfAssign ? `. Montage-montör: ${currentUser}` : ''}`;
-      await createCaseEvent({
-        case_id: caseData.id,
-        event_type: 'montage_booked',
-        description: desc,
-        created_by: currentUser,
-      });
-      logActivity({
-        category: 'case',
-        action: 'montage_booked',
-        description: desc,
-        case_id: caseData.id,
-        metadata: { montage_date: montageDate, montage_time: montageTime || null, case_id: caseData.id },
-      });
-      return { emailOk: await sendAndRecord('montage_bokat', 'tilldelningsmail', 'Tilldelningsmail skickat till montör') };
-    },
-    onSuccess: ({ emailOk }) => {
+    // Saknar ärendet montageteam och inloggad är ett montörsteam tilldelar tjänsten det inloggade teamet.
+    mutationFn: () => bookMontage({
+      caseData,
+      date: montageDate,
+      time: montageTime || null,
+      team: myTeamQuery.data ? currentUser : null,
+      actor: currentUser,
+      origin: 'montor',
+    }),
+    onSuccess: ({ warnings }) => {
       invalidate();
       queryClient.invalidateQueries({ queryKey: ['calendar'] });
-      toast.success(`Montage bokat ${formatDaySv(montageDate)}`, emailOk ? undefined : { description: MAIL_WARNING });
+      toast.success(`Montage bokat ${formatDaySv(montageDate)}`, warnings.length ? { description: warnings.join(' ') } : undefined);
       setMontageDate('');
       setMontageTime('');
     },
@@ -395,33 +360,11 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   });
 
   const rescheduleMontageMutation = useMutation({
-    mutationFn: async () => {
-      if (!editMontageDate) throw new Error('Datum krävs');
-      const oldDate = caseData.montage_date;
-      const oldTime = (caseData as any).montage_time || null;
-      await updateCase(caseData.id, {
-        montage_date: editMontageDate,
-        montage_time: editMontageTime || null,
-      } as any);
-      const desc = `Montagedatum ändrat från ${oldDate}${oldTime ? ' ' + oldTime : ''} till ${editMontageDate}${editMontageTime ? ' ' + editMontageTime : ''} av ${currentUser}`;
-      await createCaseEvent({
-        case_id: caseData.id,
-        event_type: 'montage_rescheduled',
-        description: desc,
-        created_by: currentUser,
-      });
-      logActivity({
-        category: 'case',
-        action: 'montage_rescheduled',
-        description: desc,
-        case_id: caseData.id,
-        metadata: { old_date: oldDate, new_date: editMontageDate, old_time: oldTime, new_time: editMontageTime || null, case_id: caseData.id },
-      });
-    },
-    onSuccess: () => {
+    mutationFn: () => rescheduleMontage({ caseData, date: editMontageDate, time: editMontageTime, actor: currentUser, origin: 'montor' }),
+    onSuccess: ({ warnings }) => {
       invalidate();
       queryClient.invalidateQueries({ queryKey: ['calendar'] });
-      toast.success(`Montagedatum ändrat till ${formatDaySv(editMontageDate)}`);
+      toast.success(`Montagedatum ändrat till ${formatDaySv(editMontageDate)}`, warnings.length ? { description: warnings.join(' ') } : undefined);
       setEditingMontage(false);
     },
     onError: (e: Error) => toast.error(e.message),

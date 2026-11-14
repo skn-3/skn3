@@ -44,3 +44,11 @@ export function dayTagSv(date: DateInput, now: Date = new Date()): 'Idag' | 'Imo
 export function relativeDaySv(date: DateInput, now: Date = new Date()): string {
   return dayTagSv(date, now) ?? formatDaySv(date, now);
 }
+
+/** "18 nov"; annat år än i år: "18 nov 2025". Utan veckodag, för korta etiketter. */
+export function formatDayMonthSv(date: DateInput, now: Date = new Date()): string {
+  const d = toLocalDate(date);
+  if (!d) return '';
+  const base = `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  return d.getFullYear() !== now.getFullYear() ? `${base} ${d.getFullYear()}` : base;
+}

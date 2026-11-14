@@ -67,6 +67,8 @@ import { Combine } from 'lucide-react';
 import { CustomerFollowupBlock } from '@/components/shared/CustomerFollowupBlock';
 import { WastePickupBlock } from '@/components/shared/WastePickupBlock';
 import { canRequestWastePickup, wastePickupState } from '@/lib/wastePickup';
+import { bookKm, bookMontage } from '@/lib/booking';
+import { toastBookingWarnings } from '@/hooks/useBookingActions';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -937,24 +939,8 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   });
 
   const kmBookMutation = useMutation({
-    mutationFn: async () => {
-      await updateCase(caseData.id, { status: 'km_bokad', km_date: kmDate });
-      await createCaseEvent({
-        case_id: caseData.id,
-        event_type: 'status_change',
-        description: `KM bokad: ${kmDate}`,
-        created_by: currentUser,
-      });
-      logActivity({
-        category: 'case',
-        action: 'km_booked',
-        description: `Bokade kontrollmätning (${kmDate}) för ${caseData.address}`,
-        case_id: caseData.id,
-        metadata: { km_date: kmDate },
-      });
-      await sendMontorAssignmentEmail(caseData, 'km', currentUser, { km_date: kmDate });
-    },
-    onSuccess: () => { invalidate(); toast.success('KM bokad'); },
+    mutationFn: () => bookKm({ caseData, date: kmDate, actor: currentUser, origin: 'office' }),
+    onSuccess: ({ warnings }) => { invalidate(); toastBookingWarnings(warnings); toast.success('KM bokad'); },
   });
 
   const kmReportMutation = useMutation({
@@ -1117,74 +1103,16 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   };
 
   const approvalMutation = useMutation({
-    mutationFn: async () => {
-      const dateStr = format(approvalDate!, 'yyyy-MM-dd');
-      const oldTeam = caseData.team;
-      const teamChanged = approvalMontor !== oldTeam;
-
-      await updateCase(caseData.id, { status: 'montage_bokat', montage_date: dateStr, team: approvalMontor });
-      await createCaseEvent({ case_id: caseData.id, event_type: 'status_change', description: `Montage bokat ${dateStr} — montör: ${approvalMontor}${approvalNote ? '. ' + approvalNote : ''}`, created_by: currentUser });
-
-      if (teamChanged && oldTeam) {
-        await createCaseEvent({ case_id: caseData.id, event_type: 'team_change', description: `Montör bytt från ${oldTeam} till ${approvalMontor}`, created_by: currentUser });
-        logActivity({
-          category: 'case',
-          action: 'team_changed',
-          description: `Bytte montör (${oldTeam} → ${approvalMontor}) på ${caseData.address}`,
-          case_id: caseData.id,
-          metadata: { old: oldTeam, new: approvalMontor },
-        });
-      }
-      logActivity({
-        category: 'case',
-        action: 'montage_booked',
-        description: `Bokade montage för ${caseData.address}`,
-        case_id: caseData.id,
-        metadata: { montage_date: dateStr, team: approvalMontor },
-      });
-
-      try {
-        await sendNotificationEmail({
-          to: COORDINATOR_EMAIL,
-          cc: COORDINATOR_CC,
-          subject: `MONTAGE BOKAT — ${caseData.address}`,
-          heading: 'Montage bokat',
-          rows: [
-            { label: 'Adress', value: caseData.address },
-            { label: 'Kund', value: caseData.customer_name },
-            { label: 'Montör', value: approvalMontor },
-            { label: 'Montagedatum', value: dateStr },
-            ...(approvalNote ? [{ label: 'Anteckning', value: approvalNote }] : []),
-          ],
-          callToAction: 'Montage är bokat.',
-        });
-        await createCaseEvent({ case_id: caseData.id, event_type: 'notification', description: `Mail skickat till ${COORDINATOR_EMAIL} (montage bokat)`, created_by: currentUser });
-      } catch (emailErr) {
-        console.error('Email notification failed:', emailErr);
-        toast.warning('Status uppdaterad men mailet kunde inte skickas');
-      }
-
-      // Kund-SMS: montage bokat (hoppar tyst över vid ogiltigt nummer)
-      try {
-        const { data: sms } = await supabase.functions.invoke('send-customer-sms', {
-          body: { case_id: caseData.id, kind: 'montage_bokat' },
-        });
-        if (sms?.skipped === 'no_valid_phone') {
-          toast.info('Kundens telefonnummer saknas eller är ogiltigt — inget SMS skickades');
-        }
-      } catch (e) {
-        console.error('Customer SMS failed:', e);
-      }
-
-      // Tilldelningsmail till montör (separat) — team kan ha bytts via approvalMontor
-      await sendMontorAssignmentEmail(
-        { ...caseData, team: approvalMontor, montage_date: dateStr },
-        'montage',
-        currentUser,
-        { montage_date: dateStr },
-      );
-    },
-    onSuccess: () => { invalidate(); toast.success('Montage bokat'); },
+    mutationFn: () => bookMontage({
+      caseData,
+      date: format(approvalDate!, 'yyyy-MM-dd'),
+      team: approvalMontor,
+      note: approvalNote,
+      sendCustomerSms: true,
+      actor: currentUser,
+      origin: 'office',
+    }),
+    onSuccess: ({ warnings }) => { invalidate(); toastBookingWarnings(warnings); toast.success('Montage bokat'); },
     onError: (e: Error) => toast.error(e.message),
   });
 

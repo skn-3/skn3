@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { approvedHoursError } from '@/lib/extraHours';
-import { EMAIL_MAP } from '@/lib/constants';
+import { resolveTeamEmail } from '@/lib/booking/teamEmail';
 
 export type CaseRow = Database['public']['Tables']['cases']['Row'];
 export type CaseInsert = Database['public']['Tables']['cases']['Insert'];
@@ -327,22 +327,24 @@ export async function sendWastePickupEmail(caseId: string) {
 
 /**
  * Skicka tilldelningsmail till montör (KM eller montage).
- * Skickas alltid om team finns och EMAIL_MAP har en mappning – även om montören
- * själv är den som bokar (fungerar då som bekräftelse, och kontoret får alltid
- * kopian via GLOBAL_CC i notify-email).
- * Loggar ett case_event av typen 'notification' efter lyckat utskick.
+ * KM adresseras till km_team (med team som reserv), montage till team. Adressen slås upp
+ * med resolveTeamEmail (montor_teams.email, annars EMAIL_MAP). Skickas även om montören
+ * själv bokar (fungerar då som bekräftelse, och kontoret får alltid kopian via GLOBAL_CC
+ * i notify-email). Loggar ett case_event av typen 'notification' efter lyckat utskick.
+ * Kastar aldrig: false betyder att utskicket misslyckades, true att det gick iväg eller
+ * hoppades över (inget team eller ingen adress).
  */
 export async function sendMontorAssignmentEmail(
-  caseData: Pick<CaseRow, 'id' | 'address' | 'customer_name' | 'customer_phone' | 'team' | 'seller' | 'km_date' | 'montage_date'> & { montage_time?: string | null },
+  caseData: Pick<CaseRow, 'id' | 'address' | 'customer_name' | 'customer_phone' | 'team' | 'seller' | 'km_date' | 'montage_date'> & { montage_time?: string | null; km_team?: string | null },
   kind: 'km' | 'montage',
   createdBy: string,
   overrides?: { km_date?: string; montage_date?: string; montage_time?: string | null }
-): Promise<void> {
+): Promise<boolean> {
   try {
-    const team = caseData.team;
-    if (!team) return;
-    const to = EMAIL_MAP[team];
-    if (!to) return;
+    const team = kind === 'km' ? (caseData.km_team || caseData.team) : caseData.team;
+    if (!team) return true;
+    const to = await resolveTeamEmail(team);
+    if (!to) return true;
 
     const kmDate = overrides?.km_date ?? caseData.km_date ?? '';
     const montageDate = overrides?.montage_date ?? caseData.montage_date ?? '';
@@ -386,13 +388,19 @@ export async function sendMontorAssignmentEmail(
       callToAction: 'Öppna appen för detaljer.',
     });
 
-    await createCaseEvent({
-      case_id: caseData.id,
-      event_type: 'notification',
-      description: `Tilldelningsmail skickat till montör (${to})`,
-      created_by: createdBy,
-    });
+    try {
+      await createCaseEvent({
+        case_id: caseData.id,
+        event_type: 'notification',
+        description: `Tilldelningsmail skickat till montör (${to})`,
+        created_by: createdBy,
+      });
+    } catch (eventErr) {
+      console.error('sendMontorAssignmentEmail: händelseraden kunde inte sparas:', eventErr);
+    }
+    return true;
   } catch (err) {
     console.error('sendMontorAssignmentEmail failed:', err);
+    return false;
   }
 }
