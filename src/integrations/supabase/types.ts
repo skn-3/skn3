@@ -492,6 +492,60 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_connections: {
+        Row: {
+          fetch_count: number
+          guide_sent_at: string | null
+          guide_sent_count: number
+          last_client: string | null
+          last_fetched_at: string | null
+          last_user_agent: string | null
+          updated_at: string
+          user_name: string
+        }
+        Insert: {
+          fetch_count?: number
+          guide_sent_at?: string | null
+          guide_sent_count?: number
+          last_client?: string | null
+          last_fetched_at?: string | null
+          last_user_agent?: string | null
+          updated_at?: string
+          user_name: string
+        }
+        Update: {
+          fetch_count?: number
+          guide_sent_at?: string | null
+          guide_sent_count?: number
+          last_client?: string | null
+          last_fetched_at?: string | null
+          last_user_agent?: string | null
+          updated_at?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
+      calendar_settings: {
+        Row: {
+          id: boolean
+          popup_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          popup_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          popup_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       case_climate_compensation: {
         Row: {
           case_id: string
@@ -779,6 +833,7 @@ export type Database = {
           km_time: string | null
           media_consent: boolean
           montage_date: string | null
+          montage_days: number | null
           montage_partial_at: string | null
           montage_partial_note: string | null
           montage_time: string | null
@@ -837,6 +892,7 @@ export type Database = {
           km_time?: string | null
           media_consent?: boolean
           montage_date?: string | null
+          montage_days?: number | null
           montage_partial_at?: string | null
           montage_partial_note?: string | null
           montage_time?: string | null
@@ -895,6 +951,7 @@ export type Database = {
           km_time?: string | null
           media_consent?: boolean
           montage_date?: string | null
+          montage_days?: number | null
           montage_partial_at?: string | null
           montage_partial_note?: string | null
           montage_time?: string | null
@@ -3194,6 +3251,7 @@ export type Database = {
           km_time: string | null
           media_consent: boolean | null
           montage_date: string | null
+          montage_days: number | null
           montage_partial_at: string | null
           montage_partial_note: string | null
           montage_time: string | null
@@ -3242,6 +3300,7 @@ export type Database = {
           km_time?: string | null
           media_consent?: boolean | null
           montage_date?: string | null
+          montage_days?: number | null
           montage_partial_at?: string | null
           montage_partial_note?: string | null
           montage_time?: string | null
@@ -3290,6 +3349,7 @@ export type Database = {
           km_time?: string | null
           media_consent?: boolean | null
           montage_date?: string | null
+          montage_days?: number | null
           montage_partial_at?: string | null
           montage_partial_note?: string | null
           montage_time?: string | null
@@ -3376,6 +3436,14 @@ export type Database = {
       auth_is_my_team_case: { Args: { p_case_id: string }; Returns: boolean }
       auth_user_name: { Args: never; Returns: string }
       auth_user_role: { Args: never; Returns: string }
+      calendar_record_fetch: {
+        Args: { _client: string; _user_agent: string; _user_name: string }
+        Returns: undefined
+      }
+      calendar_record_guide_sent: {
+        Args: { _user_name: string }
+        Returns: undefined
+      }
       case_merge_table_label: {
         Args: { p_count: number; p_table: string }
         Returns: string
