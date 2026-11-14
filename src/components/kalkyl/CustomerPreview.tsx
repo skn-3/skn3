@@ -1,6 +1,8 @@
 // "Förhandsvisa": kundvyn byggd från kalkylen som den är just nu (osparade ändringar syns).
 // Visar bara det kunden ser – inga interna uppgifter, oavsett kundläge. Räknar inget själv.
-import { useMemo } from 'react';
+// När kalkylen går att ändra kan säljaren lägga till ett tillval i offerten härifrån (setRowOptional via onSetOptional);
+// kunden kan aldrig välja tillval på sin sida.
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { SignedImage } from '@/components/shared/SignedImage';
@@ -8,7 +10,7 @@ import { CustomerOfferOptions, CustomerOfferSections, CustomerPriceRows } from '
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import {
-  buildCustomerView, customerPayment, customerPriceRows, kalkylTotals,
+  buildCustomerView, customerPayment, customerPriceRows, customerSectionHeading, kalkylTotals,
   type KalkylData, type KalkylOfferOptions, type KalkylSettings, type PriceIndex,
 } from '@/lib/kalkyl';
 
@@ -17,18 +19,44 @@ const Num = ({ children, className = '' }: { children: React.ReactNode; classNam
   <span className={`font-mono tabular whitespace-nowrap ${className}`}>{children}</span>
 );
 
-export function CustomerPreviewSheet({ open, onOpenChange, data, prices, settings, opts, description }: {
+export function CustomerPreviewSheet({ open, onOpenChange, data, prices, settings, opts, description, onSetOptional }: {
   open: boolean; onOpenChange: (open: boolean) => void;
   data: KalkylData; prices: PriceIndex; settings: KalkylSettings; opts: KalkylOfferOptions; description: string;
+  /** Gör en kalkylrad till tillval eller vanlig rad (setRowOptional). Saknas i skrivskyddat läge. */
+  onSetOptional?: (rowId: string, optional: boolean) => void;
 }) {
   const isMobile = useIsMobile();
   const view = useMemo(() => (open ? buildCustomerView(data, prices, settings, description) : null), [open, data, prices, settings, description]);
   const pay = useMemo(() => (open ? customerPayment(kalkylTotals(data, opts), opts) : null), [open, data, opts]);
   const shown = (exVat: number) => fmtKr(exVat * (pay?.price_factor ?? 1));
+  const editable = !!onSetOptional;
+
+  // Senast tillagda tillvalet (för "Ångra"). Försvinner när panelen stängs eller ett annat tillval läggs till.
+  const [added, setAdded] = useState<{ id: string; heading: string } | null>(null);
+  const undoRef = useRef<HTMLButtonElement>(null);
+  const focusOption = useRef<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (!open) setAdded(null); }, [open]);
+  useEffect(() => { if (added) undoRef.current?.focus(); }, [added]);
+  useEffect(() => {
+    // Efter "Ångra": fokus tillbaka till tillvalets knapp när den syns igen.
+    const id = focusOption.current;
+    if (!id) return;
+    const btn = Array.from(contentRef.current?.querySelectorAll<HTMLButtonElement>('[data-option-id]') ?? []).find(b => b.dataset.optionId === id);
+    if (btn) { btn.focus(); focusOption.current = null; }
+  });
+  const addOption = (id: string, heading: string) => { onSetOptional?.(id, false); setAdded({ id, heading }); };
+  const undo = () => {
+    if (!added) return;
+    onSetOptional?.(added.id, true);
+    focusOption.current = added.id;
+    setAdded(null);
+  };
+  const showOptions = view ? view.options.length > 0 || (editable && !!added) : false;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side={isMobile ? 'bottom' : 'right'} className={cn('overflow-y-auto', isMobile ? 'max-h-[92dvh]' : 'w-full sm:max-w-2xl')}>
+      <SheetContent ref={contentRef} side={isMobile ? 'bottom' : 'right'} className={cn('overflow-y-auto', isMobile ? 'max-h-[92dvh]' : 'w-full sm:max-w-2xl')}>
         <SheetHeader className="text-left">
           <SheetTitle className="font-display text-2xl">Kundens offert</SheetTitle>
           <SheetDescription>Så här ser kunden offerten.</SheetDescription>
@@ -43,10 +71,30 @@ export function CustomerPreviewSheet({ open, onOpenChange, data, prices, setting
                 : <CustomerOfferSections view={view} formatAmount={shown}
                     renderImage={(item, className) => <SignedImage value={item.image_path} bucket="catalog-images" alt="" className={className} />} />}
             </section>
-            {view.options.length > 0 && (
-              <section aria-label="Tillval">
-                <CustomerOfferOptions options={view.options} formatAmount={shown}
-                  renderImage={(item, className) => <SignedImage value={item.image_path} bucket="catalog-images" alt="" className={className} />} />
+            {showOptions && (
+              <section aria-label="Tillval" className="space-y-3">
+                {editable && added && (
+                  <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/40 bg-success/10 px-4 py-2.5">
+                    <span className="text-[14.5px] min-w-0">Tillagt i offerten: <b className="font-semibold">{added.heading}</b></span>
+                    <Button ref={undoRef} type="button" variant="outline" className="min-h-[44px]" onClick={undo}>Ångra</Button>
+                  </div>
+                )}
+                {view.options.length > 0 && (
+                  <CustomerOfferOptions options={view.options} formatAmount={shown}
+                    renderImage={(item, className) => <SignedImage value={item.image_path} bucket="catalog-images" alt="" className={className} />}
+                    renderAction={editable ? (o => {
+                      const heading = customerSectionHeading(o);
+                      return (
+                        <Button type="button" variant="outline" data-option-id={o.id} className="mt-3 min-h-[44px]"
+                          aria-label={`Lägg till ${heading} i offerten`} onClick={() => addOption(o.id, heading)}>
+                          Lägg till i offerten
+                        </Button>
+                      );
+                    }) : undefined} />
+                )}
+                {editable && view.options.length > 0 && (
+                  <p className="text-[13px] text-muted-foreground">Knappen syns bara här. Kunden kan inte välja tillval på sin sida.</p>
+                )}
               </section>
             )}
             <section aria-label="Pris och betalning">

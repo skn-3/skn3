@@ -3,7 +3,7 @@ import {
   DEFAULT_KALKYL_SETTINGS as S, indexPrices, emptyKalkyl, newRoom, addRoom, addRow, newGolvRow, newFriRow, newGrenRow, addFriLine,
   addCommonLine, addAdjustment, setGrenQty, duplicateRow, setRowOptional, includedRows, optionalRows, optionTotals, summarizeKalkyl,
   toOfferLineItems, buildOfferPayloadFromKalkyl, kalkylTotals, buildCustomerView, sendCheck, runKontroller, rowFigures, offerScopeText,
-  optionSummaryLine, costMissingCount, sanitizeCustomerView, CUSTOMER_VIEW_LIMITS,
+  optionSummaryLine, costMissingCount, sanitizeCustomerView, CUSTOMER_VIEW_LIMITS, customerSectionHeading,
   type KalkylData, type KalkylOfferOptions, type PriceItem,
 } from '@/lib/kalkyl';
 import { customerViewImagePaths, withImageUrls } from '../../../supabase/functions/_shared/customerView';
@@ -207,5 +207,34 @@ describe('tillval: kundvyn', () => {
     const pub = withImageUrls(clean, { 'altan/trall.jpg': 'https://signed/trall' });
     expect(pub.options[0].items[0].image_url).toBe('https://signed/trall');
     expect(JSON.stringify(pub)).not.toContain('image_path');
+  });
+});
+
+describe('etapp 3e: säljaren lägger till ett tillval i förhandsvisningen', () => {
+  it('tillvalets id i kundvyn är kalkylradens id; "Lägg till i offerten" flyttar det till det som ingår och höjer summan med tillvalets belopp', () => {
+    const { d, altan } = kalkyl();
+    const opt = setRowOptional(d, altan, true);
+    const before = buildCustomerView(opt, P, S, null);
+    expect(before.options.map(o => o.id)).toEqual([altan]);
+    const added = setRowOptional(opt, before.options[0].id, false);
+    const after = buildCustomerView(added, P, S, null);
+    expect(after.options).toEqual([]);
+    expect(after.sections.some(s => s.id === altan)).toBe(true);
+    expect(r2(kalkylTotals(added, OPTS).total_ex_vat - kalkylTotals(opt, OPTS).total_ex_vat)).toBe(ALTAN_SUM);
+    expect(added).toEqual(d); // samma kalkyl som om raden aldrig varit tillval
+  });
+
+  it('"Ångra" gör raden till tillval igen med samma kundvy och summor som före', () => {
+    const { d, altan } = kalkyl();
+    const opt = setRowOptional(d, altan, true);
+    const undone = setRowOptional(setRowOptional(opt, altan, false), altan, true);
+    expect(undone).toEqual(opt);
+    expect(buildCustomerView(undone, P, S, null)).toEqual(buildCustomerView(opt, P, S, null));
+    expect(kalkylTotals(undone, OPTS)).toEqual(kalkylTotals(opt, OPTS));
+  });
+
+  it('rubriken i knappens namn och i raden "Tillagt i offerten" är "Rum · Benämning"', () => {
+    expect(customerSectionHeading({ room: 'Vardagsrum', title: 'Golv' })).toBe('Vardagsrum · Golv');
+    expect(customerSectionHeading({ room: null, title: 'Altan på baksidan' })).toBe('Altan på baksidan');
   });
 });

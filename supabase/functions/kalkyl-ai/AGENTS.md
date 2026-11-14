@@ -6,3 +6,4 @@
 - Photos and PDFs are forwarded to the gateway and dropped; never write them to storage or logs.
 - The client always validates replies against the price list (src/lib/kalkyl/ai.ts); the function only parses JSON.
 - The model comes from ai_settings.model via kalkylAiModel (logic.ts); KALKYL_AI_MODEL is only the fallback when the setting is missing or invalid.
+- Each context row carries `optional` (true = tillval, shown to the customer but not in the total); sanitizeAiContext keeps it only when it is exactly `true`, otherwise false, so older clients behave as before. OPTIONAL_RULE is shared by all three prompts; the model never proposes making a row optional or included.

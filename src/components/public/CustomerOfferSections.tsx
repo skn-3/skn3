@@ -56,7 +56,7 @@ type SectionData = CustomerSectionsData['sections'][number];
 type RenderImage = (item: CustomerTile, className: string) => ReactNode;
 
 /** Ett avsnitt: rubrik och pris på samma rad, text, uppgifter och val med provbit. Delas av det som ingår och tillvalen. */
-function SectionArticle({ s, amountText, renderImage }: { s: SectionData; amountText: string; renderImage?: RenderImage }) {
+function SectionArticle({ s, amountText, renderImage, action }: { s: SectionData; amountText: string; renderImage?: RenderImage; action?: ReactNode }) {
   return (
     <article className="py-4">
       <div className="flex items-baseline justify-between gap-4">
@@ -76,6 +76,7 @@ function SectionArticle({ s, amountText, renderImage }: { s: SectionData; amount
           {s.items.map((it, i) => <Tile key={i} item={it} renderImage={renderImage} />)}
         </ul>
       )}
+      {action}
     </article>
   );
 }
@@ -109,12 +110,15 @@ export function CustomerOfferSections({ view, formatAmount, renderImage }: {
 
 /**
  * Innehållet i kortet "Tillval": rubriker, förklaring och ett avsnitt per tillval med plustecken före priset.
- * Tillvalen går inte att välja här. Visas bara när det finns tillval (den som anropar avgör).
+ * Kunden kan aldrig välja tillval. Visas bara när det finns tillval (den som anropar avgör).
+ * renderAction skickas bara in av förhandsvisningen i kalkylen (säljarens knapp); utan den renderas kortet som på kundsidan.
  */
-export function CustomerOfferOptions({ options, formatAmount, renderImage }: {
+export function CustomerOfferOptions({ options, formatAmount, renderImage, renderAction }: {
   options: SectionData[];
   formatAmount: (exVat: number) => string;
   renderImage?: RenderImage;
+  /** Säljarens åtgärd per tillval, bara i förhandsvisningen. Kundsidan skickar aldrig in den. */
+  renderAction?: (option: SectionData) => ReactNode;
 }) {
   return (
     <div>
@@ -122,7 +126,7 @@ export function CustomerOfferOptions({ options, formatAmount, renderImage }: {
       <h2 className="font-display text-[22px] font-bold mt-1 mb-2">Lägg till om du vill</h2>
       <p className="text-[14.5px] leading-relaxed text-muted-foreground mb-3">Tillvalen ingår inte i priset. Hör av dig till din kontakt om du vill lägga till något.</p>
       <div className="border-t border-border divide-y divide-border">
-        {options.map(s => <SectionArticle key={s.id} s={s} amountText={`+ ${formatAmount(s.amount_ex_vat)}`} renderImage={renderImage} />)}
+        {options.map(s => <SectionArticle key={s.id} s={s} amountText={`+ ${formatAmount(s.amount_ex_vat)}`} renderImage={renderImage} action={renderAction?.(s)} />)}
       </div>
     </div>
   );

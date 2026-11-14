@@ -4,7 +4,7 @@
 import type { GolvInput, GrenTrade, KalkylData, KalkylRow, KalkylSettings, Kulor, MalningInput, PriceItem, RoomDims, RotClass } from './types';
 import { isGrenTrade } from './types';
 import type { PriceIndex } from './prices';
-import { rowLines } from './kalkyl';
+import { isOptionalRow, rowLines } from './kalkyl';
 import { addFriLine, addRoom, addRow, DEFAULT_ROOM_DIMS, newFriRow, newGolvRow, newMalningRow, newRoom, roomOf, selectSlotProduct, updateRowInput, updateRowMeta } from './state';
 import { newGrenRow, setGrenMeasure, setGrenQty, isGrenRow } from './gren';
 import { isSelectableSlot, resolveSlotCode, type SelectableSlot } from './slots';
@@ -25,6 +25,7 @@ const nameKey = (s: string | null | undefined) => String(s ?? '').trim().replace
 /**
  * Underlaget som skickas till AI:n. Katalogen har inga priser eller kostnader; kalkylen har inga kunduppgifter,
  * kostnader, timmar, anteckningar, prisstatus eller prisdatum. Kunduppgifterna finns inte ens som indata.
+ * Varje rad har optional: true när den är tillval, annars false.
  */
 export function buildAiContext(data: KalkylData, prices: PriceIndex | PriceItem[]): AiContext {
   const list = Array.isArray(prices) ? prices : Object.values(prices);
@@ -34,7 +35,7 @@ export function buildAiContext(data: KalkylData, prices: PriceIndex | PriceItem[
   const rows: AiContextRow[] = (data.rows ?? []).map(row => {
     const room = roomOf(data, row);
     const lines = rowLines(row).map(l => ({ description: l.description, code: l.code, qty: l.qty, unit: l.unit, unit_price: l.unit_price, rot_class: l.rot_class }));
-    const base = { id: row.id, room: room?.name ?? null, title: row.title, lines, measure: null as AiContextRow['measure'] };
+    const base = { id: row.id, optional: isOptionalRow(row), room: room?.name ?? null, title: row.title, lines, measure: null as AiContextRow['measure'] };
     if (row.trade === 'golv' && row.input) {
       const inp = row.input as GolvInput;
       const products: Record<string, string> = {};

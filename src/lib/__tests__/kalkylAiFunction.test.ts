@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildMessages, checkKalkylAiRequest, gatewayErrorCode, KALKYL_AI_LIMITS, KALKYL_AI_MODEL, KALKYL_AI_PROMPTS, parseModelJson, pausesGateway, replyFor, requestUsage, sanitizeAiContext,
+  buildMessages, checkKalkylAiRequest, OPTIONAL_RULE, gatewayErrorCode, KALKYL_AI_LIMITS, KALKYL_AI_MODEL, KALKYL_AI_PROMPTS, parseModelJson, pausesGateway, replyFor, requestUsage, sanitizeAiContext,
 } from '../../../supabase/functions/kalkyl-ai/logic';
 import { buildAiContext, emptyKalkyl, indexPrices } from '@/lib/kalkyl';
 import { seedPriceItems } from './kalkylFixture';
@@ -115,5 +115,29 @@ describe('kalkyl-ai: modell', () => {
     expect(kalkylAiModel('inte en modell')).toBe(fallback);
     expect(kalkylAiModel(42)).toBe(fallback);
     expect(fallback).toBe('google/gemini-2.5-flash');
+  });
+});
+
+describe('kalkyl-ai: tillval', () => {
+  const row = (extra: Record<string, unknown>) => ({
+    catalog: [], kalkyl: { premises: {}, rooms: [], rows: [{ id: 'r1', room: null, type: 'fri', gren: null, title: 'T', choices: {}, measure: null, lines: [], ...extra }] },
+  });
+
+  it('sanitizeAiContext behåller optional: true och ger false när fältet saknas eller har fel typ', () => {
+    expect(sanitizeAiContext(row({ optional: true }))!.kalkyl.rows[0].optional).toBe(true);
+    expect(sanitizeAiContext(row({}))!.kalkyl.rows[0].optional).toBe(false);
+    for (const v of ['true', 1, null, {}, false]) expect(sanitizeAiContext(row({ optional: v }))!.kalkyl.rows[0].optional, String(v)).toBe(false);
+  });
+
+  it('en äldre klient utan fältet godtas som förut', () => {
+    expect(checkKalkylAiRequest({ mode: 'fraga', context: row({}), question: 'Ingår sockel?' }).ok).toBe(true);
+  });
+
+  it('alla tre prompterna innehåller meningen om tillval', () => {
+    expect(OPTIONAL_RULE).toBe('Rader med "optional": true är tillval. Säljaren har lagt in dem, men de räknas inte in i offertens summa.');
+    for (const p of Object.values(KALKYL_AI_PROMPTS)) expect(p).toContain(OPTIONAL_RULE);
+    expect(KALKYL_AI_PROMPTS.tolka).toContain('inte heller sådana som finns som tillval');
+    expect(KALKYL_AI_PROMPTS.granska).toContain('Skriv inte att något saknas när det finns som tillval');
+    expect(KALKYL_AI_PROMPTS.fraga).toContain('säga att den inte ingår i summan');
   });
 });

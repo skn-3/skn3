@@ -194,6 +194,11 @@ export function buildCustomerView(data: KalkylData, prices: PriceIndex, settings
   };
 }
 
+/** Avsnittets rubrik som kunden ser den: "Rum · Benämning", eller bara benämningen utan rum. */
+export function customerSectionHeading(s: { room: string | null; title: string }): string {
+  return s.room ? `${s.room} · ${s.title}` : s.title;
+}
+
 /** Prisraderna Arbete, Material och Övrigt för kundsidan; rader med belopp 0 visas inte. */
 export function customerPriceRows(totals: CustomerTotals): { label: string; amount_ex_vat: number }[] {
   return [

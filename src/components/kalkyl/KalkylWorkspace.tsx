@@ -409,7 +409,8 @@ export function KalkylWorkspace({ offer, currentUser, onClose, onDone, onSaved }
             <OfferDetailsSheet open={detailsOpen} onOpenChange={setDetailsOpen} meta={meta} onMeta={setMeta} premises={data.premises}
               onPremises={p => setData(d => ({ ...d, premises: { ...d.premises, ...p } }))} nameError={nameError} readOnly={readOnly} isNew={!offerId}
               onFillDescription={() => { setMeta({ description: offerScopeText(data, prices, settings) }); toast.success('Beskrivningen är ifylld från kalkylen'); }} />
-            <CustomerPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} data={data} prices={prices} settings={settings} opts={opts} description={meta.description} />
+            <CustomerPreviewSheet open={previewOpen} onOpenChange={setPreviewOpen} data={data} prices={prices} settings={settings} opts={opts} description={meta.description}
+              onSetOptional={readOnly ? undefined : (rowId, optional) => setData(d => setRowOptional(d, rowId, optional))} />
             <AiPanel open={aiOpen && !customerMode} onOpenChange={setAiOpen} data={data} items={items} prices={prices} settings={settings} kontroller={kontroller}
               customer={meta} readOnly={readOnly} onChange={setData} onFix={applyFix}
               onShowRow={rowId => { setAiOpen(false); showRow(rowId); }} onOpenRow={rowId => { setAiOpen(false); setView({ kind: 'row', rowId }); }} />

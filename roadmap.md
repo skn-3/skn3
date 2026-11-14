@@ -18,7 +18,9 @@
 - [ ] Offertsystem etapp 3c del 1: inloggad kontroll mot riktig databas (spara kalkyloffert med tillval så att customer_view.options skrivs, öppna riktig kundlänk) — preview-session saknas (--self utan konto).
 - [x] Offertsystem etapp 3d: offert-PDF och signerat avtal rum för rum när customer_view finns ("Det här ingår", tillval, Arbete/Material/Övrigt), summor och övriga delar oförändrade; utan kundvy identiskt dokument (test mot fryst kopia, med och utan signatur). Inga edge-funktioner driftsatta. 875 tester gröna; riktiga PDF:er genererade i webbläsaren med testdata.
 - [ ] Offertsystem etapp 3d: inloggad kontroll (Generera PDF på riktig kalkyloffert, signera riktig kundlänk med kundvy) — preview-session saknas (--self utan konto).
-- [ ] Offertsystem etapp 3c del 2: kunden väljer tillval vid signering — väntar på Johannes klartecken.
+- [~] ~~Offertsystem etapp 3c del 2: kunden väljer tillval vid signering~~ — struken 14 november 2026 (beslut av Johannes): säljaren väljer tillval i kalkylen, kunden väljer inget på kundsidan. Ska inte byggas.
+- [x] Offertsystem etapp 3e: säljaren väljer tillval, inte kunden — knappen "Lägg till i offerten" vid varje tillval i förhandsvisningen "Kundens offert" (setRowOptional, raden "Tillagt i offerten" med Ångra, bara när kalkylen går att ändra; CustomerOfferOptions.renderAction som kundsidan aldrig skickar in), kalkyl-ai känner till tillval (optional i underlaget, gemensam promptmening). Bara kalkyl-ai driftsatt; PublicOffer.tsx, offerPdf.ts och _shared oförändrade.
+- [ ] Offertsystem etapp 3e: inloggad kontroll (lägg till tillval i förhandsvisningen på riktig kalkyl, AI-granskning med tillvalsrad) — preview-session saknas (--self utan konto).
 
 - [x] Slå ihop dubblett: merge_cases (migration 0045, admin/koordinator, dynamiska kopplingar, provläge), panel i ärendet och "Möjliga dubbletter" i pipelinevalideringen; provläge och riktig sammanslagning testade på två tillfälliga testärenden (borttagna), montör nekas; 501 tester gröna.
 - [ ] Slå ihop dubblett: klicka igenom panelen inloggad — preview-session saknas (--self utan konto).

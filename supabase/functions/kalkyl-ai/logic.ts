@@ -75,7 +75,8 @@ export interface AiContextChoices {
   kulorer?: { vagg?: string | null; tak?: string | null; snickerier?: string | null };
 }
 export interface AiContextRow {
-  id: string; room: string | null; type: 'golv' | 'malning' | 'gren' | 'fri'; gren: string | null; title: string;
+  /** optional: true när raden är tillval (visas för kunden men räknas inte in i summan). Saknas i äldre klienter → false. */
+  id: string; optional: boolean; room: string | null; type: 'golv' | 'malning' | 'gren' | 'fri'; gren: string | null; title: string;
   choices: AiContextChoices; measure: { area: number | null; length: number | null } | null; lines: AiContextLine[];
 }
 export interface AiContext {
@@ -144,7 +145,7 @@ export function sanitizeAiContext(raw: unknown): AiContext | null {
       if (type !== 'golv' && type !== 'malning' && type !== 'gren' && type !== 'fri') throw new Invalid('typ');
       const m = isObj(x.measure) ? { area: numN(x.measure.area ?? null), length: numN(x.measure.length ?? null) } : null;
       return {
-        id: str(x.id, 120), room: strN(x.room, 120), type, gren: strN(x.gren, 40), title: str(x.title, 300), choices: sanitizeChoices(x.choices), measure: m,
+        id: str(x.id, 120), optional: x.optional === true, room: strN(x.room, 120), type, gren: strN(x.gren, 40), title: str(x.title, 300), choices: sanitizeChoices(x.choices), measure: m,
         lines: arr(x.lines, L.lines, l => {
           if (!isObj(l)) throw new Invalid('kalkylrad');
           return { description: str(l.description, 300), code: strN(l.code, 120), qty: num(l.qty), unit: str(l.unit, 20), unit_price: numN(l.unit_price), rot_class: str(l.rot_class, 20) };
@@ -226,12 +227,17 @@ export function requestUsage(req: KalkylAiRequest): { input_chars: number; image
 
 // ── Prompter ─────────────────────────────────────────────────────────────────
 
+/** Gemensam mening om tillval i alla tre lägena. */
+export const OPTIONAL_RULE = 'Rader med "optional": true är tillval. Säljaren har lagt in dem, men de räknas inte in i offertens summa.';
+
 const RULES = `Regler som alltid gäller:
 - Ange aldrig priser eller belopp som inte står i underlaget. Sätt aldrig ett pris själv.
 - Hitta inte på mått. Mått som inte står i underlaget anges som null.
 - Använd bara koder som finns i katalogen ("catalog"). Finns ingen passande kod: lämna koden null eller använd en egen rad utan kod.
 - Svara bara med ett JSON-objekt enligt schemat nedan. Ingen annan text, ingen markdown.
-- Skriv all text på svenska, kort och sakligt.`;
+- Skriv all text på svenska, kort och sakligt.
+- ${OPTIONAL_RULE}
+- Föreslå aldrig att en rad ska bli tillval eller räknas in i summan. Det väljer säljaren.`;
 
 const TOLKA_SCHEMA = `{"rooms":[{"name":string,"length":number|null,"width":number|null,"height":number|null,"doors":number|null,"windows":number|null}],
 "rows":[
@@ -244,7 +250,7 @@ const TOLKA_SCHEMA = `{"rooms":[{"name":string,"length":number|null,"width":numb
 
 export const KALKYL_AI_PROMPTS: Record<KalkylAiMode, string> = {
   tolka: `Du hjälper en säljare på SmartKlimat N3prenad att göra en entreprenadkalkyl. Du får säljarens anteckning från platsbesöket, eventuellt foton och en offert från en underentreprenör (UE), samt underlaget: katalogen över prislistans rader (utan priser) och kalkylen som den ser ut nu.
-Gör ett förslag på rum och kalkylrader för det som underlaget beskriver. Föreslå inte rader som redan finns i kalkylen. Golv och målning hör alltid till ett rum. Grenrader (fasad, tak, altan, mark, el, badrum, kök, renovering) har prisrader ur grenens katalog med mängd. Det som inte passar någon annan typ blir en fri rad med egna rader (mängd och enhet, utan pris).
+Gör ett förslag på rum och kalkylrader för det som underlaget beskriver. Föreslå inte rader som redan finns i kalkylen, inte heller sådana som finns som tillval. Golv och målning hör alltid till ett rum. Grenrader (fasad, tak, altan, mark, el, badrum, kök, renovering) har prisrader ur grenens katalog med mängd. Det som inte passar någon annan typ blir en fri rad med egna rader (mängd och enhet, utan pris).
 Golvmaterial väljs bland katalogens rader med slot "golv.golvtyp". Kulörer anges som kod, till exempel "NCS S 0502-Y" eller "RAL 9010", bara när de nämns.
 Varje rad har "reason": en kort förklaring av vad i underlaget raden bygger på.
 Lägg korta frågor i "questions" om sådant som saknas eller är oklart, till exempel "Takhöjden saknas för vardagsrummet".
@@ -253,11 +259,12 @@ Schema:
 ${TOLKA_SCHEMA}`,
   granska: `Du granskar en entreprenadkalkyl för en säljare på SmartKlimat N3prenad. Du får underlaget (katalogen utan priser och kalkylen) och de kontroller som reglerna redan har utlöst.
 Ge högst åtta iakttagelser som reglerna inte redan har sagt: något som brukar ingå men saknas, en mängd som inte hänger ihop med rummets mått, två rader som överlappar. Upprepa inte de utlösta kontrollerna. Inga iakttagelser är ett bra svar när kalkylen ser rimlig ut.
+Skriv inte att något saknas när det finns som tillval. Gäller en iakttagelse en tillvalsrad ska det framgå av texten, till exempel "Tillvalet ...".
 Varje iakttagelse gäller en rad i kalkylen ("row_id" är radens id). Ett förslag är antingen att lägga till en prisrad ur katalogen med mängd, eller att öppna raden, eller null.
 ${RULES}
 Schema:
 {"observations":[{"title":string,"text":string,"row_id":string,"suggestion":{"type":"add_line","code":string,"qty":number}|{"type":"open_row"}|null}]}`,
-  fraga: `Du svarar på en säljares fråga om en offert hos SmartKlimat N3prenad. Svaret bygger bara på underlaget: kalkylen och katalogen. Kan frågan inte besvaras från underlaget, säg det. Svara kort på svenska, högst några meningar.
+  fraga: `Du svarar på en säljares fråga om en offert hos SmartKlimat N3prenad. Svaret bygger bara på underlaget: kalkylen och katalogen. Kan frågan inte besvaras från underlaget, säg det. Gäller svaret en tillvalsrad ska svaret säga att den inte ingår i summan. Svara kort på svenska, högst några meningar.
 ${RULES}
 Schema:
 {"answer":string}`,

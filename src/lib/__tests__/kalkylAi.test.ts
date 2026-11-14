@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_KALKYL_SETTINGS as S, indexPrices, emptyKalkyl, newRoom, addRoom, addRow, newGolvRow, newMalningRow, newFriRow, newGrenRow, addFriLine,
-  setGrenQty, updateRowMeta, setOverride, rowLines, DEFAULT_ROOM_DIMS,
+  setGrenQty, updateRowMeta, setOverride, rowLines, DEFAULT_ROOM_DIMS, setRowOptional,
   buildAiContext, validateAiProposal, proposalStatus, applyAiRow, validateAiReview, applyAiSuggestion, validateAiAnswer, scaledSize,
   findCustomerData, aiErrorText, aiPdfError, aiRowTitle, AI_TEXT, AI_MISSING_DIMS_NOTE, AI_MAX_OBSERVATIONS,
   type KalkylData, type PriceItem, type AiProposal, type AiRowProposal,
@@ -282,5 +282,15 @@ describe('fråga, bilagor, kunduppgifter och feltexter', () => {
     expect(aiErrorText('gateway', 'x')).toBe('AI-tjänsten svarade inte. Försök igen.');
     expect(aiErrorText(null)).toBe(AI_TEXT.failed);
     expect(aiErrorText('too_large', 'Anteckningen får vara högst 4000 tecken.')).toBe('Anteckningen får vara högst 4000 tecken.');
+  });
+});
+
+describe('buildAiContext: tillval', () => {
+  it('märker tillvalsrader med optional: true och bara dem', () => {
+    const d = kalkyl();
+    const altan = d.rows[2].id;
+    expect(buildAiContext(d, ITEMS).kalkyl.rows.map(r => r.optional)).toEqual([false, false, false, false]);
+    const ctx = buildAiContext(setRowOptional(d, altan, true), ITEMS);
+    expect(ctx.kalkyl.rows.map(r => [r.id === altan, r.optional])).toEqual([[false, false], [false, false], [true, true], [false, false]]);
   });
 });
