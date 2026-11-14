@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({
   update: vi.fn(), event: vi.fn(), notify: vi.fn(), assign: vi.fn(), tpl: vi.fn(), log: vi.fn(), invoke: vi.fn(), teamEmail: vi.fn(),
 }));
-vi.mock('@/lib/supabaseClient', () => ({ updateCase: m.update, createCaseEvent: m.event, sendNotificationEmail: m.notify, sendMontorAssignmentEmail: m.assign }));
+vi.mock('@/lib/supabaseClient', () => ({ updateCase: m.update, createCaseEvent: m.event, sendNotificationEmail: m.notify, sendMontorAssignmentEmailResult: m.assign }));
 vi.mock('@/lib/montorEmail', () => ({ sendMontorEmail: m.tpl, MAIL_WARNING: 'MAIL_WARNING' }));
 vi.mock('@/lib/activityLog', () => ({ logActivity: m.log }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { functions: { invoke: m.invoke } } }));
@@ -28,7 +28,7 @@ beforeEach(() => {
   m.update.mockResolvedValue({});
   m.event.mockResolvedValue({});
   m.notify.mockResolvedValue({});
-  m.assign.mockResolvedValue(true);
+  m.assign.mockResolvedValue('sent');
   m.tpl.mockResolvedValue({ ok: true, to: ['kontor@example.com'] });
   m.log.mockResolvedValue(undefined);
   m.invoke.mockResolvedValue({ data: { ok: true }, error: null });
@@ -86,7 +86,7 @@ describe('bookKm', () => {
   });
   it('late failures become warnings', async () => {
     m.event.mockRejectedValue(new Error('x'));
-    m.assign.mockResolvedValueOnce(false);
+    m.assign.mockResolvedValueOnce('failed');
     const r = await bookKm({ caseData: c, date: '2026-11-20', actor: 'Mirna', origin: 'office' });
     expect(r.warnings).toEqual([EVENT_WARNING, teamMailWarning('Samy')]);
   });
@@ -280,5 +280,15 @@ describe('unbookMontage', () => {
   });
   it('is only allowed for montage_bokat', async () => {
     await expect(unbookMontage({ caseData: { ...c, status: 'montage_pagar' }, actor: 'Mirna' })).rejects.toThrow('Montagebokningen kan bara tas bort när montaget är bokat');
+  });
+});
+
+describe('testmiljön (local_backend)', () => {
+  it('mejl och SMS som hoppades över ger en enda informationsvarning', async () => {
+    const { bookMontage, LOCAL_BACKEND_WARNING } = await import('../bookingService');
+    m.assign.mockResolvedValueOnce('local');
+    m.notify.mockResolvedValueOnce({ skipped: 'local_backend' });
+    const r = await bookMontage({ caseData: { id: 'c1', status: 'leverans_klar', address: 'Storgatan 1', customer_name: 'Anna', team: 'Samy', delivery_date: '2026-11-10' } as never, date: '2026-11-20', team: 'Samy', actor: 'Mirna', origin: 'office' });
+    expect(r.warnings.filter((w) => w === LOCAL_BACKEND_WARNING)).toHaveLength(1);
   });
 });

@@ -25,6 +25,7 @@ import { useMyConsultant } from '@/hooks/useMyConsultant';
 
 
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
+import { CalendarConnectionsAdmin } from '@/components/calendar/CalendarConnectionsAdmin';
 import { ScheduleView } from '@/components/schedule/ScheduleView';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -130,6 +131,9 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         {tab === 'mypay' && showMyPay && <MyPayView />}
         {tab === 'admin' && isAdmin && (
           <AdminView currentUser={role.name} />
+        )}
+        {tab === 'kalender' && isAdmin && (
+          <CalendarConnectionsAdmin currentUser={role.name} isAdmin />
         )}
 
       </main>

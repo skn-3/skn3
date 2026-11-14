@@ -15,6 +15,7 @@ import { ScheduleView } from '@/components/schedule/ScheduleView';
 import { useCoordinatorInboxCount } from '@/hooks/useCoordinatorInboxCount';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { EconomyView } from '@/components/economy/EconomyView';
+import { CalendarConnectionsAdmin } from '@/components/calendar/CalendarConnectionsAdmin';
 import { OffersHub } from '@/components/offers/OffersHub';
 import { AOrdersView } from '@/components/aorders/AOrdersView';
 
@@ -82,6 +83,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
         {tab === 'aorders' && <AOrdersView currentUser={role.name} initialOpenId={initialAOrderId} onInitialOpenHandled={() => setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('aorder'); return next; }, { replace: true })} />}
         {tab === 'ai' && <AiUsageAdmin />}
         {tab === 'economy' && <EconomyView />}
+        {tab === 'kalender' && <CalendarConnectionsAdmin currentUser={role.name} isAdmin={!!role.isAdmin} />}
       </main>
 
       <BottomNav items={bottomNav.items} more={bottomNav.more} active={tab} onChange={(k) => setTab(k as CoordinatorTab)} />

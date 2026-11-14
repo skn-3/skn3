@@ -66,10 +66,10 @@ export function MontorSchedule({ cases, team, currentUser, banner, onOpenCase }:
   return (
     <div className="space-y-4">
       {banner}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:items-start">
-        <section aria-labelledby="montor-schema-dag" className="space-y-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:items-start">
+        <section aria-labelledby="montor-schema-dag" className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 id="montor-schema-dag" className="font-display text-xl font-bold first-letter:uppercase">{dayGroupTitle(selected)}</h2>
+            <h2 id="montor-schema-dag" className="font-display text-xl font-bold">{dayGroupTitle(selected)}</h2>
             <span className="rounded-full border border-border bg-card px-2 py-0.5 font-mono text-xs font-semibold">{weekChip(week.week)}</span>
             <div className="ml-auto flex items-center gap-1">
               <Button variant="outline" size="icon" className="h-11 w-11" aria-label="Föregående vecka" onClick={() => setSelected(stepWeek(selected, -1))}><ChevronLeft className="h-5 w-5" /></Button>
@@ -140,7 +140,7 @@ export function MontorSchedule({ cases, team, currentUser, banner, onOpenCase }:
           )}
         </section>
 
-        <aside className="space-y-5">
+        <aside className="min-w-0 space-y-5">
           <section aria-labelledby="montor-kommande" className="rounded-[14px] border border-border bg-card">
             <h2 id="montor-kommande" className={cn(H2, 'border-b border-border px-4 py-2.5')}>{T.upcomingTitle}</h2>
             {upcoming.length === 0 ? (

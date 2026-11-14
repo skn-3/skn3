@@ -33,6 +33,8 @@ interface MontorViewProps {
   onToggleView?: () => void;
   initialCaseId?: string | null;
   onInitialCaseHandled?: () => void;
+  /** Sant när PIN-byte och välkomstskärm är avgjorda; popupen visas aldrig ovanpå dem. */
+  calendarPopupAllowed?: boolean;
 }
 
 
@@ -54,7 +56,7 @@ function matchesSearch(c: CaseRow, term: string): boolean {
   return fields.some(f => f && String(f).toLowerCase().includes(t));
 }
 
-export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialCaseId, onInitialCaseHandled }: MontorViewProps) {
+export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialCaseId, onInitialCaseHandled, calendarPopupAllowed = false }: MontorViewProps) {
   const { names: MONTORS, emailOf: montorEmailOf, phoneOf: montorPhoneOf } = useMontorTeams();
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const pull = usePullToRefresh([
@@ -76,13 +78,13 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
     if (next !== device) updateDevice(() => next);
   }, [isMontorRole, connection, device, updateDevice]);
   useEffect(() => {
-    if (autoChecked.current || !isMontorRole || !settings.isFetched || initialCaseId) return;
+    if (autoChecked.current || !calendarPopupAllowed || !isMontorRole || !settings.isFetched || initialCaseId) return;
     autoChecked.current = true;
     if (shouldAutoShowGuide({ role: role.type, popupEnabled: settings.data?.popup_enabled, state: device, today: toIso(new Date()) })) {
       updateDevice(markShown);
       setGuideOpen(true);
     }
-  }, [isMontorRole, settings.isFetched, settings.data, device, role.type, updateDevice, initialCaseId]);
+  }, [calendarPopupAllowed, isMontorRole, settings.isFetched, settings.data, device, role.type, updateDevice, initialCaseId]);
   const showCalendarNudge = isMontorRole && needsCalendar(device);
   const openCase = (c: CaseRow) => {
     listScrollY.current = window.scrollY;

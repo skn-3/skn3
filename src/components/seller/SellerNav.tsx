@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Columns3, MessageSquare, Truck, CalendarDays, LayoutDashboard, FileText, ClipboardList, PhoneCall, Wallet, Settings, ChevronDown, Check,
+  Columns3, MessageSquare, Truck, CalendarDays, CalendarCheck, LayoutDashboard, FileText, ClipboardList, PhoneCall, Wallet, Settings, ChevronDown, Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CountPill } from '@/components/ui/chip';
@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { BottomNavItem } from '@/components/BottomNav';
 
-export type SellerTab = 'pipeline' | 'arenden' | 'deliveries' | 'schema' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'futurejobs' | 'economy' | 'admin' | 'mypay';
+export type SellerTab = 'pipeline' | 'arenden' | 'deliveries' | 'schema' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'futurejobs' | 'economy' | 'admin' | 'mypay' | 'kalender';
 
 interface NavItem { value: SellerTab; label: string; icon: LucideIcon }
 
@@ -34,6 +34,7 @@ export const SELLER_MYPAY: NavItem = { value: 'mypay', label: 'Min lön', icon: 
 export const SELLER_ADMIN: NavItem[] = [
   { value: 'economy', label: 'Ekonomi', icon: Wallet },
   { value: 'admin', label: 'Admin', icon: Settings },
+  { value: 'kalender', label: 'Kalenderkoppling', icon: CalendarCheck },
 ];
 
 interface SellerNavProps {

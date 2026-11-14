@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Inbox, Columns3, CalendarDays, MessageSquare, FileText, ClipboardList, Wallet, ChevronDown, Check } from 'lucide-react';
+import { Inbox, Columns3, CalendarDays, CalendarCheck, MessageSquare, FileText, ClipboardList, Wallet, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CountPill } from '@/components/ui/chip';
 import {
@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { BottomNavItem } from '@/components/BottomNav';
 
-export type CoordinatorTab = 'schema' | 'inbox' | 'pipeline' | 'deviations' | 'offers' | 'aorders' | 'economy' | 'ai';
+export type CoordinatorTab = 'schema' | 'inbox' | 'pipeline' | 'deviations' | 'offers' | 'aorders' | 'economy' | 'ai' | 'kalender';
 
 interface NavItem { value: CoordinatorTab; label: string; icon: LucideIcon }
 
@@ -23,6 +23,7 @@ export const COORDINATOR_MORE: NavItem[] = [
   { value: 'aorders', label: 'A-ordrar', icon: ClipboardList },
   { value: 'economy', label: 'Ekonomi', icon: Wallet },
   { value: 'ai', label: 'AI-användning', icon: MessageSquare },
+  { value: 'kalender', label: 'Kalenderkoppling', icon: CalendarCheck },
 ];
 
 interface Props {

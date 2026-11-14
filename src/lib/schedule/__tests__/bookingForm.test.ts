@@ -46,6 +46,7 @@ describe('booking form rules', () => {
     const base = { mode: 'bookMontage' as const, date: '2026-11-18', team: 'Samy', today: T };
     expect(confirmationText({ ...base, teamMailed: true, smsSent: true })).toBe('Montage bokat ons 18 nov · Samy. Teamet har fått mejl och kunden SMS.');
     expect(confirmationText({ ...base, teamMailed: true, smsSent: false })).toBe('Montage bokat ons 18 nov · Samy. Teamet har fått mejl.');
+    expect(confirmationText({ ...base, teamMailed: false, smsSent: false, local: true })).toBe('Montage bokat ons 18 nov · Samy. Mejl och SMS skickas inte i testmiljön.');
     expect(confirmationText({ ...base, teamMailed: false, smsSent: false })).toBe('Montage bokat ons 18 nov · Samy. Inget mejl gick till teamet.');
     expect(confirmationText({ mode: 'bookKm', date: '2026-11-19', team: null, today: T, teamMailed: false, smsSent: false })).toBe('KM bokad tors 19 nov. Inget mejl gick till teamet.');
   });

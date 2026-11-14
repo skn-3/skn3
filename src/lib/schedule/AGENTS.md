@@ -36,3 +36,16 @@ Rules for src/lib/schedule (pure logic) and src/lib/booking (shared booking serv
 
 ## Coordinator inbox counter
 - Inbox selections (to book, sheet metal, open deviations) and inboxOpenCount live in src/lib/coordinatorInbox.ts; CoordinatorInbox and the Min inkorg badge (useCoordinatorInboxCount, same query keys) use the same rules.
+
+## Draft send guard
+- Every outgoing mail/SMS from edge functions goes through _shared/sendMail.ts or checks isLocalBackend() (_shared/localBackend.ts) first. On a local draft backend (SUPABASE_URL is localhost/127.x/kong/private IP) nothing is sent; the function answers { skipped: 'local_backend' } and logs what would have been sent. *.supabase.co never matches (tested). Clients treat the skip as not sent and show LOCAL_BACKEND_WARNING.
+
+## Installer Schema (src/components/montor/MontorSchedule)
+- Data and texts come from src/lib/schedule/montorSchedule.ts; KM belongs to km_team, falling back to team, so self-booked KM without km_team still shows. Deliveries and pickups are not shown.
+- Which cases an installer may book is decided only by canMontorBookKm/canMontorBookMontage (montorBooking.ts), shared with MontorCaseDetail.
+- The calendar popup decision lives in src/lib/calendar/popup.ts; Index passes calendarPopupAllowed only after PIN change and welcome screen are settled, so the popup never covers them.
+
+## Calendar feed and connection
+- calendar-ics builds its ICS only through _shared/calendarFeed.ts (re-exported as src/lib/calendarFeed.ts); its montage day rule is tested against src/lib/schedule/dates. Viewer scope comes from profiles/user_roles or an active montor_teams row, never hardcoded name lists. Feeds never contain amounts.
+- Fetches are logged in calendar_connections only for calendar clients (calendarClient) via the service-only calendar_record_fetch RPC; logging never blocks the response. "Connected" = isConnected (latest calendar-client fetch within CONNECTED_DAYS).
+- Tokens for other users are created and read only server-side (calendar-connect); responses carry masked addresses, never tokens. Guide texts and states live in src/lib/calendar/guide.ts; admin overview texts in src/lib/calendar/overview.ts.

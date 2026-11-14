@@ -37,6 +37,7 @@ const Index = () => {
   const arrivedViaLink = useRef(!!searchParams.get('case') || !!searchParams.get('aorder'));
   const [initialCaseId, setInitialCaseId] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [gatesSettled, setGatesSettled] = useState(false);
   const [mustChangePin, setMustChangePin] = useState<boolean | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -49,6 +50,7 @@ const Index = () => {
   // Hämta must_change_pin från profilen för inloggad user
   useEffect(() => {
     let cancelled = false;
+    setGatesSettled(false);
     if (!role) { setMustChangePin(null); setUserId(null); return; }
     (async () => {
       const { data: u } = await supabase.auth.getUser();
@@ -71,6 +73,8 @@ const Index = () => {
     if (role && role.type !== 'coordinator' && !arrivedViaLink.current && !initialCaseId && !searchParams.get('case') && !searchParams.get('aorder') && shouldShowWelcome(role.name) && mustChangePin === false) {
       setShowWelcome(true);
     }
+    // Kalenderpopupen får visas först när PIN-byte och välkomstskärm är avgjorda.
+    if (role && mustChangePin === false) setGatesSettled(true);
   }, [role, initialCaseId, mustChangePin, searchParams]);
 
   const renderView = (): React.ReactNode => {
@@ -112,6 +116,7 @@ const Index = () => {
         onToggleView={() => setShowMontorView(false)}
         initialCaseId={initialCaseId}
         onInitialCaseHandled={() => setInitialCaseId(null)}
+        calendarPopupAllowed={gatesSettled}
       />
     );
   }
@@ -158,6 +163,7 @@ const Index = () => {
       onChangeRole={clearRole}
       initialCaseId={initialCaseId}
       onInitialCaseHandled={() => setInitialCaseId(null)}
+      calendarPopupAllowed={gatesSettled}
     />
   );
   };

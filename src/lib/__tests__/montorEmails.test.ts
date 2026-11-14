@@ -3,7 +3,7 @@ import {
   buildMontorEmail, findFreshEvent, recipientsFor, MONTOR_TEMPLATES, MAIL_CASE_FIELDS,
   type MailCase, type MailEvent, type MontorTemplate,
 } from '../../../supabase/functions/notify-email/montorEmails';
-import { COORDINATOR_TO } from '../../../supabase/functions/_shared/mailRecipients';
+import { COORDINATOR_TO, teamEmailResolver } from '../../../supabase/functions/_shared/mailRecipients';
 
 const NOW = Date.parse('2026-11-09T10:00:00Z');
 const c: MailCase & Record<string, unknown> = {
@@ -92,5 +92,17 @@ describe('Montörsmejl — mottagare', () => {
     expect(recipientsFor('montage_bokat', c)).toEqual(['alex@nbdentreprenad.com']);
     expect(recipientsFor('km_klar', { ...c, seller: 'Okänd' })).toBeNull();
     expect(recipientsFor('km_bokad', { ...c, team: null })).toBeNull();
+  });
+  it('teamets adress från montor_teams.email med den statiska listan som reserv', () => {
+    const resolver = teamEmailResolver([{ name: 'Alex NBD', email: 'ny@alex.se' }, { name: 'Samy', email: '' }]);
+    expect(recipientsFor('montage_bokat', c, resolver)).toEqual(['ny@alex.se']);
+    expect(recipientsFor('montage_bokat', { ...c, team: 'Samy' }, resolver)).toEqual(['info@smtmbygg.se']);
+    expect(recipientsFor('montage_bokat', { ...c, team: 'Tomek' }, resolver)).toBeNull();
+  });
+  it('km_bokad går till km_team med team som reserv', () => {
+    const resolver = teamEmailResolver([{ name: 'GVMO', email: 'gvmo@example.com' }]);
+    expect(recipientsFor('km_bokad', { ...c, km_team: 'GVMO' }, resolver)).toEqual(['gvmo@example.com']);
+    expect(recipientsFor('km_bokad', { ...c, km_team: null }, resolver)).toEqual(['alex@nbdentreprenad.com']);
+    expect(recipientsFor('montage_bokat', { ...c, km_team: 'GVMO' }, resolver)).toEqual(['alex@nbdentreprenad.com']);
   });
 });
