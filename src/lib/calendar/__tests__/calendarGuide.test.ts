@@ -97,6 +97,16 @@ describe('Popupen för montörer', () => {
     expect(reconcileDeviceState(done, { last_fetched_at: '2026-11-03T13:00:00Z', last_client: 'apple' }, NOW)).toBe(done);
     expect(reconcileDeviceState(done, undefined, NOW)).toBe(done);
   });
+  it('klarmarkerad enhet utan någon hämtning på servern (rad saknas eller ny länk) visar banderollen igen', () => {
+    const done = markDone(s());
+    for (const row of [null, { last_fetched_at: null, last_client: null }]) {
+      const r = reconcileDeviceState(done, row, NOW);
+      expect(r.done).toBe(false);
+      expect(r.stale).toBe(true);
+      expect(needsCalendar(r)).toBe(true);
+    }
+    expect(reconcileDeviceState(done, undefined, NOW)).toBe(done);
+  });
   it('en kalenderhämtning efter att kopplingen startats på enheten klarmarkerar', () => {
     const pending = markPending(s(), Date.parse('2026-11-16T11:00:00Z'));
     expect(reconcileDeviceState(pending, { last_fetched_at: '2026-11-16T11:30:00Z', last_client: 'google' }, NOW).done).toBe(true);

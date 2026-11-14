@@ -72,6 +72,8 @@ export function reconcileDeviceState(state: DeviceCalendarState, row: Connection
   if (row === undefined) return state;
   const t = row?.last_fetched_at ? Date.parse(row.last_fetched_at) : NaN;
   if (state.done) {
+    // Ingen hämtning alls på servern (raden saknas eller ny länk): enheten är inte längre klar.
+    if (!Number.isFinite(t)) return { ...state, done: false, stale: true };
     if (Number.isFinite(t) && now.getTime() - t > STALE_DAYS * DAY_MS) return { ...state, done: false, stale: true };
     return state;
   }

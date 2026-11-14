@@ -61,6 +61,12 @@ describe('booking form rules', () => {
     expect(detailActions({ kind: 'leverans', status: 'godkand', state: 'bokad' })).toEqual(openOnly);
     expect(detailActions({ kind: 'hamtning', status: 'montage_klart', state: 'bokad' })).toEqual(openOnly);
   });
+  it('montage med datum i en tidigare status kan bokas om och byta team men inte avbokas', () => {
+    for (const status of ['km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'leverans_klar']) {
+      expect(detailActions({ kind: 'montage', status, state: 'bokad' })).toEqual({ reschedule: true, changeTeam: true, open: true, unbook: false });
+    }
+    expect(detailActions({ kind: 'km', status: 'godkand', state: 'klar' })).toEqual({ reschedule: false, changeTeam: false, open: true, unbook: false });
+  });
 });
 
 describe('queue view', () => {

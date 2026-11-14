@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
@@ -41,7 +42,13 @@ export function CalendarGuideDialog({ open, onOpenChange, role, onShowSchedule }
   const scrollRef = useRef<HTMLDivElement>(null);
   const platform = useMemo(() => detectPlatform(typeof navigator !== 'undefined' ? navigator.userAgent : ''), []);
 
-  const readStatus = useCallback(() => readOwnConnection(userName), [userName]);
+  const qc = useQueryClient();
+  // Raden guiden ser skrivs även till enhetens cache, så att klarmarkeringen inte stäms av mot en gammal rad.
+  const readStatus = useCallback(async () => {
+    const row = await readOwnConnection(userName);
+    qc.setQueryData(['calendar-connection', userName], row);
+    return row;
+  }, [qc, userName]);
   const close = () => onOpenChange(false);
   const content = open ? (
     <CalendarGuide

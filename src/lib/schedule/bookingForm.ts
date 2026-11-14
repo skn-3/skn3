@@ -98,6 +98,8 @@ export function confirmationText(p: { mode: BookingMode; date: string; team: str
   return `${head} ${tail}`;
 }
 
+const MONTAGE_EARLY_STATUSES = new Set(['km_klar', 'vantar_godkannande', 'godkand', 'i_produktion', 'leverans_klar']);
+
 export interface DetailActions { reschedule: boolean; changeTeam: boolean; open: boolean; unbook: boolean }
 
 /** Knapparna i bokningens detaljer, efter typ och status. */
@@ -106,6 +108,8 @@ export function detailActions(event: Pick<ScheduleEvent, 'kind' | 'status' | 'st
   if (event.kind === 'montage') {
     if (event.status === 'montage_bokat') return { reschedule: true, changeTeam: true, open: true, unbook: true };
     if (event.status === 'montage_pagar') return { ...none, reschedule: true };
+    // Montage med datum i en tidigare status kan flyttas och byta team, men inte avbokas.
+    if (event.status && MONTAGE_EARLY_STATUSES.has(event.status)) return { reschedule: true, changeTeam: true, open: true, unbook: false };
     return none;
   }
   if (event.kind === 'km') {
