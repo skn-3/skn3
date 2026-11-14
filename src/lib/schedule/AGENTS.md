@@ -23,3 +23,16 @@ Rules for src/lib/schedule (pure logic) and src/lib/booking (shared booking serv
 - origin 'office' and 'montor' keep their existing side effects: office uses notify-email with explicit recipients (coordinator mail, assignment mail, optional customer SMS); installers only trigger fixed server-side templates (sendMontorEmail) and never send customer SMS or coordinator mail.
 - Team mail addresses come from resolveTeamEmail (montor_teams.email, fallback EMAIL_MAP). KM mails go to km_team with team as fallback.
 - Event texts that already existed are kept verbatim (including stored time format); new texts (reschedule/unbook/move) use ISO dates like the existing ones.
+
+## Office Schema (src/components/schedule)
+- ScheduleView is the seller/admin/coordinator landing tab ("Schema"); the old CalendarView stays only for the installer tab and MyCalendarDialog until step 3.
+- Components only render and wire state. Every text, label and view model (week range, event lines, summary, conflict chip, filters, board rows, placement cells/prompt, month bars, list groups, booking modes, SMS options, submit labels, confirmation, detail buttons, queue help/search, view preference) lives in src/lib/schedule (labels, board, month, list, bookingForm, queueView, viewPrefs) with tests.
+- Board rows come from buildBoardRows: Logistik, active teams sorted by name, extra teams, Ej tilldelat only with bookings or while placing a KM. Week-based deliveries are merged into one bar per week in Logistik (groupWeekDeliveries). Placement cells use checkPlacement against all (unfiltered) events; Logistik is never a target.
+- Booking modes: KM queue and KM without date -> bookKm; montage queue -> bookMontage; montage without date -> setMontageDate (rescheduleMontage). For setMontageDate/rescheduleMontage/rescheduleKm with a new team, changeBookingTeam runs first.
+- The confirmation must reflect what was sent: bookingOutcome (src/lib/booking/outcome.ts) derives it from the service warnings plus the team's known address (montor_teams.email or the EMAIL_MAP fallback). Warning strings live in src/lib/booking/messages.ts so pure modules can read them.
+- Known simplifications: the month view counts only exact-date deliveries per day; the list shows a week-based delivery once, on the first day of the week. The unbook confirmation is inline in the details panel (no modal at any width).
+- Layout: from 1280 px a fixed right column (queue/booking/details); below that the queue is a right Sheet and booking/details a bottom Drawer; below 768 px the week board is not offered (Lista/Månad only) and booking from the queue uses the Team and Dag fields.
+- View choice is stored per user and device under viewStorageKey(user); programmatic switches (month -> week/list, placement -> week) are not persisted.
+
+## Coordinator inbox counter
+- Inbox selections (to book, sheet metal, open deviations) and inboxOpenCount live in src/lib/coordinatorInbox.ts; CoordinatorInbox and the Min inkorg badge (useCoordinatorInboxCount, same query keys) use the same rules.

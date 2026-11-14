@@ -18,19 +18,25 @@ export function toastBookingWarnings(warnings: readonly string[]) {
   }
 }
 
+function useBookingMutation<V extends { caseData: { id: string } }>(fn: (vars: V) => Promise<BookingResult>) {
+  const queryClient = useQueryClient();
+  return useMutation<BookingResult, Error, V>({
+    mutationFn: fn,
+    onSuccess: (_r, vars) => {
+      for (const queryKey of bookingQueryKeys(vars.caseData.id)) queryClient.invalidateQueries({ queryKey });
+    },
+  });
+}
+
 /** Bokningstjänsten som mutationer. Visningen av resultat och fel sköts av anroparen. */
 export function useBookingActions() {
-  const queryClient = useQueryClient();
-  const onSuccess = (_r: BookingResult, vars: { caseData: { id: string } }) => {
-    for (const queryKey of bookingQueryKeys(vars.caseData.id)) queryClient.invalidateQueries({ queryKey });
-  };
   return {
-    bookKm: useMutation({ mutationFn: bookKm, onSuccess }),
-    bookMontage: useMutation({ mutationFn: bookMontage, onSuccess }),
-    rescheduleMontage: useMutation({ mutationFn: rescheduleMontage, onSuccess }),
-    rescheduleKm: useMutation({ mutationFn: rescheduleKm, onSuccess }),
-    changeBookingTeam: useMutation({ mutationFn: changeBookingTeam, onSuccess }),
-    unbookKm: useMutation({ mutationFn: unbookKm, onSuccess }),
-    unbookMontage: useMutation({ mutationFn: unbookMontage, onSuccess }),
+    bookKm: useBookingMutation(bookKm),
+    bookMontage: useBookingMutation(bookMontage),
+    rescheduleMontage: useBookingMutation(rescheduleMontage),
+    rescheduleKm: useBookingMutation(rescheduleKm),
+    changeBookingTeam: useBookingMutation(changeBookingTeam),
+    unbookKm: useBookingMutation(unbookKm),
+    unbookMontage: useBookingMutation(unbookMontage),
   };
 }

@@ -1,20 +1,21 @@
 import type { LucideIcon } from 'lucide-react';
 import { Inbox, Columns3, CalendarDays, MessageSquare, FileText, ClipboardList, Wallet, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CountPill } from '@/components/ui/chip';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { BottomNavItem } from '@/components/BottomNav';
 
-export type CoordinatorTab = 'inbox' | 'pipeline' | 'calendar' | 'deviations' | 'offers' | 'aorders' | 'economy' | 'ai';
+export type CoordinatorTab = 'schema' | 'inbox' | 'pipeline' | 'deviations' | 'offers' | 'aorders' | 'economy' | 'ai';
 
 interface NavItem { value: CoordinatorTab; label: string; icon: LucideIcon }
 
 export const COORDINATOR_PRIMARY: NavItem[] = [
+  { value: 'schema', label: 'Schema', icon: CalendarDays },
   { value: 'inbox', label: 'Min inkorg', icon: Inbox },
   { value: 'pipeline', label: 'Pipeline', icon: Columns3 },
   { value: 'deviations', label: 'Ärenden', icon: MessageSquare },
-  { value: 'calendar', label: 'Kalender', icon: CalendarDays },
 ];
 
 export const COORDINATOR_MORE: NavItem[] = [
@@ -27,15 +28,20 @@ export const COORDINATOR_MORE: NavItem[] = [
 interface Props {
   active: CoordinatorTab;
   onChange: (t: CoordinatorTab) => void;
+  /** Antal öppna punkter i Min inkorg. */
+  inboxCount?: number;
 }
 
 /** Flikarna som BottomNav använder på telefon – samma källa som headern. */
-export function coordinatorBottomNavItems(): { items: BottomNavItem[]; more: BottomNavItem[] } {
-  const toItem = (n: NavItem): BottomNavItem => ({ key: n.value, label: n.label, icon: n.icon });
+export function coordinatorBottomNavItems(inboxCount = 0): { items: BottomNavItem[]; more: BottomNavItem[] } {
+  const toItem = (n: NavItem): BottomNavItem => ({
+    key: n.value, label: n.label, icon: n.icon,
+    ...(n.value === 'inbox' && inboxCount > 0 ? { badge: inboxCount, badgeTone: 'warning' as const } : {}),
+  });
   return { items: COORDINATOR_PRIMARY.map(toItem), more: COORDINATOR_MORE.map(toItem) };
 }
 
-export function CoordinatorNav({ active, onChange }: Props) {
+export function CoordinatorNav({ active, onChange, inboxCount = 0 }: Props) {
   const activeMore = COORDINATOR_MORE.find((m) => m.value === active);
 
   return (
@@ -58,6 +64,12 @@ export function CoordinatorNav({ active, onChange }: Props) {
           >
             <Icon className={cn('h-[17px] w-[17px]', isActive && 'text-gold')} strokeWidth={isActive ? 2.3 : 2} />
             <span className="hidden lg:inline">{t.label}</span>
+            {t.value === 'inbox' && inboxCount > 0 && (
+              <CountPill tone="onDark" className={cn(isActive && 'bg-gold text-gold-foreground')}>
+                <span aria-hidden="true">{inboxCount}</span>
+                <span className="sr-only">{inboxCount} öppna punkter</span>
+              </CountPill>
+            )}
           </button>
         );
       })}

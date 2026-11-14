@@ -38,6 +38,8 @@ import { selectOpenWastePickups, wasteAgeDays, isWasteOverdue, wasteAgeLabel, pe
 import { useWastePickup } from '@/hooks/useWastePickup';
 import { WasteBookForm } from '@/components/shared/WastePickupForms';
 import { formatDaySv } from '@/lib/dateSv';
+import { selectToBook, selectToOrderSheet, selectOpenDeviations } from '@/lib/coordinatorInbox';
+import { fetchSheetMetalCaseIds } from '@/hooks/useCoordinatorInboxCount';
 
 interface Props {
   coordinatorName: string;
@@ -86,13 +88,7 @@ export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
   // Sheet metal orders — fetch all to know which cases already have one
   const { data: sheetMetalCaseIds } = useQuery({
     queryKey: ['coordinator-sheet-metal-cases'],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('sheet_metal_orders')
-        .select('case_id, status');
-      if (error) throw error;
-      return new Set((data || []).map((o: any) => o.case_id));
-    },
+    queryFn: fetchSheetMetalCaseIds,
   });
 
   const followup = useCustomerFollowup(coordinatorName);
@@ -104,39 +100,13 @@ export function CoordinatorInbox({ coordinatorName, onSelectCase }: Props) {
   const summary = pendingSummary(toFollowUp.length, toPickUp.length);
 
   // SECTION 1 — Att boka in: status godkand/i_produktion AND (no montage_date OR no team)
-  const toBook = useMemo(() => {
-    return (cases || [])
-      .filter(c =>
-        (c.status === 'godkand' || c.status === 'i_produktion') &&
-        (!c.montage_date || !c.team)
-      )
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  }, [cases]);
+  const toBook = useMemo(() => selectToBook(cases || []), [cases]);
 
   // SECTION 2 — Att beställa plåt för: cases in production phase without a sheet metal order
-  const toOrderSheet = useMemo(() => {
-    const candidates = (cases || []).filter(c =>
-      ['godkand', 'i_produktion', 'leverans_klar', 'montage_bokat'].includes(c.status)
-    );
-    if (!sheetMetalCaseIds) return candidates;
-    return candidates.filter(c => !sheetMetalCaseIds.has(c.id));
-  }, [cases, sheetMetalCaseIds]);
+  const toOrderSheet = useMemo(() => selectToOrderSheet(cases || [], sheetMetalCaseIds), [cases, sheetMetalCaseIds]);
 
   // SECTION 3 — Reklamationer att följa upp (only active statuses)
-  const ACTIVE: DeviationStatus[] = ['ny', 'under_atgard', 'vantar_leverans'];
-  const openDeviations = useMemo(() => {
-    return (deviations || [])
-      .map(d => ({ d, status: ((d as any).status as DeviationStatus) || (d.resolved ? 'klar' : 'ny') }))
-      .filter(({ status }) => ACTIVE.includes(status))
-      .sort((a, b) => {
-        // 'ny' first, then by oldest
-        const rank = (s: DeviationStatus) => (s === 'ny' ? 0 : s === 'under_atgard' ? 1 : 2);
-        const r = rank(a.status) - rank(b.status);
-        if (r !== 0) return r;
-        return new Date(a.d.created_at).getTime() - new Date(b.d.created_at).getTime();
-      })
-      .map(x => x.d);
-  }, [deviations]);
+  const openDeviations = useMemo(() => selectOpenDeviations(deviations || []), [deviations]);
 
   const caseById = useMemo(() => {
     const m = new Map<string, CaseRow>();

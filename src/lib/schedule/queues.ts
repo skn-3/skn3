@@ -14,6 +14,7 @@ export interface QueueItem {
   city: string | null;
   customerName: string;
   units: number | null;
+  seller: string | null;
   /** Förvalt team: km_team för KM, team för montage. */
   team: string | null;
   waitingDays: number;
@@ -71,6 +72,7 @@ function item(c: ScheduleCase, queue: QueueName, kind: 'km' | 'montage', today: 
     city: c.city ?? null,
     customerName: c.customer_name ?? '',
     units: typeof c.units === 'number' ? c.units : null,
+    seller: c.seller ?? null,
     team: (kind === 'km' ? c.km_team : c.team) || null,
     waitingDays: since ? Math.max(0, daysBetween(since, today)) : 0,
     deliveryLabel: deliveryLabelOf(c, today),

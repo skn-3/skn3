@@ -25,7 +25,7 @@ import { useMyConsultant } from '@/hooks/useMyConsultant';
 
 
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
-import { CalendarView } from '@/components/calendar/CalendarView';
+import { ScheduleView } from '@/components/schedule/ScheduleView';
 import { supabase } from '@/integrations/supabase/client';
 
 interface SellerViewProps {
@@ -38,7 +38,7 @@ interface SellerViewProps {
 }
 
 export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoordinatorView, initialCaseId, onInitialCaseHandled }: SellerViewProps) {
-  const [tab, setTab] = useState<SellerTab>('pipeline');
+  const [tab, setTab] = useState<SellerTab>('schema');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const initialAOrderId = searchParams.get('aorder');
@@ -106,8 +106,8 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         {tab === 'deliveries' && (
           <DeliveriesView onSelectCase={setSelectedCase} currentUser={role.name} />
         )}
-        {tab === 'calendar' && (
-          <CalendarView onSelectCase={setSelectedCase} />
+        {tab === 'schema' && (
+          <ScheduleView currentUser={role.name} onSelectCase={setSelectedCase} />
         )}
         {tab === 'visit' && (
           <VisitForm sellerName={role.name} />

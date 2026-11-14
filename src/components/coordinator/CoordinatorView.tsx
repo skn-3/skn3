@@ -11,7 +11,8 @@ import { BottomNav } from '@/components/BottomNav';
 import { CoordinatorInbox } from './CoordinatorInbox';
 import { TicketCenter } from '@/components/tickets/TicketCenter';
 import { Pipeline } from '@/components/seller/Pipeline';
-import { CalendarView } from '@/components/calendar/CalendarView';
+import { ScheduleView } from '@/components/schedule/ScheduleView';
+import { useCoordinatorInboxCount } from '@/hooks/useCoordinatorInboxCount';
 import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { EconomyView } from '@/components/economy/EconomyView';
 import { OffersHub } from '@/components/offers/OffersHub';
@@ -26,12 +27,13 @@ interface Props {
 }
 
 export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initialCaseId, onInitialCaseHandled }: Props) {
-  const [tab, setTab] = useState<CoordinatorTab>('inbox');
+  const [tab, setTab] = useState<CoordinatorTab>('schema');
   const [selectedCase, setSelectedCase] = useState<CaseRow | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const initialAOrderId = searchParams.get('aorder');
   useEffect(() => { if (initialAOrderId) setTab('aorders'); }, [initialAOrderId]);
-  const bottomNav = coordinatorBottomNavItems();
+  const inboxCount = useCoordinatorInboxCount();
+  const bottomNav = coordinatorBottomNavItems(inboxCount);
 
   useEffect(() => {
     if (!initialCaseId) return;
@@ -64,15 +66,15 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
           { label: 'Säljarvy', onClick: onToggleSellerView },
         ] : undefined}
       >
-        <CoordinatorNav active={tab} onChange={setTab} />
+        <CoordinatorNav active={tab} onChange={setTab} inboxCount={inboxCount} />
       </AppHeader>
 
       <main className="py-4 md:py-6 pb-28 md:pb-8 max-w-[1600px] mx-auto md:px-6">
+        {tab === 'schema' && <ScheduleView currentUser={role.name} onSelectCase={setSelectedCase} />}
         {tab === 'inbox' && <CoordinatorInbox coordinatorName={role.name} onSelectCase={setSelectedCase} />}
         {tab === 'pipeline' && (
           <Pipeline sellerName={role.name} isCoordinator onSelectCase={setSelectedCase} />
         )}
-        {tab === 'calendar' && <CalendarView onSelectCase={setSelectedCase} />}
         {tab === 'deviations' && (
           <TicketCenter currentUser={role.name} role="coordinator" onSelectCase={setSelectedCase} />
         )}

@@ -500,3 +500,13 @@ body { overflow-x: clip; }
 [data-sonner-toast] {
   pointer-events: auto;
 }
+
+/* Schema: randiga ytor för veckobaserad leverans och spärrade dagar i placeringsläget. */
+@layer utilities {
+  .schedule-stripes-info {
+    background-image: repeating-linear-gradient(135deg, hsl(var(--info) / 0.14) 0 6px, transparent 6px 12px);
+  }
+  .schedule-stripes-blocked {
+    background-image: repeating-linear-gradient(135deg, hsl(var(--muted-foreground) / 0.18) 0 5px, transparent 5px 10px);
+  }
+}

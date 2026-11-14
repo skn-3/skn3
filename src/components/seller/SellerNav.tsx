@@ -9,17 +9,17 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { BottomNavItem } from '@/components/BottomNav';
 
-export type SellerTab = 'pipeline' | 'arenden' | 'deliveries' | 'calendar' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'futurejobs' | 'economy' | 'admin' | 'mypay';
+export type SellerTab = 'pipeline' | 'arenden' | 'deliveries' | 'schema' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'futurejobs' | 'economy' | 'admin' | 'mypay';
 
 interface NavItem { value: SellerTab; label: string; icon: LucideIcon }
 
 // Fyra huvudflikar i headern, resten bakom "Mer". "Registrera besök" är en handling
 // (guldknappen), inte en vy, och ligger därför inte här.
 export const SELLER_PRIMARY: NavItem[] = [
+  { value: 'schema', label: 'Schema', icon: CalendarDays },
   { value: 'pipeline', label: 'Pipeline', icon: Columns3 },
   { value: 'arenden', label: 'Ärenden', icon: MessageSquare },
   { value: 'deliveries', label: 'Leveranser', icon: Truck },
-  { value: 'calendar', label: 'Kalender', icon: CalendarDays },
 ];
 
 export const SELLER_MORE: NavItem[] = [
@@ -53,7 +53,7 @@ export function sellerBottomNavItems(isAdmin: boolean, futureJobsDue: number, sh
   });
   const primary = SELLER_PRIMARY.map(toItem);
   const more = [...SELLER_MORE, ...(showMyPay ? [SELLER_MYPAY] : []), ...(isAdmin ? SELLER_ADMIN : [])].map(toItem);
-  // Tre direkt (guldknappen tar den fjärde platsen), Kalender flyttar till "Mer".
+  // Tre direkt (guldknappen tar den fjärde platsen): Schema först, Leveranser flyttar till "Mer".
   return { items: primary.slice(0, 3), more: [...primary.slice(3), ...more] };
 }
 
