@@ -173,12 +173,11 @@ export function offerPdfPriceRows(totals: CustomerTotals): { label: string; amou
   ].filter(r => Math.round(r.amount_ex_vat * 100) !== 0);
 }
 
-/** "Sockellist furu vit 12×56 · NCS S 0502-Y": namn, spec och kulörkod för en valrad i PDF:en. */
+/** "Sockellist furu vit · 12×56 · NCS S 0502-Y": namn, spec och kulörkod för en valrad i PDF:en, åtskilda med " · ". */
 export function offerPdfItemText(item: Pick<CustomerItem, 'name' | 'detail' | 'color'>): string {
   const c = item.color;
   const code = !c?.code ? '' : !c.system || c.code.toUpperCase().startsWith(c.system.toUpperCase()) ? c.code : `${c.system} ${c.code}`;
-  const name = [item.name, item.detail].filter(Boolean).join(' ');
-  return code ? `${name} · ${code}` : name;
+  return [item.name, item.detail, code].filter(Boolean).join(' · ');
 }
 
 /** Färgrutans färg som #rrggbb (pdfmake), från kulörens hex eller provbitens färg. null = ingen ruta. */
@@ -330,25 +329,26 @@ export function buildOfferDocDef(offer: OfferForPdf, opts: OfferPdfOptions = {},
     margin: [0, 7, 0, 7],
   });
   // Rubriken (och intro) hålls ihop med första blocket så att den aldrig blir ensam sist på en sida.
-  const cvBlocks = (head: any[], list: any[]) => {
-    if (!list.length) return head;
-    return [{ unbreakable: true, stack: [...head, list[0]] }, ...list.slice(1).flatMap(b => [hairline(), b])];
+  // tail (gemensamma rader och justeringar) hålls ihop med sista blocket så att de aldrig blir ensamma överst på en sida.
+  const cvBlocks = (head: any[], list: any[], tail: any[] = []) => {
+    if (!list.length) return tail.length ? [{ unbreakable: true, stack: [...head, ...tail] }] : head;
+    const out: any[] = [{ unbreakable: true, stack: [...head, list[0]] }, ...list.slice(1).flatMap(b => [hairline(), b])];
+    if (!tail.length) return out;
+    const last = out.pop();
+    return [...out, { unbreakable: true, stack: [...(list.length === 1 ? last.stack : [last]), ...tail] }];
   };
 
   if (cv) {
     const intro = cv.intro ? [{ text: nfc(cv.intro), fontSize: 9.5, lineHeight: 1.32, color: C.text, margin: [0, 0, 0, 5] }] : [];
-    content.push(...cvBlocks([sectionHead('Det här ingår'), ...intro], cv.sections.map(s => cvBlock(s, cvAmount(s.amount_ex_vat), true))));
-    if (cv.common.length) {
-      content.push(hairline());
-      for (const c of cv.common) content.push({
-        columns: [
-          { width: '*', text: nfc(c.title), fontSize: 9.5, color: C.text },
-          { width: 110, text: cvAmount(c.amount_ex_vat), fontSize: 9.5, color: C.text, alignment: 'right' },
-        ],
-        columnGap: 8,
-        margin: [0, 4, 0, 0],
-      });
-    }
+    const commonRows = cv.common.length ? [hairline(), ...cv.common.map(c => ({
+      columns: [
+        { width: '*', text: nfc(c.title), fontSize: 9.5, color: C.text },
+        { width: 110, text: cvAmount(c.amount_ex_vat), fontSize: 9.5, color: C.text, alignment: 'right' },
+      ],
+      columnGap: 8,
+      margin: [0, 4, 0, 0],
+    }))] : [];
+    content.push(...cvBlocks([sectionHead('Det här ingår'), ...intro], cv.sections.map(s => cvBlock(s, cvAmount(s.amount_ex_vat), true)), commonRows));
     if (cv.options.length) {
       content.push(...cvBlocks([sectionHead('Tillval, ingår inte i priset')], cv.options.map(s => cvBlock(s, `+ ${cvAmount(s.amount_ex_vat)}`, false))));
       content.push({ text: 'Hör av dig till din kontakt om du vill lägga till något.', fontSize: 8.8, color: C.muted, margin: [0, 4, 0, 0] });

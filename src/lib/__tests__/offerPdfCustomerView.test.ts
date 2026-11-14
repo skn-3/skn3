@@ -146,6 +146,34 @@ describe('offert-PDF med kundvy', () => {
     expect(first.stack.at(-1).stack[0].columns[0].text).toBe(blocks[0].stack[0].columns[0].text);
   });
 
+  it('gemensamma rader och justeringar hålls ihop med sista avsnittet i ett block', () => {
+    const titleOf = (n: any) => n?.stack?.[0]?.columns?.[0]?.text;
+    const holder = doc.content.find((c: any) => c.unbreakable && JSON.stringify(c).includes('"Etablering"'));
+    expect(holder).toBeTruthy();
+    expect(JSON.stringify(holder)).toContain('"Rabatt"');
+    const last = view.sections.at(-1)!;
+    expect(holder.stack.some((n: any) => titleOf(n) === (last.room ? `${last.room} · ${last.title}` : last.title))).toBe(true);
+    // Sista avsnittet finns bara en gång, och inget gemensamt står utanför blocket.
+    expect(doc.content.filter((c: any) => JSON.stringify(c).includes('"Etablering"'))).toHaveLength(1);
+  });
+
+  it('ett enda avsnitt: rubriken, avsnittet och de gemensamma raderna i samma block', () => {
+    const one = { ...(offer.customer_view as any), sections: [(offer.customer_view as any).sections[0]] };
+    const d = buildOfferDocDef({ ...offer, customer_view: one }, {}, ASSETS);
+    const holder = d.content.find((c: any) => c.unbreakable && JSON.stringify(c).includes('"Etablering"'));
+    const js = JSON.stringify(holder);
+    expect(js).toContain('DET HÄR INGÅR');
+    expect(js).toContain(JSON.stringify(one.sections[0].room ? `${one.sections[0].room} · ${one.sections[0].title}` : one.sections[0].title));
+    expect(js).toContain('"Rabatt"');
+  });
+
+  it('inga avsnitt: rubriken och de gemensamma raderna i samma block', () => {
+    const none = { ...(offer.customer_view as any), sections: [] };
+    const d = buildOfferDocDef({ ...offer, customer_view: none }, {}, ASSETS);
+    const holder = d.content.find((c: any) => c.unbreakable && JSON.stringify(c).includes('"Etablering"'));
+    expect(JSON.stringify(holder)).toContain('DET HÄR INGÅR');
+  });
+
   it('avsnitt + gemensamt gånger 1,25 = ordersumman före avrundning till hela kronor', () => {
     const totals = calcOfferTotals(offer.line_items, { vat_mode: 'vanlig', rot_enabled: true, rot_percent: 30, handpenning_percent: 25, rot_persons: 2, rot_used: 0 });
     const sum = [...view.sections, ...view.common].reduce((s, x) => s + x.amount_ex_vat, 0) * 1.25;
@@ -216,8 +244,10 @@ describe('offert-PDF med tillval', () => {
 });
 
 describe('offert-PDF: hjälpfunktioner', () => {
-  it('valrad: namn, spec och kulörkod', () => {
-    expect(offerPdfItemText({ name: 'Sockellist furu vit', detail: '12×56', color: { system: 'NCS', code: 'S 0502-Y', name: null, hex: '#F3F0E6' } })).toBe('Sockellist furu vit 12×56 · NCS S 0502-Y');
+  it('valrad: namn, spec och kulörkod åtskilda med " · "', () => {
+    expect(offerPdfItemText({ name: 'Sockellist furu vit', detail: '12×56', color: { system: 'NCS', code: 'S 0502-Y', name: null, hex: '#F3F0E6' } })).toBe('Sockellist furu vit · 12×56 · NCS S 0502-Y');
+    expect(offerPdfItemText({ name: 'Underlag med ångspärr', detail: 'Foam, rulle 15 m²', color: null })).toBe('Underlag med ångspärr · Foam, rulle 15 m²');
+    expect(offerPdfItemText({ name: 'Sockellist vit 12×56', detail: 'Målad, längd 2,4 m', color: { system: 'NCS', code: 'S 0502-Y', name: null, hex: null } })).toBe('Sockellist vit 12×56 · Målad, längd 2,4 m · NCS S 0502-Y');
     expect(offerPdfItemText({ name: 'Trall', detail: null, color: null })).toBe('Trall');
     expect(offerPdfItemText({ name: 'Takfärg', detail: null, color: { system: 'RAL', code: 'RAL 9010', name: null, hex: null } })).toBe('Takfärg · RAL 9010');
   });

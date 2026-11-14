@@ -129,7 +129,7 @@ describe('valgrupper i recepten', () => {
     const { d, g, m } = kalkyl(p, { golv: { selections: { 'golv.sockel': SOCKEL_EK.code } }, malning: { selections: { 'malning.vaggfarg': VAGGFARG_PREMIUM.code } } });
     const text = offerScopeText(d, p, S).split('\n');
     expect(text[0]).toContain('sockellist ek 14×42 (NCS S 1002-Y)');
-    expect(text[1]).toBe('Vardagsrum – Målning: Väggar 43,6 m² (3 strykningar, Väggfärg premium Helmatt 5, NCS S 0502-Y), tak 24,6 m² (Takfärg Helmatt 3, NCS S 0500-N) och foder och socklar (Snickerifärg Halvblank 40, NCS S 0502-Y). Underarbete normalt.');
+    expect(text[1]).toBe('Vardagsrum – Målning: Väggar 43,6 m² (3 strykningar, Väggfärg premium Helmatt 5, NCS S 0502-Y), tak 24,6 m² (Takfärg Helmatt 3, NCS S 0500-N) samt foder och socklar (Snickerifärg Halvblank 40, NCS S 0502-Y). Underarbete normalt.');
     expect(rowSpecText(d.rows.find(r => r.id === g.id)!, p)).toContain('sockellist ek 14×42 (NCS S 1002-Y)');
     expect(rowSpecText(d.rows.find(r => r.id === m.id)!, p)).toBe('Väggar S 0502-Y (Väggfärg premium Helmatt 5) · 3 strykningar · tak S 0500-N (Takfärg Helmatt 3) · snickerier S 0502-Y (Snickerifärg Halvblank 40) · normalt underarbete');
     const sockel = golvOptions(d.rows.find(r => r.id === g.id)!, d.rooms[0], p, S).find(o => o.flag === 'sockel')!;

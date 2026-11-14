@@ -3,7 +3,7 @@ import {
   DEFAULT_KALKYL_SETTINGS as S, indexPrices, emptyKalkyl, newRoom, addRoom, updateRoom, newGolvRow, newMalningRow, newFriRow,
   addRow, updateRowInput, setOverride, duplicateRow, moveRow, removeRow, addFriLine, updateFriLine, removeFriLine,
   addCommonLine, removeCommonLine, addAdjustment, removeAdjustment, toggleFavorite, repriceKalkyl, priceChanges, rowLines,
-  buildOfferPayloadFromKalkyl, offerScopeText, defaultOfferTitle, rowSpecText, rowQuantityLabel, fitRoom, unfoldWalls,
+  buildOfferPayloadFromKalkyl, offerScopeText, defaultOfferTitle, joinSv, newGrenRow, rowSpecText, rowQuantityLabel, fitRoom, unfoldWalls,
   elevationLayout, golvOptions, sendCheck, rowFigures, isLocalNewer, displayAmount, shares, floorArea,
   type KalkylData, type GolvInput, type MalningInput,
 } from '@/lib/kalkyl';
@@ -156,6 +156,29 @@ describe('offer', () => {
     d = addRow(d, newMalningRow(hall.id), prices, S);
     expect(defaultOfferTitle(d)).toBe('Golv och målning, Vardagsrum och Hall');
     expect(defaultOfferTitle(emptyKalkyl())).toBe('Offert');
+  });
+
+  it('joinSv: "samt" före sista delen när någon del själv innehåller " och "', () => {
+    expect(joinSv(['golv', 'målning', 'altan och trall'])).toBe('golv, målning samt altan och trall');
+    expect(joinSv(['målning', 'altan och trall'])).toBe('målning samt altan och trall');
+    expect(joinSv(['foder och socklar', 'tak'])).toBe('foder och socklar samt tak');
+    expect(joinSv(['väggar', 'tak', 'foder och socklar'])).toBe('väggar, tak samt foder och socklar');
+    expect(joinSv(['golv', 'målning'])).toBe('golv och målning');
+    expect(joinSv(['golv', 'målning', 'el'])).toBe('golv, målning och el');
+    expect(joinSv(['altan och trall'])).toBe('altan och trall');
+    expect(joinSv(['Hall'])).toBe('Hall');
+    expect(joinSv([])).toBe('');
+    // "och" inne i ett ord räknas inte.
+    expect(joinSv(['kochplatta', 'golv'])).toBe('kochplatta och golv');
+  });
+
+  it('defaultOfferTitle med grenraden Altan och trall: "Golv, målning samt altan och trall, Vardagsrum och Hall"', () => {
+    let { d } = build();
+    const hall = newRoom('Hall', { length: 3, width: 2, height: 2.4, doors: 3, windows: 0 });
+    d = addRoom(d, hall);
+    d = addRow(d, newMalningRow(hall.id), prices, S);
+    d = addRow(d, newGrenRow(null, 'altan', 'Altan och trall'), prices, S);
+    expect(defaultOfferTitle(d)).toBe('Golv, målning samt altan och trall, Vardagsrum och Hall');
   });
 
   it('rowSpecText och rowQuantityLabel', () => {

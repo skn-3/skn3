@@ -52,11 +52,12 @@ export function buildOfferPayloadFromKalkyl(data: KalkylData, opts: KalkylOfferO
 
 // ── Texter ──────────────────────────────────────────────────────────────────
 
-/** "A", "A och B", "A, B och C". */
+/** "A", "A och B", "A, B och C". Innehåller någon del själv " och " används "samt" före sista delen: "A, B samt C och D". */
 export function joinSv(parts: string[]): string {
   const p = parts.filter(Boolean);
   if (p.length <= 1) return p[0] ?? '';
-  return `${p.slice(0, -1).join(', ')} och ${p[p.length - 1]}`;
+  const last = p.some(x => x.includes(' och ')) ? 'samt' : 'och';
+  return `${p.slice(0, -1).join(', ')} ${last} ${p[p.length - 1]}`;
 }
 
 const lowerFirst = (s: string) => (s ? s[0].toLocaleLowerCase('sv-SE') + s.slice(1) : s);

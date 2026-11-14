@@ -44,7 +44,7 @@ function Tile({ item, renderImage }: { item: CustomerTile; renderImage?: (item: 
         {(item.detail || code || colorName) && (
           <div className="text-[12.5px] leading-snug text-muted-foreground">
             {[item.detail, colorName].filter(Boolean).join(' · ')}
-            {code && <>{item.detail || colorName ? ' · ' : ''}<span className="font-mono">{code}</span></>}
+            {code && <>{item.detail || colorName ? ' · ' : ''}<span className="font-mono whitespace-nowrap">{code}</span></>}
           </div>
         )}
       </div>

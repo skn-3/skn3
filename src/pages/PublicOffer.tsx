@@ -369,7 +369,7 @@ export default function PublicOffer() {
         <span className="h-10 w-10 rounded-full bg-primary text-primary-foreground ring-2 ring-sage inline-flex items-center justify-center text-[13px] font-bold flex-none">{initialsOf(isAccepted ? null : seller)}</span>
         <div className="min-w-0">
           <div className="text-sm font-bold">{seller && !isAccepted ? `${seller}, din kontakt` : 'SmartKlimat N3prenad'}</div>
-          <div className="text-[12.5px] text-muted-foreground truncate"><a href={`tel:${COMPANY_PHONE.replace(/[^\d+]/g, '')}`} className="hover:text-foreground">{COMPANY_PHONE}</a> · <a href={`mailto:${COMPANY_EMAIL}`} className="hover:text-foreground">{COMPANY_EMAIL}</a></div>
+          <div className="text-[12.5px] text-muted-foreground"><a href={`tel:${COMPANY_PHONE.replace(/[^\d+]/g, '')}`} className="hover:text-foreground whitespace-nowrap">{COMPANY_PHONE}</a> · <a href={`mailto:${COMPANY_EMAIL}`} className="hover:text-foreground whitespace-nowrap">{COMPANY_EMAIL}</a></div>
         </div>
       </div>
     </Card>
