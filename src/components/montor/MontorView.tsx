@@ -12,7 +12,12 @@ import { MontorCaseDetail } from '@/components/montor/MontorCaseDetail';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarView } from '@/components/calendar/CalendarView';
+import { MontorSchedule } from '@/components/montor/MontorSchedule';
+import { CalendarBanner } from '@/components/montor/CalendarBanner';
+import { CalendarGuideDialog } from '@/components/calendar/CalendarGuideDialog';
+import { useCalendarConnection, useCalendarDevice, useCalendarSettings } from '@/hooks/useCalendar';
+import { markShown, needsCalendar, reconcileDeviceState, shouldAutoShowGuide } from '@/lib/calendar/popup';
+import { toIso } from '@/lib/schedule';
 import { MontorOrdersList } from '@/components/montor/MontorOrdersList';
 import { Button } from '@/components/ui/button';
 import { ListSearchToggle, ListSearchField } from './ListSearch';
@@ -31,7 +36,7 @@ interface MontorViewProps {
 }
 
 
-type Tab = 'km' | 'alla' | 'montage' | 'uppdrag' | 'reklamationer' | 'klara' | 'kalender';
+type Tab = 'schema' | 'km' | 'alla' | 'montage' | 'uppdrag' | 'reklamationer' | 'klara';
 
 
 
@@ -57,6 +62,28 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
     ['montor-team'], ['montor-orders-list'], ['montor-own-invoices'],
   ], !selectedCase);
   const listScrollY = useRef(0);
+
+  // Kalenderkoppling: enhetens tillstånd, banderoll, prick på fliken och popupen (bara montörer).
+  const isMontorRole = role.type === 'montor';
+  const [device, updateDevice] = useCalendarDevice(role.name);
+  const connection = useCalendarConnection(role.name, isMontorRole);
+  const settings = useCalendarSettings(isMontorRole);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const autoChecked = useRef(false);
+  useEffect(() => {
+    if (!isMontorRole || connection === undefined) return;
+    const next = reconcileDeviceState(device, connection, new Date());
+    if (next !== device) updateDevice(() => next);
+  }, [isMontorRole, connection, device, updateDevice]);
+  useEffect(() => {
+    if (autoChecked.current || !isMontorRole || !settings.isFetched || initialCaseId) return;
+    autoChecked.current = true;
+    if (shouldAutoShowGuide({ role: role.type, popupEnabled: settings.data?.popup_enabled, state: device, today: toIso(new Date()) })) {
+      updateDevice(markShown);
+      setGuideOpen(true);
+    }
+  }, [isMontorRole, settings.isFetched, settings.data, device, role.type, updateDevice, initialCaseId]);
+  const showCalendarNudge = isMontorRole && needsCalendar(device);
   const openCase = (c: CaseRow) => {
     listScrollY.current = window.scrollY;
     setSelectedCase(c);
@@ -67,7 +94,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
       requestAnimationFrame(() => window.scrollTo(0, listScrollY.current));
     }
   }, [selectedCase]);
-  const [activeTab, setActiveTab] = useState<Tab>('alla');
+  const [activeTab, setActiveTab] = useState<Tab>('schema');
   const [adminFilter, setAdminFilter] = useState<string>('alla');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -85,7 +112,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
       const { data, error } = await supabase.from('cases_montor').select('*').eq('id', initialCaseId).maybeSingle();
       if (cancelled) return;
       if (error || !data) {
-        toast.info('Kunde inte hitta ärendet — kontrollera att du är inloggad som rätt roll');
+        toast.info('Ärendet hittades inte.');
       } else {
         setSelectedCase(data as CaseRow);
       }
@@ -205,17 +232,17 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
     montage: searched.filter(c => ['montage_bokat', 'montage_pagar', 'leverans_klar'].includes(c.status)).length,
     reklamationer: searched.filter(c => unresolvedDeviationCaseIds.has(c.id)).length,
     klara: searched.filter(c => ['montage_klart', 'fakturerad'].includes(c.status)).length,
-    kalender: searched.filter(c => c.km_date || c.montage_date).length,
+    schema: null,
     uppdrag: ordersCount,
   }), [searched, unresolvedDeviationCaseIds, ordersCount]);
 
 
   const tabs: { key: Tab; label: string }[] = [
+    { key: 'schema', label: 'Schema' },
     { key: 'alla', label: 'Alla' },
     { key: 'km', label: 'KM' },
     { key: 'montage', label: 'Montage' },
     { key: 'uppdrag', label: 'Mina uppdrag' },
-    { key: 'kalender', label: 'Kalender' },
     { key: 'reklamationer', label: 'Reklamationer' },
     { key: 'klara', label: 'Klara' },
   ];
@@ -229,13 +256,18 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
     }
   }
 
+  const guide = <CalendarGuideDialog open={guideOpen} onOpenChange={setGuideOpen} role={role} onShowSchedule={() => { setSelectedCase(null); setActiveTab('schema'); }} />;
+
   if (selectedCase) {
     return (
-      <MontorCaseDetail
-        caseData={selectedCase}
-        currentUser={isAdmin ? role.name : role.name}
-        onBack={() => setSelectedCase(null)}
-      />
+      <>
+        <MontorCaseDetail
+          caseData={selectedCase}
+          currentUser={isAdmin ? role.name : role.name}
+          onBack={() => setSelectedCase(null)}
+        />
+        {guide}
+      </>
     );
   }
 
@@ -265,20 +297,33 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
         <div className="mb-4 flex items-center gap-2">
           <ScrollFadeRow label="Montörens listor">
             {tabs.map(t => <Button key={t.key} variant={activeTab === t.key ? 'default' : 'outline'} aria-pressed={activeTab === t.key} onClick={() => setActiveTab(t.key)} className={`h-11 shrink-0 snap-start rounded-full border-border px-4 text-[15px] ${activeTab === t.key ? 'bg-ink text-primary-foreground' : 'bg-background text-muted-foreground'}`}>
-              {t.label}{counts[t.key] !== null && <span className={`font-mono text-[11px] ${activeTab === t.key ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{counts[t.key]}</span>}
+              {t.label}
+              {t.key === 'schema' && showCalendarNudge && <span className="h-2 w-2 rounded-full bg-gold" aria-hidden="true" />}
+              {t.key === 'schema' && showCalendarNudge && <span className="sr-only">, kalendern är inte kopplad</span>}
+              {counts[t.key] !== null && <span className={`font-mono text-[11px] ${activeTab === t.key ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{counts[t.key]}</span>}
             </Button>)}
           </ScrollFadeRow>
-          {activeTab !== 'uppdrag' && <ListSearchToggle open={searchOpen} active={!!searchTerm} onToggle={() => setSearchOpen(v => !v)} />}
+          {activeTab !== 'uppdrag' && activeTab !== 'schema' && <ListSearchToggle open={searchOpen} active={!!searchTerm} onToggle={() => setSearchOpen(v => !v)} />}
         </div>
-        {searchOpen && activeTab !== 'uppdrag' && <div className="mb-4 space-y-2">
+        {searchOpen && activeTab !== 'uppdrag' && activeTab !== 'schema' && <div className="mb-4 space-y-2">
           <ListSearchField inputRef={inputRef} value={searchTerm} onChange={setSearchTerm} placeholder="Sök ärenden..." />
           {debouncedSearch && <p className="text-xs text-muted-foreground">Visar {totalVisible} ärenden av {totalCases}</p>}
         </div>}
 
         {activeTab === 'uppdrag' ? (
           <MontorOrdersList myTeamName={isAdmin ? null : role.name} adminFilter={isAdmin ? adminFilter : 'alla'} onOpenCase={openCaseById} initialOpenId={initialAOrderId} onInitialOpenHandled={() => setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('aorder'); return next; }, { replace: true })} />
-        ) : activeTab === 'kalender' ? (
-          <CalendarView source="cases_montor" onSelectCase={openCase} />
+        ) : activeTab === 'schema' ? (
+          isLoading ? (
+            <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+          ) : (
+            <MontorSchedule
+              cases={teamFiltered}
+              team={isAdmin ? (adminFilter === 'alla' ? null : adminFilter) : role.name}
+              currentUser={role.name}
+              onOpenCase={openCase}
+              banner={showCalendarNudge ? <CalendarBanner stale={device.stale} onOpen={() => setGuideOpen(true)} /> : null}
+            />
+          )
         ) : isLoading ? (
           <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : filtered.length === 0 ? (
@@ -292,6 +337,7 @@ export function MontorView({ role, onChangeRole, isAdmin, onToggleView, initialC
           />
         )}
       </main>
+      {guide}
     </div>
   );
 }

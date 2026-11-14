@@ -85,10 +85,13 @@ const HEADS: Record<BookingMode, string> = {
 };
 
 /** Bekräftelsen ovanför tavlan; speglar vad som faktiskt skickades. */
-export function confirmationText(p: { mode: BookingMode; date: string; team: string | null; teamMailed: boolean; smsSent: boolean; today: string }): string {
+export const LOCAL_CONFIRMATION_TAIL = 'Mejl och SMS skickas inte i testmiljön.';
+
+export function confirmationText(p: { mode: BookingMode; date: string; team: string | null; teamMailed: boolean; smsSent: boolean; local?: boolean; today: string }): string {
   const head = `${HEADS[p.mode]} ${dayLabel(p.date, p.today)}${p.team ? ` · ${p.team}` : ''}.`;
   let tail: string;
-  if (p.teamMailed && p.smsSent) tail = 'Teamet har fått mejl och kunden SMS.';
+  if (p.local) tail = LOCAL_CONFIRMATION_TAIL;
+  else if (p.teamMailed && p.smsSent) tail = 'Teamet har fått mejl och kunden SMS.';
   else if (p.teamMailed) tail = 'Teamet har fått mejl.';
   else if (p.smsSent) tail = 'Kunden har fått SMS. Inget mejl gick till teamet.';
   else tail = 'Inget mejl gick till teamet.';

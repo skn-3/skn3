@@ -3,7 +3,7 @@
 // Innehållet får bara ha adress, kund, team, vad som hänt, montörens text och länken –
 // aldrig ekonomi (TB, ordervärde, A-order- eller utbetalningsbelopp, kostnader).
 import { escapeHtml } from './wastePickupEmail.ts';
-import { COORDINATOR_TO, SELLER_EMAILS, TEAM_EMAILS } from '../_shared/mailRecipients.ts';
+import { COORDINATOR_TO, SELLER_EMAILS, staticTeamEmail, type TeamEmailOf } from '../_shared/mailRecipients.ts';
 
 export const MONTOR_TEMPLATES = [
   'montage_klart',
@@ -23,7 +23,7 @@ export function isMontorTemplate(t: unknown): t is MontorTemplate {
 }
 
 /** Enda kolumnerna som läses från cases_montor – inga ekonomifält. */
-export const MAIL_CASE_FIELDS = 'id,address,customer_name,customer_phone,team,seller,km_date,montage_date,montage_time,montage_partial_note,extra_hours_requested';
+export const MAIL_CASE_FIELDS = 'id,address,customer_name,customer_phone,team,km_team,seller,km_date,montage_date,montage_time,montage_partial_note,extra_hours_requested';
 export const MAIL_EVENT_FIELDS = 'id,event_type,description,created_by,created_at,deviation_id';
 export const MAIL_DEVIATION_FIELDS = 'id,case_id,type,priority,description,created_by,image_urls';
 
@@ -33,6 +33,7 @@ export interface MailCase {
   customer_name: string | null;
   customer_phone?: string | null;
   team?: string | null;
+  km_team?: string | null;
   seller?: string | null;
   km_date?: string | null;
   montage_date?: string | null;
@@ -91,10 +92,18 @@ export function findFreshEvent(
   return fresh[0] ?? null;
 }
 
-/** Mottagare per mall. null = ingen känd adress, mejlet hoppas över. */
-export function recipientsFor(template: MontorTemplate, c: MailCase): string[] | null {
+/**
+ * Mottagare per mall. null = ingen känd adress, mejlet hoppas över.
+ * Teamets adress: montor_teams.email med den statiska listan som reserv (teamEmailOf).
+ * km_bokad går till km_team med team som reserv, montage_bokat till team.
+ */
+export function recipientsFor(template: MontorTemplate, c: MailCase, teamEmailOf: TeamEmailOf = staticTeamEmail): string[] | null {
   if (template === 'km_klar') { const s = c.seller ? SELLER_EMAILS[c.seller] : undefined; return s ? [s] : null; }
-  if (template === 'km_bokad' || template === 'montage_bokat') { const t = c.team ? TEAM_EMAILS[c.team] : undefined; return t ? [t] : null; }
+  if (template === 'km_bokad' || template === 'montage_bokat') {
+    const team = template === 'km_bokad' ? (c.km_team || c.team) : c.team;
+    const t = team ? teamEmailOf(team) : null;
+    return t ? [t] : null;
+  }
   return [COORDINATOR_TO];
 }
 

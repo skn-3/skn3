@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireStaff } from '../_shared/auth.ts';
+import { isLocalBackend, LOCAL_BACKEND_SKIP } from '../_shared/localBackend.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,10 +34,6 @@ function fmtDate(d: string) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const ELKS_USER = Deno.env.get('ELKS_API_USERNAME');
-    const ELKS_PASS = Deno.env.get('ELKS_API_PASSWORD');
-    if (!ELKS_USER || !ELKS_PASS) return json({ error: 'SMS-uppgifter saknas (ELKS_API_USERNAME/PASSWORD)' }, 500);
-
     // Auth: personal-JWT ELLER cron-secret (nattliga påminnelser)
     const cronSecret = Deno.env.get('BACKUP_TRIGGER_SECRET');
     const isCron = !!cronSecret && req.headers.get('x-cron-secret') === cronSecret;
@@ -61,7 +58,6 @@ Deno.serve(async (req) => {
     if (error || !c) return json({ error: 'Ärendet hittades inte' }, 404);
 
     const to = normalizePhone(c.customer_phone);
-    if (!to) return json({ skipped: 'no_valid_phone' });
 
     const firstName = (c.customer_name || '').split(' ')[0];
     const timeTxt = c.montage_time ? ` kl ${String(c.montage_time).slice(0, 5)}` : '';
@@ -74,6 +70,17 @@ Deno.serve(async (req) => {
     } else {
       message = `Påminnelse: imorgon${timeTxt} monterar vi era fönster på ${c.address}. Plocka gärna undan gardiner och möbler närmast fönstren. ${url} /N3prenad, på uppdrag av Mockfjärds Fönster`;
     }
+
+    // Utkastets lokala backend skickar aldrig SMS; logga vad som skulle ha skickats.
+    if (isLocalBackend()) {
+      console.log('[local_backend] SMS skickades inte:', JSON.stringify({ case_id: c.id, kind, to, message }));
+      return json({ skipped: LOCAL_BACKEND_SKIP });
+    }
+    if (!to) return json({ skipped: 'no_valid_phone' });
+
+    const ELKS_USER = Deno.env.get('ELKS_API_USERNAME');
+    const ELKS_PASS = Deno.env.get('ELKS_API_PASSWORD');
+    if (!ELKS_USER || !ELKS_PASS) return json({ error: 'SMS-uppgifter saknas (ELKS_API_USERNAME/PASSWORD)' }, 500);
 
     const smsRes = await fetch('https://api.46elks.com/a1/sms', {
       method: 'POST',

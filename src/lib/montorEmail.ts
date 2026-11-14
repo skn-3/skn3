@@ -16,6 +16,8 @@ export const MAIL_WARNING = 'Mejlet till kontoret gick inte iväg, men allt är 
 export interface MontorEmailResult {
   ok: boolean;
   skipped?: boolean;
+  /** Testmiljön skickade inget (notify-email svarade { skipped: 'local_backend' }). */
+  local?: boolean;
   to: string[];
 }
 
@@ -33,6 +35,7 @@ export async function sendMontorEmail(
       body: { template, case_id: caseId, ...extra },
     });
     if (error) throw error;
+    if (data?.skipped === 'local_backend') return { ok: true, skipped: true, local: true, to: [] };
     if (data?.skipped) return { ok: true, skipped: true, to: [] };
     const to: string[] = Array.isArray(data?.to) ? data.to : [];
     logActivity({

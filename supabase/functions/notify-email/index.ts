@@ -1,92 +1,11 @@
 import { MAIL_LINK_BASE_URL } from '../_shared/mailLinks.ts';
+import { buildCtaButton, wrapInTemplate } from '../_shared/mailLayout.ts';
+import { sendMail } from '../_shared/sendMail.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
-const APP_URL = Deno.env.get('APP_URL') ?? 'https://smartklimatentreprenad.com';
-const LOGO_URL = `${APP_URL}/logo.png`;
-
-function buildCtaButton(text: string, color: string): string {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-<tr><td align="center" style="padding:8px 0 16px 0;">
-<a href="${MAIL_LINK_BASE_URL}" target="_blank" style="display:inline-block;padding:12px 32px;background-color:${color};color:#ffffff;font-weight:bold;font-size:14px;text-decoration:none;border-radius:6px;">${text}</a>
-</td></tr>
-</table>`;
-}
-
-function wrapInTemplate(heading: string, bodyContent: string, callToAction?: string, ctaButton?: string): string {
-  return `<!DOCTYPE html>
-<html lang="sv">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${heading}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;">
-<tr><td align="center" style="padding:32px 16px;">
-
-<!-- Card -->
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
-
-<!-- Top banner -->
-<tr>
-<td style="background-color:#22C55E;padding:20px 28px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-<tr>
-<td style="vertical-align:middle;width:40px;">
-<img src="${LOGO_URL}" alt="SmartKlimat" width="36" height="36" style="display:block;border-radius:50%;background:#ffffff;padding:3px;" />
-</td>
-<td style="vertical-align:middle;padding-left:12px;color:#ffffff;font-size:20px;font-weight:bold;">SmartKlimat N3prenad</td>
-</tr>
-</table>
-</td>
-</tr>
-
-<!-- Heading -->
-<tr>
-<td style="padding:28px 28px 8px 28px;">
-<h1 style="margin:0;font-size:22px;font-weight:bold;color:#1a1a1a;">${heading}</h1>
-</td>
-</tr>
-
-<!-- Body content -->
-<tr>
-<td style="padding:8px 28px 20px 28px;">
-${bodyContent}
-</td>
-</tr>
-
-${ctaButton ? `<tr><td style="padding:0 28px 8px 28px;">${ctaButton}</td></tr>` : ''}
-
-${callToAction ? `
-<!-- CTA text -->
-<tr>
-<td style="padding:0 28px 24px 28px;">
-<p style="margin:0;font-size:14px;color:#2563EB;font-weight:500;">${callToAction}</p>
-</td>
-</tr>
-` : ''}
-
-<!-- Footer -->
-<tr>
-<td style="padding:16px 28px;border-top:1px solid #f0f0f0;">
-<p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">
-Detta mail skickades automatiskt från SmartKlimat ärendehantering
-</p>
-</td>
-</tr>
-
-</table>
-<!-- /Card -->
-
-</td></tr>
-</table>
-</body>
-</html>`;
-}
 
 function buildInfoTable(rows: Array<{ label: string; value: string; badge?: { color: string; bg: string } }>): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
@@ -124,7 +43,7 @@ function getCtaForHeading(heading: string): string | null {
 import { requireCoordinator, requireAuth } from '../_shared/auth.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { wastePickupEmail, type WastePickupCase } from './wastePickupEmail.ts';
-import { COORDINATOR_TO, MAIL_CC } from '../_shared/mailRecipients.ts';
+import { COORDINATOR_TO, MAIL_CC, teamEmailResolver } from '../_shared/mailRecipients.ts';
 import {
   isMontorTemplate, findFreshEvent, recipientsFor, buildMontorEmail, FRESH_EVENT_MS,
   MAIL_CASE_FIELDS, MAIL_EVENT_FIELDS, MAIL_DEVIATION_FIELDS,
@@ -208,43 +127,19 @@ async function handleMontorTemplate(req: Request, template: MontorTemplate, payl
     deviation = d as MailDeviation;
   }
 
-  const to = recipientsFor(template, c as MailCase);
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const { data: teamRows } = await admin.from('montor_teams').select('name,email');
+  const to = recipientsFor(template, c as MailCase, teamEmailResolver(teamRows));
   if (!to) return json(200, { success: true, skipped: true, reason: 'Ingen känd mottagare' });
   const mail = buildMontorEmail({ template, c: c as MailCase, event, events, deviation, baseUrl: MAIL_LINK_BASE_URL });
   return await sendEmail({ to, cc: [MAIL_CC], subject: mail.subject, html: wrapInTemplate(mail.heading, mail.body) });
 }
 
 async function sendEmail(input: { to: string[]; cc?: string[]; subject: string; html: string }): Promise<Response> {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
-  const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-  if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
-
-  const GLOBAL_CC = MAIL_CC;
-  const ccList = Array.from(new Set([...(input.cc ?? []), GLOBAL_CC].filter(Boolean)));
-  const emailPayload: Record<string, unknown> = {
-    from: 'SmartKlimat N3prenad <n3prenad@smartklimat.org>',
-    to: input.to,
-    subject: input.subject,
-    html: input.html,
-    cc: ccList,
-  };
-
-  const response = await fetch(`${GATEWAY_URL}/emails`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'X-Connection-Api-Key': RESEND_API_KEY,
-    },
-    body: JSON.stringify(emailPayload),
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    console.error('Resend API error:', JSON.stringify(data));
-    return json(response.status, { error: `Email send failed [${response.status}]`, details: data });
-  }
-  return json(200, { success: true, to: input.to, data });
+  const res = await sendMail(input);
+  if (!res.ok) return json(res.status, { error: `Email send failed [${res.status}]`, details: res.data });
+  if (res.skipped) return json(200, { skipped: res.skipped });
+  return json(200, { success: true, to: input.to, data: res.data });
 }
 
 Deno.serve(async (req) => {

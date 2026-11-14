@@ -100,9 +100,9 @@ export function MonthView({ year, month, events, conflicts, today, onOpenWeek, o
                   <button
                     type="button"
                     onClick={() => onOpenWeek(w.year, w.week)}
-                    className="absolute bottom-1 right-1 z-10 min-h-8 rounded-full bg-muted px-2 text-[11px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="group absolute bottom-0 right-0 z-10 flex min-h-11 min-w-11 items-center justify-center rounded-full px-1 focus-visible:outline-none"
                   >
-                    +{model.hiddenCount} till
+                    <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-semibold text-foreground group-focus-visible:ring-2 group-focus-visible:ring-ring">+{model.hiddenCount} till</span>
                   </button>
                 )}
               </div>

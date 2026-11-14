@@ -10,6 +10,7 @@ import RapporteraProblem from "./components/shared/RapporteraProblem.tsx";
 import PublicOffer from "./pages/PublicOffer.tsx";
 import CustomerStatus from "./pages/CustomerStatus.tsx";
 import WeeklyPresentation from "./pages/WeeklyPresentation.tsx";
+import CalendarGuidePage from "./pages/CalendarGuidePage.tsx";
 import ErrorBoundary from "./components/ErrorBoundary.tsx";
 import { ThemeProvider } from "next-themes";
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/offert/:token" element={<PublicOffer />} />
             <Route path="/status/:token" element={<CustomerStatus />} />
             <Route path="/veckomote" element={<WeeklyPresentation />} />
+            <Route path="/kalender/:token" element={<CalendarGuidePage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -10,7 +10,7 @@ import { useMontorTeams } from '@/hooks/useMontorTeams';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useMinWidth } from '@/hooks/useMinWidth';
 import { useBookingActions, toastBookingWarnings } from '@/hooks/useBookingActions';
-import { bookingOutcome, type BookingCase } from '@/lib/booking';
+import { LOCAL_BACKEND_WARNING, bookingOutcome, type BookingCase } from '@/lib/booking';
 import {
   EMPTY_FILTER, addDaysIso, availableViews, bookingKind, bookingModeForQueue, buildBoardRows, buildQueues, buildScheduleEvents,
   conflictChip, confirmationText, defaultDays, effectiveView, filterEvents, findConflicts, isoWeekOf, monthTitle, parseIso,
@@ -218,7 +218,7 @@ export function ScheduleView({ currentUser, onSelectCase }: Props) {
     }
     setSaving(false);
     const unique = [...new Set(warnings)];
-    toastBookingWarnings(unique);
+    toastBookingWarnings(unique.filter(w => w !== LOCAL_BACKEND_WARNING));
     const mailTeam = kind === 'km' ? (draft.team || c.team || null) : draft.team;
     const outcome = bookingOutcome({ warnings: unique, mailTeam, teamEmail: emailOf(mailTeam), smsRequested });
     setConfirmation(confirmationText({ mode: draft.mode, date: draft.date, team: draft.team, today, ...outcome }));

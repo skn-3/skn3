@@ -53,7 +53,7 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
       const { data, error } = await supabase.from('cases').select('*').eq('id', initialCaseId).maybeSingle();
       if (cancelled) return;
       if (error || !data) {
-        toast.info('Kunde inte hitta ärendet — kontrollera att du är inloggad som rätt roll');
+        toast.info('Ärendet hittades inte.');
       } else {
         setSelectedCase(data as CaseRow);
       }

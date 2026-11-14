@@ -3,7 +3,7 @@
 // 3) aktivitetslogg, 4) mejl och SMS. Steg 2–4 kastar aldrig när steg 1 lyckats; fel
 // samlas i warnings så att UI:t kan visa dem.
 import { supabase } from '@/integrations/supabase/client';
-import { updateCase, createCaseEvent, sendNotificationEmail, sendMontorAssignmentEmail, type CaseRow, type CaseUpdate } from '@/lib/supabaseClient';
+import { updateCase, createCaseEvent, sendNotificationEmail, sendMontorAssignmentEmailResult, type CaseRow, type CaseUpdate } from '@/lib/supabaseClient';
 import { sendMontorEmail, MAIL_WARNING, type MontorEmailTemplate } from '@/lib/montorEmail';
 import { logActivity, type LogActivityParams } from '@/lib/activityLog';
 import { canEnterStatus, deriveDeliveryStatus } from '@/lib/statusRules';
@@ -15,8 +15,13 @@ export type BookingOrigin = 'office' | 'montor';
 export type BookingCase = WithSchedule<CaseRow>;
 export interface BookingResult { warnings: string[] }
 
-import { EVENT_WARNING, COORDINATOR_MAIL_WARNING, SMS_NO_PHONE_WARNING, SMS_FAILED_WARNING, teamMailWarning } from './messages';
-export { EVENT_WARNING, COORDINATOR_MAIL_WARNING, SMS_NO_PHONE_WARNING, SMS_FAILED_WARNING, teamMailWarning, INFO_WARNINGS } from './messages';
+import { EVENT_WARNING, COORDINATOR_MAIL_WARNING, SMS_NO_PHONE_WARNING, SMS_FAILED_WARNING, LOCAL_BACKEND_WARNING, teamMailWarning, isLocalSkip } from './messages';
+export { EVENT_WARNING, COORDINATOR_MAIL_WARNING, SMS_NO_PHONE_WARNING, SMS_FAILED_WARNING, LOCAL_BACKEND_WARNING, teamMailWarning, INFO_WARNINGS, isLocalSkip } from './messages';
+
+/** Testmiljön skickade inget; varningen läggs till en gång. */
+function localSkip(w: string[]) {
+  if (!w.includes(LOCAL_BACKEND_WARNING)) w.push(LOCAL_BACKEND_WARNING);
+}
 
 type Update = CaseUpdate & ScheduleExtension;
 
@@ -59,6 +64,7 @@ async function log(params: LogActivityParams) {
 /** sendAndRecord från montörvyn: fast mall + händelserad när mejlet gått iväg. */
 async function sendTemplate(w: string[], template: MontorEmailTemplate, caseId: string, actor: string) {
   const mail = await sendMontorEmail(template, caseId);
+  if (mail.local) localSkip(w);
   if (mail.ok && !mail.skipped) {
     try {
       await createCaseEvent({ case_id: caseId, event_type: 'notification', description: `Tilldelningsmail skickat till montör (${mail.to.join(', ')})`, created_by: actor });
@@ -69,9 +75,10 @@ async function sendTemplate(w: string[], template: MontorEmailTemplate, caseId: 
   if (!mail.ok) w.push(MAIL_WARNING);
 }
 
-async function assignmentMail(w: string[], c: Parameters<typeof sendMontorAssignmentEmail>[0], kind: 'km' | 'montage', actor: string, overrides?: Parameters<typeof sendMontorAssignmentEmail>[3]) {
-  const ok = overrides ? await sendMontorAssignmentEmail(c, kind, actor, overrides) : await sendMontorAssignmentEmail(c, kind, actor);
-  if (!ok) {
+async function assignmentMail(w: string[], c: Parameters<typeof sendMontorAssignmentEmailResult>[0], kind: 'km' | 'montage', actor: string, overrides?: Parameters<typeof sendMontorAssignmentEmailResult>[3]) {
+  const result = overrides ? await sendMontorAssignmentEmailResult(c, kind, actor, overrides) : await sendMontorAssignmentEmailResult(c, kind, actor);
+  if (result === 'local') localSkip(w);
+  if (result === 'failed') {
     const team = (kind === 'km' ? c.km_team || c.team : c.team) || 'teamet';
     w.push(teamMailWarning(team));
   }
@@ -83,7 +90,8 @@ async function teamMail(w: string[], p: { caseId: string; team: string | null | 
   const to = await resolveTeamEmail(p.team);
   if (!to) return;
   try {
-    await sendNotificationEmail({ to, subject: p.subject, heading: p.heading, rows: p.rows, callToAction: 'Öppna appen för detaljer.' });
+    const sent = await sendNotificationEmail({ to, subject: p.subject, heading: p.heading, rows: p.rows, callToAction: 'Öppna appen för detaljer.' });
+    if (isLocalSkip(sent)) { localSkip(w); return; }
   } catch (e) {
     console.error('[booking] mejl till team misslyckades:', e);
     w.push(teamMailWarning(p.team));
@@ -100,7 +108,8 @@ async function customerSms(w: string[], caseId: string) {
   try {
     const { data, error } = await supabase.functions.invoke('send-customer-sms', { body: { case_id: caseId, kind: 'montage_bokat' } });
     if (error) throw error;
-    if ((data as any)?.skipped === 'no_valid_phone') w.push(SMS_NO_PHONE_WARNING);
+    if (isLocalSkip(data)) localSkip(w);
+    else if ((data as any)?.skipped === 'no_valid_phone') w.push(SMS_NO_PHONE_WARNING);
   } catch (e) {
     console.error('Customer SMS failed:', e);
     w.push(SMS_FAILED_WARNING);
@@ -185,7 +194,7 @@ export async function bookMontage(input: BookMontageInput): Promise<BookingResul
     await log({ category: 'case', action: 'montage_booked', description: `Bokade montage för ${c.address}`, case_id: c.id, metadata: { montage_date: date, team, ...(time ? { montage_time: time } : {}), ...(n ? { montage_days: n } : {}) } });
 
     try {
-      await sendNotificationEmail({
+      const sent = await sendNotificationEmail({
         to: COORDINATOR_EMAIL,
         cc: COORDINATOR_CC,
         subject: `MONTAGE BOKAT — ${c.address}`,
@@ -201,7 +210,8 @@ export async function bookMontage(input: BookMontageInput): Promise<BookingResul
         ],
         callToAction: 'Montage är bokat.',
       });
-      await createCaseEvent({ case_id: c.id, event_type: 'notification', description: `Mail skickat till ${COORDINATOR_EMAIL} (montage bokat)`, created_by: actor });
+      if (isLocalSkip(sent)) localSkip(w);
+      else await createCaseEvent({ case_id: c.id, event_type: 'notification', description: `Mail skickat till ${COORDINATOR_EMAIL} (montage bokat)`, created_by: actor });
     } catch (emailErr) {
       console.error('Email notification failed:', emailErr);
       w.push(COORDINATOR_MAIL_WARNING);

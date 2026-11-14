@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { sv } from 'date-fns/locale';
-import { AlertTriangle, CalendarIcon, Minus, Plus, X } from 'lucide-react';
+import { AlertTriangle, CalendarIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,9 +9,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DaysStepper } from './DaysStepper';
 import {
-  BOOKING_FOOTNOTE, BOOKING_TITLES, MAX_MONTAGE_DAYS, bookingKind, checkPlacement, clampDays, dateRangeLabel, dayLabel, daysHint,
-  deliveryLabelOf, montageDates, parseIso, smsOption, submitLabel, teamChangeNotice, toIso,
+  BOOKING_FOOTNOTE, BOOKING_TITLES, bookingKind, checkPlacement, dayLabel,
+  deliveryLabelOf, parseIso, smsOption, submitLabel, teamChangeNotice, toIso,
   type BookingMode, type ScheduleCase, type ScheduleEvent,
 } from '@/lib/schedule';
 
@@ -118,20 +119,7 @@ export function BookingPanel({ draft, onChange, caseData, teamNames, events, tod
       </div>
 
       {kind === 'montage' && (
-        <div className="grid gap-1.5">
-          <Label id="schedule-booking-days-label">Antal arbetsdagar</Label>
-          <div className="flex items-center gap-2" role="group" aria-labelledby="schedule-booking-days-label">
-            <Button variant="outline" size="icon" className="h-11 w-11" aria-label="En dag färre" disabled={draft.days <= 1} onClick={() => onChange({ days: clampDays(draft.days - 1) })}>
-              <Minus className="h-4 w-4" />
-            </Button>
-            <span className="w-8 text-center font-mono text-base" aria-live="polite">{draft.days}</span>
-            <Button variant="outline" size="icon" className="h-11 w-11" aria-label="En dag till" disabled={draft.days >= MAX_MONTAGE_DAYS} onClick={() => onChange({ days: clampDays(draft.days + 1) })}>
-              <Plus className="h-4 w-4" />
-            </Button>
-            {draft.date && <span className="ml-auto text-sm font-semibold">{dateRangeLabel(montageDates(draft.date, draft.days), today)}</span>}
-          </div>
-          <p className="text-xs text-muted-foreground">{daysHint(caseData.units)}</p>
-        </div>
+        <DaysStepper id="schedule-booking-days" days={draft.days} date={draft.date} units={caseData.units} today={today} onChange={days => onChange({ days })} />
       )}
 
       {sms.show && (

@@ -32,6 +32,7 @@ import { CostPayoutChip } from '@/components/shared/CostPayoutChip';
 import { ListChecks, Share2 } from 'lucide-react';
 import { submitMontagePartial } from '@/lib/montagePartial';
 import { bookKm, bookMontage, rescheduleMontage } from '@/lib/booking';
+import { canMontorBookKm, canMontorBookMontage } from '@/lib/schedule/montorBooking';
 import { MontagePartialBlock } from '@/components/shared/MontagePartialBlock';
 import { shareCaseInChat } from '@/lib/chat';
 import { Truck } from 'lucide-react';
@@ -495,8 +496,9 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
   const ordersSum = myAOrders.reduce((s: number, o: any) => s + (typeof o.total_amount === 'number' ? o.total_amount : 0), 0);
   const fmtKr = (n: number) => Math.round(n).toLocaleString('sv-SE');
 
-  const canBookMontage = ['godkand', 'i_produktion', 'leverans_klar'].includes(caseData.status) && !caseData.montage_date;
-  const hasNextStep = ['vantar_km', 'km_bokad', 'montage_bokat', 'montage_pagar'].includes(caseData.status) || canBookMontage;
+  const canBookKm = canMontorBookKm(caseData);
+  const canBookMontage = canMontorBookMontage(caseData);
+  const hasNextStep = canBookKm || ['km_bokad', 'montage_bokat', 'montage_pagar'].includes(caseData.status) || canBookMontage;
   const PRIMARY = 'w-full min-h-[52px] text-base font-semibold bg-primary text-primary-foreground hover:bg-primary/90';
 
   const openPdf = async (path: string, name: string) => {
@@ -511,7 +513,7 @@ export function MontorCaseDetail({ caseData: initialCaseData, currentUser, onBac
     <section className="rounded-2xl border border-ink/20 bg-gold-soft p-4 space-y-3 text-ink">
       <h2 className={HEADING}>Nästa steg</h2>
 
-      {caseData.status === 'vantar_km' && (
+      {canBookKm && (
         <div className="space-y-2">
           <p className="font-display text-[17px] font-semibold">Boka kontrollmätning</p>
           <Label>Boka KM-datum</Label>

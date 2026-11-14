@@ -42,7 +42,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
       const { data, error } = await supabase.from('cases').select('*').eq('id', initialCaseId).maybeSingle();
       if (cancelled) return;
       if (error || !data) {
-        toast.info('Kunde inte hitta ärendet');
+        toast.info('Ärendet hittades inte.');
       } else {
         setSelectedCase(data as CaseRow);
       }

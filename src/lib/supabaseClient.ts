@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { approvedHoursError } from '@/lib/extraHours';
 import { resolveTeamEmail } from '@/lib/booking/teamEmail';
+import { isLocalSkip } from '@/lib/booking/messages';
 
 export type CaseRow = Database['public']['Tables']['cases']['Row'];
 export type CaseInsert = Database['public']['Tables']['cases']['Insert'];
@@ -335,16 +336,32 @@ export async function sendWastePickupEmail(caseId: string) {
  * hoppades över (inget team eller ingen adress).
  */
 export async function sendMontorAssignmentEmail(
-  caseData: Pick<CaseRow, 'id' | 'address' | 'customer_name' | 'customer_phone' | 'team' | 'seller' | 'km_date' | 'montage_date'> & { montage_time?: string | null; km_team?: string | null },
+  caseData: AssignmentMailCase,
   kind: 'km' | 'montage',
   createdBy: string,
-  overrides?: { km_date?: string; montage_date?: string; montage_time?: string | null }
+  overrides?: AssignmentMailOverrides
 ): Promise<boolean> {
+  return (await sendMontorAssignmentEmailResult(caseData, kind, createdBy, overrides)) !== 'failed';
+}
+
+type AssignmentMailCase = Pick<CaseRow, 'id' | 'address' | 'customer_name' | 'customer_phone' | 'team' | 'seller' | 'km_date' | 'montage_date'> & { montage_time?: string | null; km_team?: string | null };
+type AssignmentMailOverrides = { km_date?: string; montage_date?: string; montage_time?: string | null };
+
+/**
+ * Som sendMontorAssignmentEmail men med utfallet: 'sent', 'skipped' (inget team eller ingen
+ * adress), 'local' (testmiljön skickar inget) eller 'failed'. Kastar aldrig.
+ */
+export async function sendMontorAssignmentEmailResult(
+  caseData: AssignmentMailCase,
+  kind: 'km' | 'montage',
+  createdBy: string,
+  overrides?: AssignmentMailOverrides
+): Promise<'sent' | 'skipped' | 'local' | 'failed'> {
   try {
     const team = kind === 'km' ? (caseData.km_team || caseData.team) : caseData.team;
-    if (!team) return true;
+    if (!team) return 'skipped';
     const to = await resolveTeamEmail(team);
-    if (!to) return true;
+    if (!to) return 'skipped';
 
     const kmDate = overrides?.km_date ?? caseData.km_date ?? '';
     const montageDate = overrides?.montage_date ?? caseData.montage_date ?? '';
@@ -380,13 +397,14 @@ export async function sendMontorAssignmentEmail(
       ];
     }
 
-    await sendNotificationEmail({
+    const sent = await sendNotificationEmail({
       to,
       subject,
       heading,
       rows,
       callToAction: 'Öppna appen för detaljer.',
     });
+    if (isLocalSkip(sent)) return 'local';
 
     try {
       await createCaseEvent({
@@ -398,9 +416,9 @@ export async function sendMontorAssignmentEmail(
     } catch (eventErr) {
       console.error('sendMontorAssignmentEmail: händelseraden kunde inte sparas:', eventErr);
     }
-    return true;
+    return 'sent';
   } catch (err) {
     console.error('sendMontorAssignmentEmail failed:', err);
-    return false;
+    return 'failed';
   }
 }

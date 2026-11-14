@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LogoWithHat } from '@/components/winter/LogoWithHat';
 import { useWinterMode } from '@/lib/winterMode';
-import { MyCalendarDialog } from '@/components/calendar/MyCalendarDialog';
+import { CalendarGuideDialog } from '@/components/calendar/CalendarGuideDialog';
 import { ChangePinDialog } from '@/components/ChangePinDialog';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
@@ -164,7 +164,7 @@ export function AppHeader({ role, onChangeRole, viewOptions = [], children, acti
           </DropdownMenu>
         </div>
       </div>
-      <MyCalendarDialog open={calendarOpen} onOpenChange={setCalendarOpen} userName={role.name} />
+      <CalendarGuideDialog open={calendarOpen} onOpenChange={setCalendarOpen} role={role} />
       <ChangePinDialog open={pinOpen} onOpenChange={setPinOpen} userName={role.name} />
     </header>
   );
