@@ -1,0 +1,89 @@
+{
+  "parts": [
+    "part-01.b64",
+    "part-02.b64",
+    "part-03.b64",
+    "part-04.b64",
+    "part-05.b64",
+    "part-06.b64",
+    "part-07.b64"
+  ],
+  "part_details": [
+    {
+      "name": "part-01.b64",
+      "size": 360745,
+      "sha256": "7c8b9108fa09808b964f3409b568ac03fc9d27f00a128655d13e530d2980c4f3"
+    },
+    {
+      "name": "part-02.b64",
+      "size": 360745,
+      "sha256": "6f4a1a9c87a567f8acd7cfb59ce35bd1489c2351e9cc090abce17f8bdd1092e0"
+    },
+    {
+      "name": "part-03.b64",
+      "size": 360745,
+      "sha256": "40583fb3aac447a8a75825127d5382ebabccc62b75515cb847505764327840eb"
+    },
+    {
+      "name": "part-04.b64",
+      "size": 360745,
+      "sha256": "9b505a6136740133e7395aae63ab2e2cefb39f7420432772ef882f2d047fd1fe"
+    },
+    {
+      "name": "part-05.b64",
+      "size": 360745,
+      "sha256": "e9af8929adfb88e6a7c2d0fced88e57406c28b3fbdd6de7104d96bdcc1b570ca"
+    },
+    {
+      "name": "part-06.b64",
+      "size": 360745,
+      "sha256": "5d095e909a5bc588d3883038e4ab745fed640df3df5846b31bb71abebaf7bfd0"
+    },
+    {
+      "name": "part-07.b64",
+      "size": 360332,
+      "sha256": "532902f08f51aa57a76ffe5f6c773c9796f9a037a34bfd0ff44b72d846f8160d"
+    }
+  ],
+  "archive": {
+    "name": "kundoffert.tar.gz",
+    "size": 1869009,
+    "sha256": "b5471a73cdafadd7fb2958b54cf853fdcb4175ed1895b558fc82c763aba31e05"
+  },
+  "base64": {
+    "line_length": 76,
+    "reassemble": "cat part-*.b64 | base64 -d > kundoffert.tar.gz"
+  },
+  "files": [
+    {
+      "name": "kundsida-dator.png",
+      "size": 545460,
+      "sha256": "8d03d0449e728dc742b77e8265692982fca89048cc14c0473cce6d1d76f5a893"
+    },
+    {
+      "name": "kundsida-mobil.png",
+      "size": 1159477,
+      "sha256": "bef1f3efe5e8ee5d32d58d8c0a3538b06f6d9e07fb2c3866a3baed8f336a4dca"
+    },
+    {
+      "name": "signering-dator.png",
+      "size": 67261,
+      "sha256": "8639602275b27a518b8e995db05c6d2248e14a4d7970e29b17d31533dd453a20"
+    },
+    {
+      "name": "offert.pdf",
+      "size": 81703,
+      "sha256": "144d8913fabfa3902d7f5ceac4e3c61875e1e237a091668b1363940c3f2eb8eb"
+    },
+    {
+      "name": "signerat-avtal.pdf",
+      "size": 93309,
+      "sha256": "9e313e65f461e9103668782a4d1a2321857e8ae5f332fd475088c6905273e8dd"
+    },
+    {
+      "name": "svar.json",
+      "size": 17435,
+      "sha256": "3f2c4ec02e0a7dddbf20c128811d3be2d923c65b667fdaee6ea8e2a6206dc6e3"
+    }
+  ]
+}
