@@ -1,0 +1,67 @@
+{
+  "archive": {
+    "name": "offertpdf.tar.gz",
+    "size": 1401521,
+    "sha256": "5f78f404b862180e133583b66bba54f1e439180295cb84234f6f7ff58c733a26",
+    "encoding": "base64, 76 tecken per rad, delarna sammanfogas i ordning (cat part-*.b64 | base64 -d > offertpdf.tar.gz)"
+  },
+  "parts": [
+    {
+      "name": "part-01.b64",
+      "size": 378686,
+      "sha256": "f36161fefb7ec660e0dacaa3b335434712d1e79f1bd52cad6986f7adc47465a8"
+    },
+    {
+      "name": "part-02.b64",
+      "size": 378686,
+      "sha256": "2843d7b784c824da89febeaa6aed6f860c5cc131c126677adfbaa370c0eb1d15"
+    },
+    {
+      "name": "part-03.b64",
+      "size": 378686,
+      "sha256": "71def2b75a16a22f16b25c9f0fadc433ed4f2921c52275284f4a18b13f78d150"
+    },
+    {
+      "name": "part-04.b64",
+      "size": 378686,
+      "sha256": "899bdbb7fee3e202d2352b0e6facf0dd8c2bf2217863892ef61ac2701f3e9261"
+    },
+    {
+      "name": "part-05.b64",
+      "size": 378541,
+      "sha256": "10ba7b2bc2af6f4d2c983b1e076885161630a719eb408a8d6816fce1ab94314b"
+    }
+  ],
+  "files": [
+    {
+      "name": "offerpdf.cjs",
+      "size": 2673538,
+      "sha256": "769bdc8b5fc71f00903c9274cd5cd997451da486d5a7f108c08e109e99d0eb04"
+    },
+    {
+      "name": "render.cjs",
+      "size": 1635,
+      "sha256": "577d8722f194da0ba5310fea6c63a5cbef0d576d5f21a2da43b785b16c918d04"
+    },
+    {
+      "name": "exempel-offert.json",
+      "size": 9967,
+      "sha256": "2a1f943d59be2afc844b15a72c76314a34371f621a232d301a8b0a035a08afe5"
+    },
+    {
+      "name": "exempel-node.pdf",
+      "size": 79253,
+      "sha256": "e2c67ef3069b00e62e28dff64d170bb3b01ca8feadbfc87f10a9f961859d70dc"
+    },
+    {
+      "name": "exempel-app.pdf",
+      "size": 79253,
+      "sha256": "7e31f0aaf2b56e2693da2799793b02eaafcc6e88b1881dfc8875eab1f532feb7"
+    },
+    {
+      "name": "README.md",
+      "size": 11205,
+      "sha256": "3ef4e96d9523f6302ac0ca1b0aa5588c77292d030746d512dae03bee01b1bdf9"
+    }
+  ]
+}
