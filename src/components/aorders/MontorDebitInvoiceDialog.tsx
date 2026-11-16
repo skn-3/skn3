@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+// "Registrera avdrag": montörsdebetfaktura (kind 'debit', N3-serien) när ett team är
+// skyldigt N3prenad pengar. Samma flöde som tidigare debetfakturor (N3-nummer, PDF,
+// send-montor-debit-invoice). Typen styr momsen; avräkning mot nästa utbetalning är förvalt.
+// Avdraget står aldrig på självfakturan – kvittningen sker i utbetalningsspecifikationen.
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Paperclip, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,41 +15,37 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
-import { calcInvoiceTotals } from '@/lib/invoiceMath';
-import { createAndSendDebitInvoice } from '@/lib/debitInvoice';
-
-type Line = { id: string; description: string; qty: number; unit: string; unit_price: number; amount: number };
+import { useIsMobile } from '@/hooks/use-mobile';
+import { createAndSendDebitInvoice, DEBIT_ATTACHMENT_MAX_BYTES, DEBIT_ATTACHMENT_TYPES } from '@/lib/debitInvoice';
+import { DEBIT_TYPES, SETTLE_MODE_TEXT, debitTotals, debitTypeInfo, formatKr, type DebitType, type SettleMode } from '@/lib/montorSettlement';
+import { SETTLEMENT_QUERY_KEYS } from '@/lib/montorSettlementActions';
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   currentUser: string;
+  /** Förifyllt team (id), t.ex. från Utbetala till montör */
+  initialTeamId?: string | null;
+  /** Förifyllt team (namn), t.ex. ärendets montör i ärendepanelen */
+  initialTeamName?: string | null;
+  /** Förifyllt ärende (ärendepanelen) */
+  initialCaseId?: string | null;
 }
 
-function newId() { return 'l_' + Math.random().toString(36).slice(2, 9); }
-function fmt(n: number) { return Math.round(n || 0).toLocaleString('sv-SE') + ' kr'; }
-function addDays(d: Date, n: number) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
-function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
+function parseAmount(v: string): number { return Number(String(v).replace(/\s/g, '').replace(',', '.')) || 0; }
 
-export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser }: Props) {
+export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser, initialTeamId, initialTeamName, initialCaseId }: Props) {
   const qc = useQueryClient();
+  const isMobile = useIsMobile();
   const [teamId, setTeamId] = useState('');
-  const [date, setDate] = useState(isoDate(new Date()));
-  const [dueDate, setDueDate] = useState(isoDate(addDays(new Date(), 10)));
-  const [vatMode, setVatMode] = useState<'omvand' | 'vanlig'>('omvand');
+  const [debitType, setDebitType] = useState<DebitType | ''>('');
+  const [settleMode, setSettleMode] = useState<SettleMode>('avrakning');
   const [caseId, setCaseId] = useState('');
-  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [lines, setLines] = useState<Line[]>([{ id: newId(), description: '', qty: 1, unit: 'st', unit_price: 0, amount: 0 }]);
+  const [amount, setAmount] = useState('');
+  const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setTeamId(''); setDate(isoDate(new Date())); setDueDate(isoDate(addDays(new Date(), 10)));
-      setVatMode('omvand'); setCaseId(''); setTitle(''); setDescription('');
-      setLines([{ id: newId(), description: '', qty: 1, unit: 'st', unit_price: 0, amount: 0 }]);
-    }
-  }, [open]);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: teams = [] } = useQuery({
     queryKey: ['montor_teams_active'],
@@ -57,6 +57,7 @@ export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser }: Pr
   });
   const { data: cases = [] } = useQuery({
     queryKey: ['cases_for_debit'],
+    enabled: open,
     queryFn: async () => {
       const { data, error } = await (supabase as any).from('cases').select('id, address, customer_name').order('address');
       if (error) throw error;
@@ -64,165 +65,162 @@ export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser }: Pr
     },
   });
 
+  useEffect(() => {
+    if (!open) return;
+    setDebitType(''); setSettleMode('avrakning'); setDescription(''); setAmount(''); setFile(null);
+    setCaseId(initialCaseId || '');
+    setTeamId(initialTeamId || '');
+  }, [open, initialTeamId, initialCaseId]);
+  useEffect(() => {
+    if (open && !initialTeamId && initialTeamName && teams.length) {
+      const t = teams.find(x => x.name === initialTeamName);
+      if (t) setTeamId(t.id);
+    }
+  }, [open, initialTeamId, initialTeamName, teams]);
+
   const team = useMemo(() => teams.find(t => t.id === teamId) || null, [teams, teamId]);
   const recipient = team?.invoice_email || team?.email || '';
+  const amountNum = parseAmount(amount);
+  const totals = debitType ? debitTotals(debitType, amountNum) : null;
+  const typeInfo = debitTypeInfo(debitType);
 
-  const { subtotal, vatAmount, total } = useMemo(() => calcInvoiceTotals(lines, vatMode), [lines, vatMode]);
-
-  function upd(id: string, patch: Partial<Line>) {
-    setLines(prev => prev.map(l => {
-      if (l.id !== id) return l;
-      const next = { ...l, ...patch };
-      if (!('amount' in patch)) {
-        next.amount = Math.round((Number(next.qty) || 0) * (Number(next.unit_price) || 0));
-      }
-      return next;
-    }));
+  function pickFile(f: File | null) {
+    if (!f) { setFile(null); return; }
+    if (!DEBIT_ATTACHMENT_TYPES.includes(f.type)) { toast.error('Underlaget måste vara PDF, JPG, PNG eller WebP'); return; }
+    if (f.size > DEBIT_ATTACHMENT_MAX_BYTES) { toast.error('Underlaget får vara högst 10 MB'); return; }
+    setFile(f);
   }
-  function add() { setLines(prev => [...prev, { id: newId(), description: '', qty: 1, unit: 'st', unit_price: 0, amount: 0 }]); }
-  function del(id: string) { setLines(prev => prev.filter(l => l.id !== id)); }
 
   async function go() {
-    if (!team) { toast.error('Välj montör'); return; }
+    if (!team) { toast.error('Välj team'); return; }
     if (!recipient) { toast.error('Montörsteamet saknar e-post'); return; }
-    if (lines.length === 0 || lines.every(l => !l.description.trim())) {
-      toast.error('Minst en faktura-rad krävs'); return;
-    }
+    if (!debitType) { toast.error('Välj typ av avdrag'); return; }
+    if (!description.trim()) { toast.error('Skriv en beskrivning'); return; }
+    if (!(amountNum > 0)) { toast.error('Ange ett belopp större än 0'); return; }
     setBusy(true);
     try {
-      const pdfLines = lines.map(l => ({
-        description: l.description, qty: l.qty, unit: l.unit, unit_price: l.unit_price, amount: l.amount,
-      }));
+      const today = new Date().toISOString().slice(0, 10);
+      const due = new Date(); due.setDate(due.getDate() + 10);
+      const amt = Math.round(amountNum * 100) / 100;
+      const line = { description: description.trim(), qty: 1, unit: 'st', unit_price: amt, amount: amt };
       const res = await createAndSendDebitInvoice({
         team,
-        title,
-        description,
-        lines: pdfLines.map(l => ({ name: l.description, amount: l.amount })),
-        detailedLines: pdfLines,
-        vatMode,
-        date,
-        dueDate: dueDate || null,
+        title: typeInfo?.short || '',
+        description: description.trim(),
+        lines: [{ name: line.description, amount: amt }],
+        detailedLines: [line],
+        vatMode: totals!.vatMode,
+        debitType,
+        settleMode,
+        date: today,
+        dueDate: settleMode === 'bankgiro' ? due.toISOString().slice(0, 10) : null,
         createdBy: currentUser,
         caseId: caseId || null,
+        attachment: file,
+        kind: 'debit',
       });
-
-      toast.success(`Faktura ${res.invoice_number} skickad`);
-      qc.invalidateQueries({ queryKey: ['montor_debit_invoices'] });
+      toast.success(`Avdrag ${res.invoice_number} registrerat och skickat till ${recipient}`);
+      SETTLEMENT_QUERY_KEYS.forEach(k => qc.invalidateQueries({ queryKey: [...k] }));
       onOpenChange(false);
     } catch (e: any) {
       console.error(e);
-      toast.error(e?.message || 'Kunde inte skapa faktura');
+      toast.error(e?.message || 'Kunde inte registrera avdraget');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Fakturera montör</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 text-sm">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Montör (kund) *</Label>
+    <Sheet open={open} onOpenChange={v => { if (!busy) onOpenChange(v); }}>
+      <SheetContent side={isMobile ? 'bottom' : 'right'} className="w-full sm:max-w-xl max-h-[100dvh] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Registrera avdrag</SheetTitle>
+          <SheetDescription>Skapar en debetfaktura till montören. Avdraget står aldrig på självfakturan.</SheetDescription>
+        </SheetHeader>
+        <div className="space-y-5 py-4 text-sm">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="debit-team">Team</Label>
               <Select value={teamId} onValueChange={setTeamId}>
-                <SelectTrigger><SelectValue placeholder="Välj montör..." /></SelectTrigger>
-                <SelectContent>
-                  {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.company_name || t.name}</SelectItem>)}
-                </SelectContent>
+                <SelectTrigger id="debit-team" className="h-11"><SelectValue placeholder="Välj team" /></SelectTrigger>
+                <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.company_name || t.name}</SelectItem>)}</SelectContent>
               </Select>
-              {team && !recipient && <div className="text-[11px] text-red-600 dark:text-red-400 mt-1">Teamet saknar e-post.</div>}
+              {team && !recipient && <p className="text-xs text-destructive">Teamet saknar e-post.</p>}
             </div>
-            <div>
-              <Label className="text-xs">Ärendekoppling (valfritt)</Label>
+            <div className="space-y-1.5">
+              <Label>Ärende (valfritt)</Label>
               <CaseCombobox cases={cases} value={caseId} onChange={setCaseId} />
             </div>
-            <div>
-              <Label className="text-xs">Datum</Label>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
-            </div>
-            <div>
-              <Label className="text-xs">Förfallodatum</Label>
-              <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-            </div>
           </div>
 
-          <div>
-            <Label className="text-xs">Momsläge</Label>
-            <RadioGroup value={vatMode} onValueChange={(v) => setVatMode(v as 'omvand' | 'vanlig')} className="flex gap-6 mt-1">
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="omvand" id="vat-om" />
-                <Label htmlFor="vat-om" className="cursor-pointer text-sm font-normal">Omvänd betalningsskyldighet (0%)</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="vanlig" id="vat-va" />
-                <Label htmlFor="vat-va" className="cursor-pointer text-sm font-normal">Vanlig moms (25%)</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          <div>
-            <Label className="text-xs">Titel</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="t.ex. Reklamationskostnad – skada vid montage" />
-          </div>
-          <div>
-            <Label className="text-xs">Beskrivning</Label>
-            <Textarea rows={2} value={description} onChange={e => setDescription(e.target.value)} />
-          </div>
-
-          <div className="border rounded-md">
-            <div className="px-3 py-2 border-b bg-muted/50 flex items-center justify-between">
-              <span className="font-medium">Fakturarader</span>
-              <Button size="sm" variant="ghost" onClick={add} className="gap-1 h-7"><Plus className="h-3 w-3" /> Lägg till rad</Button>
-            </div>
-            <div className="divide-y">
-              <div className="grid grid-cols-12 gap-2 px-3 py-1.5 text-[10px] uppercase text-muted-foreground">
-                <div className="col-span-5">Benämning</div>
-                <div className="col-span-1 text-right">Antal</div>
-                <div className="col-span-1">Enhet</div>
-                <div className="col-span-2 text-right">Á-pris</div>
-                <div className="col-span-2 text-right">Summa</div>
-                <div className="col-span-1"></div>
-              </div>
-              {lines.map(l => (
-                <div key={l.id} className="grid grid-cols-12 gap-2 items-center px-3 py-2">
-                  <Input className="col-span-5 h-8" value={l.description} onChange={e => upd(l.id, { description: e.target.value })} placeholder="Benämning" />
-                  <Input className="col-span-1 h-8 text-right" type="number" step="any" value={l.qty} onChange={e => upd(l.id, { qty: Number(e.target.value) || 0 })} />
-                  <Input className="col-span-1 h-8" value={l.unit} onChange={e => upd(l.id, { unit: e.target.value })} />
-                  <Input className="col-span-2 h-8 text-right" type="number" step="any" value={l.unit_price} onChange={e => upd(l.id, { unit_price: Number(e.target.value) || 0 })} />
-                  <Input className="col-span-2 h-8 text-right font-medium" type="number" step="any" value={l.amount} onChange={e => upd(l.id, { amount: Number(e.target.value) || 0 })} />
-                  <button className="col-span-1 justify-self-end text-muted-foreground hover:text-destructive" onClick={() => del(l.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+          <fieldset className="space-y-2">
+            <legend className="mb-1 text-sm font-medium">Typ av avdrag</legend>
+            <RadioGroup value={debitType} onValueChange={v => setDebitType(v as DebitType)} className="gap-2">
+              {DEBIT_TYPES.map(t => (
+                <label key={t.key} htmlFor={`debit-type-${t.key}`} className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-3 ${debitType === t.key ? 'border-primary bg-accent/40' : 'border-border'}`}>
+                  <RadioGroupItem value={t.key} id={`debit-type-${t.key}`} className="mt-0.5" />
+                  <span className="min-w-0">
+                    <span className="block font-medium leading-snug">{t.label}</span>
+                    <span className="block text-xs text-muted-foreground">{t.hint}</span>
+                  </span>
+                </label>
               ))}
+            </RadioGroup>
+          </fieldset>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="debit-desc">Beskrivning</Label>
+            <Textarea id="debit-desc" rows={2} value={description} onChange={e => setDescription(e.target.value)} placeholder="t.ex. Repad karm vid montage, krav från kund" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="debit-amount">Belopp exkl. moms</Label>
+              <Input id="debit-amount" inputMode="decimal" className="h-11 text-right" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" />
             </div>
-            <div className="px-3 py-2 border-t bg-muted/30 space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Summa ex moms</span>
-                <span className="font-medium">{fmt(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Moms {vatMode === 'vanlig' ? '(25%)' : '(omvänd)'}</span>
-                <span className="font-medium">{fmt(vatAmount)}</span>
-              </div>
-              <div className="flex justify-between text-base font-semibold pt-1 border-t">
-                <span>Att betala</span>
-                <span>{fmt(total)}</span>
-              </div>
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm" aria-live="polite">
+              {totals ? (<>
+                <div className="flex justify-between"><span className="text-muted-foreground">Moms</span><span>{totals.vatMode === 'vanlig' ? formatKr(totals.vatAmount) : totals.vatMode === 'omvand' ? 'Omvänd' : 'Ingen moms'}</span></div>
+                <div className="mt-1 flex justify-between font-semibold"><span>Totalt</span><span>{formatKr(totals.total)}</span></div>
+              </>) : <span className="text-muted-foreground">Välj typ för att se momsen.</span>}
             </div>
           </div>
+
+          <div className="space-y-1.5">
+            <Label>Underlag (valfritt)</Label>
+            <input ref={fileRef} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="sr-only" aria-label="Välj underlag" onChange={e => pickFile(e.target.files?.[0] ?? null)} />
+            {file ? (
+              <div className="flex items-center gap-2 rounded-lg border p-2">
+                <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                <Button type="button" variant="ghost" size="icon" className="h-11 w-11" aria-label="Ta bort underlaget" onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = ''; }}><X className="h-4 w-4" /></Button>
+              </div>
+            ) : (
+              <Button type="button" variant="outline" className="h-11 gap-2" onClick={() => fileRef.current?.click()}><Paperclip className="h-4 w-4" />Bifoga kvitto, PDF eller bild</Button>
+            )}
+            <p className="text-xs text-muted-foreground">Sparas privat och bifogas mejlet till montören.</p>
+          </div>
+
+          <fieldset className="space-y-2">
+            <legend className="mb-1 text-sm font-medium">Reglering</legend>
+            <RadioGroup value={settleMode} onValueChange={v => setSettleMode(v as SettleMode)} className="gap-2">
+              {(['avrakning', 'bankgiro'] as SettleMode[]).map(m => (
+                <label key={m} htmlFor={`settle-${m}`} className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border p-3 ${settleMode === m ? 'border-primary bg-accent/40' : 'border-border'}`}>
+                  <RadioGroupItem value={m} id={`settle-${m}`} />
+                  <span>{SETTLE_MODE_TEXT[m]}</span>
+                </label>
+              ))}
+            </RadioGroup>
+          </fieldset>
+          {team && <p className="text-xs text-muted-foreground">Skickas till {recipient || '—'} med kopia till n3prenad@smartklimat.org.</p>}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Avbryt</Button>
-          <Button onClick={go} disabled={busy || !team || !recipient} className="bg-green-600 hover:bg-green-700">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Skapa & skicka faktura
+        <SheetFooter className="gap-2 pb-[env(safe-area-inset-bottom)]">
+          <Button variant="outline" className="h-11" onClick={() => onOpenChange(false)} disabled={busy}>Avbryt</Button>
+          <Button className="h-11" onClick={go} disabled={busy || !team || !recipient || !debitType || !description.trim() || !(amountNum > 0)}>
+            {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Registrera och skicka
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

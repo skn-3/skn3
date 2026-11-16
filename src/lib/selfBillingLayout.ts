@@ -11,8 +11,14 @@
 import jsPDF from 'jspdf';
 import { drawRichText } from './richTextPdf';
 
-/** Exakt samma fras som Mockfjärds använder. Ändra inte ordalydelsen. */
-export const REVERSE_CHARGE_TEXT = 'Omvänd bet.skyldighet f moms gäller enl 1 kap 2§ punkt 4b ML';
+/**
+ * Momshänvisning vid omvänd betalningsskyldighet för byggtjänster i nya
+ * mervärdesskattelagen (2023:200). Den tidigare hänvisningen "1 kap. 2 § 4 b ML"
+ * gällde den gamla lagen till och med 30 juni 2023 och byttes enligt beslut
+ * 16 november 2026. Används på självfakturor, montörsdebetfakturor av typen
+ * byggtjänst och kundfakturor med omvänd moms. Ändra inte ordalydelsen utan nytt beslut.
+ */
+export const REVERSE_CHARGE_TEXT = 'Omvänd betalningsskyldighet, 16 kap. 13 § ML (2023:200)';
 
 export interface SelfBillingBuyer {
   name: string;

@@ -69,6 +69,8 @@ import { WastePickupBlock } from '@/components/shared/WastePickupBlock';
 import { canRequestWastePickup, wastePickupState } from '@/lib/wastePickup';
 import { bookKm, bookMontage } from '@/lib/booking';
 import { toastBookingWarnings } from '@/hooks/useBookingActions';
+import { MontorDebitInvoiceDialog } from '@/components/aorders/MontorDebitInvoiceDialog';
+import { MinusCircle } from 'lucide-react';
 
 interface CaseDetailPanelProps {
   caseData: CaseRow;
@@ -1156,6 +1158,9 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
   const canAct = canActOnDeviations(currentUser, isCoordinator ? 'coordinator' : isSeller ? 'seller' : 'montor');
   const [actionDev, setActionDev] = useState<DeviationRow | null>(null);
   const [mergeOpen, setMergeOpen] = useState(false);
+  // Registrera avdrag: bara personal som skickar montörsdebetfakturor (admin, koordinator).
+  const [deductOpen, setDeductOpen] = useState(false);
+  const canRegisterDeduction = isAdmin || isCoordinator;
 
   const [blockedStatus, setBlockedStatus] = useState<{ status: string; reason: string; description: string } | null>(null);
 
@@ -2786,6 +2791,14 @@ export function CaseDetailPanel({ caseData: initialCaseData, currentUser, isSell
           )}
 
           <div id="office-km-form"><LitterorSection caseId={caseData.id} isAdmin={isAdmin} currentUser={currentUser} /></div>
+
+          {canRegisterDeduction && (
+            <section className="px-4 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">Är montören skyldig oss pengar för det här ärendet? Avdraget dras från nästa utbetalning.</p>
+              <Button variant="outline" className="h-11 gap-2" onClick={() => setDeductOpen(true)}><MinusCircle className="h-4 w-4" />Registrera avdrag</Button>
+              <MontorDebitInvoiceDialog open={deductOpen} onOpenChange={setDeductOpen} currentUser={currentUser} initialCaseId={caseData.id} initialTeamName={caseData.team || null} />
+            </section>
+          )}
 
 
           {/* Costs */}

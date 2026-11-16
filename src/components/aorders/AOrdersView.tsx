@@ -1,5 +1,5 @@
 import { paidDatesByCase } from '@/lib/payoutKind';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, FileText, Send, Loader2, Receipt, RotateCcw, Trash2, FileUp, FilePlus, ArrowUpRight, Banknote as BanknoteIcon, Undo2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,6 +28,9 @@ import { ImportInvoicesView } from './ImportInvoicesView';
 import { KmPayoutView } from './KmPayoutView';
 import { MontorDebitInvoiceDialog } from './MontorDebitInvoiceDialog';
 import { MontorDebitInvoicesView } from './MontorDebitInvoicesView';
+import { MontorSettlementsView } from './MontorSettlementsView';
+import { useActiveSettlementItems } from '@/hooks/useMontorSettlements';
+import { settlementNumbersByDocument } from '@/lib/montorSettlement';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { fetchUnhandledCostsByCase } from '@/lib/caseCostPayout';
 import { openDocumentInNewTab } from '@/lib/openDocument';
@@ -91,6 +94,17 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
   const [regenerateSend, setRegenerateSend] = useState(true);
   const [regenerateBusy, setRegenerateBusy] = useState(false);
   const isMobile = useIsMobile();
+  const [tab, setTab] = useState('pending');
+  const settlementRef = useRef<HTMLElement>(null);
+  const canManageSettlements = !!role?.isAdmin || role?.type === 'coordinator';
+  // Fakturor i en aktiv utbetalningsspecifikation: betalning och kreditering sker via specifikationen.
+  const { data: activeItems = [] } = useActiveSettlementItems();
+  const settlementByDoc = useMemo(() => settlementNumbersByDocument(activeItems), [activeItems]);
+  const unpaidSettlementDocs = useMemo(() => new Set(activeItems.filter(i => i.settlement_status === 'created' || i.settlement_status === 'sent').map(i => i.a_order_id).filter(Boolean) as string[]), [activeItems]);
+  function goToSettlements() {
+    setTab('km');
+    requestAnimationFrame(() => requestAnimationFrame(() => { settlementRef.current?.scrollIntoView({ block: 'start' }); settlementRef.current?.focus({ preventScroll: true }); }));
+  }
 
   async function confirmRegenerate() {
     if (!regenerateFor || regenerateBusy) return;
@@ -392,13 +406,13 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
             <FilePlus className="h-4 w-4" /> Ny serviceorder
           </Button>
           <Button variant="outline" onClick={() => setDebitOpen(true)} className="gap-2">
-            <ArrowUpRight className="h-4 w-4" /> Fakturera montör
+            <ArrowUpRight className="h-4 w-4" /> Registrera avdrag
           </Button>
           <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Ny A-order</Button>
         </div>
       </div>
 
-      <Tabs defaultValue="pending">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="pending">Utestående ({pending.length})</TabsTrigger>
           <TabsTrigger value="history">Historik</TabsTrigger>
@@ -512,6 +526,7 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
               </p>
               <p className="text-xs text-muted-foreground">
                 Obetalt till montörer: <span className="font-medium text-foreground">{fmt(unpaidSum)}</span> ({unpaidInvoiced.length} {unpaidInvoiced.length === 1 ? 'faktura' : 'fakturor'})
+                {' · '}<button type="button" onClick={goToSettlements} className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-2">Utbetala till montör</button>
               </p>
             </div>
             <div className="ml-auto">
@@ -582,6 +597,9 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
                         {isPaid && (
                           <div className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-0.5 font-medium">Betald {o.paid_at}</div>
                         )}
+                        {settlementByDoc.has(o.id) && (
+                          <div className="text-[10px] text-muted-foreground mt-0.5 font-medium">Ingår i {settlementByDoc.get(o.id)!.join(', ')}</div>
+                        )}
                         {isCredit && o.credited_from_order_id && (
                           <div className="text-[10px] text-red-600 dark:text-red-400 mt-0.5">avser tidigare faktura</div>
                         )}
@@ -599,17 +617,17 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
                               <Receipt className="h-3 w-3" />
                             </Button>
                           )}
-                           {o.status === 'invoiced' && !o.paid_at && (
+                           {o.status === 'invoiced' && !o.paid_at && !settlementByDoc.has(o.id) && (
                             <Button size="sm" variant="ghost" onClick={() => { setPayFor(o); setPayDate(new Date().toISOString().slice(0, 10)); }} title="Markera som betald" className="text-green-700 dark:text-green-300">
                               <BanknoteIcon className="h-3 w-3" />
                             </Button>
                           )}
-                          {o.status === 'invoiced' && !!o.paid_at && (
+                          {o.status === 'invoiced' && !!o.paid_at && !settlementByDoc.has(o.id) && (
                             <Button size="sm" variant="ghost" onClick={() => undoPaid(o)} title="Ångra betald">
                               <Undo2 className="h-3 w-3" />
                             </Button>
                           )}
-                           {o.status === 'invoiced' && (
+                           {o.status === 'invoiced' && !unpaidSettlementDocs.has(o.id) && (
                             <Button size="sm" variant="ghost" onClick={() => setCreditFor(o)} title="Kreditera" className="text-red-600 dark:text-red-400">
                               <RotateCcw className="h-3 w-3" />
                             </Button>
@@ -653,7 +671,8 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
           <ImportInvoicesView />
         </TabsContent>
 
-        <TabsContent value="km">
+        <TabsContent value="km" className="space-y-8">
+          <MontorSettlementsView ref={settlementRef} currentUser={currentUser} canManage={canManageSettlements} />
           <KmPayoutView currentUser={currentUser} />
         </TabsContent>
       </Tabs>

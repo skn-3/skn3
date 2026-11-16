@@ -301,7 +301,7 @@ export function buildHandpenningDocDef(uppdrag: UppdragForInvoice, offer: OfferF
 
   content.push(S.smallPrint([
     S.reverseVat
-      ? 'Omvänd betalningsskyldighet för byggtjänster enligt 1 kap. 2 § första stycket 4 b mervärdesskattelagen – köparen redovisar momsen.'
+      ? 'Omvänd betalningsskyldighet för byggtjänster enligt 16 kap. 13 § mervärdesskattelagen (2023:200) – köparen redovisar momsen.'
       : 'Momsen på handpenningen redovisas på denna faktura och avräknas på slutfakturan.',
     `${COMPANY.name} är godkänd för F-skatt. Vid försenad betalning debiteras dröjsmålsränta enligt räntelagen (referensränta + 8 %) samt lagstadgad påminnelseavgift.`,
     'Fullständig omfattning och villkor finns i det signerade avtalet.',
@@ -397,7 +397,7 @@ export function buildSlutfakturaDocDef(uppdrag: UppdragForInvoice, offer: OfferF
 
   content.push(S.smallPrint([
     S.reverseVat
-      ? 'Omvänd betalningsskyldighet för byggtjänster enligt 1 kap. 2 § första stycket 4 b mervärdesskattelagen – köparen redovisar momsen.'
+      ? 'Omvänd betalningsskyldighet för byggtjänster enligt 16 kap. 13 § mervärdesskattelagen (2023:200) – köparen redovisar momsen.'
       : 'Momsen på handpenningen har redovisats på handpenningsfakturan.',
     `${COMPANY.name} är godkänd för F-skatt. Vid försenad betalning debiteras dröjsmålsränta enligt räntelagen (referensränta + 8 %) samt lagstadgad påminnelseavgift.`,
   ]));

@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   public: {
     Tables: {
       a_order_products: {
@@ -2303,11 +2298,14 @@ export type Database = {
       }
       montor_debit_invoices: {
         Row: {
+          attachment_name: string | null
+          attachment_path: string | null
           case_id: string | null
           created_at: string
           created_by: string | null
           credited_from_invoice_id: string | null
           date: string
+          debit_type: string | null
           description: string | null
           due_date: string | null
           id: string
@@ -2317,6 +2315,7 @@ export type Database = {
           paid_at: string | null
           pdf_path: string | null
           sent_at: string | null
+          settle_mode: string
           status: string
           subtotal: number
           team_id: string
@@ -2326,11 +2325,14 @@ export type Database = {
           vat_mode: string
         }
         Insert: {
+          attachment_name?: string | null
+          attachment_path?: string | null
           case_id?: string | null
           created_at?: string
           created_by?: string | null
           credited_from_invoice_id?: string | null
           date?: string
+          debit_type?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -2340,6 +2342,7 @@ export type Database = {
           paid_at?: string | null
           pdf_path?: string | null
           sent_at?: string | null
+          settle_mode?: string
           status?: string
           subtotal?: number
           team_id: string
@@ -2349,11 +2352,14 @@ export type Database = {
           vat_mode?: string
         }
         Update: {
+          attachment_name?: string | null
+          attachment_path?: string | null
           case_id?: string | null
           created_at?: string
           created_by?: string | null
           credited_from_invoice_id?: string | null
           date?: string
+          debit_type?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -2363,6 +2369,7 @@ export type Database = {
           paid_at?: string | null
           pdf_path?: string | null
           sent_at?: string | null
+          settle_mode?: string
           status?: string
           subtotal?: number
           team_id?: string
@@ -2395,6 +2402,168 @@ export type Database = {
           },
           {
             foreignKeyName: "montor_debit_invoices_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "montor_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      montor_settlement_items: {
+        Row: {
+          a_order_id: string | null
+          active: boolean
+          amount: number
+          created_at: string
+          debit_invoice_id: string | null
+          document_date: string | null
+          document_number: string | null
+          document_total: number
+          id: string
+          item_kind: string
+          label: string | null
+          remaining_after: number | null
+          set_paid_at: boolean
+          settlement_id: string
+          sort_order: number
+        }
+        Insert: {
+          a_order_id?: string | null
+          active?: boolean
+          amount: number
+          created_at?: string
+          debit_invoice_id?: string | null
+          document_date?: string | null
+          document_number?: string | null
+          document_total: number
+          id?: string
+          item_kind: string
+          label?: string | null
+          remaining_after?: number | null
+          set_paid_at?: boolean
+          settlement_id: string
+          sort_order?: number
+        }
+        Update: {
+          a_order_id?: string | null
+          active?: boolean
+          amount?: number
+          created_at?: string
+          debit_invoice_id?: string | null
+          document_date?: string | null
+          document_number?: string | null
+          document_total?: number
+          id?: string
+          item_kind?: string
+          label?: string | null
+          remaining_after?: number | null
+          set_paid_at?: boolean
+          settlement_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "montor_settlement_items_a_order_id_fkey"
+            columns: ["a_order_id"]
+            isOneToOne: false
+            referencedRelation: "a_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "montor_settlement_items_debit_invoice_id_fkey"
+            columns: ["debit_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "montor_debit_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "montor_settlement_items_settlement_id_fkey"
+            columns: ["settlement_id"]
+            isOneToOne: false
+            referencedRelation: "montor_settlements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      montor_settlements: {
+        Row: {
+          address: string | null
+          bankgiro: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          company_name: string | null
+          created_at: string
+          created_by: string | null
+          credits_total: number
+          deductions_total: number
+          id: string
+          invoices_total: number
+          net_amount: number
+          note: string | null
+          org_nr: string | null
+          paid_at: string | null
+          paid_by: string | null
+          pdf_path: string | null
+          sent_at: string | null
+          sent_to: Json | null
+          settlement_date: string
+          settlement_number: string | null
+          status: string
+          team_id: string
+        }
+        Insert: {
+          address?: string | null
+          bankgiro?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          credits_total?: number
+          deductions_total?: number
+          id?: string
+          invoices_total?: number
+          net_amount?: number
+          note?: string | null
+          org_nr?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          pdf_path?: string | null
+          sent_at?: string | null
+          sent_to?: Json | null
+          settlement_date?: string
+          settlement_number?: string | null
+          status?: string
+          team_id: string
+        }
+        Update: {
+          address?: string | null
+          bankgiro?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          credits_total?: number
+          deductions_total?: number
+          id?: string
+          invoices_total?: number
+          net_amount?: number
+          note?: string | null
+          org_nr?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          pdf_path?: string | null
+          sent_at?: string | null
+          sent_to?: Json | null
+          settlement_date?: string
+          settlement_number?: string | null
+          status?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "montor_settlements_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "montor_teams"
@@ -3444,6 +3613,41 @@ export type Database = {
         Args: { _user_name: string }
         Returns: undefined
       }
+      can_manage_montor_settlements: { Args: never; Returns: boolean }
+      cancel_montor_settlement: {
+        Args: { p_id: string }
+        Returns: {
+          address: string | null
+          bankgiro: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          company_name: string | null
+          created_at: string
+          created_by: string | null
+          credits_total: number
+          deductions_total: number
+          id: string
+          invoices_total: number
+          net_amount: number
+          note: string | null
+          org_nr: string | null
+          paid_at: string | null
+          paid_by: string | null
+          pdf_path: string | null
+          sent_at: string | null
+          sent_to: Json | null
+          settlement_date: string
+          settlement_number: string | null
+          status: string
+          team_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "montor_settlements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       case_merge_table_label: {
         Args: { p_count: number; p_table: string }
         Returns: string
@@ -3451,6 +3655,47 @@ export type Database = {
       consultant_next_invoice_number: {
         Args: { p_consultant_id: string }
         Returns: number
+      }
+      create_montor_settlement: {
+        Args: {
+          p_credit_note_ids: string[]
+          p_date?: string
+          p_deduction_ids: string[]
+          p_invoice_ids: string[]
+          p_self_billing_ids: string[]
+          p_team_id: string
+        }
+        Returns: {
+          address: string | null
+          bankgiro: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          company_name: string | null
+          created_at: string
+          created_by: string | null
+          credits_total: number
+          deductions_total: number
+          id: string
+          invoices_total: number
+          net_amount: number
+          note: string | null
+          org_nr: string | null
+          paid_at: string | null
+          paid_by: string | null
+          pdf_path: string | null
+          sent_at: string | null
+          sent_to: Json | null
+          settlement_date: string
+          settlement_number: string | null
+          status: string
+          team_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "montor_settlements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       drive_sync_audit_wake: { Args: never; Returns: undefined }
       drive_sync_claim: { Args: { p_owner: string }; Returns: number }
@@ -3485,6 +3730,40 @@ export type Database = {
           name: string
           role: string
         }[]
+      }
+      mark_montor_settlement_paid: {
+        Args: { p_date: string; p_id: string }
+        Returns: {
+          address: string | null
+          bankgiro: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          company_name: string | null
+          created_at: string
+          created_by: string | null
+          credits_total: number
+          deductions_total: number
+          id: string
+          invoices_total: number
+          net_amount: number
+          note: string | null
+          org_nr: string | null
+          paid_at: string | null
+          paid_by: string | null
+          pdf_path: string | null
+          sent_at: string | null
+          sent_to: Json | null
+          settlement_date: string
+          settlement_number: string | null
+          status: string
+          team_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "montor_settlements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       merge_cases: {
         Args: {
@@ -3542,11 +3821,79 @@ export type Database = {
           source_title: string
         }[]
       }
+      set_montor_settlement_pdf: {
+        Args: { p_id: string }
+        Returns: {
+          address: string | null
+          bankgiro: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          company_name: string | null
+          created_at: string
+          created_by: string | null
+          credits_total: number
+          deductions_total: number
+          id: string
+          invoices_total: number
+          net_amount: number
+          note: string | null
+          org_nr: string | null
+          paid_at: string | null
+          paid_by: string | null
+          pdf_path: string | null
+          sent_at: string | null
+          sent_to: Json | null
+          settlement_date: string
+          settlement_number: string | null
+          status: string
+          team_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "montor_settlements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       start_conversation: {
         Args: { p_title?: string; p_user_ids: string[] }
         Returns: string
+      }
+      undo_montor_settlement_paid: {
+        Args: { p_id: string }
+        Returns: {
+          address: string | null
+          bankgiro: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          company_name: string | null
+          created_at: string
+          created_by: string | null
+          credits_total: number
+          deductions_total: number
+          id: string
+          invoices_total: number
+          net_amount: number
+          note: string | null
+          org_nr: string | null
+          paid_at: string | null
+          paid_by: string | null
+          pdf_path: string | null
+          sent_at: string | null
+          sent_to: Json | null
+          settlement_date: string
+          settlement_number: string | null
+          status: string
+          team_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "montor_settlements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
@@ -3680,3 +4027,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

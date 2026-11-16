@@ -14,6 +14,11 @@ import { loadAOrderLogo } from '@/lib/aOrderPdf';
 import { montorInvoicePdfName } from '@/lib/pdfNames';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 import { useRole } from '@/hooks/useRole';
+import { useActiveSettlementItems } from '@/hooks/useMontorSettlements';
+import { debitTypeInfo, deductionStatusText, settlementNumbersByDocument } from '@/lib/montorSettlement';
+import { SETTLEMENT_QUERY_KEYS } from '@/lib/montorSettlementActions';
+
+const VAT_LABEL: Record<string, string> = { vanlig: '25%', omvand: 'Omvänd', ingen: 'Ingen' };
 
 function fmt(n: number) { return Math.round(n || 0).toLocaleString('sv-SE') + ' kr'; }
 
@@ -31,6 +36,10 @@ export function MontorDebitInvoicesView() {
   const [creditTarget, setCreditTarget] = useState<any | null>(null);
   const [creditReason, setCreditReason] = useState('');
   const [creditBusy, setCreditBusy] = useState(false);
+  const { data: activeItems = [] } = useActiveSettlementItems();
+  const settlementByDoc = useMemo(() => settlementNumbersByDocument(activeItems), [activeItems]);
+  // Självfakturor i en obetald specifikation får inte krediteras; avdrag i någon aktiv specifikation aldrig.
+  const unpaidSettlementDocs = useMemo(() => new Set(activeItems.filter(i => i.settlement_status === 'created' || i.settlement_status === 'sent').map(i => i.debit_invoice_id).filter(Boolean) as string[]), [activeItems]);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['montor_debit_invoices'],
@@ -67,6 +76,7 @@ export function MontorDebitInvoicesView() {
         vatAmount: Number(inv.vat_amount || 0),
         total: Number(inv.total || 0),
         logoDataUrl: logo,
+        debitType: inv.debit_type, settleMode: inv.settle_mode,
       });
       doc.save(montorInvoicePdfName(inv));
     } catch (e: any) {
@@ -92,6 +102,7 @@ export function MontorDebitInvoicesView() {
         vatAmount: Number(inv.vat_amount || 0),
         total: Number(inv.total || 0),
         logoDataUrl: logo,
+        debitType: inv.debit_type, settleMode: inv.settle_mode,
       });
       const pdf_base64 = doc.output('datauristring').split(',')[1] || '';
       const { error } = await supabase.functions.invoke('send-montor-debit-invoice', {
@@ -113,7 +124,7 @@ export function MontorDebitInvoicesView() {
     const { error } = await (supabase as any).from('montor_debit_invoices').update(patch).eq('id', inv.id);
     if (error) { toast.error(error.message); return; }
     toast.success(status === 'paid' ? 'Markerad som betald' : 'Makulerad');
-    qc.invalidateQueries({ queryKey: ['montor_debit_invoices'] });
+    SETTLEMENT_QUERY_KEYS.forEach(k => qc.invalidateQueries({ queryKey: [...k] }));
   }
 
   const numberById = useMemo(() => {
@@ -134,7 +145,7 @@ export function MontorDebitInvoicesView() {
       toast.success(`Kreditfaktura ${res.invoice_number} skapad och skickad`);
       setCreditTarget(null);
       setCreditReason('');
-      qc.invalidateQueries({ queryKey: ['montor_debit_invoices'] });
+      SETTLEMENT_QUERY_KEYS.forEach(k => qc.invalidateQueries({ queryKey: [...k] }));
     } catch (e: any) {
       toast.error(e?.message || 'Kunde inte kreditera');
     } finally {
@@ -176,15 +187,26 @@ export function MontorDebitInvoicesView() {
                       Avser {numberById[inv.credited_from_invoice_id] || '—'}
                     </div>
                   )}
+                  {inv.kind === 'debit' && Number(inv.total) > 0 && (inv.debit_type || inv.settle_mode === 'avrakning') && (
+                    <div className="font-sans text-[10px] text-muted-foreground mt-0.5">
+                      {[debitTypeInfo(inv.debit_type)?.short, inv.settle_mode === 'avrakning' ? 'Avräkning' : null].filter(Boolean).join(' · ')}
+                    </div>
+                  )}
                 </td>
                 <td className="px-3 py-2">{inv.date}</td>
                 <td className="px-3 py-2">{inv.montor_teams?.company_name || inv.montor_teams?.name || '—'}</td>
-                <td className="px-3 py-2 text-xs">{inv.vat_mode === 'vanlig' ? '25%' : 'Omvänd'}</td>
+                <td className="px-3 py-2 text-xs">{VAT_LABEL[inv.vat_mode] ?? inv.vat_mode}</td>
                 <td className="px-3 py-2 text-right font-medium">{fmt(inv.total)}</td>
                 <td className="px-3 py-2">
                   <Badge className={meta.cls}>{meta.label}</Badge>
                   {inv.paid_at && (
                     <div className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-1 font-medium">Betald {inv.paid_at}</div>
+                  )}
+                  {inv.kind === 'debit' && Number(inv.total) > 0 && inv.settle_mode === 'avrakning' && (
+                    <div className="text-[10px] text-muted-foreground mt-1">{deductionStatusText(inv, activeItems)}</div>
+                  )}
+                  {settlementByDoc.has(inv.id) && !(inv.kind === 'debit' && inv.settle_mode === 'avrakning') && (
+                    <div className="text-[10px] text-muted-foreground mt-1 font-medium">Ingår i {settlementByDoc.get(inv.id)!.join(', ')}</div>
                   )}
                   {inv.sent_at && (
                     <div className="text-[10px] text-muted-foreground mt-1">
@@ -202,12 +224,12 @@ export function MontorDebitInvoicesView() {
                         <Send className="h-3 w-3" />
                       </Button>
                     )}
-                    {role?.isAdmin && ['sent', 'paid'].includes(inv.status) && Number(inv.total) > 0 && !inv.credited_from_invoice_id && (
+                    {role?.isAdmin && ['sent', 'paid'].includes(inv.status) && Number(inv.total) > 0 && !inv.credited_from_invoice_id && !(inv.kind === 'debit' && settlementByDoc.has(inv.id)) && !unpaidSettlementDocs.has(inv.id) && (
                       <Button size="sm" variant="ghost" onClick={() => { setCreditTarget(inv); setCreditReason(''); }} title="Kreditera">
                         <Undo2 className="h-3 w-3" />
                       </Button>
                     )}
-                    {role?.isAdmin && inv.status === 'sent' && (
+                    {role?.isAdmin && inv.status === 'sent' && !settlementByDoc.has(inv.id) && (
                       <>
                         <Button size="sm" variant="ghost" onClick={() => setStatus(inv, 'paid')} title="Markera betald" className="text-green-700 dark:text-green-300">
                           <CheckCircle2 className="h-3 w-3" />

@@ -1,6 +1,6 @@
 export const DRIVE_KINDS = [
   'a_order_invoice', 'montor_invoice', 'mockfjards_payout', 'uppdrag_handpenning', 'uppdrag_slutfaktura', 'signed_offer', 'offer_confirmation',
-  'sheet_metal_invoice', 'uploaded_montor_invoice', 'uploaded_a_order', 'cost_receipt', 'other_document',
+  'sheet_metal_invoice', 'uploaded_montor_invoice', 'uploaded_a_order', 'cost_receipt', 'other_document', 'montor_settlement',
 ] as const;
 export type DriveKind = typeof DRIVE_KINDS[number];
 export type Destination = 'outgoing' | 'incoming' | 'customers';
@@ -55,6 +55,8 @@ export function routeSource(sourceTable: string, docType?: string | null, opts: 
     case 'case_costs': return { action: 'archive', kind: 'cost_receipt', destination: 'outgoing' };
     case 'a_orders': return { action: 'archive', kind: 'a_order_invoice', destination: 'outgoing' };
     case 'montor_debit_invoices': return { action: 'archive', kind: 'montor_invoice', destination: opts.selfBilling ? 'outgoing' : 'incoming' };
+    // Utbetalningsspecifikationen är verifikationen för utbetalningen: samma månadsmapp som självfakturorna.
+    case 'montor_settlements': return { action: 'archive', kind: 'montor_settlement', destination: 'outgoing' };
     case 'uppdrag': return { action: 'archive', kind: docType === 'handpenning' ? 'uppdrag_handpenning' : 'uppdrag_slutfaktura', destination: 'incoming' };
     case 'offers': return { action: 'archive', kind: docType === 'confirmation' ? 'offer_confirmation' : 'signed_offer', destination: 'customers' };
     default: return { action: 'never', reason: `Okänd källa ${sourceTable}` };

@@ -86,6 +86,17 @@ export function montorInvoicePdfName(inv: MontorInvoiceNameSource): string {
   return join([typ, inv.invoice_number, teamOf(inv), inv.title, datePart(inv.date)]);
 }
 
+export interface SettlementNameSource {
+  settlement_number?: string | null;
+  company_name?: string | null;
+  settlement_date?: string | null;
+}
+
+/** Utbetalning-UTB-001-NBD-AB-2026-11-16.pdf (utbetalningsspecifikation, ingen faktura) */
+export function settlementPdfName(s: SettlementNameSource): string {
+  return join(['Utbetalning', s.settlement_number ?? 'utkast', s.company_name, datePart(s.settlement_date)]);
+}
+
 export interface OfferNameSource {
   offer_number?: string | null;
   customer_name?: string | null;

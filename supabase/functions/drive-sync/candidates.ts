@@ -1,4 +1,4 @@
-import { invoicePdfName, creditPdfName, montorInvoicePdfName, offerPdfName, uppdragInvoicePdfName, orderConfirmationPdfName, receiptArchiveName, sheetMetalArchiveName, uploadedInvoiceArchiveName } from '../_shared/pdfNames.ts';
+import { invoicePdfName, creditPdfName, montorInvoicePdfName, settlementPdfName, offerPdfName, uppdragInvoicePdfName, orderConfirmationPdfName, receiptArchiveName, sheetMetalArchiveName, uploadedInvoiceArchiveName } from '../_shared/pdfNames.ts';
 import { eligibleSync, routeCaseDocument, assertArchivableSource, checkDocumentDate, stockholmDate, accountingFolders, sameYearFolder, type DateCheck, type Destination, type DriveKind } from '../_shared/driveFolders.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
@@ -101,7 +101,7 @@ export function releasableYearMissing(
 }
 
 export async function collectCandidates(admin: SupabaseClient, settings: Pick<Settings, 'earliest_open_date'>, today = stockholmDate(new Date())) {
-  const [aOrders, montor, documents, costs, uppdrag, offers, syncRows] = await Promise.all([
+  const [aOrders, montor, documents, costs, uppdrag, offers, syncRows, settlements] = await Promise.all([
     allRows((a,b) => admin.from('a_orders').select('id,status,invoice_number,pdf_path,invoice_sent_at,date,credited_from_order_id,customer_address,total_amount,montor_teams(name)').in('status',['invoiced','credited']).not('invoice_number','is',null).not('pdf_path','is',null).order('id').range(a,b)),
     allRows((a,b) => admin.from('montor_debit_invoices').select('id,kind,invoice_number,pdf_path,date,title,total,credited_from_invoice_id,montor_teams(name)').order('id').range(a,b)),
     allRows((a,b) => admin.from('case_documents').select('id,doc_type,file_path,file_name,invoice_number,invoice_date,total_amount,created_at,drive_review_reason').not('file_path','is',null).order('id').range(a,b)),
@@ -109,6 +109,8 @@ export async function collectCandidates(admin: SupabaseClient, settings: Pick<Se
     allRows((a,b) => admin.from('uppdrag').select('id,customer_name,customer_address,title,handpenning_pdf_path,handpenning_invoice_no,handpenning_sent_at,slutfaktura_pdf_path,slutfaktura_invoice_no,slutfaktura_sent_at,created_at').or('handpenning_pdf_path.not.is.null,slutfaktura_pdf_path.not.is.null').order('id').range(a,b)),
     allRows((a,b) => admin.from('offers').select('id,signed_pdf_path,confirmation_pdf_path,confirmation_sent_at,offer_number,customer_name,customer_address,title,accepted_at,created_at').or('signed_pdf_path.not.is.null,confirmation_pdf_path.not.is.null').order('id').range(a,b)),
     allRows((a,b) => admin.from('drive_sync').select('*').order('id').range(a,b)),
+    // Utbetalningsspecifikationer arkiveras när de är skickade eller betalda (aldrig skapade/makulerade).
+    allRows((a,b) => admin.from('montor_settlements').select('id,settlement_number,settlement_date,company_name,pdf_path,status,net_amount').in('status',['sent','paid']).not('pdf_path','is',null).order('id').range(a,b)),
   ]);
   const candidates: Candidate[] = [];
   for (const o of aOrders) candidates.push({ source_table:'a_orders',source_id:o.id,doc_kind:'a_order_invoice',bucket:'case-documents',storage_path:o.pdf_path,file_name:o.credited_from_order_id ? creditPdfName(o) : invoicePdfName(o),number:o.invoice_number,date:(o.invoice_sent_at || o.date)?.slice(0,10) ?? null,destination:'outgoing',amount:o.total_amount });
@@ -116,6 +118,9 @@ export async function collectCandidates(admin: SupabaseClient, settings: Pick<Se
   for (const o of montor.filter(o => o.pdf_path)) {
     const original = o.credited_from_invoice_id ? montorById.get(o.credited_from_invoice_id) : null;
     candidates.push({source_table:'montor_debit_invoices',source_id:o.id,doc_kind:'montor_invoice',bucket:'case-documents',storage_path:o.pdf_path,file_name:montorInvoicePdfName(o),number:o.invoice_number,date:o.date,destination:(original?.kind || o.kind) === 'self_billing' ? 'outgoing' : 'incoming',amount:o.total});
+  }
+  for (const s of settlements) {
+    candidates.push({ source_table:'montor_settlements', source_id:s.id, doc_kind:'montor_settlement', bucket:'case-documents', storage_path:s.pdf_path, file_name:settlementPdfName(s), number:s.settlement_number, date:s.settlement_date, destination:'outgoing', amount:s.net_amount });
   }
 
   // Uppladdade dokument: samma fil kan ha flera rader (en per ärende). Arkivera filen en gång.

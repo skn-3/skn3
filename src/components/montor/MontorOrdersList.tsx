@@ -21,6 +21,7 @@ import {
 import { ListSearchToggle, ListSearchField } from './ListSearch';
 import { ScrollFadeRow } from './ScrollFadeRow';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { MontorPayoutBlocks } from './MontorPayoutBlocks';
 
 const COLS =
   'id, order_number, created_at, date, total_amount, status, pdf_path, order_sent_at, invoice_number, invoice_sent_at, credited_from_order_id, paid_at, customer_name, customer_address, description, line_items, order_kind, case_id, team_id, montor_teams(name)';
@@ -106,6 +107,18 @@ export function MontorOrdersList({ myTeamName, adminFilter = 'alla', onOpenCase,
     },
   });
   const myTeamId = teamQuery.data?.id ?? null;
+  // Utbetalningar och avdrag visas bara för ett team: montörens eget, eller admins valda team.
+  const blockTeamName = myTeamName ?? (adminFilter !== 'alla' ? adminFilter : null);
+  const blockTeamQuery = useQuery({
+    queryKey: ['montor-team', blockTeamName],
+    enabled: !!blockTeamName && blockTeamName !== myTeamName,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('montor_teams').select('id, name').eq('name', blockTeamName).maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as { id: string; name: string } | null;
+    },
+  });
+  const blockTeamId = blockTeamName === myTeamName ? myTeamId : blockTeamQuery.data?.id ?? null;
 
   const { data: orders = [], isLoading, isFetched } = useQuery({
     queryKey: ['montor-orders-list', myTeamId],
@@ -138,7 +151,8 @@ export function MontorOrdersList({ myTeamName, adminFilter = 'alla', onOpenCase,
   const scopedInvoices = useMemo(() => invoices.filter(inScope), [invoices, adminFilter]);
   const items: Item[] = useMemo(() => [
     ...scopedOrders.map(o => ({ src: 'order' as const, id: o.id, date: o.date || o.created_at?.slice(0, 10) || '', kind: (o.order_kind || 'standard') as OrderKindFilter, key: orderFilterKey(o), row: o })),
-    ...scopedInvoices.map(i => ({ src: 'invoice' as const, id: i.id, date: i.date || '', kind: 'fakturor' as const, key: invoiceFilterKey(i), row: i })),
+    // Avdrag (debetfakturor till montören) visas i blocket Avdrag, inte bland uppdragen.
+    ...scopedInvoices.filter(i => !(i.kind === 'debit' && (Number(i.total) || 0) > 0)).map(i => ({ src: 'invoice' as const, id: i.id, date: i.date || '', kind: 'fakturor' as const, key: invoiceFilterKey(i), row: i })),
   ].sort((a, b) => b.date.localeCompare(a.date)), [scopedOrders, scopedInvoices]);
 
   useEffect(() => { if (isFetched) onCountChange?.(items.length); }, [isFetched, items.length, onCountChange]);
@@ -189,6 +203,8 @@ export function MontorOrdersList({ myTeamName, adminFilter = 'alla', onOpenCase,
           <div className="mt-1 text-xs text-muted-foreground">varav {kr(summary.paidOut)} utbetalt</div>
         </div>
       </div>
+
+      <MontorPayoutBlocks teamId={blockTeamId} />
 
       {isLoading || (myTeamName && teamQuery.isLoading) ? (
         <div className="grid gap-2.5 lg:grid-cols-2">{[0, 1, 2].map(i => <Skeleton key={i} className="h-40 w-full rounded-2xl" />)}</div>

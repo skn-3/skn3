@@ -1,4 +1,6 @@
 import jsPDF from 'jspdf';
+import type { VatMode } from './invoiceMath';
+import { AVRAKNING_NOTICE, debitTypeInfo, debitVatText } from './montorSettlement';
 
 export interface MontorDebitPdfLine {
   description: string;
@@ -23,12 +25,16 @@ export interface BuildMontorDebitPdfArgs {
   title?: string | null;
   description?: string | null;
   lines: MontorDebitPdfLine[];
-  vatMode: 'omvand' | 'vanlig';
+  vatMode: VatMode;
   subtotal: number;
   vatAmount: number;
   total: number;
   logoDataUrl?: string | null;
   isCredit?: boolean;
+  /** Avdragstyp (styr momstexten för vat_mode 'ingen') */
+  debitType?: string | null;
+  /** 'avrakning' = kvittas mot nästa utbetalning: inget bankgiro och inget förfallodatum */
+  settleMode?: 'bankgiro' | 'avrakning' | null;
 }
 
 const DARK: [number, number, number] = [51, 51, 51];
@@ -44,7 +50,9 @@ function fmtKr(n: number) {
 }
 
 export function buildMontorDebitPdf(args: BuildMontorDebitPdfArgs): jsPDF {
-  const { invoiceNumber, date, dueDate, team, title, description, lines, vatMode, subtotal, vatAmount, total, logoDataUrl, isCredit } = args;
+  const { invoiceNumber, date, team, title, description, lines, vatMode, subtotal, vatAmount, total, logoDataUrl, isCredit, debitType } = args;
+  const avrakning = !isCredit && args.settleMode === 'avrakning';
+  const dueDate = avrakning ? null : args.dueDate;
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   const margin = 15;
   const pageW = 210;
@@ -103,11 +111,12 @@ export function buildMontorDebitPdf(args: BuildMontorDebitPdfArgs): jsPDF {
     addrLines.forEach((ln: string) => { doc.text(ln, margin, y); y += 4; });
   }
 
-  if (title) {
+  const heading = title || debitTypeInfo(debitType)?.short || null;
+  if (heading) {
     y += 4;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text(title, margin, y);
+    doc.text(heading, margin, y);
     y += 5;
   }
 
@@ -179,7 +188,8 @@ export function buildMontorDebitPdf(args: BuildMontorDebitPdfArgs): jsPDF {
   } else {
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
-    const note = doc.splitTextToSize('Omvänd betalningsskyldighet för moms gäller enl 1 kap 2§ punkt 4b ML', 90);
+    // Omvänd-texten står bara vid vat_mode 'omvand'; 'ingen' får avdragstypens egen text.
+    const note = doc.splitTextToSize(debitVatText(vatMode, debitType) || '', 90);
     note.forEach((ln: string) => { doc.text(ln, pageW - margin, sy, { align: 'right' }); sy += 3.5; });
     doc.setFontSize(10);
     doc.setTextColor(...DARK);
@@ -205,6 +215,14 @@ export function buildMontorDebitPdf(args: BuildMontorDebitPdfArgs): jsPDF {
     let cy = fy + 5;
     doc.splitTextToSize('Krediten kvittas i första hand mot kommande utbetalningar mellan parterna. Är originalfakturan redan reglerad sker återbetalning till SmartKlimat N3prenad, bankgiro 5032-4573.', pageW - margin * 2).forEach((ln: string) => { doc.text(ln, margin, cy); cy += 4; });
     doc.text('SmartKlimat N3prenad AB | 559026-6630', margin, cy + 1);
+  } else if (avrakning) {
+    doc.text('AVRÄKNING', margin, fy);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    let ay = fy + 5;
+    doc.splitTextToSize(AVRAKNING_NOTICE, pageW - margin * 2).forEach((ln: string) => { doc.text(ln, margin, ay); ay += 4; });
+    doc.text('SmartKlimat N3prenad AB | 559026-6630', margin, ay + 1);
+    doc.text('Momsreg. nr SE559026663001  Godkänd för F-skatt', margin, ay + 6);
   } else {
     doc.text('BANKGIRO: 5032-4573', margin, fy);
     doc.setFont('helvetica', 'normal');

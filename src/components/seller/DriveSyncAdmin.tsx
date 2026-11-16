@@ -16,7 +16,7 @@ import { openDocumentInNewTab } from '@/lib/openDocument';
 import { toast } from 'sonner';
 
 const labels: Record<string,string> = {
-  a_order_invoice:'A-orderfakturor och krediter', montor_invoice:'Montörsfakturor', mockfjards_payout:'Mockfjärdsutbetalningar',
+  a_order_invoice:'A-orderfakturor och krediter', montor_invoice:'Montörsfakturor', montor_settlement:'Utbetalningsspecifikationer', mockfjards_payout:'Mockfjärdsutbetalningar',
   uppdrag_handpenning:'Handpenningsfakturor', uppdrag_slutfaktura:'Slutfakturor', signed_offer:'Signerade avtal', offer_confirmation:'Orderbekräftelser',
   sheet_metal_invoice:'Plåtfakturor', uploaded_montor_invoice:'Uppladdade montörsfakturor', uploaded_a_order:'Uppladdade egna fakturor / A-ordrar',
   cost_receipt:'Kvitton på kostnader', other_document:'Övriga uppladdade dokument',

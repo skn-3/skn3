@@ -2,6 +2,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireCoordinator } from '../_shared/auth.ts';
 import { attachmentPdfName } from '../_shared/pdfFilename.ts';
 import { INVOICE_EMAIL_FOOTER_ROW } from '../_shared/invoiceEmailFooter.ts';
+import { AVRAKNING_NOTICE } from '../_shared/montorSettlementShared.ts';
+import { isLocalBackend, LOCAL_BACKEND_SKIP } from '../_shared/localBackend.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -14,6 +16,14 @@ const COPY_TO = ['n3prenad@smartklimat.org', 'inbox.ver.1638171@arkivplats.se'];
 
 function esc(s: string) {
   return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
+}
+function toBase64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+function vatLabel(vatMode: string) {
+  return vatMode === 'vanlig' ? '25%' : vatMode === 'ingen' ? 'Ingen moms' : 'Omvänd betalningsskyldighet';
 }
 function sanitizeFilename(s: string) {
   return String(s || '').normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
@@ -39,7 +49,7 @@ ${INVOICE_EMAIL_FOOTER_ROW}
 </table></td></tr></table></body></html>`;
 }
 
-function buildHtml(opts: { number: string; customer: string; total: string; vatMode: string; dueDate?: string | null; selfBilling?: boolean; bankgiro?: string | null }) {
+function buildHtml(opts: { number: string; customer: string; total: string; vatMode: string; dueDate?: string | null; selfBilling?: boolean; bankgiro?: string | null; avrakning?: boolean }) {
   if (opts.selfBilling) {
     return `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/></head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
@@ -71,13 +81,15 @@ ${INVOICE_EMAIL_FOOTER_ROW}
 </td></tr>
 <tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;"/></td></tr>
 <tr><td style="padding:0 28px;">
-<p style="margin:8px 0;">Faktura bifogas som PDF. Betalningsvillkor 10 dagar netto.</p>
-<p style="margin:8px 0;color:#374151;"><strong>Att betala:</strong> ${esc(opts.total)}${opts.dueDate ? ` &middot; <strong>Förfallodatum:</strong> ${esc(opts.dueDate)}` : ''}</p>
-<p style="margin:8px 0;color:#6b7280;font-size:12px;">Moms: ${opts.vatMode === 'vanlig' ? '25%' : 'Omvänd betalningsskyldighet'}</p>
+${opts.avrakning ? `<p style="margin:8px 0;">Faktura bifogas som PDF.</p>
+<p style="margin:8px 0;color:#374151;"><strong>Belopp:</strong> ${esc(opts.total)}</p>
+<p style="margin:8px 0;font-weight:bold;">${esc(AVRAKNING_NOTICE)}</p>` : `<p style="margin:8px 0;">Faktura bifogas som PDF. Betalningsvillkor 10 dagar netto.</p>
+<p style="margin:8px 0;color:#374151;"><strong>Att betala:</strong> ${esc(opts.total)}${opts.dueDate ? ` &middot; <strong>Förfallodatum:</strong> ${esc(opts.dueDate)}` : ''}</p>`}
+<p style="margin:8px 0;color:#6b7280;font-size:12px;">Moms: ${vatLabel(opts.vatMode)}</p>
 </td></tr>
 <tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/></td></tr>
 <tr><td style="padding:0 28px 24px;color:#6b7280;font-size:12px;">
-Bankgiro 5032-4573 &middot; SmartKlimat N3prenad AB &middot; 559026-6630
+${opts.avrakning ? '' : 'Bankgiro 5032-4573 &middot; '}SmartKlimat N3prenad AB &middot; 559026-6630
 </td></tr>
 ${INVOICE_EMAIL_FOOTER_ROW}
 </table></td></tr></table></body></html>`;
@@ -90,8 +102,9 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
-    if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
+    const local = isLocalBackend();
+    if (!local && !LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
+    if (!local && !RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
 
     const auth = await requireCoordinator(req, corsHeaders);
     if (auth.response) return auth.response;
@@ -149,6 +162,7 @@ Deno.serve(async (req) => {
       dueDate: inv.due_date,
       selfBilling: isSelfBilling,
       bankgiro: team.bankgiro,
+      avrakning: !isSelfBilling && (inv as any).settle_mode === 'avrakning',
     });
     const subject = isCredit
       ? `Kreditfaktura ${number} — avser ${originalNumber || '—'}`
@@ -165,6 +179,22 @@ Deno.serve(async (req) => {
       html,
       attachments: [{ filename, content: pdf_base64 }],
     };
+
+    // Valfritt underlag (kvitto/PDF/bild) bifogas avdraget.
+    const attachmentPath = (inv as any).attachment_path as string | null;
+    if (attachmentPath && !isCredit) {
+      const { data: blob, error: dlErr } = await admin.storage.from('case-documents').download(attachmentPath);
+      if (dlErr || !blob) throw new Error('Underlaget kunde inte hämtas');
+      const ext = (attachmentPath.match(/\.([A-Za-z0-9]{2,5})$/)?.[1] || 'pdf').toLowerCase();
+      (payload.attachments as unknown[]).push({ filename: `Underlag-${number}.${ext}`, content: toBase64(new Uint8Array(await blob.arrayBuffer())) });
+    }
+
+    if (local) {
+      // Utkastets lokala backend skickar aldrig riktig e-post.
+      console.log('[local_backend] mejl skickades inte:', JSON.stringify({ to: payload.to, cc: payload.cc, subject, attachments: (payload.attachments as unknown[]).length }));
+      await admin.from('montor_debit_invoices').update({ pdf_path: pdfPath, sent_at: new Date().toISOString() }).eq('id', inv.id);
+      return new Response(JSON.stringify({ ok: true, pdf_path: pdfPath, skipped: LOCAL_BACKEND_SKIP }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     const emailResp = await fetch(`${GATEWAY_URL}/emails`, {
       method: 'POST',
