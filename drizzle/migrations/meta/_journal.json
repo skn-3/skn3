@@ -435,6 +435,13 @@
       "when": 1794818969722,
       "tag": "0061_montor_settlements_revoke_client_writes",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1794820208866,
+      "tag": "0062_fix_undo_settlement_partial_deductions",
+      "breakpoints": true
     }
   ]
 }

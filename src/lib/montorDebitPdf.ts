@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import type { VatMode } from './invoiceMath';
 import { AVRAKNING_NOTICE, debitTypeInfo, debitVatText } from './montorSettlement';
+import { vatFromOrgNr } from './selfBillingLayout';
 
 export interface MontorDebitPdfLine {
   description: string;
@@ -106,6 +107,9 @@ export function buildMontorDebitPdf(args: BuildMontorDebitPdfArgs): jsPDF {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   if (team.org_nr) { doc.text(`Org.nr ${team.org_nr}`, margin, y); y += 4; }
+  // Omvänd betalningsskyldighet kräver köparens momsregistreringsnummer på fakturan.
+  const buyerVat = vatMode === 'omvand' ? vatFromOrgNr(team.org_nr) : '';
+  if (buyerVat) { doc.text(`Momsreg.nr ${buyerVat}`, margin, y); y += 4; }
   if (team.address) {
     const addrLines = doc.splitTextToSize(String(team.address), 90);
     addrLines.forEach((ln: string) => { doc.text(ln, margin, y); y += 4; });
