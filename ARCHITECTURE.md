@@ -90,7 +90,11 @@ Tabeller (Postgres, samtliga med RLS aktiverat):
 - **`montor_teams`** — montörsteam: bolagsnamn, org.nr, adress, e-post, `invoice_email`, **`bankgiro`** (teamets eget), `invoice_prefix` (GVMO/SAMY/ALEX/JERK), `next_invoice_number` (per-team fakturaräknare).
 - **`a_order_products`** — prislista (45 artiklar, kategoriserade).
 - **`a_orders`** — A-ordrar = montörens arbetsorder/självfaktureringsunderlag. `order_number` (heltal), `line_items`, `status` (order/invoiced/credited), `team_id`, `case_id`, `invoice_number`, **interna vinstfält** (`internal_extra_hours`, `internal_hour_rate`, `internal_extra_amount` — visas ALDRIG för montör eller i PDF/mejl), `order_kind` (standard/komplettering), `source_n3prenad_id` (importspårning), `mockfjards_invoice_number` (dubblettskydd), `credited_from_order_id`.
-- **`montor_debit_invoices`** — debetfakturor *till* montören (vi fakturerar dem). Egen `N3-`-serie, valbar moms, `team_id` (montören som kund), valfri `case_id`. Se §6.
+- **`montor_debit_invoices`** — debetfakturor *till* montören (vi fakturerar dem). Egen `N3-`-serie (även krediteringar av debetfakturor sedan migration 0060), `team_id` (montören som kund), valfri `case_id`. Se §6.
+  Sedan migration 0060 (avdrag, beslut 16 nov 2026): `debit_type` (skada_merkostnad/material_frakt/lan_forskott/byggtjanst; null på äldre rader) styr momsen via check `debit_type_vat_check` (ingen/vanlig/ingen/omvand), `vat_mode` tillåter 'ingen', `settle_mode` ('bankgiro' default, 'avrakning' bara för kind 'debit'), `attachment_path`/`attachment_name` (privat underlag under `montor-debit/underlag/`, bifogas mejlet). Logik och etiketter i `src/lib/montorSettlement.ts` (`DEBIT_TYPES`, `debitTotals`), formulär `MontorDebitInvoiceDialog` (sheet "Registrera avdrag").
+- **`montor_settlements`** — utbetalningsspecifikationer (UTB-serien, migration 0060): team, datum, ögonblicksbild av bolagsnamn/org.nr/adress/bankgiro, `invoices_total`, `credits_total` och `deductions_total` (positiva), `net_amount` (= fakturor − krediter − avdrag, aldrig negativt), status created/sent/paid/cancelled, `pdf_path` (fast sökväg `montor-settlements/{id}.pdf`), `sent_at`/`sent_to`, `paid_at`/`paid_by`, `cancelled_at`/`cancelled_by`. Ingen faktura och ingen moms.
+- **`montor_settlement_items`** — rader: `item_kind` invoice/self_billing_invoice/credit_note/deduction, `a_order_id` eller `debit_invoice_id`, `amount` (positivt för fakturor, negativt för krediter och avdrag), `document_total`, `remaining_after` (avdrag), `active`, `set_paid_at` (vad just denna specifikation satte, för Ångra). Partiella unika index: ett dokument (utom avdrag) i högst en aktiv specifikation; trigger stoppar att aktiva kvittningar av en debetfaktura överstiger dess total.
+  Skrivs bara av security definer-funktionerna `create_montor_settlement`, `mark_montor_settlement_paid`, `undo_montor_settlement_paid`, `cancel_montor_settlement` och `set_montor_settlement_pdf` (admin/koordinator via `can_manage_montor_settlements()`); klienten har bara SELECT (migration 0061). Guard-triggers på `a_orders` och `montor_debit_invoices` stoppar enskild betalmarkering av dokument i en aktiv specifikation, kreditering av en faktura i en obetald specifikation och kreditering av ett avdrag i en aktiv specifikation. RLS: personal läser allt; montör läser eget teams specifikationer med status sent/paid och deras rader samt egna debetfakturor; storage-policy ger montören PDF:en för eget team. Klientlogik i `montorSettlement.ts` (förhandsvisning) och `montorSettlementActions.ts`; beloppen kommer alltid från databasfunktionen.
 
 ### System
 - **`profiles`** — användarprofiler (id = auth user id, namn, login_email).
@@ -129,11 +133,16 @@ Systemet har tre olika fakturatyper som går i olika riktningar i pengaflödet. 
 | 1 | **A-orderfaktura** (självfakturering) | Pengar **ut** till montör | Utfärdad å montörens vägnar, **montörens** bankgiro | Per team: `GVMO-001`, `SAMY-001`… | 0 % (omvänd) | `a_orders` |
 | 2 | **Kompletteringsfaktura** | Pengar **ut** till montör | Som #1 | Per team (samma serie) | 0 % (omvänd) | `a_orders` (`order_kind='komplettering'`) |
 | 3 | **Offert-/uppdragsfaktura** | Pengar **in** från kund | SmartKlimat, **vårt** bankgiro 5032-4573 | `uppdrag_number` | Vanlig/omvänd, ROT på slutfaktura | `uppdrag` |
-| 4 | **Montörsdebetfaktura** | Pengar **in** från montör | SmartKlimat, **vårt** bankgiro 5032-4573, montören som **kund** | Egen: `N3-008`… | Valbar per faktura (0 % eller 25 %) | `montor_debit_invoices` |
+| 4 | **Montörsdebetfaktura** (avdrag) | Pengar **in** från montör | SmartKlimat, **vårt** bankgiro 5032-4573 eller avräkning, montören som **kund** | Egen: `N3-008`… | Styrs av avdragstypen (se nedan) | `montor_debit_invoices` |
+| 5 | **Utbetalningsspecifikation** (ingen faktura) | Kvittning vid utbetalning till montör | SmartKlimat, betalas till **montörens** bankgiro | `UTB-001`… | Ingen momsrad | `montor_settlements` |
 
 - **#1 A-orderfaktura:** vanlig montörsersättning kopplad till en A-order. Går order → invoiced. Kan krediteras (röd KREDITFAKTURA, negativa rader) och återfaktureras efteråt (nytt nummer i serien).
 - **#2 Kompletteringsfaktura:** montörsersättning UTAN A-order bakom (efterjustering m.m.). Skapas och faktureras i ETT steg ("Skapa & skicka faktura") — inget mellanliggande order-utkast. Räknas som montörskostnad i ekonomin precis som en A-order.
 - **#4 Montörsdebet:** när något är montörens ansvar (reklamation de orsakat, skada). Egen tabell så den ALDRIG blandas in i montörskostnaden i ekonomivyn. Detta är en **intäkt** för bolaget — bokförs på annan kontosida än #1/#2.
+
+- **Avdrag (beslut 16 nov 2026, får aldrig brytas):** ett avdrag står ALDRIG på självfakturan (#1, #2, serviceorder, KM-självfaktura) — den visar alltid hela ersättningen. Skulden dokumenteras som #4 och kvittas bara via #5, bara inom samma team. Ekonomivyn (`caseEconomy.ts`) räknar montörskostnaden brutto; #4 är fortsatt intäkt i egen tabell.
+- **Avdragstyper (#4):** skada/merkostnad → ingen moms ("Ingen moms: ersättning för skada eller merkostnad utgör ingen omsättning enligt mervärdesskattelagen."); material/frakt → 25 %; lån/förskott → ingen moms ("Ingen moms: återbetalning av lån eller förskott."); byggtjänst → omvänd (`Omvänd betalningsskyldighet, 16 kap. 13 § ML (2023:200)`). Användaren väljer typ, aldrig moms. `settle_mode='avrakning'` (förval) ersätter bankgiro och förfallodatum med texten "Regleras genom avräkning mot nästa utbetalning till er …".
+- **#5 Utbetalningsspecifikation:** sektionen "Utbetala till montör" i fliken Utbetalningar (länkad från "Obetalt till montörer"). Grupp A självfakturor att betala (status invoiced, obetald, total > 0, inte krediterad, inte i annan aktiv specifikation, plus KM-självfakturor status sent), grupp B kreditfakturor daterade 2026-11-16 eller senare vars original är betalt, grupp C avdrag med avräkning och kvar att kvitta > 0, äldst först. Minst en faktura; nettot blir aldrig negativt (sista avdraget delkvittas, resten ligger kvar). PDF (`montorSettlementPdf.ts`) byggs från sparade värden; mejlet har betalningsraden `UTB-001 - 76 911,00 kr - Bankgiro 833-7859 (NBD AB)` överst. Markera betald sätter paid_at på ingående dokument som saknade det; Ångra återställer bara det denna specifikation satte; Makulera bara om inte betald (numret återanvänds aldrig). Arkiveras i Drive som utgående dokument (Kvitton&Fakturor, `doc_kind` montor_settlement).
 
 **Självfaktureringstext** ("FAKTURAN HAR UTFÄRDATS AV SMARTKLIMAT N3PRENAD AB") finns på #1 och #2 (vi fakturerar å montörens vägnar). På #3 och #4 är det en helt vanlig faktura från oss — ingen sådan text.
 
@@ -148,8 +157,9 @@ Systemet har tre olika fakturatyper som går i olika riktningar i pengaflödet. 
 | A-order | heltal (löpande) | `a_order_number_seq` | Nej (fortsätter från n3prenad-importen) |
 | A-orderfaktura | `{PREFIX}-NNN` per team | `montor_teams.next_invoice_number` | Nej |
 | Montörsdebet | `N3-NNN` | `montor_debit_seq` | Nej |
+| Utbetalningsspecifikation | `UTB-NNN` (fyrsiffrigt efter 999) | `montor_settlement_seq` via triggern `set_montor_settlement_number` | Nej, återanvänds aldrig (även makulerade behåller numret) |
 
-> Debetserien hette ursprungligen `SK-` men byttes till `N3-`. Triggern `set_montor_debit_number` sätter prefixet.
+> Debetserien hette ursprungligen `SK-` men byttes till `N3-`. Triggern `set_montor_debit_number` sätter prefixet. Krediteringar av debetfakturor (kind 'debit') tar N3-nummer sedan migration 0060; de äldre krediteringarna JERK-16 och GVMO-45 (av N3-010/N3-011) ligger kvar orörda.
 
 ---
 
@@ -168,7 +178,8 @@ Samtliga ligger i `supabase/functions/`. Auth-modell anges per grupp.
 - `send-invoice` — offert-/uppdragsfaktura (handpenning/slutfaktura).
 - `send-a-order` — skickar A-order till montör (PDF + bildbilagor).
 - `send-a-order-invoice` — A-order-/kompletteringsfaktura. CC: n3prenad@, daniel@malke.se, mf@malke.se.
-- `send-montor-debit-invoice` — debetfaktura till montör. CC: n3prenad@, daniel@malke.se.
+- `send-montor-debit-invoice` — debetfaktura (avdrag) till montör. CC i koden: n3prenad@ och arkivadressen (`inbox.ver.…@arkivplats.se`). Avräkningstext i stället för bankgiro när `settle_mode='avrakning'`, underlaget bifogas som `Underlag-<nr>.<ext>`. Skickar inget mejl på lokal draft-backend.
+- `send-montor-settlement` — utbetalningsspecifikation (admin/koordinator). Klienten skickar bara `settlement_id`; funktionen hämtar den sparade PDF:en, mejlar teamets invoice_email/email med CC n3prenad@ och daniel@malke.se, ämne "Utbetalningsspecifikation UTB-xxx från SmartKlimat N3prenad", betalningsraden överst, och sätter status sent, `sent_at`, `sent_to`. Mallen i `email.ts` (funktionslokal, ren). Skickar inget mejl på lokal draft-backend.
 - `send-sheet-metal-order` — plåtbeställning till joakim@byggplatar.se, CC mf@malke.se.
 - `notify-email` — generella interna notiser.
 - `send-montage-report` — montagerapport-PDF (klientbyggd jsPDF) till valfri mottagare, CC daniel@malke.se + mf@malke.se. Innehåller littera-utfall och avvikelser, aldrig interna kostnader.

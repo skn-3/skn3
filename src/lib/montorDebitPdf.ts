@@ -186,16 +186,17 @@ export function buildMontorDebitPdf(args: BuildMontorDebitPdfArgs): jsPDF {
     doc.text(fmtKr(vatAmount), pageW - margin, sy, { align: 'right' });
     sy += 5;
   } else {
+    doc.text('Moms:', 150, sy, { align: 'right' });
+    doc.text('0 kr', pageW - margin, sy, { align: 'right' });
+    sy += 4;
     doc.setFontSize(7);
     doc.setTextColor(120, 120, 120);
     // Omvänd-texten står bara vid vat_mode 'omvand'; 'ingen' får avdragstypens egen text.
     const note = doc.splitTextToSize(debitVatText(vatMode, debitType) || '', 90);
-    note.forEach((ln: string) => { doc.text(ln, pageW - margin, sy, { align: 'right' }); sy += 3.5; });
+    note.forEach((ln: string) => { doc.text(ln, pageW - margin, sy, { align: 'right' }); sy += 3; });
     doc.setFontSize(10);
     doc.setTextColor(...DARK);
-    doc.text('Moms:', 150, sy, { align: 'right' });
-    doc.text('0 kr', pageW - margin, sy, { align: 'right' });
-    sy += 5;
+    sy += 3;
   }
 
   doc.setFont('helvetica', 'bold');

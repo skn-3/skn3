@@ -84,7 +84,7 @@ export const MontorSettlementsView = forwardRef<HTMLElement, Props>(function Mon
                 <dl className="space-y-1 text-sm">
                   <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Obetalda självfakturor ({r.invoices.length})</dt><dd className="tabular-nums">{formatKr(r.invoicesSum)}</dd></div>
                   {r.credits.length > 0 && <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Kreditfakturor att kvitta ({r.credits.length})</dt><dd className="tabular-nums">-{formatKr(r.creditsSum)}</dd></div>}
-                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Öppna avdrag ({r.deductions.length})</dt><dd className="tabular-nums">-{formatKr(r.deductionsOpen)}</dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Öppna avdrag ({r.deductions.length})</dt><dd className="tabular-nums">{r.deductionsOpen > 0 ? `-${formatKr(r.deductionsOpen)}` : formatKr(0)}</dd></div>
                   <div className="flex justify-between gap-2 border-t pt-1 font-semibold"><dt>Netto</dt><dd className="tabular-nums">{net === null ? '—' : formatKr(net)}</dd></div>
                   {r.allocation.allocations.some(a => a.remainingAfter > 0) || r.allocation.untouched.length > 0
                     ? <p className="text-xs text-muted-foreground">Fakturorna räcker inte till alla avdrag. Resten ligger kvar till nästa utbetalning.</p> : null}
@@ -122,14 +122,14 @@ export const MontorSettlementsView = forwardRef<HTMLElement, Props>(function Mon
                 const isBusy = busy === s.id;
                 return (
                   <tr key={s.id} className="align-top">
-                    <td className="px-3 py-2 font-mono">{s.settlement_number}</td>
+                    <td className="px-3 py-2 font-mono whitespace-nowrap">{s.settlement_number}</td>
                     <td className="px-3 py-2">{s.company_name || s.montor_teams?.name}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{s.settlement_date}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatKr(s.invoices_total)}<div className="text-[11px] text-muted-foreground">{nInv} {nInv === 1 ? 'faktura' : 'fakturor'}</div></td>
-                    <td className="px-3 py-2 text-right tabular-nums">{deducted ? `-${formatKr(deducted)}` : formatKr(0)}</td>
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums">{formatKr(s.net_amount)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">{formatKr(s.invoices_total)}<div className="text-[11px] text-muted-foreground">{nInv} {nInv === 1 ? 'faktura' : 'fakturor'}</div></td>
+                    <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">{deducted ? `-${formatKr(deducted)}` : formatKr(0)}</td>
+                    <td className="px-3 py-2 text-right font-semibold tabular-nums whitespace-nowrap">{formatKr(s.net_amount)}</td>
                     <td className="px-3 py-2">
-                      <Badge className={STATUS_CLS[s.status] ?? ''}>{settlementStatusText(s)}</Badge>
+                      <Badge className={`whitespace-nowrap ${STATUS_CLS[s.status] ?? ''}`}>{settlementStatusText(s)}</Badge>
                       {s.sent_at && <div className="mt-1 text-[11px] text-muted-foreground">Skickad {new Date(s.sent_at).toLocaleDateString('sv-SE')}</div>}
                     </td>
                     <td className="px-3 py-2">

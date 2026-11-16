@@ -44,3 +44,4 @@ Some subdirectories have their own AGENTS.md; read it before editing files there
 - Merge cases only via merge_cases (dynamic FKs, dry_run = rolled-back run); rules in caseMerge. Invoice emails use _shared/invoiceEmailFooter.
 - SignedCaseFields/signedCase are shared by VisitForm and SignedCaseDialog; change them in one place.
 - Kalkyl quantity/price logic lives only in src/lib/kalkyl (see its AGENTS.md): prices ex VAT, a missing price stays NULL (amount 0, flagged), import never approves.
+- A deduction never appears on a self-billing invoice; offsetting happens only via montor_settlements (same team) whose SQL functions own all amounts, with preview logic in montorSettlement; this keeps the installer's invoice whole and the payout verifiable.
