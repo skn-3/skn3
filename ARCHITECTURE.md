@@ -185,6 +185,8 @@ Samtliga ligger i `supabase/functions/`. Auth-modell anges per grupp.
 - `send-montage-report` — montagerapport-PDF (klientbyggd jsPDF) till valfri mottagare, CC daniel@malke.se + mf@malke.se. Innehåller littera-utfall och avvikelser, aldrig interna kostnader.
 - `send-customer-sms` — kund-SMS via 46elks (avsändare "N3prenad"). Två lägen: montage bokat (personal-JWT) och påminnelse dagen före montage (cron-secret). Kunder kontaktas ALDRIG via mail från N3prenad — endast SMS (underentreprenörsförhållande till Mockfjärds).
 
+**Notiser blockerar aldrig:** alla notistriggers går via `notify_user`, som sätter titeln till "Notis" om den saknas och sväljer fel (RAISE WARNING) så att den ursprungliga sparningen alltid går igenom. `notify_order_change` ger kreditfakturor (credited_from_order_id satt, inget order_number) egna texter: "Kreditfaktura X skapad (avser Y)" och "Kreditfaktura X är kvittad" (migration 0063).
+
 ### AI-extraktion (Gemini, kräver inloggad personal-JWT)
 - `extract-ue-offer` — UE-underentreprenörsofferter (PDF → rader, markup, ROT-split).
 - `extract-payout` — Mockfjärds-utbetalningar.

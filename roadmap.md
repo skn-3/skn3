@@ -137,3 +137,4 @@
 - [x] Avdrag och utbetalningsspecifikation (UTB): avdragstyper med moms per typ, avräkning, underlag, N3-nummer på debetkrediteringar, montor_settlements + funktioner och spärrar (migration 0060, 0061), Utbetala till montör, PDF, send-montor-settlement, Drive, montörens block, momshänvisning 16 kap. 13 § ML; provat i draften med exempelrader.
 - [ ] Avdrag/UTB: riktigt mejlutskick och Drive-arkivering mot riktig backend — draften skickar aldrig mejl och har ingen Drive-koppling.
 - [x] Avdrag/UTB granskningsrättelser: Ångra betald räknar om delkvittade avdrag (migration 0062, provat i draften), köparens momsreg.nr på debetfaktura med omvänd moms.
+- [x] Kreditering av A-order stoppades av notisen (tom titel när kreditfakturan saknar ordernummer): nullsäkra titlar, egna kreditfakturatexter och notify_user som aldrig stoppar en sparning (migration 0063, provat i draften).
