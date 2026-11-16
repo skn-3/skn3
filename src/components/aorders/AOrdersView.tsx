@@ -30,7 +30,7 @@ import { MontorDebitInvoiceDialog } from './MontorDebitInvoiceDialog';
 import { MontorDebitInvoicesView } from './MontorDebitInvoicesView';
 import { MontorSettlementsView } from './MontorSettlementsView';
 import { useActiveSettlementItems } from '@/hooks/useMontorSettlements';
-import { settlementNumbersByDocument } from '@/lib/montorSettlement';
+import { currentAOrderDocKey, settlementNumbersByAOrderInvoice } from '@/lib/montorSettlement';
 import { buildAOrderPdf, loadAOrderLogo } from '@/lib/aOrderPdf';
 import { fetchUnhandledCostsByCase } from '@/lib/caseCostPayout';
 import { openDocumentInNewTab } from '@/lib/openDocument';
@@ -100,8 +100,9 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
   const canManageSettlements = !!role?.isAdmin || role?.type === 'coordinator';
   // Fakturor i en aktiv utbetalningsspecifikation: betalning och kreditering sker via specifikationen.
   const { data: activeItems = [] } = useActiveSettlementItems();
-  const settlementByDoc = useMemo(() => settlementNumbersByDocument(activeItems), [activeItems]);
-  const unpaidSettlementDocs = useMemo(() => new Set(activeItems.filter(i => i.settlement_status === 'created' || i.settlement_status === 'sent').map(i => i.a_order_id).filter(Boolean) as string[]), [activeItems]);
+  // Per faktura (rad + nummer): efter omfakturering gäller en tidigare utbetalning inte den nya fakturan.
+  const settlementByDoc = useMemo(() => settlementNumbersByAOrderInvoice(activeItems), [activeItems]);
+  const unpaidSettlementDocs = useMemo(() => settlementNumbersByAOrderInvoice(activeItems, ['created', 'sent']), [activeItems]);
   function goToSettlements() {
     setTab('km');
     requestAnimationFrame(() => requestAnimationFrame(() => { settlementRef.current?.scrollIntoView({ block: 'start' }); settlementRef.current?.focus({ preventScroll: true }); }));
@@ -598,8 +599,8 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
                         {isPaid && (
                           <div className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-0.5 font-medium">Betald {o.paid_at}</div>
                         )}
-                        {settlementByDoc.has(o.id) && (
-                          <div className="text-[10px] text-muted-foreground mt-0.5 font-medium">Ingår i {settlementByDoc.get(o.id)!.join(', ')}</div>
+                        {settlementByDoc.has(currentAOrderDocKey(o)) && (
+                          <div className="text-[10px] text-muted-foreground mt-0.5 font-medium">Ingår i {settlementByDoc.get(currentAOrderDocKey(o))!.join(', ')}</div>
                         )}
                         {isCredit && o.credited_from_order_id && (
                           <div className="text-[10px] text-red-600 dark:text-red-400 mt-0.5">avser tidigare faktura</div>
@@ -618,17 +619,17 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
                               <Receipt className="h-3 w-3" />
                             </Button>
                           )}
-                           {o.status === 'invoiced' && !o.paid_at && !settlementByDoc.has(o.id) && (
+                           {o.status === 'invoiced' && !o.paid_at && !settlementByDoc.has(currentAOrderDocKey(o)) && (
                             <Button size="sm" variant="ghost" onClick={() => { setPayFor(o); setPayDate(new Date().toISOString().slice(0, 10)); }} title="Markera som betald" className="text-green-700 dark:text-green-300">
                               <BanknoteIcon className="h-3 w-3" />
                             </Button>
                           )}
-                          {o.status === 'invoiced' && !!o.paid_at && !settlementByDoc.has(o.id) && (
+                          {o.status === 'invoiced' && !!o.paid_at && !settlementByDoc.has(currentAOrderDocKey(o)) && (
                             <Button size="sm" variant="ghost" onClick={() => undoPaid(o)} title="Ångra betald">
                               <Undo2 className="h-3 w-3" />
                             </Button>
                           )}
-                           {o.status === 'invoiced' && !unpaidSettlementDocs.has(o.id) && (
+                           {o.status === 'invoiced' && !unpaidSettlementDocs.has(currentAOrderDocKey(o)) && (
                             <Button size="sm" variant="ghost" onClick={() => setCreditFor(o)} title="Kreditera" className="text-red-600 dark:text-red-400">
                               <RotateCcw className="h-3 w-3" />
                             </Button>

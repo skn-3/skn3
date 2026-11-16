@@ -121,6 +121,12 @@ export interface AOrderLike {
   id: string; team_id: string | null; status: string | null; total_amount: number | string | null;
   paid_at: string | null; invoice_number?: string | null; invoice_sent_at?: string | null; date?: string | null;
   credited_from_order_id?: string | null; customer_address?: string | null; order_kind?: string | null; order_number?: number | null;
+  /** Radens skapandetid (för kreditfakturor: när krediteringen gjordes) */
+  created_at?: string | null;
+  /** Kreditfaktura: originalradens fakturanummer vid krediteringen */
+  credited_invoice_number?: string | null;
+  /** Kreditfaktura: den krediterade fakturan var betald vid krediteringen och kan kvittas */
+  credit_refund_due?: boolean | null;
 }
 export interface DebitLike {
   id: string; team_id: string | null; kind: string | null; status: string | null; total: number | string | null;
@@ -134,6 +140,8 @@ export interface DebitLike {
 }
 export interface SettlementItemLike {
   item_kind: string; a_order_id: string | null; debit_invoice_id: string | null; amount: number | string;
+  /** Fakturanumret raden avser (A-orderrader identifieras per faktura, inte per rad) */
+  document_number?: string | null;
   active: boolean; settlement_id?: string; settlement_number?: string | null; settlement_status?: string | null;
 }
 
@@ -154,15 +162,61 @@ export interface DeductionCandidate {
 const ORDER_KIND_SUFFIX: Record<string, string> = { komplettering: 'Komplettering', service: 'Service' };
 const dateOf = (v: string | null | undefined) => (v ? String(v).slice(0, 10) : '');
 
-/** Dokument (faktura/kreditfaktura) som redan ingår i en aktiv specifikation. Avdrag kan delkvittas och räknas inte här. */
+// En krediterad A-order faktureras om på SAMMA rad med nytt nummer. Därför identifieras
+// A-orderdokument per faktura: (raden, fakturanumret). Samma nyckel som i SQL.
+
+/** Fakturanumret en specifikationsrad får för A-orderraden: invoice_number, annars "#ordernummer". */
+export function aOrderDocumentNumber(o: { invoice_number?: string | null; order_number?: number | string | null }): string {
+  return o.invoice_number ?? `#${o.order_number ?? ''}`;
+}
+export const aOrderDocKey = (aOrderId: string, documentNumber: string | null | undefined) => `${aOrderId}|${documentNumber ?? ''}`;
+/** Nyckeln för radens NUVARANDE faktura. */
+export const currentAOrderDocKey = (o: { id: string; invoice_number?: string | null; order_number?: number | string | null }) =>
+  aOrderDocKey(o.id, aOrderDocumentNumber(o));
+
+/**
+ * Är radens nuvarande faktura krediterad? Bara kreditfakturor skapade vid eller efter
+ * radens invoice_sent_at räknas; äldre kreditfakturor gäller en tidigare faktura på raden.
+ * Saknas tider räknas krediten (försiktigt).
+ */
+export function isCurrentInvoiceCredited(o: AOrderLike, credits: AOrderLike[]): boolean {
+  const sent = o.invoice_sent_at ? Date.parse(o.invoice_sent_at) : Number.NEGATIVE_INFINITY;
+  return credits.some(c => c.credited_from_order_id === o.id
+    && (!c.created_at || !(Date.parse(c.created_at) < sent)));
+}
+
+/** Betalbar A-orderfaktura: fakturerad, obetald, belopp > 0 och nuvarande faktura inte krediterad. */
+export function isPayableAOrder(o: AOrderLike, credits: AOrderLike[]): boolean {
+  return o.status === 'invoiced' && !o.paid_at && toCents(o.total_amount) > 0 && !o.credited_from_order_id
+    && !isCurrentInvoiceCredited(o, credits);
+}
+
+/** Dokument som redan ingår i en aktiv specifikation: A-order per (rad, nummer), montörsfakturor per id. Avdrag räknas inte. */
 export function activeDocumentIds(items: SettlementItemLike[]): Set<string> {
   const ids = new Set<string>();
   for (const it of items) {
     if (!it.active) continue;
-    if (it.a_order_id) ids.add(it.a_order_id);
+    if (it.a_order_id) ids.add(aOrderDocKey(it.a_order_id, it.document_number));
     else if (it.debit_invoice_id && it.item_kind !== 'deduction') ids.add(it.debit_invoice_id);
   }
   return ids;
+}
+
+/**
+ * Aktiva specifikationer per A-orderfaktura, nyckel currentAOrderDocKey. "Ingår i UTB-xxx"
+ * visas bara när numret stämmer med radens nuvarande faktura. `statuses` begränsar urvalet.
+ */
+export function settlementNumbersByAOrderInvoice(items: SettlementItemLike[], statuses?: string[]): Map<string, string[]> {
+  const m = new Map<string, string[]>();
+  for (const it of items) {
+    if (!it.active || !it.a_order_id || !it.settlement_number) continue;
+    if (statuses && !statuses.includes(String(it.settlement_status ?? ''))) continue;
+    const key = aOrderDocKey(it.a_order_id, it.document_number);
+    const list = m.get(key) ?? [];
+    if (!list.includes(it.settlement_number)) list.push(it.settlement_number);
+    m.set(key, list);
+  }
+  return m;
 }
 
 /** Hur mycket av varje debetfaktura som är kvittat i aktiva specifikationer (positivt belopp). */
@@ -191,14 +245,13 @@ export function settlementNumbersByDocument(items: SettlementItemLike[]): Map<st
 /** Grupp A: självfakturor att betala. Samma urval som "Obetalt till montörer" plus KM-självfakturor. */
 export function eligibleInvoices(teamId: string, aOrders: AOrderLike[], debits: DebitLike[], items: SettlementItemLike[]): Candidate[] {
   const active = activeDocumentIds(items);
-  const creditedA = new Set(aOrders.filter(o => o.credited_from_order_id).map(o => o.credited_from_order_id as string));
+  const creditNotes = aOrders.filter(o => o.credited_from_order_id);
   const creditedD = new Set(debits.filter(d => d.credited_from_invoice_id).map(d => d.credited_from_invoice_id as string));
   const fromOrders: Candidate[] = aOrders
-    .filter(o => o.team_id === teamId && o.status === 'invoiced' && !o.paid_at && toCents(o.total_amount) > 0
-      && !o.credited_from_order_id && !creditedA.has(o.id) && !active.has(o.id))
+    .filter(o => o.team_id === teamId && isPayableAOrder(o, creditNotes) && !active.has(currentAOrderDocKey(o)))
     .map(o => ({
       id: o.id, kind: 'invoice' as const, source: 'a_order' as const,
-      number: o.invoice_number || `#${o.order_number ?? ''}`,
+      number: aOrderDocumentNumber(o),
       label: [String(o.customer_address ?? '').trim(), ORDER_KIND_SUFFIX[o.order_kind ?? '']].filter(Boolean).join(' · '),
       date: dateOf(o.invoice_sent_at) || dateOf(o.date), amount: round2(o.total_amount),
     }));
@@ -213,7 +266,11 @@ export function eligibleInvoices(teamId: string, aOrders: AOrderLike[], debits: 
   return [...fromOrders, ...fromKm].sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
 }
 
-/** Grupp B: kreditfakturor från 2026-11-16 vars original är betalt och som inte redan kvittats. */
+/**
+ * Grupp B: kreditfakturor från 2026-11-16 som inte redan kvittats. A-order: den krediterade
+ * fakturan var betald vid krediteringen (credit_refund_due) – inte radens nuvarande paid_at,
+ * som efter omfakturering gäller den nya fakturan. KM: originalet är en egen rad.
+ */
 export function eligibleCredits(teamId: string, aOrders: AOrderLike[], debits: DebitLike[], items: SettlementItemLike[]): Candidate[] {
   const active = activeDocumentIds(items);
   const aById = new Map(aOrders.map(o => [o.id, o]));
@@ -221,12 +278,12 @@ export function eligibleCredits(teamId: string, aOrders: AOrderLike[], debits: D
   const fromOrders: Candidate[] = aOrders
     .filter(o => {
       if (o.team_id !== teamId || !o.credited_from_order_id || o.status !== 'credited' || toCents(o.total_amount) >= 0) return false;
-      if (dateOf(o.date) < SETTLEMENT_CREDIT_CUTOFF || o.paid_at || active.has(o.id)) return false;
-      return !!aById.get(o.credited_from_order_id)?.paid_at;
+      if (dateOf(o.date) < SETTLEMENT_CREDIT_CUTOFF || o.paid_at || active.has(currentAOrderDocKey(o))) return false;
+      return o.credit_refund_due === true;
     })
     .map(o => ({
       id: o.id, kind: 'credit_note' as const, source: 'a_order' as const, number: o.invoice_number || '',
-      label: [`Kreditering av ${aById.get(o.credited_from_order_id as string)?.invoice_number ?? '—'}`, String(o.customer_address ?? '').trim()].filter(Boolean).join(' · '),
+      label: [`Kreditering av ${o.credited_invoice_number ?? aById.get(o.credited_from_order_id as string)?.invoice_number ?? '—'}`, String(o.customer_address ?? '').trim()].filter(Boolean).join(' · '),
       date: dateOf(o.date), amount: round2(o.total_amount),
     }));
   const fromKm: Candidate[] = debits

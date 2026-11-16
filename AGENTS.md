@@ -45,4 +45,5 @@ Some subdirectories have their own AGENTS.md; read it before editing files there
 - SignedCaseFields/signedCase are shared by VisitForm and SignedCaseDialog; change them in one place.
 - Kalkyl quantity/price logic lives only in src/lib/kalkyl (see its AGENTS.md): prices ex VAT, a missing price stays NULL (amount 0, flagged), import never approves.
 - A deduction never appears on a self-billing invoice; offsetting happens only via montor_settlements (same team) whose SQL functions own all amounts, with preview logic in montorSettlement; this keeps the installer's invoice whole and the payout verifiable.
+- Identify A-order payout documents per invoice (a_order_id + invoice number) and judge credit offsets from the credit note's snapshot (credited_invoice_number, credit_refund_due), never the row's current paid_at; a credited A-order is re-invoiced on the same row with a new number.
 - Notifications must never block a business event: notify_user coalesces a missing title and swallows insert errors with RAISE WARNING, and trigger titles must be null-safe; a failed notice must never roll back the original save.

@@ -132,7 +132,7 @@ describe('urval grupp A–C', () => {
       debit({ id: 'km1', kind: 'self_billing', settle_mode: 'bankgiro', total: 2000, title: 'Kontrollmätningar' }),
       debit({ id: 'km2', kind: 'self_billing', settle_mode: 'bankgiro', status: 'paid', paid_at: '2026-11-01' }),
     ];
-    const ids = eligibleInvoices(T1, orders, km, [item({ a_order_id: '6' })]).map(c => c.id);
+    const ids = eligibleInvoices(T1, orders, km, [item({ a_order_id: '6', document_number: 'NBD-6' })]).map(c => c.id);
     expect(ids.sort()).toEqual(['1', '8', 'km1']);
   });
   it('A: en faktura i en makulerad specifikation (inaktiv rad) går att välja igen', () => {
@@ -141,17 +141,17 @@ describe('urval grupp A–C', () => {
   it('B: bara kreditfakturor från 2026-11-16 med betalt original som inte redan kvittats', () => {
     expect(SETTLEMENT_CREDIT_CUTOFF).toBe('2026-11-16');
     const orders = [
-      order({ id: 'o1', status: 'credited', paid_at: '2026-11-05' }), order({ id: 'c1', status: 'credited', credited_from_order_id: 'o1', total_amount: -4000, date: '2026-11-16' }),
-      order({ id: 'o2', status: 'credited', paid_at: '2026-10-01' }), order({ id: 'c2', status: 'credited', credited_from_order_id: 'o2', total_amount: -4000, date: '2026-11-15' }),
+      order({ id: 'o1', status: 'credited', paid_at: '2026-11-05' }), order({ id: 'c1', status: 'credited', credited_from_order_id: 'o1', total_amount: -4000, date: '2026-11-16', credit_refund_due: true }),
+      order({ id: 'o2', status: 'credited', paid_at: '2026-10-01' }), order({ id: 'c2', status: 'credited', credited_from_order_id: 'o2', total_amount: -4000, date: '2026-11-15', credit_refund_due: true }),
       order({ id: 'o3', status: 'credited', paid_at: null }), order({ id: 'c3', status: 'credited', credited_from_order_id: 'o3', total_amount: -4000, date: '2026-11-20' }),
-      order({ id: 'o4', status: 'credited', paid_at: '2026-11-05' }), order({ id: 'c4', status: 'credited', credited_from_order_id: 'o4', total_amount: -4000, date: '2026-11-20' }),
-      order({ id: 'o5', status: 'credited', paid_at: '2026-11-05', team_id: T2 }), order({ id: 'c5', team_id: T2, status: 'credited', credited_from_order_id: 'o5', total_amount: -4000, date: '2026-11-20' }),
+      order({ id: 'o4', status: 'credited', paid_at: '2026-11-05' }), order({ id: 'c4', status: 'credited', credited_from_order_id: 'o4', total_amount: -4000, date: '2026-11-20', credit_refund_due: true }),
+      order({ id: 'o5', status: 'credited', paid_at: '2026-11-05', team_id: T2 }), order({ id: 'c5', team_id: T2, status: 'credited', credited_from_order_id: 'o5', total_amount: -4000, date: '2026-11-20', credit_refund_due: true }),
     ];
     const km = [
       debit({ id: 'k1', kind: 'self_billing', settle_mode: 'bankgiro', status: 'credited', paid_at: '2026-11-10' }),
       debit({ id: 'kc1', kind: 'self_billing', settle_mode: 'bankgiro', credited_from_invoice_id: 'k1', total: -1000, date: '2026-11-17' }),
     ];
-    const res = eligibleCredits(T1, orders, km, [item({ item_kind: 'credit_note', a_order_id: 'c4', amount: -4000 })]);
+    const res = eligibleCredits(T1, orders, km, [item({ item_kind: 'credit_note', a_order_id: 'c4', document_number: 'NBD-c4', amount: -4000 })]);
     expect(res.map(c => c.id).sort()).toEqual(['c1', 'kc1']);
     expect(res.find(c => c.id === 'c1')?.amount).toBe(-4000);
   });

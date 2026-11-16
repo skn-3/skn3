@@ -92,6 +92,8 @@ export function InvoiceAOrderDialog({ open, onOpenChange, order, currentUser }: 
         line_items: pdfLines,
         total_amount: total,
         pdf_path: (sendData as any)?.pdf_path || `a-orders/${order.id}-faktura.pdf`,
+        // Omfakturering efter kreditering: den nya fakturan är obetald.
+        ...(order.status === 'credited' ? { paid_at: null, paid_by: null } : {}),
       }).eq('id', order.id);
       if (updErr) throw updErr;
 

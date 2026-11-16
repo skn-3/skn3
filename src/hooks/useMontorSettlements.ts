@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { AOrderLike, DebitLike, SettlementItemLike } from '@/lib/montorSettlement';
 
 const db = supabase as any;
-const A_COLS = 'id, team_id, status, total_amount, paid_at, invoice_number, invoice_sent_at, date, credited_from_order_id, customer_address, order_kind, order_number';
+const A_COLS = 'id, team_id, status, total_amount, paid_at, invoice_number, invoice_sent_at, date, credited_from_order_id, customer_address, order_kind, order_number, created_at, credited_invoice_number, credit_refund_due';
 const D_COLS = 'id, team_id, kind, status, total, subtotal, vat_mode, paid_at, invoice_number, date, created_at, credited_from_invoice_id, settle_mode, title, description, debit_type, related_a_order_id, related_order:a_orders!related_a_order_id(invoice_number, order_number, order_kind, customer_address)';
 
 export interface SettlementTeam { id: string; name: string; company_name: string | null; bankgiro: string | null; email: string | null; invoice_email: string | null; is_active: boolean }
@@ -17,7 +17,7 @@ export function useMontorSettlementData(enabled = true) {
       const [a, d, i, t] = await Promise.all([
         db.from('a_orders').select(A_COLS).in('status', ['invoiced', 'credited']),
         db.from('montor_debit_invoices').select(D_COLS),
-        db.from('montor_settlement_items').select('item_kind, a_order_id, debit_invoice_id, amount, active, settlement_id, montor_settlements(settlement_number, status)').eq('active', true),
+        db.from('montor_settlement_items').select('item_kind, a_order_id, debit_invoice_id, document_number, amount, active, settlement_id, montor_settlements(settlement_number, status)').eq('active', true),
         db.from('montor_teams').select('id, name, company_name, bankgiro, email, invoice_email, is_active').order('name'),
       ]);
       for (const r of [a, d, i, t]) if (r.error) throw r.error;
@@ -50,7 +50,7 @@ export function useActiveSettlementItems(enabled = true) {
     enabled,
     queryFn: async () => {
       const { data, error } = await db.from('montor_settlement_items')
-        .select('item_kind, a_order_id, debit_invoice_id, amount, active, settlement_id, montor_settlements(settlement_number, status)').eq('active', true);
+        .select('item_kind, a_order_id, debit_invoice_id, document_number, amount, active, settlement_id, montor_settlements(settlement_number, status)').eq('active', true);
       if (error) throw error;
       return (data ?? []).map((x: any) => ({ ...x, settlement_number: x.montor_settlements?.settlement_number ?? null, settlement_status: x.montor_settlements?.status ?? null })) as SettlementItemLike[];
     },

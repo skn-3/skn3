@@ -44,7 +44,9 @@ export type Database = {
           case_id: string | null
           created_at: string
           created_by: string | null
+          credit_refund_due: boolean
           credited_from_order_id: string | null
+          credited_invoice_number: string | null
           customer_address: string
           customer_name: string | null
           customer_phone: string | null
@@ -83,7 +85,9 @@ export type Database = {
           case_id?: string | null
           created_at?: string
           created_by?: string | null
+          credit_refund_due?: boolean
           credited_from_order_id?: string | null
+          credited_invoice_number?: string | null
           customer_address: string
           customer_name?: string | null
           customer_phone?: string | null
@@ -122,7 +126,9 @@ export type Database = {
           case_id?: string | null
           created_at?: string
           created_by?: string | null
+          credit_refund_due?: boolean
           credited_from_order_id?: string | null
+          credited_invoice_number?: string | null
           customer_address?: string
           customer_name?: string | null
           customer_phone?: string | null

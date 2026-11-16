@@ -139,3 +139,4 @@
 - [x] Avdrag/UTB granskningsrättelser: Ångra betald räknar om delkvittade avdrag (migration 0062, provat i draften), köparens momsreg.nr på debetfaktura med omvänd moms.
 - [x] Kreditering av A-order stoppades av notisen (tom titel när kreditfakturan saknar ordernummer): nullsäkra titlar, egna kreditfakturatexter och notify_user som aldrig stoppar en sparning (migration 0063, provat i draften).
 - [x] Avdrag kan avse en viss självfaktura ("Avser faktura", migration 0064): formulär, Avdrag-knapp i A-orderhistoriken, debetfakturans PDF/mejl, utbetalningsdialog med notis, specifikationens PDF och montörsvyn; provat i draften.
+- [x] Omfakturerad A-order (samma rad, nytt nummer) går att betala via Utbetala till montör; kreditfakturor kvittas bara om den krediterade fakturan var betald; utbetalningsrader per faktura (migration 0065, provat i draften).
