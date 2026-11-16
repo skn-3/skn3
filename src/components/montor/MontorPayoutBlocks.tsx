@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { formatDaySv } from '@/lib/dateSv';
-import { deductionStatusText, formatKr, settlementStatusText, type SettlementItemLike } from '@/lib/montorSettlement';
+import { deductionStatusText, formatKr, relatedInvoiceLabel, settlementStatusText, type SettlementItemLike } from '@/lib/montorSettlement';
 import { montorInvoicePdfName, settlementPdfName } from '@/lib/pdfNames';
 import { openDocumentInNewTab } from '@/lib/openDocument';
 
@@ -29,7 +29,7 @@ export function MontorPayoutBlocks({ teamId }: { teamId: string | null }) {
       const [s, d] = await Promise.all([
         db.from('montor_settlements').select('id, settlement_number, settlement_date, company_name, net_amount, status, paid_at, pdf_path')
           .eq('team_id', teamId).in('status', ['sent', 'paid']).order('settlement_date', { ascending: false }),
-        db.from('montor_debit_invoices').select('id, invoice_number, date, title, description, total, status, paid_at, settle_mode, pdf_path, kind, credited_from_invoice_id, debit_type, montor_teams(name)')
+        db.from('montor_debit_invoices').select('id, invoice_number, date, title, description, total, status, paid_at, settle_mode, pdf_path, kind, credited_from_invoice_id, debit_type, related_a_order_id, related_order:a_orders!related_a_order_id(invoice_number, order_number), montor_teams(name)')
           .eq('team_id', teamId).eq('kind', 'debit').gt('total', 0).order('date', { ascending: false }),
       ]);
       if (s.error) throw s.error;
@@ -76,6 +76,7 @@ export function MontorPayoutBlocks({ teamId }: { teamId: string | null }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-2"><span className="font-mono text-xs text-muted-foreground">{d.invoice_number}</span><span className="text-xs text-muted-foreground">{formatDaySv(d.date)}</span></div>
                   <div className="break-words text-sm">{d.description || d.title || 'Avdrag'}</div>
+                  {d.related_a_order_id && <div className="text-xs text-foreground/80">{relatedInvoiceLabel(d.related_order, false)}</div>}
                   <div className="text-xs text-muted-foreground">{deductionStatusText(d, data.items)}</div>
                 </div>
                 <div className="font-display text-lg tabular-nums text-muted-foreground">−{formatKr(d.total)}</div>

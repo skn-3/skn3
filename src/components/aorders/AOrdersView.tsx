@@ -86,6 +86,7 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [rebillPrompt, setRebillPrompt] = useState<any | null>(null);
   const [debitOpen, setDebitOpen] = useState(false);
+  const [deductFor, setDeductFor] = useState<any | null>(null);
   const [payStatus, setPayStatus] = useState<'all' | 'unpaid' | 'paid'>('all');
   const [payFor, setPayFor] = useState<any | null>(null);
   const [payDate, setPayDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
@@ -632,6 +633,11 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
                               <RotateCcw className="h-3 w-3" />
                             </Button>
                           )}
+                          {canManageSettlements && o.status === 'invoiced' && o.team_id && (
+                            <Button size="sm" variant="ghost" className="h-11 px-3" onClick={() => setDeductFor(o)} title="Registrera avdrag som avser fakturan">
+                              Avdrag
+                            </Button>
+                          )}
                           {(o.status === 'invoiced' || (o.status === 'credited' && o.credited_from_order_id)) && (
                             <Button size="sm" variant="ghost" title="Generera om PDF i aktuell layout" onClick={() => { setRegenerateFor(o); setRegenerateSend(true); }} disabled={regenerateBusy}>
                               <RefreshCw className="h-3 w-3" />
@@ -757,9 +763,12 @@ export function AOrdersView({ currentUser, initialOpenId, onInitialOpenHandled }
       />
 
       <MontorDebitInvoiceDialog
-        open={debitOpen}
-        onOpenChange={setDebitOpen}
+        open={debitOpen || !!deductFor}
+        onOpenChange={(v) => { if (!v) { setDebitOpen(false); setDeductFor(null); } else setDebitOpen(true); }}
         currentUser={currentUser}
+        initialTeamId={deductFor?.team_id ?? null}
+        initialCaseId={deductFor?.case_id ?? null}
+        initialAOrderId={deductFor?.id ?? null}
       />
 
 

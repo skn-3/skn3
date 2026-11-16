@@ -111,7 +111,7 @@ export function buildMontorSettlementPdf(s: SettlementPdfSettlement, allItems: S
   const ensure = (h: number) => { if (y + h > CONTENT_BOTTOM) { doc.addPage(); y = 20; } };
 
   // ─── Tabeller ───
-  type Col = { title: string; x: number; align?: 'right'; width?: number };
+  type Col = { title: string; x: number; align?: 'right'; width?: number; wrap?: boolean };
   const table = (heading: string, cols: Col[], body: string[][]) => {
     ensure(24);
     setText(10, 'bold', DARK); doc.text(heading, MARGIN, y); y += 3;
@@ -124,13 +124,19 @@ export function buildMontorSettlementPdf(s: SettlementPdfSettlement, allItems: S
     head();
     body.forEach((row, i) => {
       setText(8, 'normal', DARK);
-      if (y + 7 > CONTENT_BOTTOM) { doc.addPage(); y = 20; head(); setText(8, 'normal', DARK); }
-      if (i % 2 === 1) { doc.setFillColor(...LIGHT); doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 7, 'F'); }
-      cols.forEach((c, k) => {
-        const text = c.width ? (doc.splitTextToSize(row[k] || '', c.width)[0] || '') : (row[k] || '');
-        doc.text(text, c.x, y + 4.8, c.align ? { align: c.align } : undefined);
+      // Kolumner med wrap får upp till tre rader (t.ex. "Avser ALEX-097 (adress) · beskrivning").
+      const cells = cols.map((c, k) => {
+        if (!c.width) return [row[k] || ''];
+        const all = doc.splitTextToSize(row[k] || '', c.width) as string[];
+        return c.wrap ? all.slice(0, 3) : [all[0] || ''];
       });
-      y += 7;
+      const rowH = 7 + (Math.max(...cells.map(l => l.length)) - 1) * 3.6;
+      if (y + rowH > CONTENT_BOTTOM) { doc.addPage(); y = 20; head(); setText(8, 'normal', DARK); }
+      if (i % 2 === 1) { doc.setFillColor(...LIGHT); doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, rowH, 'F'); }
+      cols.forEach((c, k) => {
+        cells[k].forEach((ln, n) => doc.text(ln, c.x, y + 4.8 + n * 3.6, c.align ? { align: c.align } : undefined));
+      });
+      y += rowH;
     });
     doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2); doc.line(MARGIN, y + 1, RIGHT, y + 1);
     y += 8;
@@ -155,7 +161,7 @@ export function buildMontorSettlementPdf(s: SettlementPdfSettlement, allItems: S
   if (deductions.length) {
     table('Våra fordringar som kvittas', [
       { title: 'NR', x: 17, width: 20 },
-      { title: 'BESKRIVNING', x: 38, width: 72 },
+      { title: 'AVSER / BESKRIVNING', x: 38, width: 80, wrap: true },
       { title: 'FORDRAN', x: 135, align: 'right' },
       { title: 'KVITTAT NU', x: 164, align: 'right' },
       { title: 'KVAR ATT KVITTA', x: 193, align: 'right' },

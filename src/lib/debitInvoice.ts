@@ -4,7 +4,7 @@ import { buildSelfBillingPdf } from '@/lib/selfBillingPdf';
 import { loadAOrderLogo } from '@/lib/aOrderPdf';
 import { montorInvoicePdfName } from '@/lib/pdfNames';
 import { calcInvoiceTotals, type VatMode } from '@/lib/invoiceMath';
-import { debitTypeInfo, debitVatMode, type DebitType, type SettleMode } from '@/lib/montorSettlement';
+import { debitRelatedInvoiceLine, debitTypeInfo, debitVatMode, type DebitType, type SettleMode } from '@/lib/montorSettlement';
 import { logActivity } from '@/lib/activityLog';
 
 function fmt(n: number) { return Math.round(n || 0).toLocaleString('sv-SE') + ' kr'; }
@@ -30,6 +30,17 @@ export interface CreateDebitInvoiceArgs {
   settleMode?: SettleMode;
   /** Valfritt underlag (kvitto/PDF/bild). Sparas privat och bifogas mejlet. */
   attachment?: File | null;
+  /** Valfri koppling till självfakturan (A-orderraden) avdraget avser. Bara kind 'debit'. */
+  relatedAOrderId?: string | null;
+}
+
+/** "Avser faktura …"-raden med fakturans nummer just nu (vid registreringen). */
+async function relatedInvoiceLineFor(aOrderId: string | null | undefined): Promise<string | null> {
+  if (!aOrderId) return null;
+  const { data, error } = await (supabase as any)
+    .from('a_orders').select('invoice_number, order_number, order_kind, customer_address').eq('id', aOrderId).maybeSingle();
+  if (error) throw error;
+  return debitRelatedInvoiceLine(data);
 }
 
 /** Tillåtna underlag och största storlek (10 MB). */
@@ -69,6 +80,7 @@ export async function createAndSendDebitInvoice(
   // Typen styr momsen; den fria momsväljaren finns inte för avdrag.
   const vatMode: VatMode = debitType ? debitVatMode(debitType) : args.vatMode;
   const settleMode: SettleMode = kind === 'debit' ? args.settleMode ?? 'bankgiro' : 'bankgiro';
+  const relatedAOrderId = kind === 'debit' ? args.relatedAOrderId ?? null : null;
   const dueDate = settleMode === 'avrakning' ? null : args.dueDate;
   let team = args.team;
 
@@ -135,6 +147,7 @@ export async function createAndSendDebitInvoice(
     settle_mode: settleMode,
   };
   if (debitType) insertPayload.debit_type = debitType;
+  if (relatedAOrderId) insertPayload.related_a_order_id = relatedAOrderId;
   if (attachmentPath) { insertPayload.attachment_path = attachmentPath; insertPayload.attachment_name = attachmentName; }
   if (invoiceNumber) insertPayload.invoice_number = invoiceNumber;
 
@@ -151,6 +164,7 @@ export async function createAndSendDebitInvoice(
     lines: pdfLines, vatMode, subtotal, vatAmount, total,
     logoDataUrl: logo,
     debitType, settleMode,
+    relatedInvoiceLine: await relatedInvoiceLineFor(relatedAOrderId),
   };
   const doc = kind === 'self_billing' ? buildSelfBillingPdf({ ...pdfArgs, vatMode: vatMode as 'omvand' | 'vanlig' }) : buildMontorDebitPdf(pdfArgs);
   const pdf_base64 = doc.output('datauristring').split(',')[1] || '';
@@ -235,6 +249,7 @@ export async function createAndSendCreditInvoice(
       created_by: user?.id ?? null,
       ...(nr ? { invoice_number: nr } : {}),
       ...(kind === 'debit' && original.debit_type ? { debit_type: original.debit_type } : {}),
+      ...(kind === 'debit' && original.related_a_order_id ? { related_a_order_id: original.related_a_order_id } : {}),
       date,
       due_date: null,
       team_id: team.id,
@@ -261,6 +276,7 @@ export async function createAndSendCreditInvoice(
     logoDataUrl: logo,
     isCredit: true,
     debitType: original.debit_type ?? null,
+    relatedInvoiceLine: kind === 'debit' ? await relatedInvoiceLineFor(inserted.related_a_order_id ?? original.related_a_order_id) : null,
   };
   const doc = kind === 'self_billing' ? buildSelfBillingPdf({ ...pdfArgs, vatMode: original.vat_mode as 'omvand' | 'vanlig' }) : buildMontorDebitPdf(pdfArgs);
   const pdf_base64 = doc.output('datauristring').split(',')[1] || '';

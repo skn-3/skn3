@@ -2314,6 +2314,7 @@ export type Database = {
           line_items: Json
           paid_at: string | null
           pdf_path: string | null
+          related_a_order_id: string | null
           sent_at: string | null
           settle_mode: string
           status: string
@@ -2341,6 +2342,7 @@ export type Database = {
           line_items?: Json
           paid_at?: string | null
           pdf_path?: string | null
+          related_a_order_id?: string | null
           sent_at?: string | null
           settle_mode?: string
           status?: string
@@ -2368,6 +2370,7 @@ export type Database = {
           line_items?: Json
           paid_at?: string | null
           pdf_path?: string | null
+          related_a_order_id?: string | null
           sent_at?: string | null
           settle_mode?: string
           status?: string
@@ -2398,6 +2401,13 @@ export type Database = {
             columns: ["credited_from_invoice_id"]
             isOneToOne: false
             referencedRelation: "montor_debit_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "montor_debit_invoices_related_a_order_id_fkey"
+            columns: ["related_a_order_id"]
+            isOneToOne: false
+            referencedRelation: "a_orders"
             referencedColumns: ["id"]
           },
           {

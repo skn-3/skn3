@@ -12,7 +12,9 @@
 import { calcInvoiceTotals, type VatMode } from './invoiceMath';
 import { REVERSE_CHARGE_TEXT } from './selfBillingLayout';
 
-export { AVRAKNING_NOTICE, formatPaymentAmount, settlementPaymentLine } from '../../supabase/functions/_shared/montorSettlementShared';
+export { AVRAKNING_NOTICE, formatPaymentAmount, settlementPaymentLine, debitRelatedInvoiceLine } from '../../supabase/functions/_shared/montorSettlementShared';
+import type { RelatedOrderLike } from '../../supabase/functions/_shared/montorSettlementShared';
+export type { RelatedOrderLike } from '../../supabase/functions/_shared/montorSettlementShared';
 
 /** Kreditfakturor före detta datum visas aldrig (historiken från n3prenad-migreringen är inte tillförlitlig). */
 export const SETTLEMENT_CREDIT_CUTOFF = '2026-11-16';
@@ -125,6 +127,10 @@ export interface DebitLike {
   paid_at: string | null; invoice_number?: string | null; date?: string | null; created_at?: string | null;
   credited_from_invoice_id?: string | null; settle_mode?: string | null; title?: string | null; description?: string | null;
   debit_type?: string | null;
+  /** Valfri koppling till självfakturan (A-orderraden) avdraget avser */
+  related_a_order_id?: string | null;
+  /** Inbäddad A-orderrad för kopplingen (nuvarande nummer och adress) */
+  related_order?: RelatedOrderLike | null;
 }
 export interface SettlementItemLike {
   item_kind: string; a_order_id: string | null; debit_invoice_id: string | null; amount: number | string;
@@ -141,6 +147,8 @@ export interface Candidate {
 export interface DeductionCandidate {
   id: string; number: string; label: string; date: string; created_at: string;
   total: number; settled: number; remaining: number;
+  /** A-orderraden avdraget avser, och texten "Avser ALEX-097 (adress)" */
+  related_a_order_id: string | null; related_label: string | null;
 }
 
 const ORDER_KIND_SUFFIX: Record<string, string> = { komplettering: 'Komplettering', service: 'Service' };
@@ -252,6 +260,8 @@ export function eligibleDeductions(teamId: string, debits: DebitLike[], items: S
         id: d.id, number: d.invoice_number || '', date: dateOf(d.date), created_at: String(d.created_at ?? ''),
         label: String(d.description ?? '').trim() || String(d.title ?? '').trim() || 'Fordran',
         total, settled: done, remaining: fromCents(toCents(total) - toCents(done)),
+        related_a_order_id: d.related_a_order_id ?? null,
+        related_label: d.related_a_order_id ? relatedInvoiceLabel(d.related_order) : null,
       };
     })
     .filter(d => toCents(d.remaining) > 0)
@@ -366,4 +376,54 @@ export function deductionStatusText(d: DebitLike, items: SettlementItemLike[]): 
   if (d.settle_mode !== 'avrakning') return 'Betalas till bankgiro 5032-4573';
   if (used > 0) return `Delvis kvittad, kvar ${formatKr(fromCents(total - used))}`;
   return 'Regleras vid nästa utbetalning';
+}
+
+// ---------------------------------------------------------------------------
+// Avdrag som avser en viss självfaktura (valfritt). Avdraget står aldrig på självfakturan;
+// kopplingen visas bara på debetfakturan, i utbetalningen och i montörsvyn.
+
+/** Fakturans nuvarande nummer, annars "#ordernummer". */
+export function relatedInvoiceRef(o: RelatedOrderLike | null | undefined): string {
+  const nr = String(o?.invoice_number ?? '').trim();
+  if (nr) return nr;
+  return o?.order_number != null && o.order_number !== '' ? `#${o.order_number}` : '—';
+}
+
+/** "Avser ALEX-097 (Blåsippsbacken 93, Vällingby)", eller "Avser ALEX-097" utan adress. */
+export function relatedInvoiceLabel(o: RelatedOrderLike | null | undefined, withAddress = true): string {
+  const addr = withAddress ? String(o?.customer_address ?? '').trim() : '';
+  return `Avser ${relatedInvoiceRef(o)}${addr ? ` (${addr})` : ''}`;
+}
+
+export const RELATED_INVOICE_NOT_INCLUDED = 'Fakturan som avdraget avser är inte med i den här utbetalningen';
+
+/** Notis på avdragsraden när fakturan avdraget avser inte är ikryssad. Blockerar inte. */
+export function relatedInvoiceNotice(relatedAOrderId: string | null | undefined, selectedInvoiceIds: Iterable<string>): string | null {
+  if (!relatedAOrderId) return null;
+  for (const id of selectedInvoiceIds) if (id === relatedAOrderId) return null;
+  return RELATED_INVOICE_NOT_INCLUDED;
+}
+
+export interface RelatedInvoiceSource extends AOrderLike { case_id?: string | null }
+export interface RelatedInvoiceOption { id: string; invoice_number: string; case_id: string | null; label: string; address: string }
+
+/**
+ * Fakturor ett avdrag kan avse: teamets A-order-, kompletterings- och serviceorderfakturor
+ * med fakturanummer – status 'invoiced', eller krediterade original (inte kreditfakturan själv).
+ * Nyast först. Visning: "ALEX-094 · Blåsippsbacken 93, Vällingby · 37 929 kr".
+ */
+export function relatedInvoiceOptions(teamId: string | null | undefined, aOrders: RelatedInvoiceSource[]): RelatedInvoiceOption[] {
+  if (!teamId) return [];
+  const sortKey = (o: RelatedInvoiceSource) => String(o.invoice_sent_at ?? '') || dateOf(o.date);
+  return aOrders
+    .filter(o => o.team_id === teamId && String(o.invoice_number ?? '').trim()
+      && (o.status === 'invoiced' || (o.status === 'credited' && !o.credited_from_order_id)))
+    .sort((a, b) => sortKey(b).localeCompare(sortKey(a)) || String(b.invoice_number).localeCompare(String(a.invoice_number), 'sv', { numeric: true }))
+    .map(o => {
+      const address = String(o.customer_address ?? '').trim();
+      return {
+        id: o.id, invoice_number: String(o.invoice_number).trim(), case_id: o.case_id ?? null, address,
+        label: [String(o.invoice_number).trim(), address, formatKr(o.total_amount)].filter(Boolean).join(' · '),
+      };
+    });
 }

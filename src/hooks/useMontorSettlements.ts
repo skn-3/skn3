@@ -4,7 +4,7 @@ import type { AOrderLike, DebitLike, SettlementItemLike } from '@/lib/montorSett
 
 const db = supabase as any;
 const A_COLS = 'id, team_id, status, total_amount, paid_at, invoice_number, invoice_sent_at, date, credited_from_order_id, customer_address, order_kind, order_number';
-const D_COLS = 'id, team_id, kind, status, total, subtotal, vat_mode, paid_at, invoice_number, date, created_at, credited_from_invoice_id, settle_mode, title, description, debit_type';
+const D_COLS = 'id, team_id, kind, status, total, subtotal, vat_mode, paid_at, invoice_number, date, created_at, credited_from_invoice_id, settle_mode, title, description, debit_type, related_a_order_id, related_order:a_orders!related_a_order_id(invoice_number, order_number, order_kind, customer_address)';
 
 export interface SettlementTeam { id: string; name: string; company_name: string | null; bankgiro: string | null; email: string | null; invoice_email: string | null; is_active: boolean }
 

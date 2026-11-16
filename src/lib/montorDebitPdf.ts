@@ -36,6 +36,8 @@ export interface BuildMontorDebitPdfArgs {
   debitType?: string | null;
   /** 'avrakning' = kvittas mot nästa utbetalning: inget bankgiro och inget förfallodatum */
   settleMode?: 'bankgiro' | 'avrakning' | null;
+  /** "Avser faktura ALEX-094 (A-order #692, adress)" under rubriken; nummer vid registreringen */
+  relatedInvoiceLine?: string | null;
 }
 
 const DARK: [number, number, number] = [51, 51, 51];
@@ -122,6 +124,13 @@ export function buildMontorDebitPdf(args: BuildMontorDebitPdfArgs): jsPDF {
     doc.setFontSize(11);
     doc.text(heading, margin, y);
     y += 5;
+  }
+  if (args.relatedInvoiceLine) {
+    if (!heading) y += 4;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.splitTextToSize(args.relatedInvoiceLine, pageW - margin * 2).forEach((ln: string) => { doc.text(ln, margin, y); y += 4.2; });
+    y += 1;
   }
 
   // TABLE

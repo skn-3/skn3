@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { allocateSettlement, formatKr, teamPayoutOverview, type AOrderLike, type DebitLike, type SettlementItemLike } from '@/lib/montorSettlement';
+import { allocateSettlement, formatKr, relatedInvoiceNotice, teamPayoutOverview, type AOrderLike, type DebitLike, type SettlementItemLike } from '@/lib/montorSettlement';
 import { createMontorSettlement, SETTLEMENT_QUERY_KEYS } from '@/lib/montorSettlementActions';
 
 interface Props {
@@ -120,10 +120,13 @@ export function CreateSettlementSheet({ open, onOpenChange, team, aOrders, debit
                 const selected = !off.has(d.id);
                 const note = !selected ? '' : !a ? ' · räcker inte, ligger kvar till nästa utbetalning'
                   : a.remainingAfter > 0 ? ` · kvittas ${formatKr(a.take)}, kvar att kvitta ${formatKr(a.remainingAfter)}` : '';
+                const missing = relatedInvoiceNotice(d.related_a_order_id, selInv.map(i => i.id));
                 return (
                   <Row key={d.id} id={`c-${d.id}`} checked={selected} onChange={v => toggle(d.id, v)} number={d.number} label={d.label} date={d.date}
                     amount={`-${formatKr(a ? a.take : d.remaining)}`}
-                    extra={<>{d.settled > 0 ? ` · av ${formatKr(d.total)}, ${formatKr(d.settled)} redan kvittat` : ''}{note}</>} />
+                    extra={<>{d.settled > 0 ? ` · av ${formatKr(d.total)}, ${formatKr(d.settled)} redan kvittat` : ''}{note}
+                      {d.related_label && <span className="mt-0.5 block text-sm text-foreground">{d.related_label}</span>}
+                      {missing && <span className="mt-0.5 block font-medium text-warning-ink dark:text-warning">{missing}</span>}</>} />
                 );
               })}</div>
             )}

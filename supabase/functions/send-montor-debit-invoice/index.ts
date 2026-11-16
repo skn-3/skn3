@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { requireCoordinator } from '../_shared/auth.ts';
 import { attachmentPdfName } from '../_shared/pdfFilename.ts';
 import { INVOICE_EMAIL_FOOTER_ROW } from '../_shared/invoiceEmailFooter.ts';
-import { AVRAKNING_NOTICE } from '../_shared/montorSettlementShared.ts';
+import { AVRAKNING_NOTICE, debitRelatedInvoiceLine } from '../_shared/montorSettlementShared.ts';
 import { isLocalBackend, LOCAL_BACKEND_SKIP } from '../_shared/localBackend.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,7 +29,7 @@ function sanitizeFilename(s: string) {
   return String(s || '').normalize('NFKD').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
 }
 
-function buildCreditHtml(opts: { number: string; original: string; customer: string; total: string }) {
+function buildCreditHtml(opts: { number: string; original: string; customer: string; total: string; related?: string | null }) {
   return `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/></head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">
@@ -41,6 +41,7 @@ function buildCreditHtml(opts: { number: string; original: string; customer: str
 <tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;"/></td></tr>
 <tr><td style="padding:0 28px;">
 <p style="margin:8px 0;">Bifogad kreditfaktura krediterar faktura <strong>${esc(opts.original)}</strong>.</p>
+${opts.related ? `<p style="margin:8px 0;color:#374151;">${esc(opts.related)}</p>` : ''}
 <p style="margin:8px 0;color:#374151;"><strong>Kreditbelopp:</strong> ${esc(opts.total)}</p>
 <p style="margin:8px 0;">Krediten kvittas i första hand mot kommande utbetalningar mellan parterna. Är originalfakturan redan reglerad sker återbetalning till SmartKlimat N3prenad, bankgiro 5032-4573.</p>
 </td></tr>
@@ -49,7 +50,7 @@ ${INVOICE_EMAIL_FOOTER_ROW}
 </table></td></tr></table></body></html>`;
 }
 
-function buildHtml(opts: { number: string; customer: string; total: string; vatMode: string; dueDate?: string | null; selfBilling?: boolean; bankgiro?: string | null; avrakning?: boolean }) {
+function buildHtml(opts: { number: string; customer: string; total: string; vatMode: string; dueDate?: string | null; selfBilling?: boolean; bankgiro?: string | null; avrakning?: boolean; related?: string | null }) {
   if (opts.selfBilling) {
     return `<!DOCTYPE html><html lang="sv"><head><meta charset="utf-8"/></head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">
@@ -81,6 +82,7 @@ ${INVOICE_EMAIL_FOOTER_ROW}
 </td></tr>
 <tr><td style="padding:0 28px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;"/></td></tr>
 <tr><td style="padding:0 28px;">
+${opts.related ? `<p style="margin:8px 0;color:#374151;">${esc(opts.related)}</p>` : ''}
 ${opts.avrakning ? `<p style="margin:8px 0;">Faktura bifogas som PDF.</p>
 <p style="margin:8px 0;color:#374151;"><strong>Belopp:</strong> ${esc(opts.total)}</p>
 <p style="margin:8px 0;font-weight:bold;">${esc(AVRAKNING_NOTICE)}</p>` : `<p style="margin:8px 0;">Faktura bifogas som PDF. Betalningsvillkor 10 dagar netto.</p>
@@ -140,6 +142,13 @@ Deno.serve(async (req) => {
         .eq('id', (inv as any).credited_from_invoice_id).maybeSingle();
       originalNumber = orig?.invoice_number ? String(orig.invoice_number) : '';
     }
+    // Avdrag som avser en viss självfaktura: numret just nu (vid registreringen/skickandet).
+    let related: string | null = null;
+    if ((inv as any).related_a_order_id && !isSelfBilling) {
+      const { data: ro } = await admin.from('a_orders')
+        .select('invoice_number, order_number, order_kind, customer_address').eq('id', (inv as any).related_a_order_id).maybeSingle();
+      related = debitRelatedInvoiceLine(ro);
+    }
     const number = String(inv.invoice_number);
     const companySafe = sanitizeFilename(team.company_name || team.name || 'kund');
     const filename = attachmentPdfName(file_name, `${isCredit ? 'KREDITFAKTURA' : isSelfBilling ? 'SJALVFAKTURA' : 'FAKTURA'}-${number}-${companySafe}.pdf`);
@@ -154,6 +163,7 @@ Deno.serve(async (req) => {
       original: originalNumber || '—',
       customer: team.company_name || team.name || '',
       total: totalStr,
+      related,
     }) : buildHtml({
       number,
       customer: team.company_name || team.name || '',
@@ -163,6 +173,7 @@ Deno.serve(async (req) => {
       selfBilling: isSelfBilling,
       bankgiro: team.bankgiro,
       avrakning: !isSelfBilling && (inv as any).settle_mode === 'avrakning',
+      related,
     });
     const subject = isCredit
       ? `Kreditfaktura ${number} — avser ${originalNumber || '—'}`

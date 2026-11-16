@@ -31,3 +31,26 @@ export function settlementPaymentLine(s: PaymentLineSource): string {
   const bankgiro = String(s.bankgiro ?? '').trim() || '—';
   return `${s.settlement_number ?? 'UTB-?'} - ${formatPaymentAmount(s.net_amount)} - Bankgiro ${bankgiro}${company ? ` (${company})` : ''}`;
 }
+
+// ---------------------------------------------------------------------------
+// Avdrag som avser en viss självfaktura (montor_debit_invoices.related_a_order_id).
+// Kopplingen pekar på A-orderraden; numret läses när texten byggs.
+
+export interface RelatedOrderLike {
+  invoice_number?: string | null;
+  order_number?: number | string | null;
+  order_kind?: string | null;
+  customer_address?: string | null;
+}
+
+/** Debetfakturans rad under rubriken: "Avser faktura ALEX-094 (A-order #692, Blåsippsbacken 93, Vällingby)". */
+export function debitRelatedInvoiceLine(o: RelatedOrderLike | null | undefined): string | null {
+  if (!o) return null;
+  const nr = String(o.invoice_number ?? '').trim() || (o.order_number != null && o.order_number !== '' ? `#${o.order_number}` : '—');
+  const kind = o.order_kind === 'service' ? 'Serviceorder' : 'A-order';
+  const parts = [
+    o.order_number != null && o.order_number !== '' ? `${kind} #${o.order_number}` : '',
+    String(o.customer_address ?? '').trim(),
+  ].filter(Boolean);
+  return `Avser faktura ${nr}${parts.length ? ` (${parts.join(', ')})` : ''}`;
+}

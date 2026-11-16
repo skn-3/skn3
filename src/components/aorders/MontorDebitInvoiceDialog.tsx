@@ -15,9 +15,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { CaseCombobox } from '@/components/shared/CaseCombobox';
+import { RelatedInvoiceCombobox } from './RelatedInvoiceCombobox';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { createAndSendDebitInvoice, DEBIT_ATTACHMENT_MAX_BYTES, DEBIT_ATTACHMENT_TYPES } from '@/lib/debitInvoice';
-import { DEBIT_TYPES, SETTLE_MODE_TEXT, debitTotals, debitTypeInfo, formatKr, type DebitType, type SettleMode } from '@/lib/montorSettlement';
+import { DEBIT_TYPES, SETTLE_MODE_TEXT, debitTotals, debitTypeInfo, formatKr, relatedInvoiceOptions, type DebitType, type RelatedInvoiceSource, type SettleMode } from '@/lib/montorSettlement';
 import { SETTLEMENT_QUERY_KEYS } from '@/lib/montorSettlementActions';
 
 interface Props {
@@ -30,17 +31,20 @@ interface Props {
   initialTeamName?: string | null;
   /** Förifyllt ärende (ärendepanelen) */
   initialCaseId?: string | null;
+  /** Förvald faktura som avdraget avser (A-orderhistoriken) */
+  initialAOrderId?: string | null;
 }
 
 function parseAmount(v: string): number { return Number(String(v).replace(/\s/g, '').replace(',', '.')) || 0; }
 
-export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser, initialTeamId, initialTeamName, initialCaseId }: Props) {
+export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser, initialTeamId, initialTeamName, initialCaseId, initialAOrderId }: Props) {
   const qc = useQueryClient();
   const isMobile = useIsMobile();
   const [teamId, setTeamId] = useState('');
   const [debitType, setDebitType] = useState<DebitType | ''>('');
   const [settleMode, setSettleMode] = useState<SettleMode>('avrakning');
   const [caseId, setCaseId] = useState('');
+  const [relatedId, setRelatedId] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -70,13 +74,36 @@ export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser, init
     setDebitType(''); setSettleMode('avrakning'); setDescription(''); setAmount(''); setFile(null);
     setCaseId(initialCaseId || '');
     setTeamId(initialTeamId || '');
-  }, [open, initialTeamId, initialCaseId]);
+    setRelatedId(initialAOrderId || '');
+  }, [open, initialTeamId, initialCaseId, initialAOrderId]);
   useEffect(() => {
     if (open && !initialTeamId && initialTeamName && teams.length) {
       const t = teams.find(x => x.name === initialTeamName);
       if (t) setTeamId(t.id);
     }
   }, [open, initialTeamId, initialTeamName, teams]);
+
+  const { data: teamInvoices = [] } = useQuery({
+    queryKey: ['debit_related_invoices', teamId],
+    enabled: open && !!teamId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('a_orders')
+        .select('id, team_id, status, total_amount, paid_at, invoice_number, invoice_sent_at, date, credited_from_order_id, customer_address, order_kind, order_number, case_id')
+        .eq('team_id', teamId).not('invoice_number', 'is', null);
+      if (error) throw error;
+      return data as RelatedInvoiceSource[];
+    },
+  });
+  const invoiceOptions = useMemo(() => relatedInvoiceOptions(teamId, teamInvoices), [teamId, teamInvoices]);
+  // Byter man team försvinner en faktura från ett annat team.
+  useEffect(() => {
+    if (relatedId && teamInvoices.length && !teamInvoices.some(o => o.id === relatedId)) setRelatedId('');
+  }, [teamInvoices, relatedId]);
+  function pickInvoice(id: string) {
+    setRelatedId(id);
+    const opt = invoiceOptions.find(o => o.id === id);
+    if (opt?.case_id) setCaseId(opt.case_id);
+  }
 
   const team = useMemo(() => teams.find(t => t.id === teamId) || null, [teams, teamId]);
   const recipient = team?.invoice_email || team?.email || '';
@@ -118,6 +145,7 @@ export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser, init
         caseId: caseId || null,
         attachment: file,
         kind: 'debit',
+        relatedAOrderId: relatedId || null,
       });
       toast.success(`Avdrag ${res.invoice_number} registrerat och skickat till ${recipient}`);
       SETTLEMENT_QUERY_KEYS.forEach(k => qc.invalidateQueries({ queryKey: [...k] }));
@@ -151,6 +179,12 @@ export function MontorDebitInvoiceDialog({ open, onOpenChange, currentUser, init
               <Label>Ärende (valfritt)</Label>
               <CaseCombobox cases={cases} value={caseId} onChange={setCaseId} />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="debit-related">Avser faktura (valfritt)</Label>
+            <RelatedInvoiceCombobox id="debit-related" options={invoiceOptions} value={relatedId} onChange={pickInvoice} disabled={!teamId} placeholder={teamId ? 'Ingen faktura vald' : 'Välj team först'} />
+            <p className="text-xs text-muted-foreground">Visas på debetfakturan och i utbetalningen, aldrig på självfakturan.</p>
           </div>
 
           <fieldset className="space-y-2">
