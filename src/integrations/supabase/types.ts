@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   public: {
     Tables: {
       a_order_products: {
@@ -1617,24 +1612,36 @@ export type Database = {
       }
       conversations: {
         Row: {
+          archived_at: string | null
+          channel_key: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
           id: string
           is_group: boolean
+          kind: string
+          team_user_id: string | null
           title: string | null
         }
         Insert: {
+          archived_at?: string | null
+          channel_key?: string | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
           id?: string
           is_group?: boolean
+          kind?: string
+          team_user_id?: string | null
           title?: string | null
         }
         Update: {
+          archived_at?: string | null
+          channel_key?: string | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           id?: string
           is_group?: boolean
+          kind?: string
+          team_user_id?: string | null
           title?: string | null
         }
         Relationships: [
@@ -1648,6 +1655,20 @@ export type Database = {
           {
             foreignKeyName: "conversations_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_team_user_id_fkey"
+            columns: ["team_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_team_user_id_fkey"
+            columns: ["team_user_id"]
             isOneToOne: false
             referencedRelation: "profiles_public"
             referencedColumns: ["id"]
@@ -3673,6 +3694,23 @@ export type Database = {
         Args: { p_count: number; p_table: string }
         Returns: string
       }
+      chat_overview: {
+        Args: never
+        Returns: {
+          channel_key: string
+          created_at: string
+          id: string
+          is_group: boolean
+          kind: string
+          last_read_at: string
+          latest: Json
+          member_ids: string[]
+          team_user_id: string
+          title: string
+          unread: number
+        }[]
+      }
+      chat_sync_channels: { Args: never; Returns: undefined }
       consultant_next_invoice_number: {
         Args: { p_consultant_id: string }
         Returns: number
@@ -4048,3 +4086,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

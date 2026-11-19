@@ -463,6 +463,13 @@
       "when": 1794822843667,
       "tag": "0065_reinvoice_per_invoice_settlement",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1795082284734,
+      "tag": "0066_chat_channels_and_overview",
+      "breakpoints": true
     }
   ]
 }

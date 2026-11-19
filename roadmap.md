@@ -140,3 +140,7 @@
 - [x] Kreditering av A-order stoppades av notisen (tom titel när kreditfakturan saknar ordernummer): nullsäkra titlar, egna kreditfakturatexter och notify_user som aldrig stoppar en sparning (migration 0063, provat i draften).
 - [x] Avdrag kan avse en viss självfaktura ("Avser faktura", migration 0064): formulär, Avdrag-knapp i A-orderhistoriken, debetfakturans PDF/mejl, utbetalningsdialog med notis, specifikationens PDF och montörsvyn; provat i draften.
 - [x] Omfakturerad A-order (samma rad, nytt nummer) går att betala via Utbetala till montör; kreditfakturor kvittas bara om den krediterade fakturan var betald; utbetalningsrader per faktura (migration 0065, provat i draften).
+
+- [x] Chatt etapp 1 del 1: kanalerna Alla, Kontoret och en teamkanal per montör (migration 0066, chat_sync_channels med felsäkra triggrar, arkivering i stället för radering), chat_overview med olästa i SQL, start_conversation med kind, ChatProvider i Index-skalet (översikt, 50 meddelanden åt gången med Visa äldre, realtime utan omhämtning), visningsnamn och ordning i src/lib/chat.ts med tester. 49 kontroller mot utkastets databas och webbläsarprov som säljare och montör.
+- [ ] Chatt etapp 1 del 2: Chatt som egen vy med ny layout.
+- [ ] Chatt etapp 1 del 3: push-notiser.

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, MessageCircle, Plus, Send, X, Sparkles, ImagePlus, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowLeft, MessageCircle, Plus, Send, X, Sparkles, ImagePlus, Image as ImageIcon, Loader2, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,6 @@ export function ChatWidget() {
   const [pendingCase, setPendingCase] = useState<PendingChatCase | null>(null);
   const [aiActive, setAiActive] = useState(false);
   const [open, setOpen] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState('');
@@ -37,24 +36,37 @@ export function ChatWidget() {
   const fileInput = useRef<HTMLInputElement>(null);
   const sendLock = useRef(false);
   const mobile = useIsMobile();
-  const chat = useChat(open ? activeId : null);
-  const conversation = chat.conversations.find(c => c.id === activeId);
-  const signedImages = useChatImages(activeId, conversation?.messages.flatMap(m => readChatAttachments(m.attachments).map(a => a.path)) ?? []);
+  const chat = useChat();
+  const { activeId, setActiveId, setVisible } = chat;
+  useEffect(() => { setVisible(open); return () => setVisible(false); }, [open, setVisible]);
+  const conversation = chat.activeConversation;
+  const signedImages = useChatImages(activeId, chat.messages.flatMap(m => readChatAttachments(m.attachments).map(a => a.path)));
   useEffect(() => { setFiles([]); }, [activeId, aiActive, chat.userId]);
   function addFiles(next: File[]) {
     if (busy) return;
     setFiles(old => { const result = validateChatImages(next, old.length); if (result.rejectedReason) toast.error(result.rejectedReason); return [...old, ...result.accepted]; });
   }
-  const caseIds = chat.conversations.flatMap(c => c.messages.map(m => m.case_id || extractCaseIdFromText(m.body))).filter((id): id is string => !!id);
+  const caseIds = chat.messages.map(m => m.case_id || extractCaseIdFromText(m.body)).filter((id): id is string => !!id);
   const chatCases = useChatCases(caseIds);
   const bottom = useRef<HTMLDivElement>(null);
-  const lastMessageId = conversation?.latest?.id;
+  const scroller = useRef<HTMLDivElement>(null);
+  const keepScroll = useRef<number | null>(null);
+  const lastMessageId = chat.messages.at(-1)?.id;
   useEffect(() => { if (open) bottom.current?.scrollIntoView({ block: 'end' }); }, [open, activeId, lastMessageId]);
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    if (el && keepScroll.current !== null) { el.scrollTop = el.scrollHeight - keepScroll.current; keepScroll.current = null; }
+  }, [chat.messages.length]);
+  async function loadOlder() {
+    const el = scroller.current;
+    keepScroll.current = el ? el.scrollHeight - el.scrollTop : null;
+    await chat.loadOlder();
+  }
   useEffect(() => {
     const handler = (event: Event) => { setAiActive(false); setActiveId((event as CustomEvent<string>).detail); setCreating(false); setOpen(true); };
     window.addEventListener('smartklimat:open-chat', handler);
     return () => window.removeEventListener('smartklimat:open-chat', handler);
-  }, []);
+  }, [setActiveId]);
   useEffect(() => {
     const handler = (event: Event) => {
       const c = (event as CustomEvent<PendingChatCase>).detail;
@@ -63,7 +75,7 @@ export function ChatWidget() {
     };
     window.addEventListener('smartklimat:share-case', handler);
     return () => window.removeEventListener('smartklimat:share-case', handler);
-  }, []);
+  }, [setActiveId]);
   async function send() {
     if (!activeId || (!body.trim() && !pendingCase && !files.length) || sendLock.current) return;
     sendLock.current = true;
@@ -90,9 +102,11 @@ export function ChatWidget() {
         try { const id = await chat.start(selected, title); setActiveId(id); setCreating(false); } catch { toast.error('Chatten kunde inte startas. Försök igen.'); } finally { setBusy(false); }
       }}>Starta chatt</Button></div>
     </> : activeId ? <>
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-3">
+      <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-3">
         {!conversation && <p className="text-muted-foreground text-center">Konversationen kunde inte hittas.</p>}
-        {conversation?.messages.map((m, i, messages) => {
+        {conversation && chat.hasOlder && <div className="flex justify-center"><Button type="button" variant="outline" size="sm" className="min-h-11" disabled={chat.loadingOlder} onClick={() => void loadOlder()}>{chat.loadingOlder && <Loader2 className="h-4 w-4 mr-1 animate-spin motion-reduce:animate-none" />}Visa äldre</Button></div>}
+        {conversation && chat.messagesError ? <p className="text-muted-foreground text-center">Kunde inte hämta meddelanden.</p> : conversation && chat.messagesLoading ? <div className="space-y-3"><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : conversation && !chat.messages.length ? <p className="py-8 text-center text-muted-foreground">Inga meddelanden ännu.</p> : null}
+        {conversation && chat.messages.map((m, i, messages) => {
           const mine = m.sender_id === chat.userId;
           const caseId = m.case_id || extractCaseIdFromText(m.body);
           const linkedCase = chatCases.data?.find(c => c.id === caseId);
@@ -122,9 +136,9 @@ export function ChatWidget() {
           <Button type="submit" className="min-h-12 px-2 shrink-0" disabled={!conversation || (!body.trim() && !pendingCase && !files.length) || busy}>{busy ? <Loader2 className="h-4 w-4 mr-1 animate-spin motion-reduce:animate-none" /> : <Send className="h-4 w-4 mr-1" />}{busy ? 'Skickar…' : 'Skicka'}</Button>
         </div>
       </form>
-    </> : <div className="overflow-y-auto flex-1"><Button variant="ghost" className="w-full rounded-none h-auto min-h-20 border-b p-4 gap-3 text-left whitespace-normal" onClick={() => { setAiActive(true); setActiveId(null); setPendingCase(null); }}><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold text-gold-ink"><Sparkles className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">N3prenad-AI</span><span className="block text-xs font-normal text-muted-foreground">Fråga om ärenden</span></span></Button>{!chat.conversations.length ? <p className="py-12 text-center text-muted-foreground">Inga konversationer ännu.</p> : chat.conversations.map(c => <Button key={c.id} variant="ghost" className="w-full rounded-none h-auto min-h-20 text-left whitespace-normal border-b p-4 gap-3" onClick={() => { setActiveId(c.id); setBody(''); }}>
-      <MessageCircle className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1"><span className={`block truncate ${c.unread ? 'font-bold' : 'font-medium'}`}>{c.name}</span><span className="flex items-center gap-1 text-xs text-muted-foreground font-normal">{!c.latest?.body.trim() && readChatAttachments(c.latest?.attachments).length > 0 && <ImageIcon className="h-3.5 w-3.5 shrink-0" />}<span className="truncate">{previewText(c.latest)}</span></span><span className="block text-[11px] text-muted-foreground mt-1 font-normal">{relativeTimeSv(c.latest?.created_at ?? c.created_at)}</span></span>{c.unread > 0 && <span className="w-2 h-2 rounded-full bg-destructive shrink-0" />}
-    </Button>)}</div>}
+    </> : <div className="overflow-y-auto flex-1">{chat.entries.map(entry => entry.type === 'ai' ? <Button key="n3prenad-ai" variant="ghost" className="w-full rounded-none h-auto min-h-20 border-b p-4 gap-3 text-left whitespace-normal" onClick={() => { setAiActive(true); setActiveId(null); setPendingCase(null); }}><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold text-gold-ink"><Sparkles className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">N3prenad-AI</span><span className="block text-xs font-normal text-muted-foreground">Fråga om ärenden</span></span></Button> : (c => <Button key={c.id} variant="ghost" className="w-full rounded-none h-auto min-h-20 text-left whitespace-normal border-b p-4 gap-3" onClick={() => { setActiveId(c.id); setBody(''); }}>
+      {c.kind === 'channel' ? <Hash className="h-5 w-5 shrink-0 text-muted-foreground" /> : <MessageCircle className="h-5 w-5 shrink-0 text-muted-foreground" />}<span className="min-w-0 flex-1"><span className={`block truncate ${c.unread ? 'font-bold' : 'font-medium'}`}>{c.name}</span><span className="flex items-center gap-1 text-xs text-muted-foreground font-normal">{!c.latest?.body.trim() && readChatAttachments(c.latest?.attachments).length > 0 && <ImageIcon className="h-3.5 w-3.5 shrink-0" />}<span className="truncate">{previewText(c.latest)}</span></span><span className="block text-[11px] text-muted-foreground mt-1 font-normal">{relativeTimeSv(c.latest?.created_at ?? c.created_at)}</span></span>{c.unread > 0 && <span className="w-2 h-2 rounded-full bg-destructive shrink-0" />}
+    </Button>)(entry.conversation))}{!chat.conversations.length && <p className="py-12 text-center text-muted-foreground">Inga konversationer ännu.</p>}</div>}
   </div>;
   return <>
     <Button size="icon" className="fixed right-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-40 h-14 w-14 rounded-full shadow-lg" aria-label={`Öppna meddelanden, ${chat.unread} olästa`} onClick={() => setOpen(!open)}><MessageCircle className="h-6 w-6" />{chat.unread > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full px-1 bg-destructive text-destructive-foreground text-[11px] font-bold flex items-center justify-center">{chat.unread > 9 ? '9+' : chat.unread}</span>}</Button>

@@ -9,6 +9,7 @@ import { WelcomeDashboard } from '@/components/WelcomeDashboard';
 import { ForcePinChangeGate } from '@/components/ForcePinChangeGate';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatWidget } from '@/components/chat/ChatWidget';
+import { ChatProvider } from '@/components/chat/ChatProvider';
 import { WinterLayer } from '@/components/winter/WinterLayer';
 import { useTheme } from 'next-themes';
 
@@ -93,7 +94,8 @@ const Index = () => {
     );
   }
 
-  const withChat = (view: React.ReactNode) => <>{view}<ChatWidget /></>;
+  // En enda ChatProvider runt vyn och widgeten: delat chattillstånd utan dubbla prenumerationer eller toasts.
+  const withChat = (view: React.ReactNode) => <ChatProvider>{view}<ChatWidget /></ChatProvider>;
 
   if (showWelcome) {
     return withChat(
