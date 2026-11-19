@@ -477,6 +477,13 @@
       "when": 1795083218781,
       "tag": "0067_chat_mark_read",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1795084758782,
+      "tag": "0068_chat_push_notifications",
+      "breakpoints": true
     }
   ]
 }

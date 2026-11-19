@@ -3142,6 +3142,90 @@ export type Database = {
         }
         Relationships: []
       }
+      push_runtime: {
+        Row: {
+          callback_bearer: string | null
+          callback_url: string | null
+          enabled: boolean
+          id: number
+          updated_at: string
+          vapid_private_jwk: Json | null
+          vapid_public_key: string | null
+        }
+        Insert: {
+          callback_bearer?: string | null
+          callback_url?: string | null
+          enabled?: boolean
+          id?: number
+          updated_at?: string
+          vapid_private_jwk?: Json | null
+          vapid_public_key?: string | null
+        }
+        Update: {
+          callback_bearer?: string | null
+          callback_url?: string | null
+          enabled?: boolean
+          id?: number
+          updated_at?: string
+          vapid_private_jwk?: Json | null
+          vapid_public_key?: string | null
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          device_label: string | null
+          endpoint: string
+          failure_count: number
+          id: string
+          last_success_at: string | null
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          device_label?: string | null
+          endpoint: string
+          failure_count?: number
+          id?: string
+          last_success_at?: string | null
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          device_label?: string | null
+          endpoint?: string
+          failure_count?: number
+          id?: string
+          last_success_at?: string | null
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sheet_metal_orders: {
         Row: {
           case_id: string
@@ -3869,6 +3953,35 @@ export type Database = {
         }
         Returns: undefined
       }
+      push_admin_overview: {
+        Args: never
+        Returns: {
+          devices: number
+          is_admin: boolean
+          last_success_at: string
+          name: string
+          role: string
+          user_id: string
+        }[]
+      }
+      push_subscribe: {
+        Args: {
+          p_auth: string
+          p_device_label: string
+          p_endpoint: string
+          p_p256dh: string
+          p_user_agent: string
+        }
+        Returns: string
+      }
+      push_unread_counts: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          unread: number
+          user_id: string
+        }[]
+      }
+      push_unsubscribe: { Args: { p_endpoint: string }; Returns: boolean }
       search_knowledge: {
         Args: { p_limit?: number; p_query: string; p_source_key?: string }
         Returns: {

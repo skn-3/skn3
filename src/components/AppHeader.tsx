@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/lib/constants';
-import { LogOut, Eye, Calendar, KeyRound, Check, ChevronDown, Snowflake } from 'lucide-react';
+import { LogOut, Eye, Calendar, KeyRound, Check, ChevronDown, Snowflake, Bell } from 'lucide-react';
+import { openPushGuide } from '@/lib/push/guide';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import {
   DropdownMenu,
@@ -140,6 +141,10 @@ export function AppHeader({ role, onChangeRole, viewOptions = [], children, acti
               <DropdownMenuItem onClick={() => setCalendarOpen(true)}>
                 <Calendar className="h-4 w-4 mr-2" />
                 Min kalender
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={openPushGuide}>
+                <Bell className="h-4 w-4 mr-2" />
+                Notiser
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setPinOpen(true)}>
                 <KeyRound className="h-4 w-4 mr-2" />

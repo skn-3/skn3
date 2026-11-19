@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Image as ImageIcon, Lock, Maximize2, Plus, Search, X } from 'lucide-react';
+import { Bell, Image as ImageIcon, Lock, Maximize2, Plus, Search, X } from 'lucide-react';
+import { usePush } from '@/hooks/usePush';
+import { openPushGuide, PUSH_TEXTS } from '@/lib/push/guide';
+import { pushNeedsAttention } from '@/lib/push/platform';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,6 +24,7 @@ const rowFocus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:
 /** Listan med Kanaler, Team och Direkt. Full: täta rader med namn och olästa. Compact: rader med förhandsrad och tid. */
 export function ChatSidebar({ mode, onClose, onExpand }: { mode: ChatViewMode; onClose?: () => void; onExpand?: () => void }) {
   const chat = useChat();
+  const push = usePush();
   const [query, setQuery] = useState('');
   const compact = mode === 'compact';
   const sections = useMemo(() => chatSidebarSections(chat.conversations, chat.userId, chat.isStaff, query), [chat.conversations, chat.userId, chat.isStaff, query]);
@@ -94,6 +98,13 @@ export function ChatSidebar({ mode, onClose, onExpand }: { mode: ChatViewMode; o
           <Input type="search" aria-label="Sök konversation" placeholder="Sök konversation" className="min-h-11 pl-9" value={query} onChange={e => setQuery(e.target.value)} />
         </div>
       </div>
+      {push.checked && pushNeedsAttention(push.status) && (
+        <div className="mx-3 mb-2 flex shrink-0 items-center gap-2.5 rounded-lg border border-border bg-gold-soft py-1.5 pl-3 pr-1.5 text-sm text-gold-ink">
+          <Bell className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1 py-1 font-medium leading-snug">{PUSH_TEXTS.nudge}</span>
+          <Button type="button" variant="outline" className="h-11 shrink-0 bg-card px-3" onClick={openPushGuide}>{PUSH_TEXTS.nudgeButton}</Button>
+        </div>
+      )}
       {chat.pendingCase && (
         <div className="mx-3 mb-2 flex shrink-0 items-center gap-2 rounded-lg bg-gold-soft px-3 text-sm text-gold-ink">
           <span className="min-w-0 flex-1 break-words py-2">Dela ärende: {chat.pendingCase.address} — välj konversation</span>

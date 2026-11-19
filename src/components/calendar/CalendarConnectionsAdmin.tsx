@@ -13,6 +13,7 @@ import {
   type OverviewStatus,
 } from '@/lib/calendar/overview';
 import type { OverviewRow } from '@/lib/calendar/types';
+import { PushAdminCard } from '@/components/push/PushAdminCard';
 
 async function connect<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('calendar-connect', { body });
@@ -176,6 +177,8 @@ export function CalendarConnectionsAdmin({ currentUser, isAdmin }: Props) {
           </ul>
         </>
       )}
+
+      <PushAdminCard />
     </div>
   );
 }

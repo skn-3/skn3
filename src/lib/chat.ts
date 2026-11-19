@@ -1,7 +1,8 @@
 import type { ChatAttachment } from './chatAttachments';
 import { readChatAttachments } from './chatAttachments';
 export interface ChatMessage { id: string; conversation_id: string; sender_id: string; body: string; created_at: string; case_id?: string | null; attachments?: ChatAttachment[] }
-export type ChatKind = 'direct' | 'group' | 'channel';
+import type { ChatKind } from '../../supabase/functions/_shared/chatNames';
+export type { ChatKind };
 /** En rad från chat_overview(): en konversation där den inloggade är medlem. */
 export interface ChatOverviewRow {
   id: string; kind: ChatKind; channel_key: string | null; team_user_id: string | null; is_group: boolean;
@@ -91,18 +92,8 @@ export function markOverviewRead(rows: readonly ChatOverviewRow[], conversationI
   return rows.map(row => row.id === conversationId ? { ...row, last_read_at: readAt, unread: 0 } : row);
 }
 
-/** Visningsnamn. Personal ser teamkanalen med teamets namn, teamet självt ser "<Team> och kontoret". */
-export function conversationDisplayName(row: Pick<ChatOverviewRow, 'kind' | 'channel_key' | 'team_user_id' | 'title' | 'member_ids'>, viewerId: string | null, names: ReadonlyMap<string, string>): string {
-  if (row.kind === 'channel') {
-    if (row.channel_key === 'alla') return 'Alla';
-    if (row.channel_key === 'kontoret') return 'Kontoret';
-    const team = row.title?.trim() || (row.team_user_id ? names.get(row.team_user_id) : undefined) || 'Team';
-    return row.team_user_id && row.team_user_id === viewerId ? `${team} och kontoret` : team;
-  }
-  const others = row.member_ids.filter(id => id !== viewerId).map(id => names.get(id) ?? 'Användare');
-  if (row.kind === 'group') return row.title?.trim() || others.join(', ') || 'Grupp';
-  return others.join(', ') || 'Användare';
-}
+export { conversationDisplayName } from '../../supabase/functions/_shared/chatNames';
+import { conversationDisplayName } from '../../supabase/functions/_shared/chatNames';
 export interface ChatListConversation extends ChatOverviewRow { name: string }
 export type ChatListEntry = { type: 'ai' } | { type: 'conversation'; conversation: ChatListConversation };
 function channelRank(row: ChatOverviewRow): number { return row.channel_key === 'alla' ? 0 : row.channel_key === 'kontoret' ? 1 : 2; }
@@ -210,4 +201,19 @@ export function chatSidebarSections(conversations: readonly ChatListConversation
     else if (isStaff) teams.push(c);
   }
   return { channels, teams, direct };
+}
+
+// ---- Läsmarkering (etapp 1 del 3): bara när någon faktiskt kan se konversationen ----
+
+/** Dokumentet syns (inte bakgrundsflik, minimerat fönster eller låst skärm). */
+export function isDocumentVisible(visibilityState: string | null | undefined): boolean {
+  return visibilityState === 'visible';
+}
+/** Konversationen som får läsmarkeras: den öppna, när en ChatView visas och dokumentet syns. Annars null. */
+export function chatReadTarget(activeId: string | null, surfaceVisible: boolean, visibilityState: string | null | undefined): string | null {
+  return activeId && surfaceVisible && isDocumentVisible(visibilityState) ? activeId : null;
+}
+/** Ett inkommande meddelande läsmarkeras bara när dess konversation är läsmålet och dokumentet syns just nu. */
+export function shouldMarkIncomingRead(target: string | null, conversationId: string, visibilityState: string | null | undefined): boolean {
+  return !!target && target === conversationId && isDocumentVisible(visibilityState);
 }

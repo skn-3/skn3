@@ -6,13 +6,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMessagingUser } from '@/hooks/useMessagingUser';
 import {
   CHAT_PAGE_SIZE, addRealtimeMessage, applyMessageToOverview, chatListEntries, markOverviewRead, mergeLatestPage, mergeMessages,
-  mergeOlderPage, olderCursor, openChatFullscreen, orderConversations, toChatMessage, toOverviewRow,
+  mergeOlderPage, olderCursor, openChatFullscreen, orderConversations, toChatMessage, toOverviewRow, chatReadTarget, shouldMarkIncomingRead,
   type ChatListConversation, type ChatListEntry, type ChatMessage, type ChatOverviewRow, type ConversationPage,
 } from '@/lib/chat';
 import { incomingMessageToast } from './incomingMessageToast';
 import type { PendingChatCase } from './ChatCasePicker';
 import { validateChatImages, type ChatAttachment } from '@/lib/chatAttachments';
 import { compressImageToBlob } from '@/lib/imageCompress';
+import { appBadgeCount, chatIdFromUrl } from '@/lib/push/platform';
 
 export interface ChatProfile { id: string | null; name: string | null; role: string | null }
 export interface ChatDraft { body: string; files: File[] }
@@ -169,13 +170,21 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     void qc.invalidateQueries({ queryKey: overviewKey(userId) });
   }, [userId, qc]);
 
-  const readTarget = visible ? activeId : null;
+  // Läsmarkera bara när någon kan se konversationen: en ChatView visas och dokumentet syns (inte bakgrundsflik eller låst skärm).
+  const [visibilityState, setVisibilityState] = useState(() => (typeof document !== 'undefined' ? document.visibilityState : 'visible'));
+  useEffect(() => {
+    const onChange = () => setVisibilityState(document.visibilityState);
+    document.addEventListener('visibilitychange', onChange);
+    return () => document.removeEventListener('visibilitychange', onChange);
+  }, []);
+  const readTarget = chatReadTarget(activeId, visible, visibilityState);
   const readRef = useRef<{ target: string | null; markRead: typeof markRead }>({ target: readTarget, markRead });
   readRef.current = { target: readTarget, markRead };
   useEffect(() => {
     if (!readTarget) return;
+    // Körs när konversationen öppnas och när dokumentet blir synligt igen med konversationen fortfarande öppen.
     void markRead(readTarget);
-    const interval = setInterval(() => void markRead(readTarget), 60000);
+    const interval = setInterval(() => { if (shouldMarkIncomingRead(readRef.current.target, readTarget, document.visibilityState)) void markRead(readTarget); }, 60000);
     return () => clearInterval(interval);
   }, [readTarget, markRead]);
 
@@ -188,12 +197,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         qc.setQueryData<ConversationPage>(messagesKey(userId, message.conversation_id), old => addRealtimeMessage(old, message));
         qc.setQueryData<ChatOverviewRow[]>(overviewKey(userId), old => old ? applyMessageToOverview(old, message, userId).rows : old);
         void qc.invalidateQueries({ queryKey: overviewKey(userId) });
-        const openAndVisible = readRef.current.target === message.conversation_id;
+        const openAndVisible = shouldMarkIncomingRead(readRef.current.target, message.conversation_id, document.visibilityState);
         if (openAndVisible) void readRef.current.markRead(message.conversation_id);
         if (message.sender_id === userId || shownMessageIds.current.has(message.id)) return;
         shownMessageIds.current.add(message.id);
         // Ingen toast när konversationen redan är öppen och synlig.
-        if (openAndVisible && document.visibilityState === 'visible') return;
+        if (openAndVisible) return;
         void (async () => {
           let name = namesRef.current.get(message.sender_id);
           if (!name) {
@@ -239,6 +248,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (!openChatFullscreen(chatParam)) setPaneOpen(true);
     setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('chat'); return next; }, { replace: true });
   }, [chatParam, userId, openConversation, setSearchParams]);
+
+  // Tryck på en notis när appen redan är öppen: service workern skickar adressen, som öppnas via samma väg som /?chat=.
+  useEffect(() => {
+    if (!userId || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type !== 'smartklimat:open-url') return;
+      const id = chatIdFromUrl(String(event.data.url ?? ''));
+      if (id) setSearchParams(prev => { const next = new URLSearchParams(prev); next.set('chat', id); return next; }, { replace: true });
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [userId, setSearchParams]);
 
   const loadOlder = useCallback(async () => {
     if (!activeId || loadingOlder) return;
@@ -289,12 +310,25 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     void qc.invalidateQueries({ queryKey: overviewKey(userId) });
   }, [qc, userId]);
 
+  // Appikonens bricka: antal olästa, rensas vid noll (där det finns stöd).
+  const unreadTotal = conversations.reduce((sum, c) => sum + c.unread, 0);
+  const badgeReady = !!userId && overview.isSuccess;
+  useEffect(() => {
+    if (!badgeReady) return;
+    const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    const count = appBadgeCount(unreadTotal);
+    try {
+      if (count === null) nav.clearAppBadge?.()?.catch(() => {});
+      else nav.setAppBadge?.(count)?.catch(() => {});
+    } catch { /* stöds inte */ }
+  }, [badgeReady, unreadTotal]);
+
   const page = messagesQuery.data;
   const viewerRole = userId ? roles.get(userId) ?? null : null;
   const value: ChatContextValue = {
     userId, conversations, entries, profiles: profiles.data ?? [], names, roles,
     isStaff: viewerRole !== 'montor',
-    unread: conversations.reduce((sum, c) => sum + c.unread, 0),
+    unread: unreadTotal,
     isLoading: overview.isLoading, error: overview.error, refetch: overview.refetch,
     activeId, activeConversation: conversations.find(c => c.id === activeId),
     aiActive, creating, openConversation, openAi, openNew, backToList,

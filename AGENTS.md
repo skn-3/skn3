@@ -24,7 +24,9 @@ In installer submit flows, create the primary row first and treat later steps (e
 - Service orders are a_orders rows with order_kind='service' (payer, mockfjards_order_number) and reuse the whole A-order invoice/PDF/Drive flow; prefill logic lives in src/lib/serviceOrder.ts so it stays testable.
 - If node_modules/canvas appears without its native build (installs run with --ignore-scripts), delete that directory; jsdom then loads and vitest runs, because a half-installed optional canvas crashes every test file.
 - Keep installer list classification, summaries and date ordering in montorLists and scope persisted order filters to the viewer; this makes list rules testable and prevents cross-account filter leakage.
-- Keep home-screen support manifest-only with no app-shell service worker; installed views must always load fresh data.
+- Keep home-screen support manifest-only; the only service worker is public/sw.js for push (push, notificationclick, pushsubscriptionchange), never a fetch listener, cache or precached shell (serviceWorker.test.ts); installed views must always load fresh data.
+- Chat push goes only through chat-push, called by the fail-safe messages_chat_push trigger; VAPID keys stay server-side in push_runtime, devices register only via push_subscribe and unsubscribe on logout. Push rules: chat-push/logic.ts; names: _shared/chatNames.ts; client: src/lib/push. Keeps names identical and pushes testable.
+- Mark chat read only while a ChatView shows and the document is visible (chatReadTarget), so hidden tabs never suppress pushes.
 - Keep touch pull-to-refresh in usePullToRefresh and invalidate the installer list query families; one gesture implementation covers cases, orders, invoices and calendar without duplicating fetching logic.
 
 ## N3prenad-AI

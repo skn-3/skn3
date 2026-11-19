@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { UserRole, RoleType } from '@/lib/constants';
 import { logActivity } from '@/lib/activityLog';
+import { pushUnsubscribeOnLogout } from '@/hooks/usePush';
 import { supabase } from '@/integrations/supabase/client';
 import { setCurrentUserAuth } from '@/lib/authState';
 
@@ -102,6 +103,8 @@ export function useRole() {
         actor: { name: prev.name, role: prev.type },
       });
     }
+    // Enhetens notiser följer inte med till nästa person som loggar in på samma enhet.
+    await pushUnsubscribeOnLogout();
     await supabase.auth.signOut();
     setRoleState(null);
     setCurrentUserAuth(null, false);

@@ -10,6 +10,7 @@ import { ForcePinChangeGate } from '@/components/ForcePinChangeGate';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatWidget } from '@/components/chat/ChatWidget';
 import { ChatProvider } from '@/components/chat/ChatProvider';
+import { PushGuideHost } from '@/components/push/PushGuideHost';
 import { WinterLayer } from '@/components/winter/WinterLayer';
 import { useTheme } from 'next-themes';
 
@@ -95,7 +96,14 @@ const Index = () => {
   }
 
   // En enda ChatProvider runt vyn och widgeten: delat chattillstånd utan dubbla prenumerationer eller toasts.
-  const withChat = (view: React.ReactNode) => <ChatProvider>{view}<ChatWidget /></ChatProvider>;
+  // Guiden "Notiser" och synken av enhetens push-prenumeration ligger på samma nivå; den visas aldrig automatiskt ovanpå PIN-byte eller välkomstskärm.
+  const withChat = (view: React.ReactNode) => (
+    <ChatProvider>
+      {view}
+      <ChatWidget />
+      <PushGuideHost role={role} autoAllowed={gatesSettled && !showWelcome} initialCaseId={initialCaseId} />
+    </ChatProvider>
+  );
 
   if (showWelcome) {
     return withChat(
