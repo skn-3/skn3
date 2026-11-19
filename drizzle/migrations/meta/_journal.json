@@ -484,6 +484,13 @@
       "when": 1795084758782,
       "tag": "0068_chat_push_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1795098347564,
+      "tag": "0069_chat_channels_follow_active_teams",
+      "breakpoints": true
     }
   ]
 }
