@@ -470,6 +470,13 @@
       "when": 1795082284734,
       "tag": "0066_chat_channels_and_overview",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1795083218781,
+      "tag": "0067_chat_mark_read",
+      "breakpoints": true
     }
   ]
 }

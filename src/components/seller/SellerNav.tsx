@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Columns3, MessageSquare, Truck, CalendarDays, CalendarCheck, LayoutDashboard, FileText, ClipboardList, PhoneCall, Wallet, Settings, ChevronDown, Check,
+  Columns3, MessageSquare, MessagesSquare, Truck, CalendarDays, CalendarCheck, LayoutDashboard, FileText, ClipboardList, PhoneCall, Wallet, Settings, ChevronDown, Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CountPill } from '@/components/ui/chip';
@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { BottomNavItem } from '@/components/BottomNav';
 
-export type SellerTab = 'pipeline' | 'arenden' | 'deliveries' | 'schema' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'futurejobs' | 'economy' | 'admin' | 'mypay' | 'kalender';
+export type SellerTab = 'pipeline' | 'arenden' | 'deliveries' | 'schema' | 'visit' | 'dashboard' | 'offers' | 'aorders' | 'futurejobs' | 'economy' | 'admin' | 'mypay' | 'kalender' | 'chatt';
 
 interface NavItem { value: SellerTab; label: string; icon: LucideIcon }
 
@@ -21,6 +21,9 @@ export const SELLER_PRIMARY: NavItem[] = [
   { value: 'arenden', label: 'Ärenden', icon: MessageSquare },
   { value: 'deliveries', label: 'Leveranser', icon: Truck },
 ];
+
+/** Chatt som femte huvudflik i headern (md+). Ligger inte i BottomNav: på telefon nås chatten via den flytande knappen. */
+export const SELLER_CHAT: NavItem = { value: 'chatt', label: 'Chatt', icon: MessagesSquare };
 
 export const SELLER_MORE: NavItem[] = [
   { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -43,6 +46,8 @@ interface SellerNavProps {
   isAdmin?: boolean;
   futureJobsDue?: number;
   showMyPay?: boolean;
+  /** Antal olästa chattmeddelanden. */
+  chatUnread?: number;
 }
 
 /** Flikarna som BottomNav använder på telefon – samma källa som headern. */
@@ -58,14 +63,14 @@ export function sellerBottomNavItems(isAdmin: boolean, futureJobsDue: number, sh
   return { items: primary.slice(0, 3), more: [...primary.slice(3), ...more] };
 }
 
-export function SellerNav({ active, onChange, isAdmin, futureJobsDue = 0, showMyPay }: SellerNavProps) {
+export function SellerNav({ active, onChange, isAdmin, futureJobsDue = 0, showMyPay, chatUnread = 0 }: SellerNavProps) {
   const more = [...SELLER_MORE, ...(showMyPay ? [SELLER_MYPAY] : []), ...(isAdmin ? SELLER_ADMIN : [])];
   const activeMore = more.find((m) => m.value === active);
   const moreBadge = futureJobsDue;
 
   return (
     <nav className="flex items-stretch gap-0.5 h-full" aria-label="Huvudmeny">
-      {SELLER_PRIMARY.map((t) => {
+      {[...SELLER_PRIMARY, SELLER_CHAT].map((t) => {
         const isActive = active === t.value;
         const Icon = t.icon;
         return (
@@ -83,6 +88,9 @@ export function SellerNav({ active, onChange, isAdmin, futureJobsDue = 0, showMy
           >
             <Icon className={cn('h-[17px] w-[17px]', isActive && 'text-gold')} strokeWidth={isActive ? 2.3 : 2} />
             <span className="hidden lg:inline">{t.label}</span>
+            {t.value === 'chatt' && chatUnread > 0 && (
+              <CountPill tone="onDark"><span aria-hidden="true">{chatUnread}</span><span className="sr-only">{chatUnread} olästa</span></CountPill>
+            )}
           </button>
         );
       })}

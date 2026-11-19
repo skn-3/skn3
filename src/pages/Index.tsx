@@ -35,7 +35,7 @@ const Index = () => {
   const [showMontorView, setShowMontorView] = useState(false);
   const [showCoordinatorView, setShowCoordinatorView] = useState(false);
   const [searchParams] = useSearchParams();
-  const arrivedViaLink = useRef(!!searchParams.get('case') || !!searchParams.get('aorder'));
+  const arrivedViaLink = useRef(!!searchParams.get('case') || !!searchParams.get('aorder') || !!searchParams.get('chat'));
   const [initialCaseId, setInitialCaseId] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const [gatesSettled, setGatesSettled] = useState(false);
@@ -44,7 +44,7 @@ const Index = () => {
 
   useEffect(() => {
     const cid = searchParams.get('case');
-    if (cid || searchParams.get('aorder')) { arrivedViaLink.current = true; setShowWelcome(false); }
+    if (cid || searchParams.get('aorder') || searchParams.get('chat')) { arrivedViaLink.current = true; setShowWelcome(false); }
     if (cid) setInitialCaseId(cid);
   }, [searchParams]);
 
@@ -69,9 +69,9 @@ const Index = () => {
     return () => { cancelled = true; };
   }, [role]);
 
-  // Show welcome once per day per user (skip if deep-linking to a case)
+  // Show welcome once per day per user (skip if deep-linking to a case, A-order or chat conversation)
   useEffect(() => {
-    if (role && role.type !== 'coordinator' && !arrivedViaLink.current && !initialCaseId && !searchParams.get('case') && !searchParams.get('aorder') && shouldShowWelcome(role.name) && mustChangePin === false) {
+    if (role && role.type !== 'coordinator' && !arrivedViaLink.current && !initialCaseId && !searchParams.get('case') && !searchParams.get('aorder') && !searchParams.get('chat') && shouldShowWelcome(role.name) && mustChangePin === false) {
       setShowWelcome(true);
     }
     // Kalenderpopupen får visas först när PIN-byte och välkomstskärm är avgjorda.

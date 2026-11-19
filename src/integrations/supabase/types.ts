@@ -3694,6 +3694,7 @@ export type Database = {
         Args: { p_count: number; p_table: string }
         Returns: string
       }
+      chat_mark_read: { Args: { p_conversation_id: string }; Returns: string }
       chat_overview: {
         Args: never
         Returns: {

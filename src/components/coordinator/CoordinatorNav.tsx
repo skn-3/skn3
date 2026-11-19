@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Inbox, Columns3, CalendarDays, CalendarCheck, MessageSquare, FileText, ClipboardList, Wallet, ChevronDown, Check } from 'lucide-react';
+import { Inbox, Columns3, CalendarDays, CalendarCheck, MessageSquare, MessagesSquare, FileText, ClipboardList, Wallet, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CountPill } from '@/components/ui/chip';
 import {
@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { BottomNavItem } from '@/components/BottomNav';
 
-export type CoordinatorTab = 'schema' | 'inbox' | 'pipeline' | 'deviations' | 'offers' | 'aorders' | 'economy' | 'ai' | 'kalender';
+export type CoordinatorTab = 'schema' | 'inbox' | 'pipeline' | 'deviations' | 'offers' | 'aorders' | 'economy' | 'ai' | 'kalender' | 'chatt';
 
 interface NavItem { value: CoordinatorTab; label: string; icon: LucideIcon }
 
@@ -17,6 +17,9 @@ export const COORDINATOR_PRIMARY: NavItem[] = [
   { value: 'pipeline', label: 'Pipeline', icon: Columns3 },
   { value: 'deviations', label: 'Ärenden', icon: MessageSquare },
 ];
+
+/** Chatt efter Ärenden i headern (md+). Ligger inte i BottomNav: på telefon nås chatten via den flytande knappen. */
+export const COORDINATOR_CHAT: NavItem = { value: 'chatt', label: 'Chatt', icon: MessagesSquare };
 
 export const COORDINATOR_MORE: NavItem[] = [
   { value: 'offers', label: 'Offerter', icon: FileText },
@@ -31,6 +34,8 @@ interface Props {
   onChange: (t: CoordinatorTab) => void;
   /** Antal öppna punkter i Min inkorg. */
   inboxCount?: number;
+  /** Antal olästa chattmeddelanden. */
+  chatUnread?: number;
 }
 
 /** Flikarna som BottomNav använder på telefon – samma källa som headern. */
@@ -42,12 +47,12 @@ export function coordinatorBottomNavItems(inboxCount = 0): { items: BottomNavIte
   return { items: COORDINATOR_PRIMARY.map(toItem), more: COORDINATOR_MORE.map(toItem) };
 }
 
-export function CoordinatorNav({ active, onChange, inboxCount = 0 }: Props) {
+export function CoordinatorNav({ active, onChange, inboxCount = 0, chatUnread = 0 }: Props) {
   const activeMore = COORDINATOR_MORE.find((m) => m.value === active);
 
   return (
     <nav className="flex items-stretch gap-0.5 h-full" aria-label="Huvudmeny">
-      {COORDINATOR_PRIMARY.map((t) => {
+      {[...COORDINATOR_PRIMARY, COORDINATOR_CHAT].map((t) => {
         const isActive = active === t.value;
         const Icon = t.icon;
         return (
@@ -70,6 +75,9 @@ export function CoordinatorNav({ active, onChange, inboxCount = 0 }: Props) {
                 <span aria-hidden="true">{inboxCount}</span>
                 <span className="sr-only">{inboxCount} öppna punkter</span>
               </CountPill>
+            )}
+            {t.value === 'chatt' && chatUnread > 0 && (
+              <CountPill tone="onDark"><span aria-hidden="true">{chatUnread}</span><span className="sr-only">{chatUnread} olästa</span></CountPill>
             )}
           </button>
         );

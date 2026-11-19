@@ -1,36 +1,66 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useMessagingUser } from '@/hooks/useMessagingUser';
 import {
   CHAT_PAGE_SIZE, addRealtimeMessage, applyMessageToOverview, chatListEntries, markOverviewRead, mergeLatestPage, mergeMessages,
-  mergeOlderPage, olderCursor, orderConversations, toChatMessage, toOverviewRow,
+  mergeOlderPage, olderCursor, openChatFullscreen, orderConversations, toChatMessage, toOverviewRow,
   type ChatListConversation, type ChatListEntry, type ChatMessage, type ChatOverviewRow, type ConversationPage,
 } from '@/lib/chat';
 import { incomingMessageToast } from './incomingMessageToast';
+import type { PendingChatCase } from './ChatCasePicker';
 import { validateChatImages, type ChatAttachment } from '@/lib/chatAttachments';
 import { compressImageToBlob } from '@/lib/imageCompress';
 
 export interface ChatProfile { id: string | null; name: string | null; role: string | null }
+export interface ChatDraft { body: string; files: File[] }
+export type ChatSurface = 'full' | 'compact';
 export interface ChatContextValue {
   userId: string | null;
   conversations: ChatListConversation[];
   entries: ChatListEntry[];
   profiles: ChatProfile[];
   names: ReadonlyMap<string, string>;
+  /** Roll per användare (seller, coordinator, montor). */
+  roles: ReadonlyMap<string, string>;
+  /** Personal (inte montör): ser sektionen TEAM. */
+  isStaff: boolean;
   unread: number;
   isLoading: boolean;
   error: unknown;
   refetch: () => Promise<unknown>;
   activeId: string | null;
-  setActiveId: (id: string | null) => void;
-  /** Om den öppna konversationen faktiskt visas (styr läsmarkering). */
-  setVisible: (visible: boolean) => void;
   activeConversation: ChatListConversation | undefined;
+  /** N3prenad-AI är öppen. */
+  aiActive: boolean;
+  /** Ny konversation-flödet är öppet. */
+  creating: boolean;
+  openConversation: (id: string | null) => void;
+  openAi: () => void;
+  openNew: () => void;
+  backToList: () => void;
+  /** Ärende som väntar på att delas i en konversation. */
+  pendingCase: PendingChatCase | null;
+  setPendingCase: (c: PendingChatCase | null) => void;
+  /** Den flytande rutan (dator) eller helskärmsarket (telefon). */
+  paneOpen: boolean;
+  setPaneOpen: (open: boolean) => void;
+  /** Fliken Chatt visas just nu. */
+  fullVisible: boolean;
+  /** Vyn har en flik Chatt (SellerView, CoordinatorView). */
+  tabAvailable: boolean;
+  /** En ChatView anmäler att den visas; styr läsmarkering, toasts och rutan. */
+  registerSurface: (surface: ChatSurface) => () => void;
+  registerTabHost: () => () => void;
+  /** Utkast per konversation (text och valda bilder), delade mellan flik och ruta utan omrendering vid varje tangent. */
+  getDraft: (id: string) => ChatDraft;
+  saveDraft: (id: string, draft: ChatDraft) => void;
   messages: ChatMessage[];
   messagesLoading: boolean;
   messagesError: unknown;
+  refetchMessages: () => Promise<unknown>;
   hasOlder: boolean;
   loadingOlder: boolean;
   loadOlder: () => Promise<void>;
@@ -43,6 +73,7 @@ export const ChatContext = createContext<ChatContextValue | null>(null);
 const overviewKey = (userId: string | null) => ['chat', userId, 'overview'] as const;
 const profilesKey = (userId: string | null) => ['chat', userId, 'profiles'] as const;
 const messagesKey = (userId: string | null, conversationId: string | null) => ['chat', userId, 'messages', conversationId] as const;
+const EMPTY_DRAFT: ChatDraft = { body: '', files: [] };
 
 async function fetchMessagePage(conversationId: string, before?: { created_at: string; id: string } | null): Promise<ChatMessage[]> {
   let query = supabase.from('messages').select('*').eq('conversation_id', conversationId)
@@ -53,16 +84,50 @@ async function fetchMessagePage(conversationId: string, before?: { created_at: s
   return mergeMessages((data ?? []).map(toChatMessage).filter((m): m is ChatMessage => !!m));
 }
 
-/** En enda instans i det inloggade Index-skalet. Äger översikt, realtime, toasts, öppen konversation, läsmarkering, start och send. */
+/**
+ * En enda instans i det inloggade Index-skalet. Äger översikt, realtime, toasts, öppen konversation, läsmarkering,
+ * start och send samt vad som visas (flik eller ruta) och utkasten, så att fliken Chatt och den flytande rutan delar allt.
+ */
 export function ChatProvider({ children }: { children: ReactNode }) {
   const userId = useMessagingUser();
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [visible, setVisible] = useState(false);
+  const [aiActive, setAiActive] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [pendingCase, setPendingCase] = useState<PendingChatCase | null>(null);
+  const [paneOpen, setPaneOpen] = useState(false);
+  const [surfaces, setSurfaces] = useState({ full: 0, compact: 0 });
+  const [tabHosts, setTabHosts] = useState(0);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const shownMessageIds = useRef(new Set<string>());
+  const drafts = useRef(new Map<string, ChatDraft>());
 
-  useEffect(() => { setActiveId(null); shownMessageIds.current = new Set(); }, [userId]);
+  useEffect(() => {
+    setActiveId(null); setAiActive(false); setCreating(false); setPendingCase(null);
+    shownMessageIds.current = new Set(); drafts.current = new Map();
+  }, [userId]);
+
+  const openConversation = useCallback((id: string | null) => { setActiveId(id); setAiActive(false); setCreating(false); }, []);
+  const openAi = useCallback(() => { setActiveId(null); setAiActive(true); setCreating(false); setPendingCase(null); }, []);
+  const openNew = useCallback(() => { setActiveId(null); setAiActive(false); setCreating(true); }, []);
+  const backToList = useCallback(() => { setActiveId(null); setAiActive(false); setCreating(false); }, []);
+
+  const registerSurface = useCallback((surface: ChatSurface) => {
+    setSurfaces(s => ({ ...s, [surface]: s[surface] + 1 }));
+    if (surface === 'full') setPaneOpen(false);
+    return () => setSurfaces(s => ({ ...s, [surface]: Math.max(0, s[surface] - 1) }));
+  }, []);
+  const registerTabHost = useCallback(() => { setTabHosts(n => n + 1); return () => setTabHosts(n => Math.max(0, n - 1)); }, []);
+  const fullVisible = surfaces.full > 0;
+  const visible = surfaces.full + surfaces.compact > 0;
+  const fullVisibleRef = useRef(fullVisible);
+  fullVisibleRef.current = fullVisible;
+
+  const getDraft = useCallback((id: string) => drafts.current.get(id) ?? EMPTY_DRAFT, []);
+  const saveDraft = useCallback((id: string, draft: ChatDraft) => {
+    if (!draft.body && !draft.files.length) drafts.current.delete(id); else drafts.current.set(id, draft);
+  }, []);
 
   const overview = useQuery({
     queryKey: overviewKey(userId), enabled: !!userId, refetchInterval: 60000,
@@ -81,6 +146,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     },
   });
   const names = useMemo(() => new Map((profiles.data ?? []).filter(p => p.id && p.name).map(p => [p.id as string, p.name as string])), [profiles.data]);
+  const roles = useMemo(() => new Map((profiles.data ?? []).filter(p => p.id && p.role).map(p => [p.id as string, p.role as string])), [profiles.data]);
   const namesRef = useRef(names);
   namesRef.current = names;
   const conversations = useMemo(() => orderConversations(overview.data ?? [], userId, names), [overview.data, userId, names]);
@@ -94,12 +160,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  /** Läsmarkeringen sätts med serverns tid (chat_mark_read); det returnerade värdet läggs i cachen. */
   const markRead = useCallback(async (id: string) => {
     if (!userId) return;
-    const readAt = new Date().toISOString();
-    const { error } = await supabase.from('conversation_members').update({ last_read_at: readAt }).eq('conversation_id', id).eq('user_id', userId);
+    const { data, error } = await supabase.rpc('chat_mark_read', { p_conversation_id: id });
     if (error) { toast.error('Kunde inte markera meddelandena som lästa'); return; }
-    qc.setQueryData<ChatOverviewRow[]>(overviewKey(userId), old => old ? markOverviewRead(old, id, readAt) : old);
+    if (typeof data === 'string') qc.setQueryData<ChatOverviewRow[]>(overviewKey(userId), old => old ? markOverviewRead(old, id, data) : old);
     void qc.invalidateQueries({ queryKey: overviewKey(userId) });
   }, [userId, qc]);
 
@@ -122,9 +188,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         qc.setQueryData<ConversationPage>(messagesKey(userId, message.conversation_id), old => addRealtimeMessage(old, message));
         qc.setQueryData<ChatOverviewRow[]>(overviewKey(userId), old => old ? applyMessageToOverview(old, message, userId).rows : old);
         void qc.invalidateQueries({ queryKey: overviewKey(userId) });
-        if (readRef.current.target === message.conversation_id) void readRef.current.markRead(message.conversation_id);
+        const openAndVisible = readRef.current.target === message.conversation_id;
+        if (openAndVisible) void readRef.current.markRead(message.conversation_id);
         if (message.sender_id === userId || shownMessageIds.current.has(message.id)) return;
         shownMessageIds.current.add(message.id);
+        // Ingen toast när konversationen redan är öppen och synlig.
+        if (openAndVisible && document.visibilityState === 'visible') return;
         void (async () => {
           let name = namesRef.current.get(message.sender_id);
           if (!name) {
@@ -141,6 +210,35 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [userId, qc]);
+
+  // smartklimat:open-chat och smartklimat:share-case: visas i fliken Chatt när den är framme, annars öppnas rutan.
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      if (!id) return;
+      openConversation(id);
+      if (!fullVisibleRef.current) setPaneOpen(true);
+    };
+    const onShare = (event: Event) => {
+      const c = (event as CustomEvent<PendingChatCase>).detail;
+      if (!c?.id || !c.address) return;
+      setPendingCase({ id: c.id, address: c.address });
+      backToList();
+      if (!fullVisibleRef.current) setPaneOpen(true);
+    };
+    window.addEventListener('smartklimat:open-chat', onOpen);
+    window.addEventListener('smartklimat:share-case', onShare);
+    return () => { window.removeEventListener('smartklimat:open-chat', onOpen); window.removeEventListener('smartklimat:share-case', onShare); };
+  }, [openConversation, backToList]);
+
+  // /?chat=<id>: öppnar konversationen efter inloggning (fliken Chatt för personal på större skärm, annars rutan) och tar bort parametern.
+  const chatParam = searchParams.get('chat');
+  useEffect(() => {
+    if (!chatParam || !userId) return;
+    openConversation(chatParam);
+    if (!openChatFullscreen(chatParam)) setPaneOpen(true);
+    setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('chat'); return next; }, { replace: true });
+  }, [chatParam, userId, openConversation, setSearchParams]);
 
   const loadOlder = useCallback(async () => {
     if (!activeId || loadingOlder) return;
@@ -192,14 +290,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [qc, userId]);
 
   const page = messagesQuery.data;
+  const viewerRole = userId ? roles.get(userId) ?? null : null;
   const value: ChatContextValue = {
-    userId, conversations, entries, profiles: profiles.data ?? [], names,
+    userId, conversations, entries, profiles: profiles.data ?? [], names, roles,
+    isStaff: viewerRole !== 'montor',
     unread: conversations.reduce((sum, c) => sum + c.unread, 0),
     isLoading: overview.isLoading, error: overview.error, refetch: overview.refetch,
-    activeId, setActiveId, setVisible,
-    activeConversation: conversations.find(c => c.id === activeId),
+    activeId, activeConversation: conversations.find(c => c.id === activeId),
+    aiActive, creating, openConversation, openAi, openNew, backToList,
+    pendingCase, setPendingCase, paneOpen, setPaneOpen,
+    fullVisible, tabAvailable: tabHosts > 0, registerSurface, registerTabHost, getDraft, saveDraft,
     messages: activeId ? page?.messages ?? [] : [],
-    messagesLoading: !!activeId && messagesQuery.isLoading, messagesError: messagesQuery.error,
+    messagesLoading: !!activeId && messagesQuery.isLoading, messagesError: messagesQuery.error, refetchMessages: messagesQuery.refetch,
     hasOlder: !!page?.hasOlder, loadingOlder, loadOlder, start, send,
   };
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

@@ -18,6 +18,8 @@ import { EconomyView } from '@/components/economy/EconomyView';
 import { CalendarConnectionsAdmin } from '@/components/calendar/CalendarConnectionsAdmin';
 import { OffersHub } from '@/components/offers/OffersHub';
 import { AOrdersView } from '@/components/aorders/AOrdersView';
+import { ChatView } from '@/components/chat/ChatView';
+import { useChatTab } from '@/hooks/useChatTab';
 
 interface Props {
   role: UserRole;
@@ -35,6 +37,8 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
   useEffect(() => { if (initialAOrderId) setTab('aorders'); }, [initialAOrderId]);
   const inboxCount = useCoordinatorInboxCount();
   const bottomNav = coordinatorBottomNavItems(inboxCount);
+  const chatTab = useChatTab(tab === 'chatt', () => setTab('chatt'), () => setTab('schema'));
+  const onChatTab = tab === 'chatt';
 
   useEffect(() => {
     if (!initialCaseId) return;
@@ -58,7 +62,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
   }, [initialCaseId]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={onChatTab ? 'flex h-[100dvh] flex-col overflow-hidden bg-background' : 'min-h-screen bg-background'}>
       <AppHeader
         role={role}
         onChangeRole={onChangeRole}
@@ -67,9 +71,14 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
           { label: 'Säljarvy', onClick: onToggleSellerView },
         ] : undefined}
       >
-        <CoordinatorNav active={tab} onChange={setTab} inboxCount={inboxCount} />
+        <CoordinatorNav active={tab} onChange={setTab} inboxCount={inboxCount} chatUnread={chatTab.unread} />
       </AppHeader>
 
+      {onChatTab ? (
+        <main className="min-h-0 flex-1 overflow-hidden">
+          <ChatView mode="full" />
+        </main>
+      ) : (
       <main className="py-4 md:py-6 pb-28 md:pb-8 max-w-[1600px] mx-auto md:px-6">
         {tab === 'schema' && <ScheduleView currentUser={role.name} onSelectCase={setSelectedCase} />}
         {tab === 'inbox' && <CoordinatorInbox coordinatorName={role.name} onSelectCase={setSelectedCase} />}
@@ -85,6 +94,7 @@ export function CoordinatorView({ role, onChangeRole, onToggleSellerView, initia
         {tab === 'economy' && <EconomyView />}
         {tab === 'kalender' && <CalendarConnectionsAdmin currentUser={role.name} isAdmin={!!role.isAdmin} />}
       </main>
+      )}
 
       <BottomNav items={bottomNav.items} more={bottomNav.more} active={tab} onChange={(k) => setTab(k as CoordinatorTab)} />
 

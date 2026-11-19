@@ -1,147 +1,27 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, MessageCircle, Plus, Send, X, Sparkles, ImagePlus, Image as ImageIcon, Loader2, Hash } from 'lucide-react';
-import { toast } from 'sonner';
+import { MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useChat } from '@/hooks/useChat';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { relativeTimeSv } from '@/lib/relativeTimeSv';
-import { useNavigate } from 'react-router-dom';
-import { caseFallbackBody, extractCaseIdFromText, shouldSendOnKey } from '@/lib/chat';
-import { useChatCases } from '@/hooks/useChatCases';
-import { AiConversation } from './AiConversation';
-import { ChatCaseCard } from './ChatCaseCard';
-import { ChatCasePicker, type PendingChatCase } from './ChatCasePicker';
-import { validateChatImages, previewText, readChatAttachments } from '@/lib/chatAttachments';
-import { useChatImages } from '@/hooks/useChatImages';
-import { ChatImageGallery } from './ChatImageGallery';
-import { ChatImageDrafts } from './ChatImageDrafts';
+import { openChatFullscreen } from '@/lib/chat';
+import { ChatView } from './ChatView';
 
+/** Den flytande chattknappen med ruta (dator) eller helskärmsark (telefon). Döljs medan fliken Chatt visas. */
 export function ChatWidget() {
-  const navigate = useNavigate();
-  const [pendingCase, setPendingCase] = useState<PendingChatCase | null>(null);
-  const [aiActive, setAiActive] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [search, setSearch] = useState('');
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [files, setFiles] = useState<File[]>([]);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const sendLock = useRef(false);
-  const mobile = useIsMobile();
   const chat = useChat();
-  const { activeId, setActiveId, setVisible } = chat;
-  useEffect(() => { setVisible(open); return () => setVisible(false); }, [open, setVisible]);
-  const conversation = chat.activeConversation;
-  const signedImages = useChatImages(activeId, chat.messages.flatMap(m => readChatAttachments(m.attachments).map(a => a.path)));
-  useEffect(() => { setFiles([]); }, [activeId, aiActive, chat.userId]);
-  function addFiles(next: File[]) {
-    if (busy) return;
-    setFiles(old => { const result = validateChatImages(next, old.length); if (result.rejectedReason) toast.error(result.rejectedReason); return [...old, ...result.accepted]; });
-  }
-  const caseIds = chat.messages.map(m => m.case_id || extractCaseIdFromText(m.body)).filter((id): id is string => !!id);
-  const chatCases = useChatCases(caseIds);
-  const bottom = useRef<HTMLDivElement>(null);
-  const scroller = useRef<HTMLDivElement>(null);
-  const keepScroll = useRef<number | null>(null);
-  const lastMessageId = chat.messages.at(-1)?.id;
-  useEffect(() => { if (open) bottom.current?.scrollIntoView({ block: 'end' }); }, [open, activeId, lastMessageId]);
-  useLayoutEffect(() => {
-    const el = scroller.current;
-    if (el && keepScroll.current !== null) { el.scrollTop = el.scrollHeight - keepScroll.current; keepScroll.current = null; }
-  }, [chat.messages.length]);
-  async function loadOlder() {
-    const el = scroller.current;
-    keepScroll.current = el ? el.scrollHeight - el.scrollTop : null;
-    await chat.loadOlder();
-  }
-  useEffect(() => {
-    const handler = (event: Event) => { setAiActive(false); setActiveId((event as CustomEvent<string>).detail); setCreating(false); setOpen(true); };
-    window.addEventListener('smartklimat:open-chat', handler);
-    return () => window.removeEventListener('smartklimat:open-chat', handler);
-  }, [setActiveId]);
-  useEffect(() => {
-    const handler = (event: Event) => {
-      const c = (event as CustomEvent<PendingChatCase>).detail;
-      if (!c?.id || !c.address) return;
-      setAiActive(false); setPendingCase(c); setBody(''); setActiveId(null); setCreating(false); setOpen(true);
-    };
-    window.addEventListener('smartklimat:share-case', handler);
-    return () => window.removeEventListener('smartklimat:share-case', handler);
-  }, [setActiveId]);
-  async function send() {
-    if (!activeId || (!body.trim() && !pendingCase && !files.length) || sendLock.current) return;
-    sendLock.current = true;
-    setBusy(true);
-    try { await chat.send(activeId, body.trim() || (pendingCase ? caseFallbackBody(pendingCase.address) : ''), files, pendingCase?.id); setBody(''); setPendingCase(null); setFiles([]); } catch (error) { toast.error(error instanceof Error ? error.message : 'Meddelandet kunde inte skickas. Försök igen.'); } finally { sendLock.current = false; setBusy(false); }
-  }
-  const content = aiActive ? <AiConversation onBack={() => setAiActive(false)} onClose={() => setOpen(false)} onOpenCase={id => { setOpen(false); navigate('/?case=' + encodeURIComponent(id)); }} /> : <div className="safe-bottom flex h-full min-h-0 flex-col text-foreground">
-    <div className="flex shrink-0 items-center gap-2 px-3 py-2 border-b">
-      {(activeId || creating) && <Button size="icon" variant="ghost" className="h-12 w-12 shrink-0" aria-label="Tillbaka till konversationer" onClick={() => { setActiveId(null); setCreating(false); setBody(''); }}><ArrowLeft className="h-5 w-5" /></Button>}
-      <h2 className="font-display font-bold text-lg flex-1 min-w-0 truncate">{creating ? 'Ny chatt' : activeId ? conversation?.name || 'Konversation' : 'Meddelanden'}</h2>
-      {!activeId && !creating && <Button variant="ghost" size="sm" className="min-h-12" onClick={() => { setCreating(true); setSelected([]); setSearch(''); setTitle(''); }}><Plus className="h-4 w-4 mr-1" />Ny chatt</Button>}
-      <Button size="icon" variant="ghost" className="h-12 w-12 shrink-0" aria-label="Stäng chatten" onClick={() => setOpen(false)}><X className="h-5 w-5" /></Button>
-    </div>
-    {pendingCase && !activeId && <div className="flex items-center gap-2 border-b bg-gold-soft px-3 py-2 text-sm text-ink"><span className="min-w-0 flex-1 break-words">Dela ärende: {pendingCase.address} — välj konversation</span><Button variant="ghost" size="icon" className="h-12 w-12 shrink-0" aria-label="Avbryt delning" onClick={() => setPendingCase(null)}><X className="h-4 w-4" /></Button></div>}
-    {chat.error ? <div className="p-4"><p>Kunde inte hämta meddelanden.</p><Button variant="outline" onClick={() => void chat.refetch()}>Försök igen</Button></div> : chat.isLoading ? <div className="p-4 space-y-3"><Skeleton className="h-16" /><Skeleton className="h-16" /></div> : creating ? <>
-      <div className="p-3 space-y-3"><Input aria-label="Sök mottagare" placeholder="Sök namn..." className="min-h-12" value={search} onChange={e => setSearch(e.target.value)} />{selected.length > 1 && <Input aria-label="Gruppnamn" placeholder="Gruppnamn" className="min-h-12" value={title} onChange={e => setTitle(e.target.value)} />}</div>
-      <div className="overflow-y-auto flex-1 px-3">{chat.profiles.filter(p => p.id && p.id !== chat.userId && p.name?.toLowerCase().includes(search.toLowerCase())).map(p => {
-        if (!p.id) return null;
-        const id = p.id;
-        return <label key={id} className="flex gap-3 items-center min-h-14 py-2 border-b cursor-pointer"><Checkbox checked={selected.includes(id)} onCheckedChange={checked => setSelected(old => checked ? [...old, id] : old.filter(u => u !== id))} /><span className="flex-1"><span className="block font-medium">{p.name}</span><span className="block text-xs text-muted-foreground">{p.role === 'seller' ? 'Säljare' : p.role === 'coordinator' ? 'Koordinator' : 'Montör'}</span></span></label>;
-      })}</div>
-      <div className="p-3 border-t"><Button className="w-full min-h-12" disabled={!selected.length || busy} onClick={async () => {
-        setBusy(true);
-        try { const id = await chat.start(selected, title); setActiveId(id); setCreating(false); } catch { toast.error('Chatten kunde inte startas. Försök igen.'); } finally { setBusy(false); }
-      }}>Starta chatt</Button></div>
-    </> : activeId ? <>
-      <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-3">
-        {!conversation && <p className="text-muted-foreground text-center">Konversationen kunde inte hittas.</p>}
-        {conversation && chat.hasOlder && <div className="flex justify-center"><Button type="button" variant="outline" size="sm" className="min-h-11" disabled={chat.loadingOlder} onClick={() => void loadOlder()}>{chat.loadingOlder && <Loader2 className="h-4 w-4 mr-1 animate-spin motion-reduce:animate-none" />}Visa äldre</Button></div>}
-        {conversation && chat.messagesError ? <p className="text-muted-foreground text-center">Kunde inte hämta meddelanden.</p> : conversation && chat.messagesLoading ? <div className="space-y-3"><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : conversation && !chat.messages.length ? <p className="py-8 text-center text-muted-foreground">Inga meddelanden ännu.</p> : null}
-        {conversation && chat.messages.map((m, i, messages) => {
-          const mine = m.sender_id === chat.userId;
-          const caseId = m.case_id || extractCaseIdFromText(m.body);
-          const linkedCase = chatCases.data?.find(c => c.id === caseId);
-          const fallbackOnly = !!caseId && (linkedCase ? m.body === caseFallbackBody(linkedCase.address) : !!m.case_id && m.body.startsWith('Ärende: '));
-          const date = new Date(m.created_at).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' });
-          const previous = messages[i - 1];
-          const newDay = !previous || new Date(previous.created_at).toLocaleDateString('sv-SE') !== new Date(m.created_at).toLocaleDateString('sv-SE');
-          return <div key={m.id}>{newDay && <div className="text-center text-xs text-muted-foreground my-4">{date}</div>}<div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}><div className="max-w-[85%] min-w-0">
-            {conversation.is_group && !mine && <p className="text-xs text-muted-foreground mb-1">{chat.profiles.find(p => p.id === m.sender_id)?.name ?? 'Användare'}</p>}
-            <div className={`px-3 py-2 rounded-lg space-y-2 text-sm ${mine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}>
-              <ChatImageGallery attachments={readChatAttachments(m.attachments)} urls={signedImages.data} loading={signedImages.isLoading} />
-              {!fallbackOnly && m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
-              {caseId && <ChatCaseCard caseData={linkedCase} loading={chatCases.isLoading} onOpen={() => { setOpen(false); navigate('/?case=' + encodeURIComponent(caseId)); }} />}
-            </div>
-            <p className={`text-[11px] text-muted-foreground mt-1 ${mine ? 'text-right' : ''}`}>{new Date(m.created_at).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}</p>
-          </div></div></div>;
-        })}<div ref={bottom} />
-      </div>
-      <form className="p-3 border-t space-y-2 shrink-0" onSubmit={e => { e.preventDefault(); void send(); }}>
-        <input ref={fileInput} type="file" accept="image/*" multiple className="hidden" aria-label="Välj chattbilder" onChange={e => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
-        <ChatImageDrafts files={files} disabled={busy} onRemove={index => setFiles(old => old.filter((_, i) => i !== index))} />
-        {pendingCase && <div className="flex items-center gap-2 rounded-lg border bg-muted px-2 text-sm"><span className="min-w-0 flex-1 break-words">Bifogat ärende: {pendingCase.address}</span><Button type="button" variant="ghost" size="icon" className="h-12 w-12 shrink-0" aria-label="Ta bort bifogat ärende" onClick={() => setPendingCase(null)}><X className="h-4 w-4" /></Button></div>}
-        <div className="flex gap-1 items-end">
-          <Button type="button" variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Bifoga bilder" disabled={busy || files.length >= 6} onClick={() => fileInput.current?.click()}><ImagePlus className="h-5 w-5" /></Button>
-          <ChatCasePicker onSelect={setPendingCase} />
-          <Textarea aria-label="Meddelande" placeholder="Skriv ett meddelande..." enterKeyHint="send" className="min-w-0 flex-1 min-h-12 max-h-28 resize-none" rows={2} maxLength={10000} value={body} disabled={busy} onChange={e => setBody(e.target.value)} onPaste={e => { if (mobile) return; const images = Array.from(e.clipboardData.items).filter(item => item.type.startsWith('image/')).map(item => item.getAsFile()).filter((file): file is File => !!file); if (images.length) { e.preventDefault(); addFiles(images); } }} onKeyDown={e => { if (shouldSendOnKey({ key: e.key, shiftKey: e.shiftKey, isComposing: e.nativeEvent.isComposing })) { e.preventDefault(); void send(); } }} />
-          <Button type="submit" className="min-h-12 px-2 shrink-0" disabled={!conversation || (!body.trim() && !pendingCase && !files.length) || busy}>{busy ? <Loader2 className="h-4 w-4 mr-1 animate-spin motion-reduce:animate-none" /> : <Send className="h-4 w-4 mr-1" />}{busy ? 'Skickar…' : 'Skicka'}</Button>
-        </div>
-      </form>
-    </> : <div className="overflow-y-auto flex-1">{chat.entries.map(entry => entry.type === 'ai' ? <Button key="n3prenad-ai" variant="ghost" className="w-full rounded-none h-auto min-h-20 border-b p-4 gap-3 text-left whitespace-normal" onClick={() => { setAiActive(true); setActiveId(null); setPendingCase(null); }}><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold text-gold-ink"><Sparkles className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block font-semibold">N3prenad-AI</span><span className="block text-xs font-normal text-muted-foreground">Fråga om ärenden</span></span></Button> : (c => <Button key={c.id} variant="ghost" className="w-full rounded-none h-auto min-h-20 text-left whitespace-normal border-b p-4 gap-3" onClick={() => { setActiveId(c.id); setBody(''); }}>
-      {c.kind === 'channel' ? <Hash className="h-5 w-5 shrink-0 text-muted-foreground" /> : <MessageCircle className="h-5 w-5 shrink-0 text-muted-foreground" />}<span className="min-w-0 flex-1"><span className={`block truncate ${c.unread ? 'font-bold' : 'font-medium'}`}>{c.name}</span><span className="flex items-center gap-1 text-xs text-muted-foreground font-normal">{!c.latest?.body.trim() && readChatAttachments(c.latest?.attachments).length > 0 && <ImageIcon className="h-3.5 w-3.5 shrink-0" />}<span className="truncate">{previewText(c.latest)}</span></span><span className="block text-[11px] text-muted-foreground mt-1 font-normal">{relativeTimeSv(c.latest?.created_at ?? c.created_at)}</span></span>{c.unread > 0 && <span className="w-2 h-2 rounded-full bg-destructive shrink-0" />}
-    </Button>)(entry.conversation))}{!chat.conversations.length && <p className="py-12 text-center text-muted-foreground">Inga konversationer ännu.</p>}</div>}
-  </div>;
+  const mobile = useIsMobile();
+  const { paneOpen: open, setPaneOpen: setOpen } = chat;
+  if (chat.fullVisible) return null;
+  const close = () => setOpen(false);
+  const expand = !mobile && chat.isStaff && chat.tabAvailable ? () => { openChatFullscreen(chat.activeId); } : undefined;
+  const view = <ChatView mode="compact" onClose={close} onExpand={expand} />;
   return <>
-    <Button size="icon" className="fixed right-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-40 h-14 w-14 rounded-full shadow-lg" aria-label={`Öppna meddelanden, ${chat.unread} olästa`} onClick={() => setOpen(!open)}><MessageCircle className="h-6 w-6" />{chat.unread > 0 && <span className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full px-1 bg-destructive text-destructive-foreground text-[11px] font-bold flex items-center justify-center">{chat.unread > 9 ? '9+' : chat.unread}</span>}</Button>
-    {mobile ? <Sheet open={open} onOpenChange={setOpen}><SheetContent side="right" className="w-full max-w-full h-[100dvh] p-0 [&>button]:hidden"><SheetTitle className="sr-only">Meddelanden</SheetTitle><SheetDescription className="sr-only">Dina konversationer</SheetDescription>{content}</SheetContent></Sheet> : open && <section aria-label="Meddelanden" className="fixed right-4 bottom-24 z-50 w-[380px] max-w-[calc(100vw-32px)] h-[560px] max-h-[calc(100dvh-160px)] bg-card border rounded-lg shadow-xl overflow-hidden">{content}</section>}
+    <Button size="icon" className="fixed right-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-40 h-14 w-14 rounded-full shadow-lg" aria-label={`Öppna chatten, ${chat.unread} olästa`} aria-expanded={open} onClick={() => setOpen(!open)}>
+      <MessageCircle className="h-6 w-6" />
+      {chat.unread > 0 && <span aria-hidden="true" className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full px-1 bg-destructive text-destructive-foreground text-[11px] font-bold flex items-center justify-center">{chat.unread > 9 ? '9+' : chat.unread}</span>}
+    </Button>
+    {mobile
+      ? <Sheet open={open} onOpenChange={setOpen}><SheetContent side="right" className="w-full max-w-full h-[100dvh] p-0 [&>button]:hidden"><SheetTitle className="sr-only">Chatt</SheetTitle><SheetDescription className="sr-only">Kanaler, team och direktchattar</SheetDescription>{view}</SheetContent></Sheet>
+      : open && <section aria-label="Chatt" className="fixed right-4 bottom-24 z-50 w-[380px] max-w-[calc(100vw-32px)] h-[600px] max-h-[calc(100dvh-160px)] bg-card border rounded-lg shadow-xl overflow-hidden">{view}</section>}
   </>;
 }

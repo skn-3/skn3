@@ -118,3 +118,96 @@ export function orderConversations(rows: readonly ChatOverviewRow[], viewerId: s
 export function chatListEntries(rows: readonly ChatOverviewRow[], viewerId: string | null, names: ReadonlyMap<string, string>): ChatListEntry[] {
   return [{ type: 'ai' }, ...orderConversations(rows, viewerId, names).map(conversation => ({ type: 'conversation' as const, conversation }))];
 }
+
+// ---- Chatt som egen vy (etapp 1 del 2): ren logik för lista, huvud och meddelanderader ----
+
+/** Händelse som SellerView och CoordinatorView lyssnar på för att visa chatten i fliken Chatt. */
+export const OPEN_CHAT_FULL_EVENT = 'smartklimat:open-chat-full';
+/** Ber fliken Chatt att visa chatten (med den öppna konversationen). Returnerar true om en vy tog emot den. */
+export function openChatFullscreen(conversationId: string | null): boolean {
+  return !window.dispatchEvent(new CustomEvent(OPEN_CHAT_FULL_EVENT, { detail: conversationId, cancelable: true }));
+}
+
+export function chatRoleLabel(role: string | null | undefined): string {
+  return role === 'seller' ? 'Säljare' : role === 'coordinator' ? 'Koordinator' : role === 'montor' ? 'Montör' : '';
+}
+export function chatInitials(name: string | null | undefined): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function dayKey(d: Date): string { return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
+/** Datumavdelare: "Idag", "I går", annars veckodag och datum ("tisdag 17 november"); år läggs till för tidigare år. */
+export function chatDayLabel(value: string | Date, now: Date = new Date()): string {
+  const d = typeof value === 'string' ? new Date(value) : value;
+  if (dayKey(d) === dayKey(now)) return 'Idag';
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (dayKey(d) === dayKey(yesterday)) return 'I går';
+  return d.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
+}
+
+export const CHAT_GROUP_WINDOW_MS = 5 * 60 * 1000;
+export interface ChatMessageRow { message: ChatMessage; /** Visar avatar, namn och tid. */ showHeader: boolean; /** Datumavdelare före raden, annars null. */ dayLabel: string | null }
+/**
+ * Meddelanden som rader. Meddelanden i följd från samma avsändare grupperas så länge de ligger inom fem minuter
+ * från gruppens första meddelande; ny dag eller ny avsändare börjar alltid en ny grupp.
+ */
+export function groupChatMessages(messages: readonly ChatMessage[], now: Date = new Date()): ChatMessageRow[] {
+  let groupStart: ChatMessage | null = null;
+  return messages.map((message, i) => {
+    const previous = messages[i - 1];
+    const newDay = !previous || dayKey(new Date(previous.created_at)) !== dayKey(new Date(message.created_at));
+    const showHeader = newDay || !groupStart || previous.sender_id !== message.sender_id || time(message.created_at) - time(groupStart.created_at) > CHAT_GROUP_WINDOW_MS;
+    if (showHeader) groupStart = message;
+    return { message, showHeader, dayLabel: newDay ? chatDayLabel(message.created_at, now) : null };
+  });
+}
+
+function memberCount(n: number): string { return n === 1 ? '1 medlem' : `${n} medlemmar`; }
+/** Underraden i konversationens huvud. */
+export function conversationSubtitle(
+  row: Pick<ChatOverviewRow, 'kind' | 'channel_key' | 'team_user_id' | 'title' | 'member_ids'>,
+  viewerId: string | null, names: ReadonlyMap<string, string>, roles: ReadonlyMap<string, string>,
+): string {
+  if (row.kind === 'channel') {
+    if (row.channel_key === 'alla') return `Hela företaget · ${memberCount(row.member_ids.length)}`;
+    if (row.channel_key === 'kontoret') return `Bara kontoret · ${memberCount(row.member_ids.length)}`;
+    const team = row.title?.trim() || (row.team_user_id ? names.get(row.team_user_id) : undefined) || 'Team';
+    return `${team} och kontoret`;
+  }
+  const others = row.member_ids.filter(id => id !== viewerId);
+  if (row.kind === 'direct') return chatRoleLabel(others[0] ? roles.get(others[0]) : null);
+  return others.map(id => names.get(id) ?? 'Användare').join(', ');
+}
+
+/** Förhandsraden i listan: "Avsändare: text", "Du: …" för egna meddelanden. */
+export function chatPreviewLine(latest: ChatMessage | null | undefined, viewerId: string | null, names: ReadonlyMap<string, string>): string {
+  if (!latest) return 'Inga meddelanden ännu';
+  const text = latest.body.trim() ? latest.body.trim().replace(/\s+/g, ' ') : (() => { const n = readChatAttachments(latest.attachments).length; return n === 1 ? 'Bild' : n > 1 ? `${n} bilder` : ''; })();
+  const sender = latest.sender_id === viewerId ? 'Du' : names.get(latest.sender_id)?.split(/\s+/)[0] || 'Användare';
+  return `${sender}: ${text}`;
+}
+
+export type ChatSidebarItem = { type: 'ai' } | { type: 'conversation'; conversation: ChatListConversation };
+export interface ChatSidebarSections { channels: ChatListConversation[]; teams: ChatListConversation[]; direct: ChatSidebarItem[] }
+export const AI_CONVERSATION_NAME = 'N3prenad-AI';
+/**
+ * Listans sektioner. KANALER: Alla, Kontoret och tittarens egen teamkanal. TEAM (bara personal): övriga teamkanaler.
+ * DIREKT: N3prenad-AI först, sedan direkt- och gruppchattar i given ordning. Sökningen filtrerar på namn.
+ */
+export function chatSidebarSections(conversations: readonly ChatListConversation[], viewerId: string | null, isStaff: boolean, query = ''): ChatSidebarSections {
+  const q = query.trim().toLocaleLowerCase('sv');
+  const match = (name: string) => !q || name.toLocaleLowerCase('sv').includes(q);
+  const channels: ChatListConversation[] = [];
+  const teams: ChatListConversation[] = [];
+  const direct: ChatSidebarItem[] = match(AI_CONVERSATION_NAME) ? [{ type: 'ai' }] : [];
+  for (const c of conversations) {
+    if (!match(c.name)) continue;
+    if (c.kind !== 'channel') direct.push({ type: 'conversation', conversation: c });
+    else if (c.channel_key === 'alla' || c.channel_key === 'kontoret' || (!!viewerId && c.team_user_id === viewerId)) channels.push(c);
+    else if (isStaff) teams.push(c);
+  }
+  return { channels, teams, direct };
+}

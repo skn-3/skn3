@@ -28,6 +28,8 @@ import { CaseDetailPanel } from '@/components/shared/CaseDetailPanel';
 import { CalendarConnectionsAdmin } from '@/components/calendar/CalendarConnectionsAdmin';
 import { ScheduleView } from '@/components/schedule/ScheduleView';
 import { supabase } from '@/integrations/supabase/client';
+import { ChatView } from '@/components/chat/ChatView';
+import { useChatTab } from '@/hooks/useChatTab';
 
 interface SellerViewProps {
   role: UserRole;
@@ -75,9 +77,11 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
   const { consultant: myConsultant } = useMyConsultant();
   const showMyPay = !!myConsultant;
   const bottomNav = sellerBottomNavItems(isAdmin, futureJobsDue, showMyPay);
+  const chatTab = useChatTab(tab === 'chatt', () => setTab('chatt'), () => setTab('schema'));
+  const onChatTab = tab === 'chatt';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={onChatTab ? 'flex h-[100dvh] flex-col overflow-hidden bg-background' : 'min-h-screen bg-background'}>
       <AppHeader
         role={role}
         onChangeRole={onChangeRole}
@@ -87,9 +91,14 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         ]}
         action={{ label: 'Registrera besök', icon: <Plus className="h-4 w-4" />, onClick: () => setTab('visit'), active: tab === 'visit' }}
       >
-        <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} futureJobsDue={futureJobsDue} showMyPay={showMyPay} />
+        <SellerNav active={tab} onChange={setTab} isAdmin={isAdmin} futureJobsDue={futureJobsDue} showMyPay={showMyPay} chatUnread={chatTab.unread} />
       </AppHeader>
 
+      {onChatTab ? (
+        <main className="min-h-0 flex-1 overflow-hidden">
+          <ChatView mode="full" />
+        </main>
+      ) : (
       <main className="py-4 md:py-6 pb-28 md:pb-8 max-w-[1600px] mx-auto md:px-6">
         <div className="flex flex-wrap justify-end gap-2 px-3 md:px-0 mb-3">
           <Button variant="outline" size="sm" onClick={() => navigate('/veckomote')}>
@@ -137,6 +146,7 @@ export function SellerView({ role, onChangeRole, onToggleMontorView, onToggleCoo
         )}
 
       </main>
+      )}
 
       <BottomNav
         items={bottomNav.items}
