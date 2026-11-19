@@ -1,0 +1,86 @@
+{
+  "format": "JPEG kvalitet 60, skalfaktor 1, ljust läge, endast synligt fönster; base64 utan radbrytningar, delar om högst 45 000 tecken",
+  "bilder": [
+    {
+      "namn": "01-saljare-chatt-alla-1280",
+      "roll": "Säljare (Gabriel Hanna)",
+      "fonsterstorlek": "1280x800",
+      "visar": "Fliken Chatt, kanalen Alla öppen längst ner: ärendekort och bildmeddelandet",
+      "delar": [
+        "01-saljare-chatt-alla-1280.part01.txt",
+        "01-saljare-chatt-alla-1280.part02.txt"
+      ],
+      "jpeg_bytes": 55034,
+      "jpeg_sha256": "080ad1d3cca1017047c0edc9539ec76c3028b8098dda1c91e844c0ce61d2d541"
+    },
+    {
+      "namn": "02-saljare-chatt-team-834",
+      "roll": "Säljare (Gabriel Hanna)",
+      "fonsterstorlek": "834x1112",
+      "visar": "Fliken Chatt, teamkanalen Testteam Norra öppen längst ner",
+      "delar": [
+        "02-saljare-chatt-team-834.part01.txt",
+        "02-saljare-chatt-team-834.part02.txt"
+      ],
+      "jpeg_bytes": 64443,
+      "jpeg_sha256": "1e37358c44be9130975fd910f35d8882fa40730ab403c69c261133b551214522"
+    },
+    {
+      "namn": "03-saljare-flytande-ruta-1280",
+      "roll": "Säljare (Gabriel Hanna)",
+      "fonsterstorlek": "1280x800",
+      "visar": "Startfliken Schema med den flytande chattrutan öppen på konversationslistan",
+      "delar": [
+        "03-saljare-flytande-ruta-1280.part01.txt",
+        "03-saljare-flytande-ruta-1280.part02.txt"
+      ],
+      "jpeg_bytes": 59779,
+      "jpeg_sha256": "646b43f181d8a9aafd2b7b77f988792ea8b766a0aa0596687f7b760cfa34e4a7"
+    },
+    {
+      "namn": "04-saljare-notisguide-1280",
+      "roll": "Säljare (Gabriel Hanna)",
+      "fonsterstorlek": "1280x800",
+      "visar": "Guiden Notiser öppnad via användarmenyn, första läget",
+      "delar": [
+        "04-saljare-notisguide-1280.part01.txt"
+      ],
+      "jpeg_bytes": 33235,
+      "jpeg_sha256": "5a59da136aaa34de47e0ab7bf44d6a04504c5e7f64935c587bd9c19d918ae787"
+    },
+    {
+      "namn": "05-koordinator-notiskort-1280",
+      "roll": "Koordinator (Daniel Malke)",
+      "fonsterstorlek": "1280x800",
+      "visar": "Kalenderkoppling med kortet Notiser i bild",
+      "delar": [
+        "05-koordinator-notiskort-1280.part01.txt",
+        "05-koordinator-notiskort-1280.part02.txt"
+      ],
+      "jpeg_bytes": 49207,
+      "jpeg_sha256": "da7e7b35154feed8d8bd71e0b1821ad778c3cf6172e9d0eea1fb1bdb925df3d6"
+    },
+    {
+      "namn": "06-montor-chattlista-390",
+      "roll": "Montör (Testteam Norra)",
+      "fonsterstorlek": "390x844",
+      "visar": "Chattarket öppnat via chattknappen, konversationslistan",
+      "delar": [
+        "06-montor-chattlista-390.part01.txt"
+      ],
+      "jpeg_bytes": 19369,
+      "jpeg_sha256": "d3cc7835fa069659a28e2b16f04d38040793e9888c5bf2b69891bced3f1b4981"
+    },
+    {
+      "namn": "07-montor-trad-390",
+      "roll": "Montör (Testteam Norra)",
+      "fonsterstorlek": "390x844",
+      "visar": "Konversationen Testteam Norra och kontoret öppen längst ner",
+      "delar": [
+        "07-montor-trad-390.part01.txt"
+      ],
+      "jpeg_bytes": 33158,
+      "jpeg_sha256": "076b594c4c5f74497ba87b99a26a6d59205643dbdeefcde8ff4330ecc59ac096"
+    }
+  ]
+}
