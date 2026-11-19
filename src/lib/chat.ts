@@ -165,6 +165,7 @@ export function conversationSubtitle(
   if (row.kind === 'channel') {
     if (row.channel_key === 'alla') return `Hela företaget · ${memberCount(row.member_ids.length)}`;
     if (row.channel_key === 'kontoret') return `Bara kontoret · ${memberCount(row.member_ids.length)}`;
+    if (row.team_user_id && row.team_user_id === viewerId) return `Teamkanal · ${memberCount(row.member_ids.length)}`;
     const team = row.title?.trim() || (row.team_user_id ? names.get(row.team_user_id) : undefined) || 'Team';
     return `${team} och kontoret`;
   }

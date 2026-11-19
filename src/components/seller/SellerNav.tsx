@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CountPill } from '@/components/ui/chip';
+import { navTabLabel } from '@/lib/navTabLabel';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -79,6 +80,7 @@ export function SellerNav({ active, onChange, isAdmin, futureJobsDue = 0, showMy
             type="button"
             onClick={() => onChange(t.value)}
             aria-current={isActive ? 'page' : undefined}
+            aria-label={navTabLabel(t.label, t.value, chatUnread)}
             className={cn(
               'relative inline-flex items-center gap-2 px-3 lg:px-3.5 text-sm whitespace-nowrap transition-colors',
               isActive

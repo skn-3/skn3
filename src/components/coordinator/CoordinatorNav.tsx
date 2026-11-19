@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Inbox, Columns3, CalendarDays, CalendarCheck, MessageSquare, MessagesSquare, FileText, ClipboardList, Wallet, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CountPill } from '@/components/ui/chip';
+import { navTabLabel } from '@/lib/navTabLabel';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -61,6 +62,7 @@ export function CoordinatorNav({ active, onChange, inboxCount = 0, chatUnread = 
             type="button"
             onClick={() => onChange(t.value)}
             aria-current={isActive ? 'page' : undefined}
+            aria-label={navTabLabel(t.label, t.value, chatUnread, inboxCount)}
             className={cn(
               'relative inline-flex items-center gap-2 px-3 lg:px-3.5 text-sm whitespace-nowrap transition-colors',
               isActive

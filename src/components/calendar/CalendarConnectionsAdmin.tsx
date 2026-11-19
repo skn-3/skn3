@@ -114,7 +114,7 @@ export function CalendarConnectionsAdmin({ currentUser, isAdmin }: Props) {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
+    <div className="mx-auto max-w-5xl space-y-5 pb-24">
       <header className="space-y-1">
         <h1 className="font-display text-2xl font-bold">{T.title}</h1>
         {overview.data && <p className="text-[15px] text-muted-foreground">{summaryLine(rows)}</p>}

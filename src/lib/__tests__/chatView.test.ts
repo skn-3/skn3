@@ -73,10 +73,15 @@ describe('underrader i huvudet', () => {
     expect(conversationSubtitle(row({ kind: 'channel', channel_key: 'alla', member_ids: [ME, 'anna', 'bo'] }), ME, names, roles)).toBe('Hela företaget · 3 medlemmar');
     expect(conversationSubtitle(row({ kind: 'channel', channel_key: 'kontoret', member_ids: [ME] }), ME, names, roles)).toBe('Bara kontoret · 1 medlem');
   });
-  it('teamkanal: "<Teamnamn> och kontoret" för både personal och teamet', () => {
-    const team = row({ kind: 'channel', channel_key: 'team:norr', team_user_id: 'norr', title: 'Team Norra' });
+  it('teamkanal: personalen ser "<Teamnamn> och kontoret"', () => {
+    const team = row({ kind: 'channel', channel_key: 'team:norr', team_user_id: 'norr', title: 'Team Norra', member_ids: ['norr', ME, 'anna'] });
     expect(conversationSubtitle(team, ME, names, roles)).toBe('Team Norra och kontoret');
-    expect(conversationSubtitle(team, 'norr', names, roles)).toBe('Team Norra och kontoret');
+    expect(conversationSubtitle(team, 'anna', names, roles)).toBe('Team Norra och kontoret');
+  });
+  it('teamkanal: teamet självt ser "Teamkanal · N medlemmar", singular vid en medlem', () => {
+    const team = row({ kind: 'channel', channel_key: 'team:norr', team_user_id: 'norr', title: 'Team Norra', member_ids: ['norr', ME, 'anna'] });
+    expect(conversationSubtitle(team, 'norr', names, roles)).toBe('Teamkanal · 3 medlemmar');
+    expect(conversationSubtitle({ ...team, member_ids: ['norr'] }, 'norr', names, roles)).toBe('Teamkanal · 1 medlem');
   });
   it('direktchatt visar den andres roll, grupp visar namnen', () => {
     expect(conversationSubtitle(row({}), ME, names, roles)).toBe('Koordinator');
